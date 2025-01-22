@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Côte d'Ivoire",
+    "flag": "https://example.com/flag-ci.png",
+    "iso_code": "CI",
+    "currency_code": "XOF",
+    "currency_symbol": "₣",
+    "phone_code": "+225"
+  },
+  {
+    "name": "France",
+    "flag": "https://example.com/flag-fr.png",
+    "iso_code": "FR",
+    "currency_code": "EUR",
+    "currency_symbol": "€",
+    "phone_code": "+33"
+  },
+  {
+    "name": "États-Unis",
+    "flag": "https://example.com/flag-us.png",
+    "iso_code": "US",
+    "currency_code": "USD",
+    "currency_symbol": "$",
+    "phone_code": "+1"
+  },
+  {
+    "name": "Canada",
+    "flag": "https://example.com/flag-ca.png",
+    "iso_code": "CA",
+    "currency_code": "CAD",
+    "currency_symbol": "$",
+    "phone_code": "+1"
+  }
+]
