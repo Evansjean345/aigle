@@ -33,9 +33,7 @@ export default class OtpService {
       if (otp.error) return otp
       console.log(otpCode)
 
-      // let resul = await sendSms(String(otpCode), data.phone)
-
-      // console.log(JSON.stringify(resul?.data?.results, null, 2))
+      let resul = await sendSms(String(otpCode), data.phone)
 
       return ResponseFormatter.create({
         message: 'otp envoyé',

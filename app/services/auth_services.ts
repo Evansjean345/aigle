@@ -77,7 +77,7 @@ export default class AuthServices {
 
       if (user.error) {
         await transaction.rollback()
-        console.log(user);
+        console.log(user)
 
         return user
       }
@@ -224,6 +224,7 @@ export default class AuthServices {
         loader
           .load('wallet')
           .load('country')
+          .load('document')
           .load('transactions', (query) => {
             query.preload('payment').orderBy('created_at', 'desc').groupLimit(2)
           })

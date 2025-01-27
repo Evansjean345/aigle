@@ -14,10 +14,12 @@ export default class UserService {
         loader
           .load('wallet')
           .load('country')
+          .load('document')
           .load('transactions', (query) => {
             query.preload('payment').orderBy('created_at', 'desc').groupLimit(10)
           })
       })
+      console.log(user.document)
 
       return ResponseFormatter.create({ message: 'Loggin', code: 200, status: true, data: user })
     } catch (err) {

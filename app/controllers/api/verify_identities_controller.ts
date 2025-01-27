@@ -9,8 +9,6 @@ export default class VerifyIdentitiesController {
   async create_or_update({ response, request, auth }: HttpContext) {
     // await createIdentityValidator.validate(request.all())
     const result = await this.identityVerifyService.create_or_update(request, auth)
-
-    return "hello"
-    // return response.status(result.code).send(result)
+    return response.status(result.code).send(result)
   }
 }

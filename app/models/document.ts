@@ -1,6 +1,8 @@
 import { DateTime } from 'luxon'
-import { BaseModel, beforeSave, column } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeSave, belongsTo, column } from '@adonisjs/lucid/orm'
 import { v4 as uuidv4 } from 'uuid'
+import User from '#models/user'
+import type { BelongsTo, HasOne } from '@adonisjs/lucid/types/relations'
 
 export default class Document extends BaseModel {
   @column({ isPrimary: true })
@@ -11,6 +13,11 @@ export default class Document extends BaseModel {
 
   @column()
   declare users_id: number
+
+  @belongsTo(() => User, {
+    foreignKey: 'id',
+  })
+  declare user: BelongsTo<typeof User>
 
   @column()
   declare users_uid: string
@@ -31,13 +38,16 @@ export default class Document extends BaseModel {
   declare rccm: string | null
 
   @column()
-  declare status: string | 'valid' | 'invalid'
+  declare status: string | 'pending' | 'valid' | 'invalid'
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+  // static hidden() {
+  //   return ['doc_recto', 'doc_recto', 'doucuments_uid', 'type']
+  // }
   @beforeSave()
   static async BaseModel(document: Document) {
     document.doucuments_uid = uuidv4()

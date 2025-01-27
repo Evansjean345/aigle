@@ -12,7 +12,6 @@ export default class DocumentRepository {
         code: 200,
       })
     } catch (err) {
-      console.log(err);
 
       return ResponseFormatter.create({
         message: "Une erreur s'est produite",
