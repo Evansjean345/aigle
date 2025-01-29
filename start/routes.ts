@@ -66,6 +66,12 @@ router
         router.post('depot', [OperationController, 'depot'])
         router.post('transfert', [OperationController, 'transfert'])
         router.post('transfert-inter', [OperationController, 'transfert_inter'])
+        router.post('airtime/:type', [OperationController, 'airtime'])
+        router.get('airtime-country', [OperationController, 'airtime_country'])
+        router.get('airtime-country-operator/:code', [
+          OperationController,
+          'airtime_country_operator',
+        ])
       })
       .use(middleware.auth({ guards: ['api'] }))
       .prefix('operation')

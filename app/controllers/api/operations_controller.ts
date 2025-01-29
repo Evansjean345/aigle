@@ -28,4 +28,20 @@ export default class OperationController {
     const operation = await this.operationService.transfert_inter_init_deposit(request.all(), auth)
     return response.status(operation.code).send(operation)
   }
+
+  async airtime({ response, request, auth }: HttpContext) {
+    // const payload = await createDepotValidator.validate(request.all())
+    const operation = await this.operationService.airtime(request.all(), auth)
+    return response.status(operation.code).send(operation)
+  }
+  async airtime_country_operator({ response, request, auth }: HttpContext) {
+    // const payload = await createDepotValidator.validate(request.all())
+    const operation = await this.operationService.airtime_country_operator(request.params())
+    return response.status(operation.code).send(operation)
+  }
+  async airtime_country({ response, request, auth }: HttpContext) {
+    // const payload = await createDepotValidator.validate(request.all())
+    const operation = await this.operationService.airtime_country(auth)
+    return response.status(operation.code).send(operation)
+  }
 }

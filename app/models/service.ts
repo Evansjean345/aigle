@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeSave, column } from '@adonisjs/lucid/orm'
+import { v4 as uuidv4 } from 'uuid'
 
 export default class Service extends BaseModel {
   @column({ isPrimary: true })
@@ -12,11 +13,21 @@ export default class Service extends BaseModel {
   declare name: string
 
   @column()
-  declare poucentage_service_fee: string
+  declare poucentage_service_fee: number
+
+  @column()
+  declare fees: number
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+  @beforeSave()
+  static async BaseModel(service: Service) {
+    if (service.$isNew) {
+      service.services_uid = uuidv4()
+    }
+  }
 }

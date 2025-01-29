@@ -18,28 +18,28 @@ export default class extends BaseSeeder {
       { name: 'Bank', poucentage_service_fee: 1, payment_mode: 'Bank' },
     ]
 
-    for (const operatorData of operators) {
-      await Operator.create(operatorData)
-    }
+    // for (const operatorData of operators) {
+    //   await Operator.create(operatorData)
+    // }
 
     console.log('Opérateurs insérés avec succès')
 
-    const services = [
-      { name: 'Dépôt', payment_mode: 'Mobile Money', fee: 2.0 },
-      { name: 'Transfert', payment_mode: 'Mobile Money', fee: 2.5 },
-      { name: 'Transfert inter-opérateur', payment_mode: 'Mobile Money', fee: 3.0 },
-      { name: 'Facture', payment_mode: 'Bank', fee: 2.0 },
-      { name: 'Achat de pass', payment_mode: 'Card', fee: 1.5 },
-    ]
-
-    for (const serviceData of services) {
-      await Service.updateOrCreate(
-        { name: serviceData.name, paymentMode: serviceData.payment_mode },
-        { name: serviceData.name, paymentMode: serviceData.payment_mode, fee: serviceData.fee }
-      )
+    type ServiceType = {
+      id?: number
+      name: string
+      fees: number
     }
 
-    console.log('Services insérés avec succès');
+    const services: ServiceType[] = [
+      { id: 1, name: 'Dépôt', fees: 2.0 },
+      { id: 2, name: 'Transfert', fees: 2.5 },
+      { id: 3, name: 'Transfert inter-opérateur', fees: 3.0 },
+      { id: 4, name: 'Aitime', fees: 2.0 },
+      { id: 5, name: 'Data', fees: 2.0 },
+      { id: 6, name: 'Facture', fees: 2.0 },
+    ]
+    await Service.updateOrCreateMany('id', services)
 
+    console.log('Services insérés avec succès')
   }
 }

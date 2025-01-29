@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import TransactionRepository from '#repositories/transaction_repository'
 import ResponseFormatter from '#responses/response_formatter'
 // import { DateTime } from 'luxon'
-import { NewOperationType } from '#interfaces/operation'
+import { AirtimeType, NewOperationType } from '#interfaces/operation'
 import { makeRequest } from '../helpers/http_helpers.js'
 import Wallet from '#models/wallet'
 import PaymentRepository from '#repositories/payment_repository'
@@ -44,7 +44,7 @@ export default class OperationService {
   }
   async depot(data: NewOperationType, auth: any) {
     const ctx = await db.beginGlobalTransaction()
-    console.log("depot init")
+    console.log('depot init')
 
     try {
       const user = auth.user
@@ -191,6 +191,106 @@ export default class OperationService {
       }
 
       let response = await this.hub_service(process.env.API_TRANSFERT_URL, 'post', dataSend)
+      // console.log(response?.error);
+
+      if (response?.error) {
+        await ctx.rollback()
+        return ResponseFormatter.create({
+          message: "Une erreur lors de l'initialisation du transfert",
+          code: 500,
+          status: false,
+          error: response?.error,
+        })
+      }
+
+      if (payment?.data?.payment_details?.operator === 'wave') {
+        await this.update_data_operation_success(response?.data)
+      }
+
+      await ctx.commit()
+
+      return ResponseFormatter.create({
+        data: transaction,
+        message:
+          payment?.data?.payment_details?.operator === 'wave'
+            ? 'Transfert éffectué avec succès'
+            : 'Initialisation du transfert effectuée',
+        code: 200,
+        status: true,
+        error: false,
+      })
+    } catch (err) {
+      await ctx.rollback()
+
+      return ResponseFormatter.create({
+        message: "Une erreur lors de l'initialisation du transfert",
+        code: 500,
+        status: false,
+        error: err,
+      })
+    }
+  }
+
+  async airtime(data: AirtimeType, auth: any) {
+    const ctx = await db.beginGlobalTransaction()
+    try {
+      const user = auth.user
+      await user.load('wallet')
+      const wallet = user.wallet
+
+      // verifier si le solde est suffisant
+      if (Number(wallet.balance) < Number(data.amount)) {
+        return ResponseFormatter.create({
+          message: "vous n'avez pas de font suffisant pour effectuer cette operation",
+          code: 401,
+          status: false,
+          error: true,
+        })
+      }
+
+      // enregistrer la transaccion
+      let transaction = await this.create_transaction(user, wallet, data)
+      if (transaction.error) {
+        await ctx.rollback()
+        return transaction
+      }
+
+      // enregistrer le payment et les détails de paiement
+      let payment = await this.create_payment(transaction?.data, data)
+      if (payment.error) {
+        await ctx.rollback()
+        return payment
+      }
+
+      // envoyer les données au service aigle hub
+      let dataSend = {
+        operation_type: payment?.data?.payment_method,
+        amount: payment?.data?.total_amount,
+        provider: payment?.data?.payment_details?.operator,
+        number: payment?.data?.payment_details?.beneficiaire_phone,
+        country: 'ci',
+        currency: 'XOF',
+        reference: transaction?.data?.reference,
+      }
+      console.log(payment?.data)
+
+      if (payment?.data?.payment_details?.operator !== 'wave') {
+        dataSend.notify_success_url = process.env.NOTIFY_SUCCESS_URL
+        dataSend.notify_failure_url = process.env.NOTIFY_FAILURE_URL
+      }
+
+      const walletUpdate = await this.updateBalance(wallet, payment?.data?.total_amount, 'subtract')
+      if (!walletUpdate?.status) {
+        await ctx.rollback()
+        return ResponseFormatter.create({
+          message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
+          code: 500,
+          status: false,
+          error: true,
+        })
+      }
+
+      let response = await this.hub_service(process.env.API_AIRTIME_URL, 'post', dataSend)
       // console.log(response?.error);
 
       if (response?.error) {
@@ -429,7 +529,7 @@ export default class OperationService {
       users_id: user.id,
       users_uid: user.users_uid,
       amount: data.amount,
-      total_amount: data.total_amount,
+      total_amount: data?.total_amount,
       operation_type: data.operation_type,
       fees: data?.fees,
       balance_before: wallet.balance,
@@ -442,8 +542,8 @@ export default class OperationService {
   async create_payment(transaction: any, data: any) {
     const paymentDetails = (item: any) => {
       let response = null
-      switch (item.payment_method) {
-        case 'mobile_money':
+      switch (item.operation_type) {
+        case 'deposit':
           response = {
             operator: item?.operator,
             debiteur_phone: item?.debiteur_phone && item?.debiteur_phone,
@@ -469,6 +569,14 @@ export default class OperationService {
             card_holder: item.card_holder && item.card_holder,
           }
           break
+        case 'airtime':
+          response = {
+            operator_id: item.operator_id && item.operator_id,
+            amount: item.amount && item.amount,
+            country_code: item.country_code && item.country_code,
+            phone_number: item.phone_number && item.phone_number,
+          }
+          break
 
         default:
           break
@@ -487,13 +595,59 @@ export default class OperationService {
       fees: data.fees,
       amount: data.amount,
       total_amount: data.total_amount,
-      payment_details: paymentDetails(data),
+      payment_details: data,
       step: data.step && data.step,
       status: data.status && data.status,
     }
     const payment = await this.paymentRepository.create(paymentData)
 
     return payment
+  }
+
+  async airtime_country_operator(request: any) {
+    try {
+      let response = await this.hub_service(
+        `${process.env.API_AIRTIME_COUNTRY_URL}/${request.code}/operators?dataOnly=false&bundlesOnly=false&includeData=false&includeBundles=false`,
+        'get',
+        ''
+      )
+      return ResponseFormatter.create({
+        data: response?.data,
+        message: '',
+        code: 200,
+        status: true,
+        error: false,
+      })
+    } catch (error) {
+      return ResponseFormatter.create({
+        message: 'Une erreur ',
+        code: 500,
+        status: false,
+        error: error,
+      })
+    }
+  }
+  async airtime_country() {
+    try {
+      let response = await this.hub_service(process.env.API_AIRTIME_COUNTRY_URL, 'get', '')
+
+      console.log(response)
+
+      return ResponseFormatter.create({
+        data: response?.data,
+        message: '',
+        code: 200,
+        status: true,
+        error: false,
+      })
+    } catch (error) {
+      return ResponseFormatter.create({
+        message: 'Une erreur ',
+        code: 500,
+        status: false,
+        error: error,
+      })
+    }
   }
 
   async hub_service(uri: any, method: any, data: any) {

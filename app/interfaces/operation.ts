@@ -36,3 +36,11 @@ export interface OperationType {
   createdAt: Date
   updatedAt: Date
 }
+
+export interface AirtimeType {
+  operator_id: number
+  amount: number
+  country_code: string
+  phone_number: string
+  reference: string
+}
