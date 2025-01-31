@@ -106,5 +106,38 @@ export default class WebhookService {
     }
     return result
   }
+
+  async web_hook_airetime_failure(data: any) {
+    const ctx = await db.beginGlobalTransaction()
+    let response = data?.data
+    let result = await this.operationServivce.update_data_operation_failure(response)
+    let transaction = result.data.transaction
+    let wallet = result.data.wallet
+    if (transaction?.status === 'failed') {
+      const walletUpdate = await this.operationServivce.updateBalance(
+        wallet,
+        transaction?.total_amount,
+        'add'
+      )
+
+      if (!walletUpdate?.status) {
+        await ctx.rollback()
+        return ResponseFormatter.create({
+          message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
+          code: 500,
+          status: false,
+          error: true,
+        })
+      }
+    }
+    console.log(result)
+    return result
+  }
+
+  async web_hook_airime_success(data: any) {
+    let response = data?.data
+    let result = await this.operationServivce.update_data_operation_success(response)
+    return result
+  }
   // fin
 }

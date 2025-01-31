@@ -238,6 +238,8 @@ export default class OperationService {
       await user.load('wallet')
       const wallet = user.wallet
 
+      console.log(data)
+
       // verifier si le solde est suffisant
       if (Number(wallet.balance) < Number(data.amount)) {
         return ResponseFormatter.create({
@@ -254,7 +256,6 @@ export default class OperationService {
         await ctx.rollback()
         return transaction
       }
-
       // enregistrer le payment et les détails de paiement
       let payment = await this.create_payment(transaction?.data, data)
       if (payment.error) {
@@ -264,19 +265,11 @@ export default class OperationService {
 
       // envoyer les données au service aigle hub
       let dataSend = {
-        operation_type: payment?.data?.payment_method,
-        amount: payment?.data?.total_amount,
-        provider: payment?.data?.payment_details?.operator,
-        number: payment?.data?.payment_details?.beneficiaire_phone,
-        country: 'ci',
-        currency: 'XOF',
+        operator_id: data.operator_id,
+        amount: data?.amount,
+        country_code: data?.country_code,
+        phone_number: data?.phone_number,
         reference: transaction?.data?.reference,
-      }
-      console.log(payment?.data)
-
-      if (payment?.data?.payment_details?.operator !== 'wave') {
-        dataSend.notify_success_url = process.env.NOTIFY_SUCCESS_URL
-        dataSend.notify_failure_url = process.env.NOTIFY_FAILURE_URL
       }
 
       const walletUpdate = await this.updateBalance(wallet, payment?.data?.total_amount, 'subtract')
@@ -292,36 +285,32 @@ export default class OperationService {
 
       let response = await this.hub_service(process.env.API_AIRTIME_URL, 'post', dataSend)
       // console.log(response?.error);
-
       if (response?.error) {
         await ctx.rollback()
         return ResponseFormatter.create({
-          message: "Une erreur lors de l'initialisation du transfert",
+          message: "Une erreur lors de l'achat de airtime",
           code: 500,
           status: false,
           error: response?.error,
         })
       }
-
-      if (payment?.data?.payment_details?.operator === 'wave') {
+      if (response?.data?.status === 'success') {
         await this.update_data_operation_success(response?.data)
+      } else {
+        await this.update_data_operation_failure(response?.data)
       }
 
       await ctx.commit()
 
       return ResponseFormatter.create({
-        data: transaction,
-        message:
-          payment?.data?.payment_details?.operator === 'wave'
-            ? 'Transfert éffectué avec succès'
-            : 'Initialisation du transfert effectuée',
+        data: response,
+        message: 'achat effectué avec succèes',
         code: 200,
         status: true,
         error: false,
       })
     } catch (err) {
       await ctx.rollback()
-
       return ResponseFormatter.create({
         message: "Une erreur lors de l'initialisation du transfert",
         code: 500,

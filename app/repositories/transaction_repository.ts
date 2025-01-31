@@ -10,6 +10,9 @@ export default class TransactionRepository {
     try {
       const transaction = await Transaction.create(data)
       await ctx.commit()
+
+      console.log('transaction cretaed')
+
       return ResponseFormatter.create({
         data: transaction,
         message: 'transaction créé avec succès',

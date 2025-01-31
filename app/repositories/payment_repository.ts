@@ -11,6 +11,7 @@ export default class PaymentRepository {
       const transaction = await Payment.create(data)
 
       await ctx.commit()
+      console.log('paiement cretaed')
       return ResponseFormatter.create({
         data: transaction,
         message: 'paiement créé avec succès',
