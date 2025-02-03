@@ -238,10 +238,9 @@ export default class OperationService {
       await user.load('wallet')
       const wallet = user.wallet
 
-      console.log(data)
-
       // verifier si le solde est suffisant
       if (Number(wallet.balance) < Number(data.amount)) {
+        await ctx.rollback()
         return ResponseFormatter.create({
           message: "vous n'avez pas de font suffisant pour effectuer cette operation",
           code: 401,
@@ -295,9 +294,13 @@ export default class OperationService {
         })
       }
       if (response?.data?.status === 'success') {
-        await this.update_data_operation_success(response?.data)
+        await this.update_data_operation_success({
+          reference: transaction?.data?.reference,
+        })
       } else {
-        await this.update_data_operation_failure(response?.data)
+        await this.update_data_operation_failure({
+          reference: transaction?.data?.reference,
+        })
       }
 
       await ctx.commit()
