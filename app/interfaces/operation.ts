@@ -1,5 +1,8 @@
 export interface NewOperationType {
+  payment_details_first: any
   amount: number
+  fees: number
+  operation_type: string
   frais: number
   users_id: number
   users_uid: string
@@ -43,4 +46,19 @@ export interface AirtimeType {
   country_code: string
   phone_number: string
   reference: string
+}
+
+export interface MobileMoneyCheckoutType {
+  operation_type: string
+  amount: number
+  provider: string
+  number: string
+  country: string
+  currency: string
+  reference: string
+  notify_success_url: string | undefined
+  notify_failure_url: string | undefined
+  pincode?: string
+  success_url?: string
+  error_url?: string
 }

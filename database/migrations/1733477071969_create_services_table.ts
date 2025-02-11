@@ -10,8 +10,6 @@ export default class extends BaseSchema {
       table.string('name').nullable()
       table.string('image_path').nullable()
       table.string('status').defaultTo('active')
-      table.integer('poucentage_service_fee').defaultTo(0)
-      table.decimal('fees', 15, 2).defaultTo(0)
       table.timestamp('created_at')
       table.timestamp('updated_at')
     })

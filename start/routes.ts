@@ -11,11 +11,10 @@ import router from '@adonisjs/core/services/router'
 const AuthController = () => import('#controllers/api/auths_controller')
 const OtpsController = () => import('#controllers/api/otps_controller')
 const TransactionsController = () => import('#controllers/api/transactions_controller')
-const OperationController = () => import('#controllers/api/operations_controller')
 const UsersController = () => import('#controllers/api/users_controller')
-const WebhooksController = () => import('#controllers/api/webhooks_controller')
 const VerifyIdentitiesController = () => import('#controllers/api/verify_identities_controller')
 import { middleware } from '#start/kernel'
+import { operationRouter, webHookRouter } from './index.js'
 
 router
   .group(() => {
@@ -62,20 +61,9 @@ router
       .prefix('transaction')
 
     router
-      .group(() => {
-        router.post('depot', [OperationController, 'depot'])
-        router.post('transfert', [OperationController, 'transfert'])
-        router.post('transfert-inter', [OperationController, 'transfert_inter'])
-        router.post('airtime/:type', [OperationController, 'airtime'])
-        router.get('airtime-country', [OperationController, 'airtime_country'])
-        router.get('airtime-country-operator/:code', [
-          OperationController,
-          'airtime_country_operator',
-        ])
-      })
+      .group(operationRouter(router))
       .use(middleware.auth({ guards: ['api'] }))
-      .prefix('operation')
-
+      .prefix('services')
     router
       .group(() => {
         router.post('create', [VerifyIdentitiesController, 'create_or_update'])
@@ -84,23 +72,7 @@ router
       .prefix('identity')
 
     router
-      .group(() => {
-        router.post('/deposit/failure', [WebhooksController, 'web_hook_deposit_failure'])
-        router.post('/deposit/success', [WebhooksController, 'web_hook_deposit_success'])
-
-        router.post('/transfer/failure', [WebhooksController, 'web_hook_transfer_failure'])
-        router.post('/transfer/success', [WebhooksController, 'web_hook_transfer_success'])
-
-        router.post('/transfer-inter/failure', [
-          WebhooksController,
-          'web_hook_transfert_inter_failure',
-        ])
-
-        router.post('/transfer-inter/success', [
-          WebhooksController,
-          'web_hook_transfert_inter_success',
-        ])
-      })
+      .group(webHookRouter(router))
       // .use(middleware.auth({ guards: ['api'] }))
       .prefix('web_hook')
   })

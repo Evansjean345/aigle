@@ -2,8 +2,9 @@ import { DepotType, TransactionType } from '#interfaces/transaction'
 import Transaction from '#models/transaction'
 import ResponseFormatter from '#responses/response_formatter'
 import db from '@adonisjs/lucid/services/db'
+import { TransactionInterface } from '../contracts/transaction_interface.js'
 
-export default class TransactionRepository {
+export default class TransactionRepository implements TransactionInterface {
   async create(data: DepotType) {
     const ctx = await db.transaction()
 

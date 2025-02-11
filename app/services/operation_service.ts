@@ -2,11 +2,12 @@ import { inject } from '@adonisjs/core'
 import TransactionRepository from '#repositories/transaction_repository'
 import ResponseFormatter from '#responses/response_formatter'
 // import { DateTime } from 'luxon'
-import { AirtimeType, NewOperationType } from '#interfaces/operation'
+import { AirtimeType, MobileMoneyCheckoutType, NewOperationType } from '#interfaces/operation'
 import { makeRequest } from '../helpers/http_helpers.js'
 import Wallet from '#models/wallet'
 import PaymentRepository from '#repositories/payment_repository'
 import db from '@adonisjs/lucid/services/db'
+import { calculateFee } from '../helpers/fee_helpers.js'
 
 @inject()
 export default class OperationService {
@@ -14,13 +15,13 @@ export default class OperationService {
     protected transactionRepository: TransactionRepository,
     protected paymentRepository: PaymentRepository
   ) {}
+  // metter à jour le walllet d'un utilisateur
   async updateBalance(wallet: Wallet, amount: number, operation: 'add' | 'subtract') {
     if (operation === 'add') {
       console.log('add')
       wallet.balance = Number(wallet.balance) + Number(amount)
     } else if (operation === 'subtract') {
       console.log('subtract')
-
       if (Number(wallet.balance) < Number(amount)) {
         return {
           status: false,
@@ -42,14 +43,19 @@ export default class OperationService {
       messages: 'La reussie',
     }
   }
+
+  // function pour effectuer un dépot vers le wallet
   async depot(data: NewOperationType, auth: any) {
     const ctx = await db.beginGlobalTransaction()
-    console.log('depot init')
-
     try {
       const user = auth.user
       await user.load('wallet')
       const wallet = user.wallet
+
+      // calcule des frais de transfert
+      let result = await calculateFee(data?.amount, data?.operation_type, 'subtract')
+      data.fees = result.fees
+      data.total_amount = result.total
 
       // enregistrer la transaccion
       let transaction = await this.create_transaction(user, wallet, data)
@@ -67,7 +73,7 @@ export default class OperationService {
       // envoyer les données au service aigle hub
       let dataSend = {
         operation_type: payment?.data?.payment_method,
-        amount: payment?.data?.total_amount,
+        amount: result?.amount,
         provider: payment?.data?.payment_details?.operator,
         number: payment?.data?.payment_details?.debiteur_phone,
         country: 'ci',
@@ -132,13 +138,85 @@ export default class OperationService {
       })
     }
   }
+
+  // function de retour du service depot pour la mise à jour des données
+  async depot_callback(response: any, status: string) {
+    const ctx = await db.beginGlobalTransaction()
+    try {
+      // Récupération de la transaction avec les relations nécessaires
+      const { transaction, payment, user, wallet } = await this.data_web_hook(response?.reference)
+      let paymentData = payment[0]
+
+      if (status === 'success') {
+        if (transaction.status === 'pending') {
+          paymentData.status = 'success'
+          paymentData.callback_status = true
+          paymentData.operator_response = JSON.stringify(response)
+          await paymentData.useTransaction(ctx).save()
+
+          // Mise à jour de la transaction
+          transaction.balance_after = wallet.balance
+          transaction.status = 'success'
+          await transaction.useTransaction(ctx).save()
+
+          // Mise à jour du portefeuille
+          const walletUpdate = await this.updateBalance(wallet, transaction?.total_amount, 'add')
+          if (!walletUpdate?.status) {
+            return ResponseFormatter.create({
+              message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
+              code: 500,
+              status: false,
+              error: true,
+            })
+          }
+        }
+      }
+      if (status === 'failure') {
+        transaction.status = 'failed'
+        transaction.balance_after = wallet.balance
+        await transaction.useTransaction(ctx).save()
+        // Mise à jour du paiement
+        paymentData.status = 'failed'
+        paymentData.callback_status = true
+        paymentData.operator_response = JSON.stringify(response)
+        await paymentData.useTransaction(ctx).save()
+      }
+
+      await ctx.commit()
+
+      return ResponseFormatter.create({
+        message: 'Dépôt effectué avec succès',
+        code: 200,
+        status: true,
+        error: false,
+        data: {
+          transaction,
+          payment,
+          user,
+          wallet,
+        },
+      })
+    } catch (error) {
+      await ctx.rollback()
+
+      console.error('Error in update_data_operation_success:', error)
+
+      return ResponseFormatter.create({
+        message: "Une erreur s'est produite lors de l'opération",
+        code: 500,
+        status: false,
+        error: error.message || error,
+      })
+    }
+  }
+
+  // transferer de d'argent depuis le wallet
   async transfert(data: NewOperationType, auth: any) {
     const ctx = await db.beginGlobalTransaction()
     try {
       const user = auth.user
       await user.load('wallet')
       const wallet = user.wallet
-
       // verifier si le solde est suffisant
       if (Number(wallet.balance) < Number(data.total_amount)) {
         return ResponseFormatter.create({
@@ -148,6 +226,11 @@ export default class OperationService {
           error: true,
         })
       }
+
+      // calcule des frais de transfert
+      let result = await calculateFee(data?.amount, data?.operation_type, 'subtract')
+      data.fees = result.fees
+      data.total_amount = result.total
 
       // enregistrer la transaccion
       let transaction = await this.create_transaction(user, wallet, data)
@@ -165,21 +248,20 @@ export default class OperationService {
       // envoyer les données au service aigle hub
       let dataSend = {
         operation_type: payment?.data?.payment_method,
-        amount: payment?.data?.total_amount,
+        amount: data?.total_amount,
         provider: payment?.data?.payment_details?.operator,
         number: payment?.data?.payment_details?.beneficiaire_phone,
         country: 'ci',
         currency: 'XOF',
         reference: transaction?.data?.reference,
       }
-      console.log(payment?.data)
 
       if (payment?.data?.payment_details?.operator !== 'wave') {
         dataSend.notify_success_url = process.env.NOTIFY_SUCCESS_URL
         dataSend.notify_failure_url = process.env.NOTIFY_FAILURE_URL
       }
 
-      const walletUpdate = await this.updateBalance(wallet, payment?.data?.total_amount, 'subtract')
+      const walletUpdate = await this.updateBalance(wallet, result?.amount, 'subtract')
       if (!walletUpdate?.status) {
         await ctx.rollback()
         return ResponseFormatter.create({
@@ -194,9 +276,9 @@ export default class OperationService {
       // console.log(response?.error);
 
       if (response?.error) {
-        await ctx.rollback()
+        await this.transfert_callback(response?.data, 'failure')
         return ResponseFormatter.create({
-          message: "Une erreur lors de l'initialisation du transfert",
+          message: 'Une erreur lors du transfert',
           code: 500,
           status: false,
           error: response?.error,
@@ -204,7 +286,7 @@ export default class OperationService {
       }
 
       if (payment?.data?.payment_details?.operator === 'wave') {
-        await this.update_data_operation_success(response?.data)
+        await this.transfert_callback(response?.data, 'success')
       }
 
       await ctx.commit()
@@ -230,171 +312,91 @@ export default class OperationService {
       })
     }
   }
-
-  async airtime(data: AirtimeType, auth: any) {
+  // function de retour du service transfert pour la mise à jour des données
+  async transfert_callback(response: any, status: string) {
     const ctx = await db.beginGlobalTransaction()
     try {
-      const user = auth.user
-      await user.load('wallet')
-      const wallet = user.wallet
+      // Récupération de la transaction avec les relations nécessaires
+      const { transaction, payment, user, wallet } = await this.data_web_hook(response?.reference)
+      let paymentData = payment[0]
 
-      // verifier si le solde est suffisant
-      if (Number(wallet.balance) < Number(data.amount)) {
-        await ctx.rollback()
-        return ResponseFormatter.create({
-          message: "vous n'avez pas de font suffisant pour effectuer cette operation",
-          code: 401,
-          status: false,
-          error: true,
-        })
+      if (status === 'success') {
+        if (transaction.status === 'pending') {
+          paymentData.status = 'success'
+          paymentData.callback_status = true
+          paymentData.operator_response = JSON.stringify(response)
+          await paymentData.useTransaction(ctx).save()
+          // Mise à jour de la transaction
+          transaction.balance_after = wallet.balance
+          transaction.status = 'success'
+          await transaction.useTransaction(ctx).save()
+        }
       }
-
-      // enregistrer la transaccion
-      let transaction = await this.create_transaction(user, wallet, data)
-      if (transaction.error) {
-        await ctx.rollback()
-        return transaction
-      }
-      // enregistrer le payment et les détails de paiement
-      let payment = await this.create_payment(transaction?.data, data)
-      if (payment.error) {
-        await ctx.rollback()
-        return payment
-      }
-
-      // envoyer les données au service aigle hub
-      let dataSend = {
-        operator_id: data.operator_id,
-        amount: data?.amount,
-        country_code: data?.country_code,
-        phone_number: data?.phone_number,
-        reference: transaction?.data?.reference,
-      }
-
-      const walletUpdate = await this.updateBalance(wallet, payment?.data?.total_amount, 'subtract')
-      if (!walletUpdate?.status) {
-        await ctx.rollback()
-        return ResponseFormatter.create({
-          message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
-          code: 500,
-          status: false,
-          error: true,
-        })
-      }
-
-      let response = await this.hub_service(process.env.API_AIRTIME_URL, 'post', dataSend)
-      // console.log(response?.error);
-      if (response?.error) {
-        await ctx.rollback()
-        return ResponseFormatter.create({
-          message: "Une erreur lors de l'achat de airtime",
-          code: 500,
-          status: false,
-          error: response?.error,
-        })
-      }
-      if (response?.data?.status === 'success') {
-        await this.update_data_operation_success({
-          reference: transaction?.data?.reference,
-        })
-      } else {
-        await this.update_data_operation_failure({
-          reference: transaction?.data?.reference,
-        })
+      if (status === 'failure') {
+        transaction.status = 'failed'
+        transaction.balance_after = wallet.balance
+        await transaction.useTransaction(ctx).save()
+        // Mise à jour du paiement
+        paymentData.status = 'failed'
+        paymentData.callback_status = true
+        paymentData.operator_response = JSON.stringify(response)
+        await paymentData.useTransaction(ctx).save()
+        // Mise à jour du portefeuille
+        const walletUpdate = await this.updateBalance(wallet, paymentData?.amount, 'add')
+        if (!walletUpdate?.status) {
+          return ResponseFormatter.create({
+            message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
+            code: 500,
+            status: false,
+            error: true,
+          })
+        }
       }
 
       await ctx.commit()
 
       return ResponseFormatter.create({
-        data: response,
-        message: 'achat effectué avec succèes',
+        message: 'Dépôt effectué avec succès',
         code: 200,
         status: true,
         error: false,
+        data: {
+          transaction,
+          payment,
+          user,
+          wallet,
+        },
       })
-    } catch (err) {
+    } catch (error) {
       await ctx.rollback()
       return ResponseFormatter.create({
-        message: "Une erreur lors de l'initialisation du transfert",
+        message: "Une erreur s'est produite lors de l'opération",
         code: 500,
         status: false,
-        error: err,
+        error: error.message || error,
       })
     }
   }
 
-  async transfert_inter_init_deposit(data: any, auth: any) {
-    const ctx = await db.beginGlobalTransaction()
-
+  // effectuer un encaissement par mobile money pour crediter le wallet de l'utilisateur
+  async mobile_money_checkout(data: MobileMoneyCheckoutType) {
     try {
-      const user = auth.user
-      await user.load('wallet')
-      const wallet = user.wallet
-
-      if (data?.debitaire?.operator === 'orange' && !data?.debitaire?.pincode) {
-        return ResponseFormatter.create({
-          message: 'Le code temporaire orange money est requis',
-          code: 400,
-          status: false,
-          error: true,
-        })
-      }
-
-      let transaction = await this.create_transaction(user, wallet, {
-        ...data?.debitaire,
-        operation_type: 'transfer_inter',
-      })
-
-      if (transaction.error) {
-        await ctx.rollback()
-        return transaction
-      }
-
-      // enregistrer le payment de la recuperation de font
-      let paymentDepotInit = await this.create_payment(transaction?.data, {
-        ...data?.debitaire,
-        step: 'deposit_init',
-      })
-
-      if (paymentDepotInit.error) {
-        await ctx.rollback()
-        return paymentDepotInit
-      }
-
-      // enregistrer le payment du transfert de font au brouillont
-      let paymentTrasnferInit = await this.create_payment(transaction?.data, {
-        ...data?.beneficiaire,
-        status: 'draft',
-        step: 'transfert_init',
-      })
-
-      if (paymentTrasnferInit.error) {
-        await ctx.rollback()
-        return paymentTrasnferInit
-      }
-
       // envoyer les données au service aigle hub
-      let dataSend = {
-        operation_type: paymentDepotInit?.data?.payment_method,
-        amount: Number(paymentDepotInit?.data?.total_amount),
-        provider: paymentDepotInit?.data?.payment_details?.operator,
-        number: paymentDepotInit?.data?.payment_details?.debiteur_phone,
+      let dataSend: MobileMoneyCheckoutType = {
+        operation_type: data?.operation_type,
+        amount: data?.amount,
+        provider: data?.provider,
+        number: data?.number,
         country: 'ci',
         currency: 'XOF',
-        reference: transaction?.data?.reference,
-        notify_success_url: process.env.NOTIFY_TRANSFERT_INTER_SUCCESS_URL,
-        notify_failure_url: process.env.NOTIFY_TRANSFERT_INTER_FAILURE_URL,
+        reference: data?.reference,
+        notify_success_url: data.notify_success_url,
+        notify_failure_url: data.notify_failure_url,
       }
 
-      if (
-        paymentDepotInit?.data?.payment_details?.operator === 'orange' &&
-        paymentDepotInit?.data?.payment_details?.pincode
-      ) {
-        dataSend.otp = paymentDepotInit?.data?.payment_details?.pincode
-      } else if (
-        paymentDepotInit?.data?.payment_details?.operator === 'orange' &&
-        !paymentDepotInit?.data?.payment_details?.pincode
-      ) {
+      if (data?.provider === 'orange' && data?.pincode) {
+        dataSend.otp = data?.pincode
+      } else if (data.provider === 'orange' && !data?.pincode) {
         return ResponseFormatter.create({
           message: 'Le code temporaire orange money est requis',
           code: 400,
@@ -403,7 +405,7 @@ export default class OperationService {
         })
       }
 
-      if (paymentDepotInit?.data?.payment_details?.operator === 'wave') {
+      if (data?.provider === 'wave') {
         dataSend.success_url = 'https://ednashoppinggroup.com/#/'
         dataSend.error_url = 'https://ednashoppinggroup.com/#/'
       }
@@ -411,63 +413,36 @@ export default class OperationService {
       let response = await this.hub_service(process.env.API_CHECKOUT_URL, 'post', dataSend)
 
       if (response?.error) {
-        // console.log(response?.error);
-
-        await ctx.rollback()
         return ResponseFormatter.create({
-          message: response?.error?.message,
-          code: response?.error?.status,
+          message: "Une erreur lors de l'initialisation du dépot",
+          code: 500,
           status: false,
           error: response,
         })
       }
-
-      await ctx.commit()
+      // Commit de la transaction globale si tout se passe bien
 
       return ResponseFormatter.create({
-        message: 'Initialisation du dépot inter effectuée',
+        message: 'Initialisation du dépôt éffectuée',
         code: 200,
         status: true,
         error: false,
         data: response?.data,
       })
-    } catch (err) {
-      await ctx.rollback()
+    } catch (error) {
       return ResponseFormatter.create({
-        message: "Une erreur lors de l'initialisation du transfert",
+        message: "Une erreur lors de l'initialisation du dépôt",
         code: 500,
         status: false,
-        error: err,
+        error: error,
       })
     }
   }
 
-  async transfert_inter_init_transfert({ transaction, wallet, payment, user }: any) {
-    const ctx = await db.beginGlobalTransaction()
+  async aigle_checkout(amount: number, wallet: any) {
     try {
-      // envoyer les données au service aigle hub
-      let paymentData = payment[1]
-
-      let dataSend = {
-        operation_type: paymentData.payment_method,
-        amount: paymentData.total_amount,
-        provider: paymentData.payment_details?.operator,
-        number: paymentData.payment_details?.beneficiaire_phone,
-        country: 'ci',
-        currency: 'XOF',
-        reference: transaction.reference,
-      }
-
-      await paymentData.save()
-
-      if (paymentData?.payment_details?.operator !== 'wave') {
-        dataSend.notify_success_url = process.env.NOTIFY_TRANSFERT_INTER_SUCCESS_URL
-        dataSend.notify_failure_url = process.env.NOTIFY_TRANSFERT_INTER_FAILURE_URL
-      }
-
-      const walletUpdate = await this.updateBalance(wallet, paymentData?.total_amount, 'subtract')
+      const walletUpdate = await this.updateBalance(wallet, amount, 'subtract')
       if (!walletUpdate?.status) {
-        await ctx.rollback()
         return ResponseFormatter.create({
           message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
           code: 500,
@@ -476,41 +451,19 @@ export default class OperationService {
         })
       }
 
-      let response = await this.hub_service(process.env.API_TRANSFERT_URL, 'post', dataSend)
-
-      if (response?.error) {
-        await this.update_data_operation_failure({ reference: paymentData.transactions_uid })
-        return ResponseFormatter.create({
-          message: "Une erreur lors de l'initialisation du transfert",
-          code: 500,
-          status: false,
-          error: response?.error,
-        })
-      }
-
-      if (
-        response?.data?.status === 'success' &&
-        paymentData?.payment_details?.operator === 'wave'
-      ) {
-        await this.update_data_operation_success(response?.data)
-      }
-
       return ResponseFormatter.create({
-        data: response?.data,
-        message:
-          payment?.data?.payment_details?.operator === 'wave'
-            ? 'Transfert éffectué avec succès'
-            : 'Initialisation du transfert effectuée',
+        message: 'wallet subtract',
         code: 200,
         status: true,
         error: false,
+        data: walletUpdate?.data,
       })
-    } catch (err) {
+    } catch (error) {
       return ResponseFormatter.create({
-        message: "Une erreur lors de l'initialisation du transfert",
+        message: 'Une erreur interne',
         code: 500,
         status: false,
-        error: err,
+        error: error,
       })
     }
   }
@@ -582,64 +535,22 @@ export default class OperationService {
       users_uid: transaction?.users_uid,
       transactions_id: transaction?.id,
       transactions_uid: transaction?.transactions_uid,
+
       payment_method: data.payment_method,
-      operation_type: data.operation_type,
+      operation_type: data?.payment_details
+        ? data?.payment_details?.operation_type
+        : data.operation_type,
       fees: data.fees,
       amount: data.amount,
       total_amount: data.total_amount,
-      payment_details: data,
+      payment_details: data?.payment_details ? data.payment_details : data,
+
       step: data.step && data.step,
       status: data.status && data.status,
     }
     const payment = await this.paymentRepository.create(paymentData)
 
     return payment
-  }
-
-  async airtime_country_operator(request: any) {
-    try {
-      let response = await this.hub_service(
-        `${process.env.API_AIRTIME_COUNTRY_URL}/${request.code}/operators?dataOnly=false&bundlesOnly=false&includeData=false&includeBundles=false`,
-        'get',
-        ''
-      )
-      return ResponseFormatter.create({
-        data: response?.data,
-        message: '',
-        code: 200,
-        status: true,
-        error: false,
-      })
-    } catch (error) {
-      return ResponseFormatter.create({
-        message: 'Une erreur ',
-        code: 500,
-        status: false,
-        error: error,
-      })
-    }
-  }
-  async airtime_country() {
-    try {
-      let response = await this.hub_service(process.env.API_AIRTIME_COUNTRY_URL, 'get', '')
-
-      console.log(response)
-
-      return ResponseFormatter.create({
-        data: response?.data,
-        message: '',
-        code: 200,
-        status: true,
-        error: false,
-      })
-    } catch (error) {
-      return ResponseFormatter.create({
-        message: 'Une erreur ',
-        code: 500,
-        status: false,
-        error: error,
-      })
-    }
   }
 
   async hub_service(uri: any, method: any, data: any) {
@@ -667,13 +578,17 @@ export default class OperationService {
         })
       }
 
-      if (transaction.operation_type === 'transfer_inter') {
+      if (
+        transaction.operation_type === 'transfer_inter' ||
+        transaction.operation_type === 'airtime'
+      ) {
         // transfert_init
         let paymentDebitaire = payment[0]
         let paymentBeneficiaire = payment[1]
 
         if (transaction.status === 'pending' && paymentDebitaire.status === 'pending') {
           paymentDebitaire.status = 'success'
+          paymentDebitaire.callback_status = true
           paymentDebitaire.operator_response = JSON.stringify(response)
           await paymentDebitaire.useTransaction(ctx).save()
           // Mise à jour du portefeuille
@@ -696,6 +611,7 @@ export default class OperationService {
 
         if (transaction.status === 'pending' && paymentBeneficiaire.status === 'pending') {
           paymentBeneficiaire.status = 'success'
+          paymentBeneficiaire.callback_status = true
           paymentBeneficiaire.operator_response = JSON.stringify(response)
           await paymentBeneficiaire.useTransaction(ctx).save()
           transaction.balance_after = wallet.balance
@@ -711,9 +627,9 @@ export default class OperationService {
         await transaction.useTransaction(ctx).save()
       } else {
         let PaymentData = payment[0]
-
         if (transaction.status === 'pending') {
           PaymentData.status = 'success'
+          PaymentData.callback_status = true
           PaymentData.operator_response = JSON.stringify(response)
           await PaymentData.useTransaction(ctx).save()
           // Mise à jour du portefeuille
@@ -730,7 +646,6 @@ export default class OperationService {
               })
             }
           }
-
           // Mise à jour de la transaction
           transaction.balance_after = wallet.balance
           transaction.status = 'success'
@@ -784,16 +699,15 @@ export default class OperationService {
           data: false,
         })
       }
-
       // Mise à jour de la transaction
       transaction.status = 'failed'
       transaction.balance_after = wallet.balance
       await transaction.useTransaction(ctx).save()
-
       // Mise à jour du paiement
       for (const element of payment) {
         if (element.status === 'pending') {
           element.status = 'failed'
+          element.callback_status = true
           element.operator_response = JSON.stringify(response)
           await element.useTransaction(ctx).save() // Attendre chaque save
         }
