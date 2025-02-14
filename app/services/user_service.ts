@@ -19,7 +19,7 @@ export default class UserService {
             query.preload('payment').orderBy('created_at', 'desc').groupLimit(10)
           })
       })
-      console.log(user.document)
+      console.log(user.wallet)
 
       return ResponseFormatter.create({ message: 'Loggin', code: 200, status: true, data: user })
     } catch (err) {

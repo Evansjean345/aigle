@@ -313,16 +313,7 @@ export default class PassDataService {
 
   async data_forfait(request: any) {
     try {
-      let forfait = {
-        data: {
-          libele: '',
-          data: [],
-        },
-        bundle: {
-          libele: '',
-          data: [],
-        },
-      }
+      let forfait = []
       let response = await this.operationService.hub_service(
         `${process.env.API_AIRTIME_COUNTRY_URL}/${request.country_code}/operators?dataOnly=false&bundlesOnly=false&includeData=true&includeBundles=true`,
         'get',
@@ -330,40 +321,28 @@ export default class PassDataService {
       )
       if (response.error) {
         return ResponseFormatter.create({
-          data: { ...forfait },
+          data: response.error,
           message: '',
-          code: 200,
+          code: 400,
           status: true,
           error: false,
         })
       }
       response?.data.forEach((items: any) => {
         let operator = String(items.operator).split(' ')[0].toLocaleLowerCase()
-        if (operator === request.operator) {
-          if (items.data) {
-            forfait.data.libele =
-              operator === 'orange' ? 'Forfait mix et internet' : 'Forfait internet'
-            Object.keys(items.fixed_amounts_description).map((key) =>
-              forfait.data.data.push({
-                price: Number(key).toFixed(0),
-                forfait: items.fixed_amounts_description[key],
-              })
-            )
-          }
-          if (items.bundle) {
-            forfait.bundle.libele = 'Forfait mix'
-            Object.keys(items.fixed_amounts_description).map((key) =>
-              forfait.bundle.data.push({
-                price: Number(key).toFixed(0),
-                forfait: items.fixed_amounts_description[key],
-              })
-            )
-          }
+        if (items.operator_id == request.operator) {
+          Object.keys(items.fixed_amounts_description).map((key) =>
+            forfait.push({
+              price: Number(key).toFixed(0),
+              forfait: items.fixed_amounts_description[key],
+              operator_id: items.operator_id,
+            })
+          )
         }
       })
 
       return ResponseFormatter.create({
-        data: { ...forfait },
+        data: forfait,
         message: '',
         code: 200,
         status: true,

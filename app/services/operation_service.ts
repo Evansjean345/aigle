@@ -154,11 +154,6 @@ export default class OperationService {
           paymentData.operator_response = JSON.stringify(response)
           await paymentData.useTransaction(ctx).save()
 
-          // Mise à jour de la transaction
-          transaction.balance_after = wallet.balance
-          transaction.status = 'success'
-          await transaction.useTransaction(ctx).save()
-
           // Mise à jour du portefeuille
           const walletUpdate = await this.updateBalance(wallet, transaction?.total_amount, 'add')
           if (!walletUpdate?.status) {
@@ -169,6 +164,10 @@ export default class OperationService {
               error: true,
             })
           }
+          // Mise à jour de la transaction
+          transaction.balance_after = wallet.balance
+          transaction.status = 'success'
+          await transaction.useTransaction(ctx).save()
         }
       }
       if (status === 'failure') {
@@ -191,9 +190,6 @@ export default class OperationService {
         error: false,
         data: {
           transaction,
-          payment,
-          user,
-          wallet,
         },
       })
     } catch (error) {
@@ -217,8 +213,10 @@ export default class OperationService {
       const user = auth.user
       await user.load('wallet')
       const wallet = user.wallet
+
       // verifier si le solde est suffisant
-      if (Number(wallet.balance) < Number(data.total_amount)) {
+      if (Number(wallet.balance) < Number(data.amount)) {
+        await ctx.rollback()
         return ResponseFormatter.create({
           message: "vous n'avez pas de font suffisant pour effectuer cette operation",
           code: 401,
@@ -228,12 +226,15 @@ export default class OperationService {
       }
 
       // calcule des frais de transfert
-      let result = await calculateFee(data?.amount, data?.operation_type, 'subtract')
+      let result = await calculateFee(data.amount, data?.operation_type, 'subtract')
       data.fees = result.fees
       data.total_amount = result.total
+      console.log(data)
 
       // enregistrer la transaccion
       let transaction = await this.create_transaction(user, wallet, data)
+      // console.log(transaction.error);
+
       if (transaction.error) {
         await ctx.rollback()
         return transaction
@@ -276,6 +277,7 @@ export default class OperationService {
       // console.log(response?.error);
 
       if (response?.error) {
+        await ctx.rollback()
         await this.transfert_callback(response?.data, 'failure')
         return ResponseFormatter.create({
           message: 'Une erreur lors du transfert',
@@ -540,9 +542,9 @@ export default class OperationService {
       operation_type: data?.payment_details
         ? data?.payment_details?.operation_type
         : data.operation_type,
-      fees: data.fees,
-      amount: data.amount,
-      total_amount: data.total_amount,
+      fees: transaction.fees,
+      amount: transaction.amount,
+      total_amount: transaction.total_amount,
       payment_details: data?.payment_details ? data.payment_details : data,
 
       step: data.step && data.step,

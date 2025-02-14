@@ -89,6 +89,7 @@ export default class AirtimeService {
         case 'wallet':
           encaissement = await this.operationService.aigle_checkout(result.total, wallet)
           if (encaissement.status) {
+            await ctx.commit()
             return this.airtime_by_first_step_callback(
               {
                 reference: transaction?.data.reference,
@@ -358,14 +359,44 @@ export default class AirtimeService {
       let params = request.params()
       let data = request.qs()?.data ? true : false
       let bundle = request.qs()?.bundle ? true : false
-
+      let operators = []
       let response = await this.operationService.hub_service(
         `${process.env.API_AIRTIME_COUNTRY_URL}/${params.code}/operators?dataOnly=false&bundlesOnly=false&includeData=${data}&includeBundles=${bundle}`,
         'get',
         ''
       )
+
+      if (bundle && data) {
+        response?.data.forEach((items: any) => {
+          let operator = String(items.operator).split(' ')[0].toLocaleLowerCase()
+          if (items.denomination_type === 'FIXED') {
+            operators.push({
+              operator: operator,
+              logo: items.logo_urls[2],
+              id: items.operator_id,
+              libele: items.data
+                ? 'achat internet'
+                : items.bundle
+                  ? 'achat pack bundle'
+                  : 'achat de passe ou internet',
+            })
+            console.log(operators)
+          }
+        })
+      }
+
+      if (response.error) {
+        return ResponseFormatter.create({
+          data: response.error,
+          message: '',
+          code: 400,
+          status: true,
+          error: false,
+        })
+      }
+
       return ResponseFormatter.create({
-        data: response?.data,
+        data: operators.length > 0 ? operators : response?.data,
         message: '',
         code: 200,
         status: true,

@@ -194,7 +194,7 @@ export default class AuthServices {
     }
   }
 
-  async logoutser(auth) {
+  async logoutUser(auth) {
     try {
       const user = auth.getUserOrFail()
       const token = auth.user?.currentAccessToken.identifier

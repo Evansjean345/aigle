@@ -8,6 +8,12 @@ import { calculateFee } from '../helpers/fee_helpers.js'
 export default class TransfertInterService {
   constructor(protected operationService: OperationService) {}
 
+  /**
+   *
+   * @param data
+   * @param auth
+   * @returns
+   */
   async transfert_inter_init_deposit(data: any, auth: any) {
     const ctx = await db.beginGlobalTransaction()
 
@@ -29,7 +35,7 @@ export default class TransfertInterService {
       }
 
       let transaction = await this.operationService.create_transaction(user, wallet, {
-        ...data?.debitaire,
+        ...data,
         operation_type: 'transfer_inter',
       })
 
@@ -64,7 +70,7 @@ export default class TransfertInterService {
       // envoyer les données au service aigle hub
       let dataSend = {
         operation_type: paymentDepotInit?.data?.payment_method,
-        amount: Number(paymentDepotInit?.data?.amount),
+        amount: result.amount,
         provider: paymentDepotInit?.data?.payment_details?.operator,
         number: paymentDepotInit?.data?.payment_details?.debiteur_phone,
         country: 'ci',
@@ -133,9 +139,15 @@ export default class TransfertInterService {
       })
     }
   }
+
+  /**
+   *
+   * @param param0
+   * @returns
+   */
   async transfert_inter_init_transfert({ transaction, wallet, payment, user }: any) {
-    const ctx = await db.beginGlobalTransaction()
     try {
+      console.log('transfert_inter_init_transfert')
       // envoyer les données au service aigle hub
       let paymentData = payment[1]
 
@@ -149,8 +161,6 @@ export default class TransfertInterService {
         reference: transaction.reference,
       }
 
-      await paymentData.save()
-
       if (paymentData?.payment_details?.operator !== 'wave') {
         dataSend.notify_success_url = process.env.NOTIFY_TRANSFERT_INTER_SECOND_SUCCESS_URL
         dataSend.notify_failure_url = process.env.NOTIFY_TRANSFERT_INTER_SECOND_FAILURE_URL
@@ -162,7 +172,6 @@ export default class TransfertInterService {
         'subtract'
       )
       if (!walletUpdate?.status) {
-        await ctx.rollback()
         return ResponseFormatter.create({
           message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
           code: 500,
@@ -178,6 +187,12 @@ export default class TransfertInterService {
       )
 
       if (response?.error) {
+        await this.transfert_inter_second_operation_callback(
+          {
+            reference: transaction.reference,
+          },
+          'failure'
+        )
         await this.operationService.update_data_operation_failure({
           reference: paymentData.transactions_uid,
         })
@@ -193,13 +208,28 @@ export default class TransfertInterService {
         response?.data?.status === 'success' &&
         paymentData?.payment_details?.operator === 'wave'
       ) {
-        await this.operationService.update_data_operation_success(response?.data)
+        await this.transfert_inter_second_operation_callback(
+          {
+            reference: transaction.reference,
+          },
+          'success'
+        )
+      } else if (
+        response?.data?.status === 'success' &&
+        paymentData?.payment_details?.operator === 'wave'
+      ) {
+        await this.transfert_inter_second_operation_callback(
+          {
+            reference: transaction.reference,
+          },
+          'failure'
+        )
       }
 
       return ResponseFormatter.create({
         data: response?.data,
         message:
-          payment?.data?.payment_details?.operator === 'wave'
+          paymentData?.payment_details?.operator === 'wave'
             ? 'Transfert éffectué avec succès'
             : 'Initialisation du transfert effectuée',
         code: 200,
@@ -232,7 +262,7 @@ export default class TransfertInterService {
           paymentData.operator_response = JSON.stringify(response)
           secondeOperation.status = 'pending'
           await paymentData.useTransaction(ctx).save()
-          await paymentData.useTransaction(ctx).save()
+          await secondeOperation.useTransaction(ctx).save()
           // calcule des frais de transfert
           let result = await calculateFee(transaction?.amount, 'transfer_inter', 'subtract')
 
@@ -251,11 +281,11 @@ export default class TransfertInterService {
             })
           }
           // lancer la deuxiemem opération
-          await this.transfert_inter_init_transfert({
-            ...transaction,
-            ...payment,
-            ...user,
-            ...wallet,
+          return await this.transfert_inter_init_transfert({
+            transaction,
+            payment,
+            user,
+            wallet,
           })
         }
       }

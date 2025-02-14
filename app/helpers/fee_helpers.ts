@@ -10,7 +10,10 @@ export const calculateFee = async (
   if (!serviceFee) {
     throw new Error(`Frais non définis pour le service: ${service}`)
   }
-  const fees = (Number(serviceFee.percentage_fee) / 100) * Number(amount)
+  const fees =
+    Number(amount) >= serviceFee.min_amount
+      ? (Number(serviceFee.percentage_fee) / 100) * Number(amount)
+      : serviceFee.fixed_fee
 
   if (operation === 'subtract') {
     total = Number(amount) - fees

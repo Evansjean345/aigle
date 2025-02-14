@@ -9,6 +9,7 @@ export interface NewOperationType {
   total_amount: number
   transaction_type: string
   transaction_fee: number
+  is_fee: number
 }
 
 export interface OperationType {
