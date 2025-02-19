@@ -43,8 +43,6 @@ export default class TransactionService {
     try {
       // Récupération initiale de la transaction
 
-      console.log(params)
-
       let transaction = await this.transactionRepository.get_detail_by_reference(user, reference)
       // console.log(transaction)
 

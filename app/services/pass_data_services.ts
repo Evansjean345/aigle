@@ -2,6 +2,7 @@ import ResponseFormatter from '#responses/response_formatter'
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import OperationService from './operation_service.js'
+import { calculateFee } from '../helpers/fee_helpers.js'
 
 @inject()
 export default class PassDataService {
@@ -12,6 +13,10 @@ export default class PassDataService {
       const user = auth.user
       await user.load('wallet')
       const wallet = user.wallet
+      // calcule les frais de l'encaissement
+      let result = await calculateFee(data?.amount, data?.operation_type, 'add')
+      data.fees = result.fees
+      data.total_amount = result.total
 
       // enregistrer les informationse de la transaction
       let transaction = await this.operationService.create_transaction(user, wallet, {
@@ -70,8 +75,6 @@ export default class PassDataService {
         notify_success_url: process.env.NOTIFY_AIRTIME_SUCCESS_URL,
         notify_failure_url: process.env.NOTIFY_AIRTIME_FAILURE_URL,
       })
-
-      console.log('encaissement created')
 
       if (response?.error) {
         await ctx.rollback()

@@ -6,15 +6,14 @@ export default class extends BaseSchema {
   async up() {
     this.schema.alterTable('transactions', (table) => {
       table.string('step').nullable()
-
-      // table
-      //   .integer('services_id')
-      //   .unsigned()
-      //   .nullable()
-      //   .references('id')
-      //   .inTable('services')
-      //   .onDelete('SET NULL')
-      //   .onUpdate('SET NULL')
+      table
+        .integer('services_id')
+        .unsigned()
+        .nullable()
+        .references('id')
+        .inTable('services')
+        .onDelete('SET NULL')
+        .onUpdate('SET NULL')
     })
   }
 
