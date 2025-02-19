@@ -437,4 +437,51 @@ export default class AirtimeService {
       })
     }
   }
+
+  async data_forfait(request: any) {
+    try {
+      let forfait = []
+      let response = await this.operationService.hub_service(
+        `${process.env.API_AIRTIME_COUNTRY_URL}/${request.country_code}/operators?dataOnly=false&bundlesOnly=false&includeData=true&includeBundles=true`,
+        'get',
+        ''
+      )
+      if (response.error) {
+        return ResponseFormatter.create({
+          data: response.error,
+          message: '',
+          code: 400,
+          status: true,
+          error: false,
+        })
+      }
+      response?.data.forEach((items: any) => {
+        let operator = String(items.operator).split(' ')[0].toLocaleLowerCase()
+        if (items.operator_id == request.operator) {
+          Object.keys(items.fixed_amounts_description).map((key) =>
+            forfait.push({
+              price: Number(key).toFixed(0),
+              forfait: items.fixed_amounts_description[key],
+              operator_id: items.operator_id,
+            })
+          )
+        }
+      })
+
+      return ResponseFormatter.create({
+        data: forfait,
+        message: '',
+        code: 200,
+        status: true,
+        error: false,
+      })
+    } catch (error) {
+      return ResponseFormatter.create({
+        message: 'Une erreur ',
+        code: 500,
+        status: false,
+        error: error,
+      })
+    }
+  }
 }

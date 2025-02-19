@@ -1,6 +1,5 @@
 import AirtimeService from '#services/airtime_services'
 import OperationService from '#services/operation_service'
-import PassDataService from '#services/pass_data_services'
 import TransfertInterService from '#services/transfert_inter'
 import { airtimeValidator, transfertValidator } from '#validators/operation'
 import { createDepotValidator } from '#validators/transaction'
@@ -12,7 +11,6 @@ export default class OperationController {
   constructor(
     private operationService: OperationService,
     private airtimeService: AirtimeService,
-    private passDataService: PassDataService,
     private transfertInterService: TransfertInterService
   ) {}
 
@@ -39,7 +37,7 @@ export default class OperationController {
 
   async data_forfait({ response, request, auth }: HttpContext) {
     // const payload = await airtimeValidator.validate(request.params())
-    const operation = await this.passDataService.data_forfait(request.params())
+    const operation = await this.airtimeService.data_forfait(request.params())
     return response.status(operation.code).send(operation)
   }
   async airtime({ response, request, auth }: HttpContext) {
