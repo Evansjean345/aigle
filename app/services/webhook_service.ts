@@ -3,7 +3,6 @@ import ResponseFormatter from '#responses/response_formatter'
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import AirtimeService from './airtime_services.js'
-import PassDataService from './pass_data_services.js'
 import PassMixService from './pass_miss_services.js'
 import TransfertInterService from './transfert_inter.js'
 
@@ -13,7 +12,6 @@ export default class WebhookService {
     protected operationServivce: OperationService,
     protected transfertInterService: TransfertInterService,
     protected airtimeService: AirtimeService,
-    protected passDataService: PassDataService,
     protected passMixService: PassMixService
   ) {}
   static ischecked = null

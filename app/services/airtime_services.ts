@@ -21,10 +21,12 @@ export default class AirtimeService {
         error: any
         status: boolean
       } | null = null
+
       // calcule les frais de l'encaissement
       let result = await calculateFee(data?.amount, data?.operation_type, 'add')
       data.fees = result.fees
       data.total_amount = result.total
+
       // enregistrer les informationse de la transaction
       let transaction = await this.operationService.create_transaction(user, wallet, {
         ...data,
@@ -105,13 +107,12 @@ export default class AirtimeService {
       if (encaissement && encaissement?.error) {
         await ctx.rollback()
         return ResponseFormatter.create({
-          message: encaissement?.error?.message,
-          code: encaissement?.error?.status,
-          status: data?.deposit_details?.pincode,
-          error: encaissement,
+          message: encaissement?.message,
+          code: encaissement?.code,
+          error: encaissement?.error,
+          status: false,
         })
       }
-      console.log('encaissement created')
 
       await ctx.commit()
       return ResponseFormatter.create({
@@ -204,19 +205,23 @@ export default class AirtimeService {
           await paymentData.useTransaction(ctx).save()
           await paymentData.useTransaction(ctx).save()
           // Mise à jour du portefeuille
-          const walletUpdate = await this.operationService.updateBalance(
-            wallet,
-            paymentData?.total_amount,
-            'add'
-          )
-          if (!walletUpdate?.status) {
-            return ResponseFormatter.create({
-              message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
-              code: 500,
-              status: false,
-              error: true,
-            })
+          if (paymentData.payment_method !== 'wallet') {
+            const walletUpdate = await this.operationService.updateBalance(
+              wallet,
+              paymentData?.total_amount,
+              'add'
+            )
+
+            if (!walletUpdate?.status) {
+              return ResponseFormatter.create({
+                message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
+                code: 500,
+                status: false,
+                error: true,
+              })
+            }
           }
+
           await ctx.commit()
           // lancer la deuxieme opération
           return await this.airtime_second_step(

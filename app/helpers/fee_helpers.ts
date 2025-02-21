@@ -16,9 +16,9 @@ export const calculateFee = async (
       : serviceFee.fixed_fee
 
   if (operation === 'subtract') {
-    total = Number(amount) - fees
+    total = Number(amount) - Number(fees)
   } else {
-    total = Number(amount) + fees
+    total = Number(amount) + Number(fees)
   }
 
   console.log(`fees ${operation}; fees : ${fees}; total : ${total}`)

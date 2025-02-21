@@ -25,6 +25,7 @@ export default class OperationService {
       if (Number(wallet.balance) < Number(amount)) {
         return {
           status: false,
+          code:422,
           messages: 'Solde insuffisant pour effectuer cette opération',
         }
       }
@@ -32,6 +33,7 @@ export default class OperationService {
     } else {
       return {
         status: false,
+        code:500,
         messages: 'Opération échoué ',
       }
     }
@@ -446,8 +448,8 @@ export default class OperationService {
       const walletUpdate = await this.updateBalance(wallet, amount, 'subtract')
       if (!walletUpdate?.status) {
         return ResponseFormatter.create({
-          message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
-          code: 500,
+          message: walletUpdate?.messages,
+          code: walletUpdate.code,
           status: false,
           error: true,
         })

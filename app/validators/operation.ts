@@ -9,7 +9,7 @@ const depositDetailsSchema = vine.object({
 })
 
 const airtimeDetailsSchema = vine.object({
-  amount: vine.number(),
+  // amount: vine.number(),
   operation_type: vine.string().trim(),
   beneficiaire_name: vine.string().trim(),
   beneficiaire_phone: vine.string().trim(),
