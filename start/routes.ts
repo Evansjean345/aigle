@@ -63,7 +63,7 @@ router
     router
       .group(operationRouter(router))
       .use(middleware.auth({ guards: ['api'] }))
-      .prefix('operation')
+      .prefix('services')
     router
       .group(() => {
         router.post('create', [VerifyIdentitiesController, 'create_or_update'])
