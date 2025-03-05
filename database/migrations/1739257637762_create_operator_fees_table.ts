@@ -1,11 +1,20 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
-  protected tableName = 'service_fees'
+  protected tableName = 'operator_fees'
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
+
+      table
+        .integer('operators_id')
+        .nullable()
+        .unsigned()
+        .references('id')
+        .inTable('operators')
+        .onDelete('set null')
+        .onUpdate('set null')
 
       table
         .integer('services_id')
@@ -15,8 +24,9 @@ export default class extends BaseSchema {
         .inTable('services')
         .onDelete('set null')
         .onUpdate('set null')
-      table.string('services_type').notNullable()
-      table.decimal('min_amount', 10, 2).defaultTo(0)
+
+      table.string('operator_type').nullable()
+      table.decimal('min_amount,', 10, 2).defaultTo(0)
       table.decimal('max_amount', 10, 2).defaultTo(0)
       table.decimal('fixed_fee', 10, 2).defaultTo(0)
       table.decimal('percentage_fee', 5, 2).defaultTo(0)

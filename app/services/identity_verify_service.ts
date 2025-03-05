@@ -12,7 +12,6 @@ export default class IdentityVerifyService {
   constructor(private documentRepository: DocumentRepository) {}
   async create_or_update(request: any, auth: any) {
     let trx = await db.beginGlobalTransaction()
-    console.log('entrer')
 
     try {
       const user = auth.user

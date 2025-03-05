@@ -30,10 +30,14 @@ export default class TransactionRepository implements TransactionInterface {
     }
   }
 
-  async update(data: TransactionType) {
+  async update(query: { uid: string; id: string }, data: TransactionType) {
     const ctx = await db.transaction()
     try {
-      const transaction = await Transaction.find(data.id)
+      const transaction = await Transaction.query()
+        .where('transactions_uid', query.uid)
+        .orWhere('id', query.id)
+        .first()
+
       if (!transaction) {
         return ResponseFormatter.create({
           data: null,
@@ -53,6 +57,36 @@ export default class TransactionRepository implements TransactionInterface {
       await ctx.rollback()
       return ResponseFormatter.create({
         message: 'Erreur lors de la mise à jour de la transaction',
+        code: 500,
+        error: err,
+        status: false,
+      })
+    }
+  }
+
+  async get_all(filter: any = '') {
+    try {
+      const transactions = await Transaction.query()
+        .if(filter.status, (query) => {
+          query.where('status', filter.status)
+        })
+        .if(filter.status, (query) => {
+          query.where('operation_type', filter.operation)
+        })
+        .preload('user', (userQuery) => {
+          userQuery.select('firstname', 'lastname', 'account_number', 'phone')
+        })
+        .preload('payment')
+        .orderBy('created_at', 'desc')
+
+      return ResponseFormatter.create({
+        data: transactions,
+        message: 'listes des trasactions',
+        code: 201,
+      })
+    } catch (err) {
+      return ResponseFormatter.create({
+        message: 'Erreur lors de la recuperation de la liste',
         code: 500,
         error: err,
         status: false,
@@ -98,6 +132,28 @@ export default class TransactionRepository implements TransactionInterface {
 
       return ResponseFormatter.create({
         data: transaction.length == 0 ? null : transaction[0],
+        message: 'listes des trasactions',
+        code: 200,
+      })
+    } catch (err) {
+      return ResponseFormatter.create({
+        message: 'Erreur lors de la recuperation de la liste',
+        code: 500,
+        error: err.message,
+        status: false,
+      })
+    }
+  }
+
+  async get_by_uid_and_id(query: { uid: string; id: string }) {
+    try {
+      const transaction = await Transaction.query()
+        .where('transactions_uid', query.uid)
+        .orWhere('id', query.id)
+        .first()
+
+      return ResponseFormatter.create({
+        data: transaction,
         message: 'listes des trasactions',
         code: 200,
       })

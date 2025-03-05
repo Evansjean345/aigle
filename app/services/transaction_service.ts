@@ -6,6 +6,40 @@ import ResponseFormatter from '#responses/response_formatter'
 export default class TransactionService {
   constructor(protected transactionRepository: TransactionRepository) {}
   // la liste des transactions de l'utilisateur connecté
+  async get_all(request, auth) {
+    try {
+      const user = auth.user
+      let query = request.qs()
+      console.log(query)
+      let resultat = await this.transactionRepository.get_all(query)
+      return resultat
+    } catch (err) {
+      return ResponseFormatter.create({
+        message: "Une erreur lors de l'initialisation du depot",
+        code: 500,
+        status: false,
+        error: err,
+      })
+    }
+  }
+
+  async update_status(request, auth) {
+    try {
+      const user = auth.user
+      let query = request.qs()
+      let params = request.params()
+      let transaction = await this.transactionRepository.update(params, { status: query.status })
+      return transaction
+    } catch (err) {
+      return ResponseFormatter.create({
+        message: "Une erreur lors de l'initialisation du depot",
+        code: 500,
+        status: false,
+        error: err,
+      })
+    }
+  }
+
   async all_by_user(auth) {
     try {
       const user = auth.user

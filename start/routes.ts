@@ -8,28 +8,27 @@
 */
 
 import router from '@adonisjs/core/services/router'
-const AuthController = () => import('#controllers/api/auths_controller')
 const OtpsController = () => import('#controllers/api/otps_controller')
 const TransactionsController = () => import('#controllers/api/transactions_controller')
 const UsersController = () => import('#controllers/api/users_controller')
 const VerifyIdentitiesController = () => import('#controllers/api/verify_identities_controller')
+const SettingsController = () => import('#controllers/api/settings_controller')
 import { middleware } from '#start/kernel'
-import { operationRouter, webHookRouter } from './index.js'
+import { authRouter, operationRouter, webHookRouter } from './index.js'
 
 router
   .group(() => {
+    router.group(authRouter(router, middleware)).prefix('auth')
     router
       .group(() => {
-        router.post('register', [AuthController, 'register'])
-        router.post('login', [AuthController, 'login'])
-        router.get('me', [AuthController, 'user_auth']).use(middleware.auth({ guards: ['api'] }))
-        router.get('logout', [AuthController, 'logout']).use(middleware.auth({ guards: ['api'] }))
-        router.post('check-phone', [AuthController, 'check_phone'])
-        router.post('access-token', [AuthController, 'access_token'])
-        router.post('check-pin-code', [AuthController, 'check_pin_code'])
-        router.post('password-reset', [AuthController, 'reset_password'])
+        router
+          .group(() => {
+            router.get('all', [TransactionsController, 'get_all'])
+            router.get('status/:id/:uid', [TransactionsController, 'update_status'])
+          })
+          .prefix('transaction')
       })
-      .prefix('auth')
+      .prefix('admin')
 
     router
       .group(() => {
@@ -48,8 +47,6 @@ router
 
     router
       .group(() => {
-        //Dépôt via Aigle.
-        // router.get('depot', [TransactionsController, 'depot'])
         router.get('all-by-user', [TransactionsController, 'all_by_user'])
         router.get('details-by-user/:transactionId/:transactionUid', [
           TransactionsController,
@@ -75,5 +72,15 @@ router
       .group(webHookRouter(router))
       // .use(middleware.auth({ guards: ['api'] }))
       .prefix('web_hook')
+
+    router
+      .group(() => {
+        router.get('operators/all', [SettingsController, 'operator'])
+        router.get('operators/create', [SettingsController, 'create_operator'])
+        router.post('calculate-fee', [SettingsController, 'calculate_fee'])
+        router.get('services/all', [SettingsController, 'service'])
+        router.post('services/create', [SettingsController, 'create_service'])
+      })
+      .prefix('settings')
   })
   .prefix('/api')

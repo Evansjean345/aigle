@@ -25,7 +25,7 @@ export default class OperationService {
       if (Number(wallet.balance) < Number(amount)) {
         return {
           status: false,
-          code:422,
+          code: 422,
           messages: 'Solde insuffisant pour effectuer cette opération',
         }
       }
@@ -33,7 +33,7 @@ export default class OperationService {
     } else {
       return {
         status: false,
-        code:500,
+        code: 500,
         messages: 'Opération échoué ',
       }
     }
@@ -207,6 +207,40 @@ export default class OperationService {
       })
     }
   }
+
+  async demande_virement(data: any, auth: any) {
+    const ctx = await db.beginGlobalTransaction()
+    try {
+      const user = auth.user
+      await user.load('wallet')
+      const wallet = user.wallet
+
+      // let result = await calculateFee(data.amount, data?.operation_type, 'subtract')
+      data.fees = 5000
+      data.total_amount = Number(data.amount) - Number(data.fees)
+
+      let transaction = await this.create_transaction(user, wallet, data)
+
+      // enregistrer le payment
+      let payment = await this.create_payment(transaction?.data, data)
+      if (payment.error) {
+        await ctx.rollback()
+        return payment
+      }
+      await ctx.commit()
+
+      return transaction
+    } catch (error) {
+      await ctx.rollback()
+      return ResponseFormatter.create({
+        message: "Une erreur lors de l'initialisation du transfert",
+        code: 500,
+        status: false,
+        error: error,
+      })
+    }
+  }
+
 
   // transferer de d'argent depuis le wallet
   async transfert(data: NewOperationType, auth: any) {

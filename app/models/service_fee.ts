@@ -6,6 +6,9 @@ export default class ServiceFee extends BaseModel {
   declare id: number
 
   @column()
+  declare services_id: string
+
+  @column()
   declare services_type: string
 
   @column()

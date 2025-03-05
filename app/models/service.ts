@@ -13,10 +13,7 @@ export default class Service extends BaseModel {
   declare name: string
 
   @column()
-  declare poucentage_service_fee: number
-
-  @column()
-  declare fees: number
+  declare fee_by: 'operator_fee' | 'service_fee'
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

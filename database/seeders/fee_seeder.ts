@@ -16,6 +16,7 @@ export default class extends BaseSeeder {
       { id: 5, services_type: 'passe', percentage_fee: 1.5 },
     ]
     await ServiceFee.updateOrCreateMany('id', fees)
+    // await OperatorFee.updateOrCreateMany('id', fees)
     console.log('fees created successfully')
   }
 }

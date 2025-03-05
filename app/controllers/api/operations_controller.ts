@@ -40,6 +40,18 @@ export default class OperationController {
     const operation = await this.airtimeService.data_forfait(request.params())
     return response.status(operation.code).send(operation)
   }
+
+  async demande_virement({ response, request, auth }: HttpContext) {
+    // const payload = await airtimeValidator.validate(request.params())
+    const operation = await this.operationService.demande_virement(request.all(),auth)
+    return response.send(operation)
+  }
+
+  async liste_virement({ response, request, auth }: HttpContext) {
+    // const payload = await airtimeValidator.validate(request.params())
+    const operation = await this.operationService.liste_virement()
+    return response.send(operation)
+  }
   async airtime({ response, request, auth }: HttpContext) {
     const payload = await airtimeValidator.validate(request.all())
     const operation = await this.airtimeService.airtime_first_step(request.all(), auth)
