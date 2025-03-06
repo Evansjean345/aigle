@@ -73,10 +73,10 @@ export default class TransactionRepository implements TransactionInterface {
         .if(filter.status, (query) => {
           query.where('operation_type', filter.operation)
         })
-        .preload('user', (userQuery) => {
-          userQuery.select('firstname', 'lastname', 'account_number', 'phone')
-        })
-        .preload('payment')
+        // .preload('user', (userQuery) => {
+        //   userQuery.select('firstname', 'lastname', 'account_number', 'phone')
+        // })
+        // .preload('payment')
         .orderBy('created_at', 'desc')
 
       return ResponseFormatter.create({
@@ -129,9 +129,35 @@ export default class TransactionRepository implements TransactionInterface {
         .andWhere('transactions_uid', params.transactionUid)
         .andWhere('users_id', user.id)
         .preload('payment')
+        .first()
+      return ResponseFormatter.create({
+        data: transaction,
+        message: 'listes des trasactions',
+        code: 200,
+      })
+    } catch (err) {
+      return ResponseFormatter.create({
+        message: 'Erreur lors de la recuperation de la liste',
+        code: 500,
+        error: err.message,
+        status: false,
+      })
+    }
+  }
+
+  async get_detail(params: any) {
+    try {
+      const transaction = await Transaction.query()
+        .where('id', params.id)
+        .andWhere('transactions_uid', params.uid)
+        .preload('payment')
+        .preload('user', (userQuery) => {
+          userQuery.select('firstname', 'lastname', 'account_number', 'phone')
+        })
+        .first()
 
       return ResponseFormatter.create({
-        data: transaction.length == 0 ? null : transaction[0],
+        data: transaction,
         message: 'listes des trasactions',
         code: 200,
       })

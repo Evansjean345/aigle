@@ -25,6 +25,7 @@ router
           .group(() => {
             router.get('all', [TransactionsController, 'get_all'])
             router.get('status/:id/:uid', [TransactionsController, 'update_status'])
+            router.get(':id/:uid', [TransactionsController, 'details'])
           })
           .prefix('transaction')
       })

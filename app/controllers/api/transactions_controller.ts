@@ -24,6 +24,13 @@ export default class TransactionsController {
     return response.status(transaction.code).send(transaction)
   }
 
+  async details({ response, auth, request }: HttpContext) {
+    // const payload = await createDepotValidator.validate(request.all())
+    const params = request.params()
+    const transaction = await this.transactionService.details(params)
+    return response.status(transaction.code).send(transaction)
+  }
+
   async details_by_user({ response, auth, request }: HttpContext) {
     // const payload = await createDepotValidator.validate(request.all())
     const params = request.params()

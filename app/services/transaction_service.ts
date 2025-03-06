@@ -55,6 +55,20 @@ export default class TransactionService {
     }
   }
   // détail d'une transactions de l'utilisateur connecté
+  async details(params) {
+    try {
+      let resultat = await this.transactionRepository.get_detail(params)
+      return resultat
+    } catch (err) {
+      return ResponseFormatter.create({
+        message: "Une erreur lors de l'initialisation du depot",
+        code: 500,
+        status: false,
+        error: err,
+      })
+    }
+  }
+
   async details_by_user(auth, params) {
     try {
       const user = auth.user
