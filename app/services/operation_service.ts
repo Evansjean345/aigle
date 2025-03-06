@@ -9,13 +9,14 @@ import PaymentRepository from '#repositories/payment_repository'
 import db from '@adonisjs/lucid/services/db'
 import { calculateFee } from '../helpers/fee_helpers.js'
 import { generateUrl } from '../helpers/file_helpers.js'
+import drive from '@adonisjs/drive/services/main'
 
 @inject()
 export default class OperationService {
   constructor(
     protected transactionRepository: TransactionRepository,
     protected paymentRepository: PaymentRepository
-  ) {}
+  ) { }
   // metter à jour le walllet d'un utilisateur
   async updateBalance(wallet: Wallet, amount: number, operation: 'add' | 'subtract') {
     if (operation === 'add') {
@@ -220,7 +221,8 @@ export default class OperationService {
       let path = user?.id + generateUrl(file.extname)
       // let result = await calculateFee(data.amount, data?.operation_type, 'subtract')
 
-      await file.moveToDisk(path)
+      await file.moveToDisk(`virement/${path}`)
+      path = await drive.use('fs').getUrl(`virement/${path}`)
       data.file = path
       data.fees = 5000
       data.total_amount = Number(data.amount) - Number(data.fees)

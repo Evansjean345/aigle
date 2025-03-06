@@ -71,7 +71,7 @@ export default class extends BaseSeeder {
     let globalId = 0
     for (const service of services) {
       const operatorFee = []
-      operatorData.forEach((element,index) => {
+      operatorData.forEach((element, index) => {
         operatorFee.push({
           id: globalId++,
           operators_id: element.id,
