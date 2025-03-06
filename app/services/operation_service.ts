@@ -8,6 +8,7 @@ import Wallet from '#models/wallet'
 import PaymentRepository from '#repositories/payment_repository'
 import db from '@adonisjs/lucid/services/db'
 import { calculateFee } from '../helpers/fee_helpers.js'
+import { generateUrl } from '../helpers/file_helpers.js'
 
 @inject()
 export default class OperationService {
@@ -214,8 +215,13 @@ export default class OperationService {
       const user = auth.user
       await user.load('wallet')
       const wallet = user.wallet
-
+      let file = data.file('file')
+      data = data.all()
+      let path = user?.id + generateUrl(file.extname)
       // let result = await calculateFee(data.amount, data?.operation_type, 'subtract')
+
+      await file.moveToDisk(path)
+      data.file = path
       data.fees = 5000
       data.total_amount = Number(data.amount) - Number(data.fees)
 
@@ -232,15 +238,17 @@ export default class OperationService {
       return transaction
     } catch (error) {
       await ctx.rollback()
+
+      console.log(error)
+
       return ResponseFormatter.create({
-        message: "Une erreur lors de l'initialisation du transfert",
+        message: "Une erreur lors de l'initialisation du virement",
         code: 500,
         status: false,
         error: error,
       })
     }
   }
-
 
   // transferer de d'argent depuis le wallet
   async transfert(data: NewOperationType, auth: any) {

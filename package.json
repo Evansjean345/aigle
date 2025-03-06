@@ -11,6 +11,7 @@
     "migration": "node ace make:migration",
     "migration:fresh": "node ace migration:fresh",
     "migrate": "node ace migration:run",
+    "migrations:status": "node ace migration:status",
     "model": "node ace make:model",
     "seed": "node ace db:seed",
     "seeder": "node ace make:seeder",

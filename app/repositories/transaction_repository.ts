@@ -24,7 +24,7 @@ export default class TransactionRepository implements TransactionInterface {
       return ResponseFormatter.create({
         message: 'Erreur lors de la création de la transaction',
         code: 500,
-        error: err.message,
+        error: err,
         status: false,
       })
     }

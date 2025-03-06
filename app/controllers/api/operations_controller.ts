@@ -43,7 +43,7 @@ export default class OperationController {
 
   async demande_virement({ response, request, auth }: HttpContext) {
     // const payload = await airtimeValidator.validate(request.params())
-    const operation = await this.operationService.demande_virement(request.all(),auth)
+    const operation = await this.operationService.demande_virement(request,auth)
     return response.send(operation)
   }
 
