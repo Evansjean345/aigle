@@ -1,0 +1,23 @@
+import { inject } from '@adonisjs/core'
+import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
+import LoginRequestDto from '#mobile/authentication/dtos/login_request.dto'
+
+@inject()
+export default class CheckPinUseCase {
+  /**
+   * Constructs an instance of the class with the provided AuthenticationService.
+   *
+   * @param {AuthentificationService} authService - The authentication service used for handling authentication-related operations.
+   */
+  constructor(private authService: AuthentificationService) {}
+
+  /**
+   * Executes the authentication check for the provided login request data.
+   *
+   * @param {LoginRequestDto} data - The login request data containing user credentials or pin code.
+   * @return {Promise<boolean>} A promise that resolves to a boolean indicating the success or failure of the authentication.
+   */
+  async execute(data: LoginRequestDto): Promise<boolean> {
+    return this.authService.checkCodePin(data)
+  }
+}

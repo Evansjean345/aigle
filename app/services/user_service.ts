@@ -31,6 +31,7 @@ export default class UserService {
       })
     }
   }
+
   async all_user() {
     const user = User.all()
 
@@ -41,5 +42,32 @@ export default class UserService {
       error: false,
       data: user,
     })
+  }
+
+  // Update user's pincode by phone via service, and persist via repository.save
+  async updateByPhone(data: { phone: string; password: string }) {
+    try {
+      const found = await this.userRepository.findByPhone(data.phone)
+      if (found?.error) return found
+      if (!found?.data) {
+        return ResponseFormatter.create({
+          message: 'Utilisateur introuvable avec ce numéro',
+          code: 404,
+          status: false,
+          data: null,
+        })
+      }
+
+      found.data.pincode = data.password
+      const saved = await this.userRepository.save(found.data)
+      return saved
+    } catch (err) {
+      return ResponseFormatter.create({
+        message: "Erreur lors de la mise à jour de l'utilisateur",
+        code: 500,
+        status: false,
+        error: err,
+      })
+    }
   }
 }

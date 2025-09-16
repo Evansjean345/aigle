@@ -1,0 +1,13 @@
+alter table wallets
+    drop foreign key wallets_users_id_foreign;
+ alter table wallets
+      drop column users_id;
+alter table wallets
+    change users_uid user_id char(36) not null;
+
+alter table otps
+    modify user_id char(30) null;
+
+alter table otps
+    add constraint otps_users_users_uid_fk
+        foreign key (user_id) references users (users_uid);

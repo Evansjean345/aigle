@@ -2,7 +2,6 @@ import AirtimeService from '#services/airtime_services'
 import OperationService from '#services/operation_service'
 import TransfertInterService from '#services/transfert_inter'
 import { airtimeValidator, transfertValidator } from '#validators/operation'
-import { createDepotValidator } from '#validators/transaction'
 import { inject } from '@adonisjs/core'
 import { HttpContext } from '@adonisjs/core/http'
 

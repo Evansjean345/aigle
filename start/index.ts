@@ -1,8 +1,10 @@
+import { HttpRouterService } from '@adonisjs/core/types'
+
 const OperationController = () => import('#controllers/api/operations_controller')
 const WebhooksController = () => import('#controllers/api/webhooks_controller')
 const AuthController = () => import('#controllers/api/auths_controller')
 
-export const operationRouter = (router) => {
+export const operationRouter = (router: HttpRouterService) => {
   return () => {
     router.post('virement', [OperationController, 'demande_virement'])
     router.get('virement/all', [OperationController, 'liste_virement'])
@@ -51,7 +53,7 @@ export const webHookRouter = (router) => {
   }
 }
 
-export const authRouter = (router, middleware) => {
+export const authRouter = (router: HttpRouterService, middleware) => {
   return () => {
     router.post('register', [AuthController, 'register'])
     router.post('login', [AuthController, 'login'])

@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import TransactionRepository from '#repositories/transaction_repository'
 import ResponseFormatter from '#responses/response_formatter'
 // import { DateTime } from 'luxon'
-import { AirtimeType, MobileMoneyCheckoutType, NewOperationType } from '#interfaces/operation'
+import { MobileMoneyCheckoutType, NewOperationType } from '#interfaces/operation'
 import { makeRequest } from '../helpers/http_helpers.js'
 import Wallet from '#models/wallet'
 import PaymentRepository from '#repositories/payment_repository'
@@ -16,7 +16,7 @@ export default class OperationService {
   constructor(
     protected transactionRepository: TransactionRepository,
     protected paymentRepository: PaymentRepository
-  ) { }
+  ) {}
   // metter à jour le walllet d'un utilisateur
   async updateBalance(wallet: Wallet, amount: number, operation: 'add' | 'subtract') {
     if (operation === 'add') {
@@ -51,6 +51,7 @@ export default class OperationService {
   // function pour effectuer un dépot vers le wallet
   async depot(data: NewOperationType, auth: any) {
     const ctx = await db.beginGlobalTransaction()
+
     try {
       const user = auth.user
       await user.load('wallet')
@@ -508,7 +509,7 @@ export default class OperationService {
       })
     } catch (error) {
       return ResponseFormatter.create({
-        message: 'Une erreur interne',
+          message: 'Une erreur interne',
         code: 500,
         status: false,
         error: error,
@@ -527,9 +528,8 @@ export default class OperationService {
       fees: data?.fees,
       balance_before: wallet.balance,
     }
-    const transaction = await this.transactionRepository.create(transactionData)
 
-    return transaction
+    return await this.transactionRepository.create(transactionData)
   }
 
   async create_payment(transaction: any, data: any) {
@@ -562,6 +562,7 @@ export default class OperationService {
             card_holder: item.card_holder && item.card_holder,
           }
           break
+
         case 'airtime':
           response = {
             operator_id: item.operator_id && item.operator_id,
@@ -596,9 +597,8 @@ export default class OperationService {
       step: data.step && data.step,
       status: data.status && data.status,
     }
-    const payment = await this.paymentRepository.create(paymentData)
 
-    return payment
+    return await this.paymentRepository.create(paymentData)
   }
 
   async hub_service(uri: any, method: any, data: any) {
