@@ -17,7 +17,7 @@ export default class AuthServices {
     protected otpService: OtpService,
     protected walletRepository: WalletRepository,
     protected countryRepository: CountryRepository
-  ) {}
+  ) { }
 
   // parcourt enregistrement et connexion
   async check_phone(data: { phone: string }) {
@@ -101,10 +101,12 @@ export default class AuthServices {
 
       transaction.commit()
 
-    console.log(`user created id:${user.data?.id}, date:${user.data?.createdAt}`)
+      console.log(`user created id:${user.data?.id}, date:${user.data?.createdAt}`)
 
       return user
     } catch (err) {
+
+      console.log(err);
       await transaction.rollback()
 
       return ResponseFormatter.create({
@@ -178,7 +180,7 @@ export default class AuthServices {
 
       if (existingToken) {
         // deconnecter l'utilisateur des autres appareils
-        await AuthAccessToken.query().where('tokenable_id', user.data.id).delete()
+        // await AuthAccessToken.query().where('tokenable_id', user.data.id).delete()
       }
       // creer un nouveau token de connnexion
       const token = await User.accessTokens.create(user.data)
