@@ -8,7 +8,10 @@ export default class PaymentService {
    *
    * @return {Promise<Object>} A promise that resolves to the created payment repository instance.
    */
-  async createPaymentRepository(payload: ) {}
+  async createPaymentRepository(payload: any): Promise<any> {
+    // TODO: Implement creation/initialization logic
+    return this.paymentRepository as unknown as any
+  }
 
 
   async create

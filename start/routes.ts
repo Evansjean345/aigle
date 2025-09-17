@@ -18,11 +18,13 @@ import { authRouter, operationRouter, webHookRouter } from './index.js'
 
 import mobileAuthRoutes from '#mobile/authentication/routes/auth_routes'
 import mobileWalletRoutes from '#mobile/wallet/routes/wallet_routes'
+import adminServicesManagementRoutes from '#admin/services_management/routes/services_management_routes'
 
 router
   .group(() => {
     router.group(mobileAuthRoutes)
     router.group(mobileWalletRoutes)
+    router.group(adminServicesManagementRoutes)
     router.group(authRouter(router, middleware)).prefix('auth')
     router
       .group(() => {
