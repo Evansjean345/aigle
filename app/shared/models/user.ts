@@ -1,16 +1,23 @@
-import Wallet from '#models/wallet'
-import Country from '#models/country'
-import Document from '#models/document'
-import Transaction from '#models/transaction'
 import { DateTime } from 'luxon'
-import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column, beforeSave, hasOne, hasMany, belongsTo } from '@adonisjs/lucid/orm'
+import { compose, cuid } from '@adonisjs/core/helpers'
+import {
+  BaseModel,
+  column,
+  hasOne,
+  hasMany,
+  belongsTo,
+  beforeSave,
+  beforeCreate,
+} from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import hash from '@adonisjs/core/services/hash'
 import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations'
-import { v4 as uuidv4 } from 'uuid'
-import { uniqueID } from '../helpers/utiles.js'
+import Wallet from '#shared/models/wallet'
+import Document from '#shared/models/document'
+import Country from '#shared/models/country'
+import Transaction from '#shared/models/transaction'
+import { uniqueID } from '../../helpers/utiles.js'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['phone'],
@@ -21,40 +28,20 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column({ isPrimary: true, serializeAs: null })
   declare id: number
 
-  @hasOne(() => Wallet, {
-    foreignKey: 'users_id',
-  })
-  declare wallet: HasOne<typeof Wallet>
-
-  @hasOne(() => Document, {
-    foreignKey: 'users_id',
-  })
-  declare document: HasOne<typeof Document>
-
-  @belongsTo(() => Country, {
-    foreignKey: 'country_id',
-  })
-  declare country: BelongsTo<typeof Country>
+  @column()
+  declare countryId: number
 
   @column()
-  declare country_id: number
-
-  @hasMany(() => Transaction, {
-    foreignKey: 'users_id', // Utilisation de 'user_id' comme convention de clé étrangère
-  })
-  declare transactions: HasMany<typeof Transaction>
+  declare firstname: string
 
   @column()
-  declare firstname: string | null
-
-  @column({ serializeAs: null })
-  declare users_uid: string | null
+  declare lastname: string
 
   @column()
-  declare lastname: string | null
+  declare usersUid: string
 
   @column()
-  declare account_number: string
+  declare accountNumber: string
 
   @column({ serializeAs: null })
   declare email: string | null
@@ -66,25 +53,25 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare birthday: Date
 
   @column()
-  declare status: string | 'active' | 'inactive'
+  declare status: 'active' | 'inactive' | 'suspended'
 
   @column({ serializeAs: null })
   declare adresse: string | null
 
   @column()
-  declare picture_url: string | null
+  declare pictureUrl: string | null
 
   @column()
-  declare account_type: string
+  declare accountType: string
 
   @column({ serializeAs: null })
   declare password: string
 
-  @column({ serializeAs: null })
+  @column()
   declare pincode: string
 
   @column()
-  declare identity_status: string | 'pending' | 'approved' | 'rejected'
+  declare identityStatus: 'pending' | 'approved' | 'rejected'
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -100,12 +87,36 @@ export default class User extends compose(BaseModel, AuthFinder) {
     // tokenSecretLength: 40,
   })
 
-  static hidden() {
-    return ['password', 'remember_me_token', 'usersUid', 'id', 'usersUid', 'pincode']
-  }
-  @beforeSave()
+  @beforeCreate()
   static async BaseModel(user: User) {
-    user.users_uid = uuidv4()
-    user.account_number = uniqueID(8)
+    if (!user.usersUid) user.usersUid = cuid()
+    if (!user.accountNumber) user.accountNumber = uniqueID(8)
   }
+
+  static hidden() {
+    return ['password', 'remember_me_token', 'id', 'pincode']
+  }
+
+  @hasMany(() => Transaction, {
+    foreignKey: 'userId',
+    localKey: 'usersUid',
+  })
+  declare transactions: HasMany<typeof Transaction>
+
+  @hasOne(() => Wallet, {
+    foreignKey: 'userId',
+    localKey: 'usersUid',
+  })
+  declare wallet: HasOne<typeof Wallet>
+
+  @hasOne(() => Document, {
+    foreignKey: 'userId',
+    localKey: 'usersUid',
+  })
+  declare document: HasOne<typeof Document>
+
+  @belongsTo(() => Country, {
+    foreignKey: 'countryId',
+  })
+  declare country: BelongsTo<typeof Country>
 }

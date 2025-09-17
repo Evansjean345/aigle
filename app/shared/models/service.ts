@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, beforeSave, column, hasOne } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeSave, column } from '@adonisjs/lucid/orm'
 import { v4 as uuidv4 } from 'uuid'
 
 export default class Service extends BaseModel {

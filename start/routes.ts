@@ -16,8 +16,13 @@ const SettingsController = () => import('#controllers/api/settings_controller')
 import { middleware } from '#start/kernel'
 import { authRouter, operationRouter, webHookRouter } from './index.js'
 
+import mobileAuthRoutes from '#mobile/authentication/routes/auth_routes'
+import mobileWalletRoutes from '#mobile/wallet/routes/wallet_routes'
+
 router
   .group(() => {
+    router.group(mobileAuthRoutes)
+    router.group(mobileWalletRoutes)
     router.group(authRouter(router, middleware)).prefix('auth')
     router
       .group(() => {
@@ -62,6 +67,7 @@ router
       .group(operationRouter(router))
       .use(middleware.auth({ guards: ['api'] }))
       .prefix('services')
+
     router
       .group(() => {
         router.post('create', [VerifyIdentitiesController, 'create_or_update'])

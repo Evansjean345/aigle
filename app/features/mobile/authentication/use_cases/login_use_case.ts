@@ -1,63 +1,34 @@
-import UserRepository from '#repositories/user_repository'
-import OtpService from '#services/otp_service'
-import ResponseFormatter from '#responses/response_formatter'
 import { inject } from '@adonisjs/core'
-import hash from '@adonisjs/core/services/hash'
-
-export interface LoginUseCaseData {
-  phone: string
-  password: string
-}
+import LoginRequestDto from '#mobile/authentication/dtos/login_request.dto'
+import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
+import { LoginResult } from '#mobile/authentication/dtos/login.result'
+import OtpService from '#shared/services/otp_service'
 
 @inject()
 export default class LoginUseCase {
+  /**
+   * Constructs an instance of the class.
+   *
+   * @param {AuthentificationService} authServices - The authentication service used for managing authentication tasks.
+   */
   constructor(
-    protected userRepository: UserRepository,
-    protected otpService: OtpService
+    protected authServices: AuthentificationService,
+    private otpService: OtpService
   ) {}
 
-  async execute(data: LoginUseCaseData) {
+  /**
+   * Executes the login process by delegating to the authentication service.
+   *
+   * @param {LoginRequestDto} data - The login request data containing credentials.
+   * @return {Promise<any>} A promise that resolves to the result of the login operation.
+   */
+  async execute(data: LoginRequestDto): Promise<LoginResult> {
     try {
-      // Rechercher utilisateur par numéro de téléphone
-      const user = await this.userRepository.findByPhone(data.phone)
-
-      if (!user.data) {
-        return ResponseFormatter.create({
-          message: 'Utilisateur introuvable avec ce numéro',
-          code: 404,
-          status: false,
-        })
-      }
-
-      // Vérifier si le code pin est correct
-      const isPasswordValid = await hash.verify(user.data.pincode, data.password)
-
-      if (!isPasswordValid) {
-        let response = ResponseFormatter.create({
-          message: 'Votre code secret est incorrect il vous reste 4 tentatives',
-          code: 401,
-          status: false,
-          error: true,
-        })
-        response.access = false
-        return response
-      }
-
-      // Marquer l'accès autorisé
-      user.access = true
-
-      // Envoyer un OTP de vérification
-      let otp = await this.otpService.sendOtp(user.data)
-      if (otp.error) return otp
-
-      return user
-    } catch (err) {
-      return ResponseFormatter.create({
-        message: "Une erreur inattendue s'est produite.",
-        code: 500,
-        status: false,
-        error: err,
-      })
+        const user = await this.authServices.login(data)
+        await this.otpService.sendOtp(user.phone, user.usersUid)
+        return { message: 'OTP sent successfully' }
+    } catch (error) {
+        throw error
     }
   }
 }

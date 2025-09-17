@@ -83,6 +83,6 @@ export interface AuthenticationServiceInterface {
 
 // OTP Service Interface
 export interface OtpServiceInterface {
-  sendOtp(data: { user: any | null; phone: string }): Promise<any>
+  sendOtp(phone: string, userId: string): Promise<any>
   verifyOtp(data: { phone: string; enteredOtp: string }): Promise<any>
 }

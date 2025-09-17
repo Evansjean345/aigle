@@ -2,9 +2,10 @@ import { DateTime } from 'luxon'
 import { BaseModel, beforeSave, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
 import string from '@adonisjs/core/helpers/string'
 import { v4 as uuidv4 } from 'uuid'
-import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations'
-import Payment from '#models/payment'
-import User from '#models/user'
+import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
+import Payment from '#shared/models/payment'
+import User from '#shared/models/user'
+
 export default class Transaction extends BaseModel {
   @column({ isPrimary: true })
   declare id: number

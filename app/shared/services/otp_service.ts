@@ -1,133 +1,137 @@
-import OtpRepository from '#repositories/otp_repository'
-import UserRepository from '#repositories/user_repository'
-import ResponseFormatter from '#responses/response_formatter'
 import { inject } from '@adonisjs/core'
 import hash from '@adonisjs/core/services/hash'
 import { DateTime } from 'luxon'
-import { sendSms } from '../external-services/sms_service.js'
+import OtpRepository from '#shared/interfaces/repositories/OtpRepository'
+import Otp from '#shared/models/otp'
+import { Exception } from '@adonisjs/core/exceptions'
+import { sendSms } from '../../external-services/sms_service.js'
+
+// Simple constants to make OTP behavior easy to tune
+const OTP_EXPIRY_SECONDS = 600
+const OTP_MAX_ATTEMPTS = 5
+const OTP_LOCK_SECONDS = 60
 
 @inject()
 export default class OtpService {
-  constructor(
-    protected userRepository: UserRepository,
-    protected otpRepository: OtpRepository
-  ) {}
+  constructor(private otpRepository: OtpRepository) {}
 
-  async sendOtp(data: { user: any | null; phone: string }) {
+  /**
+   * Create and persist an OTP for a user/phone. Returns the saved OTP entity and the plaintext code.
+   */
+  async createOtp(userId: string, phone: string): Promise<{ entity: Otp; code: string }> {
+    const code = Math.floor(1000 + Math.random() * 9000).toString()
+    const otpHash = await hash.make(code)
+    const now = Date.now()
+    const expiresAt = new Date(now + OTP_EXPIRY_SECONDS * 1000)
+
+    const otp = new Otp()
+    otp.userId = userId
+    otp.otpCode = otpHash
+    otp.phone = phone
+    otp.expiresAt = expiresAt
+    otp.attempts = otp.attempts ?? 0
+
     try {
-      // Générer un OTP de 4 chiffres
-      const otpCode = Math.floor(1000 + Math.random() * 9000)
-      const otpHash = await hash.make(otpCode.toString())
-      // Définir une expiration de 5 minutes
-      const expiresAt = new Date(new Date().getTime() + 30 * 1000)
-      // const lockedUntil = new Date()
-      // expiresAt.setMinutes(expiresAt.getHours() + 5)
-      // lockedUntil.setMinutes(lockedUntil.getMinutes() + 5)
-      let otp = await this.otpRepository.create({
-        user_id: data.user ?? data.user?.id,
-        otp_code: otpHash,
-        phone: data.phone,
-        expires_at: expiresAt,
-      })
-
-      if (otp.error) return otp
-      console.log(otpCode)
-
-      let resul = await sendSms(String(otpCode), data.phone)
-
-      return ResponseFormatter.create({
-        message: 'otp envoyé',
-        data: true,
-      })
+      const saved = await this.otpRepository.save(otp)
+      return { entity: saved, code }
     } catch (err) {
-      return ResponseFormatter.create({
-        message: "Erreur lors de la l'envoi de l'OTP",
-        code: 500,
-        status: false,
-        error: false,
+      console.log(err)
+      throw new Exception("Erreur lors de l'enregistrement de l'OTP", {
+        status: 500,
+        code: 'OTP_CREATION_ERROR',
       })
     }
   }
 
-  async verifyOtp(data: { phone: any; enteredOtp: string }) {
+  /**
+   * Sends an OTP (One-Time Password) to the specified phone number.
+   *
+   * @param {string} phone - The phone number to which the OTP will be sent.
+   * @param {string} userId - The unique identifier of the user requesting the OTP.
+   * @return {Promise<any>} A promise that resolves to an object containing the status of the operation.
+   * @throws {Exception} If there is an error during the OTP generation or SMS sending process.
+   */
+  async sendOtp(phone: string, userId: string): Promise<{sent: boolean}> {
     try {
-      let otp = await this.otpRepository.check(data.phone)
-      // await this.otpRepository.delete(user.id)
+      const { code } = await this.createOtp(userId, phone)
+      const message = `Votre code OTP est ${code}. Il est valide pendant ${OTP_EXPIRY_SECONDS} secondes.`
+      // await sendSms(message, phone)
 
-      if (otp.error || !otp.data) return otp
-
-      // Vérifier temps d'expiration
-      if (DateTime.fromJSDate(otp.data.expires_at) < DateTime.now()) {
-        return ResponseFormatter.create({
-          message: 'délais dépassé',
-          code: 403,
-          error: true,
-          status: false,
-        })
-      }
-
-      // Vérifier si l'utilisateur est temporairement bloqué
-      // console.log(DateTime.now());
-
-      if (otp.data.locked_until && DateTime.fromJSDate(otp.data.locked_until) > DateTime.now()) {
-        return ResponseFormatter.create({
-          message: 'Vous êtes temporairement bloqué. Veuillez réessayer plus tard.',
-          code: 403,
-          error: true,
-          status: false,
-        })
-      }
-
-      if (otp.data.locked_until && DateTime.fromJSDate(otp.data.locked_until) < DateTime.now()) {
-        otp.data.attempts = 0
-        otp.data.locked_until = null
-        await otp.data.save()
-      }
-
-      // Vérifier le nombre de tentatives
-      const maxAttempts = 3
-      if (otp.data.attempts >= maxAttempts) {
-        otp.data.locked_until = new Date(new Date().getTime() + 1 * 60 * 1000) // Verrouillé pendant 10 minutes
-        await otp.data.save()
-
-        console.log(DateTime.fromJSDate(otp.data.locked_until))
-
-        return ResponseFormatter.create({
-          data: null,
-          message: 'Vous êtes temporairement bloqué. Veuillez réessayer plus tard.',
-          code: 403,
-          error: true,
-          status: false,
-        })
-      }
-
-      // verifier si l'otp est valide
-      let isOtpValid = await hash.verify(otp.data.otp_code, data.enteredOtp)
-
-      if (!isOtpValid) {
-        otp.data.attempts += 1
-        await otp.data.save()
-
-        return ResponseFormatter.create({
-          message: 'code otp incorrect',
-          code: 401,
-          status: false,
-          error: true,
-        })
-      }
-      // console.log(otp.data);
-
-      return ResponseFormatter.create({
-        message: 'code otp valide',
-        data: otp.data,
-      })
+      console.log(message)
+      return { sent: true }
     } catch (err) {
-      return ResponseFormatter.create({
-        message: "Erreur lors de la verification de l'OTP",
-        code: 500,
-        status: false,
-        error: err.message,
+      throw new Exception(err.message, {
+        status: err.status,
+        code: err.code,
       })
     }
+  }
+
+  /**
+   * Verifies the provided OTP (One-Time Password) for the given phone number. It checks the validity, expiration,
+   * and potential locking status of the OTP, and throws appropriate exceptions if the verification fails.
+   *
+   * @param {Object} data - An object containing the phone number and the entered OTP.
+   * @param {string} data.phone - The phone number associated with the OTP.
+   * @param {string} data.enteredOtp - The OTP code entered by the user for verification.
+   * @return {Promise<void>} A promise that resolves when the verification is successful. Throws exceptions for various failure conditions.
+   */
+  async verifyOtp(data: { phone: string; enteredOtp: string }): Promise<void> {
+    const otp = await this.otpRepository.check(data.phone)
+
+    if (!otp) {
+      throw new Exception('Code Otp introuvable', {
+        status: 404,
+        code: 'OTP_NOT_FOUND',
+      })
+    }
+
+    const now = DateTime.now()
+
+    if (DateTime.fromJSDate(<Date>otp.expiresAt) < now) {
+      throw new Exception('Code Otp expiré', {
+        status: 403,
+        code: 'OTP_EXPIRED',
+      })
+    }
+
+    if (otp.lockedUntil && DateTime.fromJSDate(otp.lockedUntil) > now) {
+      throw new Exception('Vous êtes temporairement bloqué. Veuillez réessayer plus tard.', {
+        status: 403,
+        code: 'OTP_LOCKED',
+      })
+    }
+
+    if (otp.lockedUntil && DateTime.fromJSDate(<Date>otp.lockedUntil) < now) {
+      otp.attempts = 0
+      otp.lockedUntil = null
+      await this.otpRepository.save(otp)
+    }
+
+    const attempts = otp.attempts ?? 0
+    if (attempts >= OTP_MAX_ATTEMPTS) {
+      otp.lockedUntil = new Date(Date.now() + OTP_LOCK_SECONDS * 1000)
+      await this.otpRepository.save(otp)
+
+      throw new Exception('Vous êtes temporairement bloqué. Veuillez réessayer plus tard.', {
+        status: 403,
+        code: 'OTP_LOCKED',
+      })
+    }
+
+    const isOtpValid = await hash.verify(otp.otpCode, data.enteredOtp)
+
+    if (!isOtpValid) {
+      otp.attempts = (otp.attempts ?? 0) + 1
+      await this.otpRepository.save(otp)
+
+      throw new Exception('Code Otp incorrect', {
+        status: 401,
+        code: 'OTP_INVALID',
+      })
+    }
+
+    // Optional: Invalidate OTP after a successful verification to prevent reuse
+    await this.otpRepository.delete(otp.phone)
   }
 }

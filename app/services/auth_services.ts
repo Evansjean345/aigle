@@ -1,14 +1,14 @@
-import UserRepository from '../repositories/user_repository.js'
 import ResponseFormatter from '../responses/response_formatter.js'
 import { NewUser as UserInterface } from '../interfaces/user.js'
 import { inject } from '@adonisjs/core'
-import User from '#models/user'
 import hash from '@adonisjs/core/services/hash'
-import OtpService from './otp_service.js'
-import AuthAccessToken from '#models/auth_access_token'
 import db from '@adonisjs/lucid/services/db'
-import WalletRepository from '#repositories/wallet_repository'
-import CountryRepository from '#repositories/countrie_repository'
+import UserRepository from '#shared/interfaces/repositories/user_repository'
+import User from '#shared/models/user'
+import OtpService from '#shared/services/otp_service'
+import CountryRepository from '#shared/interfaces/repositories/country_repository'
+import WalletRepository from '#shared/interfaces/repositories/wallet_repository'
+import AuthAccessToken from '#shared/models/auth_access_token'
 
 @inject()
 export default class AuthServices {
@@ -17,9 +17,10 @@ export default class AuthServices {
     protected otpService: OtpService,
     protected walletRepository: WalletRepository,
     protected countryRepository: CountryRepository
-  ) { }
+  ) {}
 
   // parcourt enregistrement et connexion
+
   async check_phone(data: { phone: string }) {
     try {
       const user = await this.authRepository.findByPhone(data.phone)
@@ -28,7 +29,7 @@ export default class AuthServices {
       // si l'utilisateur n'existe pas, on l'envoie un otp
       if (!user.data) {
         user.exists = false
-        let otp = await this.otpService.sendOtp(data)
+        let otp = await this.otpService.sendOtp(data.phone, '')
         if (otp.error) return otp
       } else {
         user.exists = true
@@ -48,10 +49,12 @@ export default class AuthServices {
   // parcourt enregistrement
   async registerUser(data: UserInterface) {
     let transaction = await db.beginGlobalTransaction()
+
     try {
       // verifier si l'utilisateur exite
       // console.log(data);
       const existingUser = await this.authRepository.findByPhone(data?.phone)
+
       if (existingUser.data) {
         existingUser.data.$isPersisted = false
         return ResponseFormatter.create({
@@ -60,7 +63,7 @@ export default class AuthServices {
           status: false,
         })
       }
-      // recuperer les données du pays de l'utilisteur
+
       const contry = await this.countryRepository.find_by_iso_code(data?.iso_code)
 
       if (contry.error) {
@@ -105,8 +108,7 @@ export default class AuthServices {
 
       return user
     } catch (err) {
-
-      console.log(err);
+      console.log(err)
       await transaction.rollback()
 
       return ResponseFormatter.create({
@@ -152,7 +154,7 @@ export default class AuthServices {
 
       user.access = true
       // envoyer un opt de veification
-      let otp = await this.otpService.sendOtp(user.data)
+      let otp = await this.otpService.sendOtp(user.data.phone, String(user.data.id))
       if (otp.error) return otp
 
       return user
@@ -166,6 +168,7 @@ export default class AuthServices {
     }
   }
 
+  // Compatibility: keep snake_case method for legacy callers
   async access_token(data: { phone: string; enteredOtp: string }) {
     try {
       const user = await this.authRepository.findByPhone(data.phone)
@@ -194,6 +197,10 @@ export default class AuthServices {
         error: err,
       })
     }
+  }
+
+  async accessToken(data: { phone: string; enteredOtp: string }) {
+    return this.access_token(data)
   }
 
   async logoutUser(auth) {
@@ -228,7 +235,9 @@ export default class AuthServices {
           .load('country')
           .load('document')
           .load('transactions', (query) => {
-            query.preload('payment').orderBy('created_at', 'desc').groupLimit(2)
+            query.preload('payment')
+              .orderBy('created_at', 'desc')
+              .groupLimit(2)
           })
       })
 

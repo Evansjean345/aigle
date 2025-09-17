@@ -1,52 +1,23 @@
-import UserRepository from '#repositories/user_repository'
-import ResponseFormatter from '#responses/response_formatter'
 import { inject } from '@adonisjs/core'
-import hash from '@adonisjs/core/services/hash'
-
-export interface CheckPinUseCaseData {
-  phone: string
-  pin: string
-}
+import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
+import LoginRequestDto from '#mobile/authentication/dtos/login_request.dto'
 
 @inject()
 export default class CheckPinUseCase {
-  constructor(protected userRepository: UserRepository) {}
+  /**
+   * Constructs an instance of the class with the provided AuthenticationService.
+   *
+   * @param {AuthentificationService} authService - The authentication service used for handling authentication-related operations.
+   */
+  constructor(private authService: AuthentificationService) {}
 
-  async execute(data: CheckPinUseCaseData) {
-    try {
-      // Rechercher utilisateur par numéro de téléphone
-      const user = await this.userRepository.findByPhone(data.phone)
-
-      if (!user.data) {
-        return ResponseFormatter.create({
-          message: 'Utilisateur introuvable avec ce numéro',
-          code: 404,
-          status: false,
-        })
-      }
-
-      // Vérifier le code PIN avec hachage
-      const isPasswordValid = await hash.verify(user.data.pincode, data.pin)
-
-      if (!isPasswordValid) {
-        user.code = 401
-        user.message = 'Votre code secret est incorrect il vous reste 4 tentatives'
-        user.status = false
-        user.error = true
-        user.access = false
-        return user
-      }
-
-      // Marquer l'accès autorisé
-      user.access = true
-      return user
-    } catch (err) {
-      return ResponseFormatter.create({
-        message: "Une erreur inattendue s'est produite.",
-        code: 500,
-        status: false,
-        error: err,
-      })
-    }
+  /**
+   * Executes the authentication check for the provided login request data.
+   *
+   * @param {LoginRequestDto} data - The login request data containing user credentials or pin code.
+   * @return {Promise<boolean>} A promise that resolves to a boolean indicating the success or failure of the authentication.
+   */
+  async execute(data: LoginRequestDto): Promise<boolean> {
+    return this.authService.checkCodePin(data)
   }
 }

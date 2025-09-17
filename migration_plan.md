@@ -40,14 +40,14 @@ app/
 │   ├── user_service.ts
 │   └── webhook_service.ts
 ├── repositories/
-│   ├── countrie_repository.ts
+│   ├── country_repository_impl.ts
 │   ├── document_repository.ts
-│   ├── otp_repository.ts
+│   ├── otp_repository_impl.ts
 │   ├── payment_repository.ts
 │   ├── setting_repository.ts
 │   ├── transaction_repository.ts
-│   ├── user_repository.ts
-│   └── wallet_repository.ts
+│   ├── user_repository_impl.ts
+│   └── wallet_repository_impl.ts
 ├── models/
 │   ├── auth_access_token.ts
 │   ├── country.ts
@@ -187,8 +187,8 @@ app/
 ├── shared/
 │   ├── repositories/
 │   │   ├── transaction_repository.ts
-│   │   ├── user_repository.ts
-│   │   └── wallet_repository.ts
+│   │   ├── user_repository_impl.ts
+│   │   └── wallet_repository_impl.ts
 │   ├── services/
 │   │   ├── notification_service.ts
 │   │   ├── validation_service.ts

@@ -1,42 +1,16 @@
-import ResponseFormatter from '#responses/response_formatter'
 import { inject } from '@adonisjs/core'
-
-export interface GetUserProfileUseCaseData {
-  user: any
-}
+import User from '#shared/models/user'
 
 @inject()
 export default class GetUserProfileUseCase {
-  constructor() {}
-
-  async execute(data: GetUserProfileUseCaseData) {
-    try {
-      let user = data.user
-
-      // Charger les relations utilisateur avec les données complètes
-      await user.load((loader) => {
-        loader
-          .load('wallet')
-          .load('country')
-          .load('document')
-          .load('transactions', (query) => {
-            query.preload('payment').orderBy('created_at', 'desc').groupLimit(2)
-          })
-      })
-
-      return ResponseFormatter.create({
-        message: 'Profil utilisateur récupéré avec succès',
-        code: 200,
-        status: true,
-        data: user,
-      })
-    } catch (err) {
-      return ResponseFormatter.create({
-        message: 'Erreur lors de la récupération du profil',
-        code: 500,
-        status: false,
-        error: err,
-      })
-    }
+  /**
+   * Executes the process of loading related data (wallet, country, and document) for the given authenticated user.
+   *
+   * @param {User} authenticated - The user object that is authenticated and should have related data loaded.
+   * @return {Promise<User>} A promise that resolves to the authenticated user object with the related data loaded.
+   */
+  async execute(authenticated: User): Promise<User> {
+    await authenticated.load('country')
+    return authenticated
   }
 }

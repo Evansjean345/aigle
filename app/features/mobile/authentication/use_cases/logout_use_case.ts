@@ -1,42 +1,40 @@
-import User from '#models/user'
-import ResponseFormatter from '#responses/response_formatter'
+import AuthServices from '#services/auth_services'
 import { inject } from '@adonisjs/core'
+import User from '#shared/models/user'
+import { Exception } from '@adonisjs/core/exceptions'
 
-export interface LogoutUseCaseData {
-  auth: any
-}
-
+/**
+ * Handles the use case for logging out an authenticated user.
+ */
 @inject()
 export default class LogoutUseCase {
-  constructor() {}
+  /**
+   * Constructs an instance of the class with the required dependencies.
+   *
+   * @param {AuthServices} authServices - The authentication services used to handle authentication-related operations.
+   */
+  constructor(protected authServices: AuthServices) {}
 
-  async execute(data: LogoutUseCaseData) {
+  /**
+   * Executes the logout process for the authenticated user by deleting the current access token.
+   *
+   * @param {Object} authenticatedUser - The authenticated user object containing the current access token.
+   * @param {AccessToken} authenticatedUser.currentAccessToken - The access token associated with the authenticated user.
+   * @return {Promise<boolean>} A promise resolving to `true` if the logout process is successful, otherwise throws an exception.
+   * @throws {Exception} Throws an exception if the logout process fails.
+   */
+  async execute(authenticatedUser: any): Promise<boolean> {
     try {
-      const user = data.auth.getUserOrFail()
-      const token = data.auth.user?.currentAccessToken.identifier
+      await User.accessTokens.delete(
+        authenticatedUser as User,
+        authenticatedUser.currentAccessToken.identifier
+      )
 
-      if (!token) {
-        return ResponseFormatter.create({
-          message: 'Token not found',
-          code: 500,
-          status: false,
-        })
-      }
-
-      // Supprimer le token d'accès
-      await User.accessTokens.delete(user, token)
-
-      return ResponseFormatter.create({
-        message: 'Déconnexion réussie',
-        code: 200,
-        status: true,
-      })
-    } catch (err) {
-      return ResponseFormatter.create({
-        message: 'Erreur lors de la déconnexion',
-        code: 500,
-        status: false,
-        error: err,
+      return true
+    } catch (error) {
+      throw new Exception('Failed to logout', {
+        status: 500,
+        code: 'FAILED_TO_LOGOUT',
       })
     }
   }

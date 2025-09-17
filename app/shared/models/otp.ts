@@ -3,33 +3,33 @@ import type { HasOne } from '@adonisjs/lucid/types/relations'
 import { BaseModel, column, hasOne } from '@adonisjs/lucid/orm'
 
 export default class Otp extends BaseModel {
-  @hasOne(() => Otp)
-  declare otp: HasOne<typeof Otp>
-
   @column({ isPrimary: true })
   declare id: number
 
   @column()
-  declare user_id: number
+  declare userId: string
 
   @column({ serializeAs: null })
-  declare otp_code: string
+  declare otpCode: string
 
   @column()
   declare phone: string | null
 
   @column()
-  declare expires_at: Date | null
+  declare expiresAt: Date | null
 
   @column()
-  declare attempts: number | null
+  declare attempts: number
 
   @column()
-  declare locked_until: Date | null
+  declare lockedUntil: Date | null
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+  @hasOne(() => Otp)
+  declare otp: HasOne<typeof Otp>
 }

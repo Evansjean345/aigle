@@ -1,7 +1,7 @@
-import UserRepository from '#repositories/user_repository'
-import OtpService from '#services/otp_service'
 import ResponseFormatter from '#responses/response_formatter'
 import { inject } from '@adonisjs/core'
+import OtpService from '#shared/services/otp_service'
+import UserRepository from '#shared/interfaces/repositories/user_repository'
 
 export interface SendOtpUseCaseData {
   phone: string
@@ -21,15 +21,8 @@ export default class SendOtpUseCase {
 
       if (user.error && user.code === 500) return user
 
-      // Envoyer l'OTP (que l'utilisateur existe ou non)
-      // Pour l'inscription: user sera null
-      // Pour la connexion: user contiendra les données utilisateur
-      const otpData = {
-        user: user.data || null,
-        phone: data.phone,
-      }
-
-      const otp = await this.otpService.sendOtp(otpData)
+      const userId = user.data ? String(user.data.id) : ''
+      const otp = await this.otpService.sendOtp(data.phone, userId)
 
       if (otp.error) return otp
 
