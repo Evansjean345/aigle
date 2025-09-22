@@ -18,11 +18,19 @@ import { authRouter, operationRouter, webHookRouter } from './index.js'
 
 import mobileAuthRoutes from '#mobile/authentication/routes/auth_routes'
 import mobileWalletRoutes from '#mobile/wallet/routes/wallet_routes'
+import mobileServicesRoutes from '#mobile/services/routes/services_routes'
+import adminServicesManagementRoutes from '#admin/services_management/routes/services_management_routes'
+import mobileOperationRoutes from '#mobile/operations/routes/operation_routes'
+import mobileWebhookRoutes from '#mobile/webhooks/routes/webhook_routes'
 
 router
   .group(() => {
     router.group(mobileAuthRoutes)
     router.group(mobileWalletRoutes)
+    router.group(mobileServicesRoutes)
+    router.group(mobileOperationRoutes)
+    router.group(mobileWebhookRoutes)
+    router.group(adminServicesManagementRoutes)
     router.group(authRouter(router, middleware)).prefix('auth')
     router
       .group(() => {
@@ -54,7 +62,7 @@ router
     router
       .group(() => {
         router.get('all-by-user', [TransactionsController, 'all_by_user'])
-        router.get('details-by-user/:transactionId/:transactionUid', [
+        router.get('details-by-user/:reference', [
           TransactionsController,
           'details_by_user',
         ])

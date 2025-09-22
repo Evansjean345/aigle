@@ -10,6 +10,7 @@ import db from '@adonisjs/lucid/services/db'
 import { calculateFee } from '../helpers/fee_helpers.js'
 import { generateUrl } from '../helpers/file_helpers.js'
 import drive from '@adonisjs/drive/services/main'
+import Transaction from '#models/transaction'
 
 @inject()
 export default class OperationService {
@@ -518,18 +519,17 @@ export default class OperationService {
   }
 
   async create_transaction(user: any, wallet: any, data: any) {
-    // creation de la transaction
-    const transactionData = {
-      users_id: user.id,
-      users_uid: user.users_uid,
-      amount: data.amount,
-      total_amount: data?.total_amount,
-      operation_type: data.operation_type,
-      fees: data?.fees,
-      balance_before: wallet.balance,
-    }
+    // creation de la transaction via save()
+    const tx = new Transaction()
+    tx.users_id = user.id
+    tx.users_uid = user.users_uid
+    tx.amount = data.amount
+    tx.total_amount = data?.total_amount
+    tx.operation_type = data.operation_type
+    tx.fees = data?.fees
+    tx.balance_before = wallet.balance
 
-    return await this.transactionRepository.create(transactionData)
+    return await this.transactionRepository.save(tx)
   }
 
   async create_payment(transaction: any, data: any) {

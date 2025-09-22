@@ -1,4 +1,4 @@
-import Payment from '#models/payment'
+import Payment from '#shared/models/payment'
 import ResponseFormatter from '#responses/response_formatter'
 import db from '@adonisjs/lucid/services/db'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'

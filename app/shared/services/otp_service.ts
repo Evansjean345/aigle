@@ -4,15 +4,26 @@ import { DateTime } from 'luxon'
 import OtpRepository from '#shared/interfaces/repositories/OtpRepository'
 import Otp from '#shared/models/otp'
 import { Exception } from '@adonisjs/core/exceptions'
-import { sendSms } from '../../external-services/sms_service.js'
 
 // Simple constants to make OTP behavior easy to tune
 const OTP_EXPIRY_SECONDS = 600
 const OTP_MAX_ATTEMPTS = 5
 const OTP_LOCK_SECONDS = 60
 
+/**
+ * Service for handling OTP (One-Time Password) generation, sending, and verification.
+ *
+ * This service manages the creation and validation of OTPs, including expiry checks,
+ * attempt tracking, and locking for exceeding retry limits. It also facilitates OTP sending
+ * via external SMS systems and prevents reuse of OTP codes after successful verification.
+ */
 @inject()
 export default class OtpService {
+  /**
+   * Constructor for the class that initializes with a specific OtpRepository instance.
+   *
+   * @param {OtpRepository} otpRepository - The repository instance used for managing OTP-related data.
+   */
   constructor(private otpRepository: OtpRepository) {}
 
   /**
@@ -51,7 +62,7 @@ export default class OtpService {
    * @return {Promise<any>} A promise that resolves to an object containing the status of the operation.
    * @throws {Exception} If there is an error during the OTP generation or SMS sending process.
    */
-  async sendOtp(phone: string, userId: string): Promise<{sent: boolean}> {
+  async sendOtp(phone: string, userId: string): Promise<{ sent: boolean }> {
     try {
       const { code } = await this.createOtp(userId, phone)
       const message = `Votre code OTP est ${code}. Il est valide pendant ${OTP_EXPIRY_SECONDS} secondes.`
@@ -109,6 +120,7 @@ export default class OtpService {
     }
 
     const attempts = otp.attempts ?? 0
+
     if (attempts >= OTP_MAX_ATTEMPTS) {
       otp.lockedUntil = new Date(Date.now() + OTP_LOCK_SECONDS * 1000)
       await this.otpRepository.save(otp)

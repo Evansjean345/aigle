@@ -1,0 +1,410 @@
+import { inject } from '@adonisjs/core'
+import PaymentService from '#shared/services/payment_service'
+import TransactionService from '#shared/services/transaction_service'
+import WalletRepository from '#shared/interfaces/repositories/wallet_repository'
+import { Exception } from '@adonisjs/core/exceptions'
+import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import db from '@adonisjs/lucid/services/db'
+import Transaction, { TransactionStatus } from '#shared/models/transaction'
+import Payment from '#shared/models/payment'
+import Wallet from '#shared/models/wallet'
+import { WebhookRequestDto } from '#mobile/webhooks/dto/webhook_request.dto'
+import { WebhookResponseDto } from '#mobile/webhooks/dto/webhook_response.dto'
+import { Logger } from '@adonisjs/core/logger'
+
+/**
+ * Handles the business logic for processing deposit webhook events. This class is responsible for managing
+ * transaction updates, payment state, and wallet adjustments based on incoming webhook payloads.
+ */
+@inject()
+export default class HandleDepositWebhookUseCase {
+  /**
+   * Constructor for initializing dependencies required for transaction management and payment processing.
+   *
+   * @param {PaymentService} paymentService - The service responsible for handling payment operations.
+   * @param {TransactionService} transactionService - The service for managing transaction-related business logic.
+   * @param {WalletRepository} walletRepository - The repository for accessing wallet-related data and operations.
+   * @param logger
+   */
+  constructor(
+    private readonly paymentService: PaymentService,
+    private readonly transactionService: TransactionService,
+    private readonly walletRepository: WalletRepository,
+    private readonly logger: Logger
+  ) {}
+
+  /**
+   * Executes the deposit webhook process based on the provided payload and status.
+   *
+   * @param {WebhookRequestDto} payload - The payload containing deposit webhook data to be processed.
+   * @param {'success' | 'failed'} status - The status of the webhook, determining how to process the request.
+   * @return {Promise<WebhookResponseDto>} A promise that resolves to the result of the webhook execution.
+   */
+  async execute(
+    payload: WebhookRequestDto,
+    status: 'success' | 'failed'
+  ): Promise<WebhookResponseDto> {
+    this.validatePayload(payload)
+    const { reference: webTransactionRef } = payload.data
+
+    this.logger.info({ reference: webTransactionRef, status }, 'Processing deposit webhook')
+
+    const trx = await db.transaction()
+
+    try {
+      const { transaction, payment, wallet } = await this.loadRequiredEntities(webTransactionRef)
+
+      this.logger.debug(
+        {
+          reference: webTransactionRef,
+          transaction_id: transaction.id,
+          payment_id: payment.id,
+          wallet_id: wallet.id,
+          transaction_status: transaction.status,
+          payment_status: payment.status,
+        },
+        'Loaded entities for deposit webhook'
+      )
+
+      if (this.isIdempotentRequest(transaction, payment, status)) {
+        this.logger.warn(
+          {
+            reference: payload.data.reference,
+            transaction_status: transaction.status,
+            payment_status: payment.status,
+            incoming_status: status,
+          },
+          'Idempotent webhook call — skipping processing'
+        )
+        await trx.rollback()
+        return this.createIdempotentResponse(payload.data.reference, transaction.status)
+      }
+
+      await this.processWebhook(transaction, payment, wallet, payload, status, trx)
+      await trx.commit()
+      this.logger.info(
+        { reference: payload.data.reference, status },
+        'Webhook processed successfully'
+      )
+      return this.createSuccessResponse(payload.data.reference, status)
+    } catch (error) {
+      await trx.rollback()
+      this.logger.error(
+        {
+          status: (error as any).status || 500,
+          data: (error as any).data || {},
+          reference: payload.data.reference,
+          err: error,
+        },
+        (error as any).message || 'Webhook processing error'
+      )
+
+      throw error
+    }
+  }
+
+  /**
+   * Validates the payload of the deposit webhook to ensure it contains the required reference.
+   *
+   * @param {WebhookRequestDto} payload - The payload object of the deposit webhook that needs to be validated.
+   * @return {void} Throws an exception if the payload lacks the required reference.
+   */
+  private validatePayload(payload: WebhookRequestDto): void {
+    if (!payload.data.reference) {
+      throw new Exception('Reference manquante dans le webhook', {
+        status: 422,
+        code: 'WEBHOOK_REFERENCE_REQUIRED',
+      })
+    }
+  }
+
+  /**
+   * Loads required entities including transaction, payment, and wallet based on the provided reference.
+   *
+   * @param {string} reference - The unique reference identifier to find the transaction.
+   * @return {Promise<{transaction: Object, payment: Object, wallet: Object}>} A promise that resolves to an object containing the transaction, payment, and wallet entities.
+   * @throws {Exception} Throws an exception if the transaction, payment, or wallet is not found.
+   */
+  private async loadRequiredEntities(
+    reference: string
+  ): Promise<{ transaction: Transaction; payment: Payment; wallet: Wallet }> {
+    const transaction = await this.transactionService.findByReference(reference)
+
+    const [payments, wallet] = await Promise.all([
+      this.paymentService.findByTransaction(transaction.transactions_uid || transaction.id),
+      this.walletRepository.findByUserId(transaction.users_uid),
+    ])
+
+    if (payments.length === 0) {
+      throw new Exception('Paiement introuvable pour cette transaction', {
+        status: 404,
+        code: 'PAYMENT_NOT_FOUND',
+      })
+    }
+
+    const payment = payments[0]
+
+    if (!wallet) {
+      throw new Exception("Wallet de l'utilisateur introuvable", {
+        status: 404,
+        code: 'WALLET_NOT_FOUND',
+      })
+    }
+
+    return { transaction, payment, wallet }
+  }
+
+  /**
+   * Determines whether a given request is idempotent based on the transaction, payment, and incoming status.
+   *
+   * @param {Transaction} transaction - The current transaction whose status is evaluated.
+   * @param {Payment} payment - The associated payment for the transaction.
+   * @param {TransactionStatus} incomingStatus - The incoming status of the transaction, typically from an external source.
+   * @return {boolean} Returns true if the request is idempotent, false otherwise.
+   */
+  private isIdempotentRequest(
+    transaction: Transaction,
+    payment: Payment,
+    incomingStatus: TransactionStatus
+  ): boolean {
+    const isIncomingSuccess = incomingStatus === 'success'
+    const isCurrentSuccess = transaction.status === 'success' || payment.status === 'success'
+    const isCurrentFailed = transaction.status === 'failed' || payment.status === 'failed'
+
+    return (isIncomingSuccess && isCurrentSuccess) || (!isIncomingSuccess && isCurrentFailed)
+  }
+
+  /**
+   * Processes a webhook for handling deposit transactions based on the provided status.
+   *
+   * @param {Transaction} transaction - The transaction associated with the webhook.
+   * @param {Payment} payment - The payment details for the transaction.
+   * @param {Wallet} wallet - The wallet related to the transaction.
+   * @param {WebhookRequestDto} payload - The payload received from the webhook.
+   * @param {string} status - The status of the webhook (e.g., 'success' or 'failed').
+   * @param {TransactionClientContract} trx - The database transaction client to ensure atomic operations.
+   * @return {Promise<void>} Resolves when the webhook processing is complete.
+   */
+  private async processWebhook(
+    transaction: Transaction,
+    payment: Payment,
+    wallet: Wallet,
+    payload: WebhookRequestDto,
+    status: string,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    const operatorResponse = { operator_response: payload as any }
+
+    this.logger.debug(
+      {
+        reference: payload.data.reference,
+        transaction_id: transaction.id,
+        payment_id: payment.id,
+        wallet_id: wallet.id,
+        status,
+      },
+      'Processing webhook body'
+    )
+
+    if (status === 'success') {
+      this.logger.info({ reference: payload.data.reference }, 'Processing successful deposit')
+      await this.processSuccessfulDeposit(transaction, payment, wallet, operatorResponse, trx)
+    } else {
+      this.logger.info({ reference: payload.data.reference }, 'Processing failed deposit')
+      await this.processFailedDeposit(transaction, payment, operatorResponse, trx)
+    }
+  }
+
+  /**
+   * Processes a successful deposit by updating the payment status,
+   * adjusting the wallet balance, and marking the transaction as a success.
+   *
+   * @param {any} transaction - The transaction details related to the deposit.
+   * @param {any} payment - The payment information associated with the deposit.
+   * @param {any} wallet - The wallet object that needs updating after the deposit.
+   * @param {any} operatorResponse - The response from the operator confirming the payment.
+   * @param {TransactionClientContract} trx - The database transaction instance to handle atomic operations.
+   * @return {Promise<void>} A Promise that resolves when the deposit processing is completed successfully.
+   */
+  private async processSuccessfulDeposit(
+    transaction: Transaction,
+    payment: Payment,
+    wallet: Wallet,
+    operatorResponse: any,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    this.logger.debug({ payment_id: payment.id }, 'Marking payment as success')
+    await this.safeMarkPaymentSuccess(payment.id, operatorResponse, trx)
+
+    this.logger.debug({ wallet_id: wallet.id }, 'Adjusting wallet balance for successful deposit')
+    const updatedWallet = await this.walletRepository.adjustBalance(
+      wallet.id,
+      Number(transaction.total_amount || 0),
+      trx
+    )
+
+    if (!updatedWallet) {
+      this.logger.error(
+        { wallet_id: wallet.id },
+        'Failed to update wallet during successful deposit'
+      )
+      throw new Exception('Echec de mise à jour du wallet', {
+        status: 500,
+        code: 'WALLET_UPDATE_FAILED',
+      })
+    }
+
+    this.logger.debug({ transaction_id: transaction.id }, 'Marking transaction as success')
+    await this.safeMarkTransactionSuccess(transaction.id, updatedWallet.balance!, trx)
+  }
+
+  /**
+   * Handles the processing of a failed deposit by marking the associated transaction and payment as failed.
+   * This function performs both operations in parallel as they are independent of each other.
+   *
+   * @param {any} transaction - The transaction object related to the failed deposit.
+   * @param {any} payment - The payment object associated with the failed transaction.
+   * @param {any} operatorResponse - The response or error details from the payment operator.
+   * @param {TransactionClientContract} trx - The transaction client contract used for database operations.
+   * @return {Promise<void>} - A promise that resolves when the failed deposit process is completed.
+   */
+  private async processFailedDeposit(
+    transaction: Transaction,
+    payment: Payment,
+    operatorResponse: any,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    this.logger.debug(
+      { transaction_id: transaction.id, payment_id: payment.id },
+      'Marking payment and transaction as failed'
+    )
+    // Process both in parallel since they're independent
+    await Promise.all([
+      this.safeMarkTransactionFailed(transaction.id, trx),
+      this.safeMarkPaymentFailed(payment.id, operatorResponse, trx),
+    ])
+  }
+
+  /**
+   * Safely marks a payment as successful by interacting with the payment service.
+   * If the payment is already marked as successful, it logs the information and skips further action.
+   * Throws an error for any other issues encountered during the process.
+   *
+   * @param {number} paymentId - The unique identifier of the payment to be marked as successful.
+   * @param {any} operatorResponse - The response data originating from the payment operator.
+   * @param {TransactionClientContract} trx - The transaction client instance for executing database operations atomically.
+   * @return {Promise<void>} A promise that resolves when the payment is successfully marked as such or skips if already marked.
+   */
+  private async safeMarkPaymentSuccess(
+    paymentId: number,
+    operatorResponse: any,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    try {
+      await this.paymentService.markSuccess(paymentId, operatorResponse, trx)
+    } catch (error: any) {
+      if (error?.code !== 'PAYMENT_ALREADY_SUCCESSFUL') throw error
+      this.logger.info({ payment_id: paymentId }, 'Payment already successful, skipping')
+    }
+  }
+
+  /**
+   * Marks the specified transaction as successful while handling any errors that might occur.
+   *
+   * @param {number} transactionId - The unique identifier of the transaction to be marked as successful.
+   * @param {number} balance - The balance associated with the transaction.
+   * @param {TransactionClientContract} trx - The transaction client instance used for the operation.
+   * @return {Promise<void>} A promise that resolves when the operation is complete.
+   */
+  private async safeMarkTransactionSuccess(
+    transactionId: number,
+    balance: number,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    try {
+      await this.transactionService.markSuccess(transactionId, balance, trx)
+    } catch (error: any) {
+      if (error?.code !== 'TRANSACTION_ALREADY_SUCCESSFUL') throw error
+      this.logger.info(
+        { transaction_id: transactionId },
+        'Transaction already successful, skipping'
+      )
+    }
+  }
+
+  /**
+   * Marks a transaction as failed in a safe manner by handling specific errors related to the transaction already being marked as failed.
+   *
+   * @param {any} transactionId - The unique identifier of the transaction to be marked as failed.
+   * @param {TransactionClientContract} trx - The database transaction client used for performing the operation.
+   * @return {Promise<void>} A promise that resolves when the transaction has been safely marked as failed.
+   */
+  private async safeMarkTransactionFailed(
+    transactionId: number,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    try {
+      await this.transactionService.markFailed(transactionId, trx)
+    } catch (error: any) {
+      if (error?.code !== 'TRANSACTION_ALREADY_FAILED') throw error
+      this.logger.info({ transaction_id: transactionId }, 'Transaction already failed, skipping')
+    }
+  }
+
+  /**
+   * Safely marks a payment as failed by invoking the payment service, with error handling to avoid processing already-failed payments.
+   *
+   * @param {any} paymentId - The unique identifier of the payment to be marked as failed.
+   * @param {any} operatorResponse - The response or data from the payment operator detailing the failure reason.
+   * @param {TransactionClientContract} trx - The database transaction object used to ensure atomicity during the operation.
+   * @return {Promise<void>} A promise that resolves when the operation is completed successfully or skips processing if already failed.
+   */
+  private async safeMarkPaymentFailed(
+    paymentId: number,
+    operatorResponse: any,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    try {
+      await this.paymentService.markFailed(paymentId, operatorResponse, trx)
+    } catch (error: any) {
+      if (error?.code !== 'PAYMENT_ALREADY_FAILED') throw error
+      this.logger.info({ payment_id: paymentId }, 'Payment already failed, skipping')
+    }
+  }
+
+  /**
+   * Creates a response for an idempotent request.
+   *
+   * @param {string} reference - The unique reference of the request being processed.
+   * @param {string} currentStatus - The current status associated with the request reference.
+   * @return {WebhookResponseDto} An object containing the status, message, and data related to the idempotent request handling.
+   */
+  private createIdempotentResponse(reference: string, currentStatus: string): WebhookResponseDto {
+    return {
+      status: true,
+      message: 'Déjà traité — idempotent',
+      data: {
+        reference,
+        result: currentStatus,
+      },
+    }
+  }
+
+  /**
+   * Creates a structured success response object for a webhook operation.
+   *
+   * @param {string} reference - A unique identifier or reference for the webhook.
+   * @param {string} status - The result or status description for the webhook processing.
+   * @return {WebhookResponseDto} The object containing success status, message, and associated data.
+   */
+  private createSuccessResponse(reference: string, status: string): WebhookResponseDto {
+    return {
+      status: true,
+      message: 'Webhook traité',
+      data: {
+        reference,
+        result: status,
+      },
+    }
+  }
+}

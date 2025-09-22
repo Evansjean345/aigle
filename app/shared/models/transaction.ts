@@ -6,6 +6,9 @@ import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import Payment from '#shared/models/payment'
 import User from '#shared/models/user'
 
+export type TransactionType = 'deposit' | 'withdrawal' | 'transfer' | 'transfer-inter'
+export type TransactionStatus = 'pending' | 'success' | 'failed'
+
 export default class Transaction extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
@@ -36,7 +39,7 @@ export default class Transaction extends BaseModel {
   declare total_amount: number
 
   @column()
-  declare operation_type: 'deposit' | 'withdrawal' | 'transfer' | 'transfer-inter'
+  declare operation_type: TransactionType
 
   @column()
   declare reference: string
@@ -60,7 +63,7 @@ export default class Transaction extends BaseModel {
   declare description: string | null
 
   @column()
-  declare status: 'pending' | 'success' | 'failed'
+  declare status: TransactionStatus
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

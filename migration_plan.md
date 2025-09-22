@@ -45,7 +45,7 @@ app/
 │   ├── otp_repository_impl.ts
 │   ├── payment_repository.ts
 │   ├── setting_repository.ts
-│   ├── transaction_repository.ts
+│   ├── transaction_repository_impl.ts
 │   ├── user_repository_impl.ts
 │   └── wallet_repository_impl.ts
 ├── models/
@@ -186,7 +186,7 @@ app/
 │           └── routes/analytics_routes.ts
 ├── shared/
 │   ├── repositories/
-│   │   ├── transaction_repository.ts
+│   │   ├── transaction_repository_impl.ts
 │   │   ├── user_repository_impl.ts
 │   │   └── wallet_repository_impl.ts
 │   ├── services/
@@ -198,7 +198,7 @@ app/
 │   │   ├── user.ts
 │   │   └── wallet.ts
 │   └── interfaces/
-│       ├── transaction_interface.ts
+│       ├── transaction.repository.ts
 │       └── user_interface.ts
 └── start/
     └── routes.ts

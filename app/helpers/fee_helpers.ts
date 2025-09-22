@@ -6,27 +6,29 @@ export const calculateFee = async (
   operation: 'add' | 'subtract'
 ) => {
   const serviceFee = await ServiceFee.query().where('services_type', service).first()
-  let total = 0
   if (!serviceFee) {
     throw new Error(`Frais non définis pour le service: ${service}`)
   }
-  console.log(serviceFee)
 
-  const fees =
-    Number(amount) >= serviceFee.min_amount
-      ? (Number(serviceFee.percentage_fee) / 100) * Number(amount)
-      : serviceFee.fixed_fee
+  const amt = Number(amount)
+  const percentPart = (Number(serviceFee.percentage_fee || 0) / 100) * amt
+  const fixedPart = Number(serviceFee.fixed_fee || 0)
+  const thresholdOk = amt >= Number(serviceFee.min_amount || 0)
 
-  if (operation === 'subtract') {
-    total = Number(amount) - Number(fees)
-  } else {
-    total = Number(amount) + Number(fees)
+  const feesRaw = thresholdOk ? percentPart : fixedPart
+  const totalRaw = operation === 'subtract' ? amt - feesRaw : amt + feesRaw
+
+  let fees = Math.floor(Number(feesRaw))
+  let total = Math.floor(Number(totalRaw))
+
+  // Business rule: if computed fees are 0, force fees to 1 and deduct from amount
+  if (fees === 0) {
+    fees = 1
+    total = Math.floor(amt - 1)
   }
 
-  console.log(`fees ${operation}; fees : ${fees}; total : ${total}`)
-
   return {
-    amount,
+    amount: amt,
     total,
     fees,
   }

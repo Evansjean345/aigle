@@ -1,9 +1,9 @@
 import { inject } from '@adonisjs/core'
-import TransactionRepository from '#repositories/transaction_repository'
-import Transaction from '#models/transaction'
-import Wallet from '#models/wallet'
-import User from '#models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import Transaction from '#shared/models/transaction'
+import Wallet from '#shared/models/wallet'
+import User from '#shared/models/user'
+import TransactionRepository from '#shared/interfaces/repositories/transaction.repository'
 
 /**
  * TransactionService handles the creation and management of transactions.
@@ -40,7 +40,7 @@ export default class TransactionService {
     transaction.fees = payload.fees || 0
     transaction.balance_before = wallet.balance
     transaction.users_id = user.id
-    transaction.users_uid = user.users_uid!!
+    transaction.users_uid = user.usersUid!!
 
     await this.transactionRepository.save(transaction, trx)
     return transaction

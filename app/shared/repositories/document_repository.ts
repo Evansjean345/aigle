@@ -1,5 +1,5 @@
 import ResponseFormatter from '#responses/response_formatter'
-import Document from '#models/document'
+import Document from '#shared/models/document'
 
 export default class DocumentRepository {
   async create_or_update(attribute: any, data: any) {

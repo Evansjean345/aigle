@@ -1,6 +1,16 @@
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Wallet from '#shared/models/wallet'
 
+export interface AdjustedBalance {
+  id: number
+  balance: number
+}
+
+/**
+ * Abstract class representing a repository interface for interacting with Wallet entities.
+ * Defines the contract for typical wallet-related operations such as creation, retrieval, updates,
+ * and balance management, optionally supporting transactional operations.
+ */
 export default abstract class WalletRepository {
   /**
    * Creates and saves a new Wallet instance with the given data.
@@ -30,31 +40,46 @@ export default abstract class WalletRepository {
   abstract save(wallet: Wallet, trx?: TransactionClientContract): Promise<Wallet>
 
   /**
-   * Updates a wallet by its ID with the provided data.
-   *
-   * @param {number} id - The ID of the wallet to update.
-   * @param {Partial<Wallet>} data - Partial data to update the wallet with.
-   * @param {TransactionClientContract} [trx] - An optional transaction client instance to use for the update.
-   * @return {Promise<Wallet | null>} - A promise that resolves with the updated wallet object if found and updated, or null if the wallet does not exist.
-   */
-  abstract updateById(
-    id: number,
-    data: Partial<Wallet>,
-    trx?: TransactionClientContract
-  ): Promise<Wallet | null>
-
-  /**
    * Adjusts the balance of a wallet based on the provided delta value.
    * This method modifies the wallet's balance and optionally supports transaction handling.
    *
    * @param {number} id - The unique identifier of the wallet.
    * @param {number} delta - The amount to adjust the wallet's balance by. Positive values increase the balance, while negative values decrease it.
    * @param {TransactionClientContract} [trx] - An optional transaction client for handling the balance adjustment within a database transaction.
-   * @return {Promise<Wallet | null>} A promise that resolves to the updated Wallet object if the operation succeeds, or null if the wallet does not exist or the operation fails.
+   * @return {Promise<{ id: number; balance: number  | null>} A promise that resolves to the updated Wallet object if the operation succeeds, or null if the wallet does not exist or the operation fails.
    */
   abstract adjustBalance(
     id: number,
     delta: number,
     trx?: TransactionClientContract
-  ): Promise<Wallet | null>
+  ): Promise<{ id: number; balance: number } | null>
+
+  /**
+   * Performs a guarded credit operation on a wallet. The operation safely credits a specified amount to the wallet identified by its ID, potentially within a given transaction.
+   *
+   * @param {number} id - The unique identifier of the wallet to be credited.
+   * @param {number} amount - The amount to be credited to the wallet.
+   * @param {TransactionClientContract} [trx] - An optional transaction client contract for wrapping the operation in a database transaction.
+   * @return {Promise<Wallet | null>} A Promise that resolves to the updated Wallet object if the operation is successful, or null if the wallet does not exist or the operation fails.
+   */
+  abstract creditGuarded(
+    id: number,
+    amount: number,
+    trx?: TransactionClientContract
+  ): Promise<AdjustedBalance | null>
+
+  /**
+   * Deducts the specified amount from the wallet identified by the given ID in a guarded transaction.
+   *
+   * @param {number} id - The unique identifier of the wallet to be debited.
+   * @param {number} amount - The monetary amount to be deducted from the wallet.
+   * @param {TransactionClientContract} [trx] - An optional transaction instance to execute the operation within.
+   * @return {Promise<Wallet | null>} A promise that resolves to the updated wallet object if the operation succeeds,
+   * or null if the operation fails.
+   */
+  abstract debitGuarded(
+    id: number,
+    amount: number,
+    trx?: TransactionClientContract
+  ): Promise<AdjustedBalance | null>
 }

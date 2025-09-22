@@ -1,13 +1,13 @@
-// TypeScript
 import Wallet from '#shared/models/wallet'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import WalletRepository from '#shared/interfaces/repositories/wallet_repository'
+import WalletRepository, {
+  AdjustedBalance,
+} from '#shared/interfaces/repositories/wallet_repository'
 
 /**
  * Repository class responsible for managing operations related to Wallet entities.
  */
 export default class WalletRepositoryImpl implements WalletRepository {
-
   /**
    * Creates and saves a new Wallet instance with the given data.
    * If a transaction client is provided, the operation is performed within that transaction.
@@ -21,12 +21,10 @@ export default class WalletRepositoryImpl implements WalletRepository {
     Object.assign(wallet, data)
 
     if (trx) {
-      await wallet.useTransaction(trx).save()
-    } else {
-      await wallet.save()
+      return await wallet.useTransaction(trx).save()
     }
 
-    return wallet
+    return await wallet.save()
   }
 
   /**
@@ -46,7 +44,7 @@ export default class WalletRepositoryImpl implements WalletRepository {
    * @return {Promise<Wallet | null>} A promise that resolves to the wallet associated with the given user ID, or null if no wallet is found.
    */
   async findByUserId(userId: string): Promise<Wallet | null> {
-    return Wallet.query().where('userId', userId).first()
+    return await Wallet.query().where('userId', userId).first()
   }
 
   /**
@@ -58,37 +56,10 @@ export default class WalletRepositoryImpl implements WalletRepository {
    */
   async save(wallet: Wallet, trx?: TransactionClientContract): Promise<Wallet> {
     if (trx) {
-      await wallet.useTransaction(trx).save()
-    } else {
-      await wallet.save()
+      return await wallet.useTransaction(trx).save()
     }
-    return wallet
-  }
 
-  /**
-   * Updates a wallet by its ID with the provided data.
-   *
-   * @param {number} id - The ID of the wallet to update.
-   * @param {Partial<Wallet>} data - Partial data to update the wallet with.
-   * @param {TransactionClientContract} [trx] - An optional transaction client instance to use for the update.
-   * @return {Promise<Wallet | null>} - A promise that resolves with the updated wallet object if found and updated, or null if the wallet does not exist.
-   */
-  async updateById(
-    id: number,
-    data: Partial<Wallet>,
-    trx?: TransactionClientContract
-  ): Promise<Wallet | null> {
-    const wallet = await Wallet.find(id)
-    if (!wallet) return null
-
-    wallet.merge(data)
-
-    if (trx) {
-      await wallet.useTransaction(trx).save()
-    } else {
-      await wallet.save()
-    }
-    return wallet
+    return await wallet.save()
   }
 
   /**
@@ -103,17 +74,55 @@ export default class WalletRepositoryImpl implements WalletRepository {
     id: number,
     delta: number,
     trx?: TransactionClientContract
-  ): Promise<Wallet | null> {
-    const wallet = await Wallet.find(id)
-    if (!wallet) return null
+  ): Promise<AdjustedBalance | null> {
+    console.log('debugging delta')
+    console.log(Math.abs(delta))
 
-    wallet.balance = (wallet.balance ?? 0) + delta
+    const wallet = await Wallet.query({ client: trx })
+      .where('id', id)
+      .where('balance', '>=', delta < 0 ? Math.abs(delta) : 0)
+      .forUpdate()
+      .first()
 
-    if (trx) {
-      await wallet.useTransaction(trx).save()
-    } else {
-      await wallet.save()
+    if (!wallet) {
+      return null
     }
-    return wallet
+
+    wallet.balance = Number(wallet.balance) + delta
+    await wallet.save()
+
+    return { id: wallet.id, balance: wallet.balance }
+  }
+
+  /**
+   * Adjusts the balance of a wallet by crediting a specified amount.
+   *
+   * @param {number} id - The unique identifier of the wallet to be credited.
+   * @param {number} amount - The amount to be credited to the wallet. Must be a positive number.
+   * @param {TransactionClientContract} [trx] - An optional transaction client for database operations.
+   * @return {Promise<Wallet | null>} A promise that resolves to the updated Wallet object if the operation is successful, or null if the wallet is not found.
+   */
+  async creditGuarded(
+    id: number,
+    amount: number,
+    trx?: TransactionClientContract
+  ): Promise<AdjustedBalance | null> {
+    return this.adjustBalance(id, Math.abs(Number(amount)), trx)
+  }
+
+  /**
+   * Deducts a specific amount from a wallet's balance in a guarded manner.
+   *
+   * @param {number} id - The unique identifier of the wallet to debit.
+   * @param {number} amount - The amount to be debited. It will always be treated as a positive number.
+   * @param {TransactionClientContract} [trx] - An optional database transaction object.
+   * @return {Promise<Wallet | null>} A promise that resolves to the updated Wallet object if the operation is successful, or null if the operation fails.
+   */
+  async debitGuarded(
+    id: number,
+    amount: number,
+    trx?: TransactionClientContract
+  ): Promise<AdjustedBalance | null> {
+    return this.adjustBalance(id, -Math.abs(Number(amount)), trx)
   }
 }
