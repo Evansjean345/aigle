@@ -5,6 +5,7 @@ import { toWalletCreatedResult } from '#mobile/wallet/mappers/wallet.mapper'
 import { WalletCreatedResult } from '#mobile/wallet/dtos/wallet_created_result'
 import Wallet from '#shared/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
+import { WalletQrScanResult } from '#mobile/wallet/dtos/wallet_qr_scan.result'
 
 /**
  * Service for managing wallets, including creation, retrieval, and balance adjustments.
@@ -96,13 +97,54 @@ export default class WalletService {
     amount: number,
     trx?: TransactionClientContract
   ): Promise<{ id: number; balance: number } | null> {
-    if (amount <= 0) throw new Exception('Invalid amount', { status: 422, code: 'INVALID_AMOUNT' })
+    if (amount <= 0) throw new Exception('Invalid amount', { status: 400, code: 'INVALID_AMOUNT' })
     const updated = await this.walletRepository.debitGuarded(walletId, amount, trx)
 
     if (!updated) {
-      throw new Exception('Solde insuffisant', { status: 409, code: 'INSUFFICIENT_FUNDS' })
+      throw new Exception('Solde insuffisant', { status: 400, code: 'INSUFFICIENT_FUNDS' })
     }
 
     return { id: updated.id, balance: updated.balance ?? 0 }
+  }
+
+  /**
+   * Retrieves user account information associated with a wallet token.
+   *
+   * @param {string} token - The wallet token used to locate the user's wallet.
+   * @return {Promise<{phone: string, token: string}>} A promise that resolves to an object containing the user's phone number and the wallet token.
+   * @throws {Exception} If the wallet is not found, an exception is thrown with a status of 404 and the code 'WALLET_NOT_FOUND'.
+   */
+  async getUserAccountByWalletToken(token: string): Promise<WalletQrScanResult> {
+    const wallet = await this.walletRepository.findByQrToken(token)
+
+    if (!wallet) {
+      throw new Exception('An account with this token does not exist', {
+        status: 400,
+        code: 'ACCOUNT_WITH_TOKEN_NOT_FOUND',
+      })
+    }
+
+    await wallet.load('user')
+
+    return {
+      name: wallet.user.firstname + ' ' + wallet.user.lastname,
+      phone: wallet.user.phone,
+      token: token,
+    }
+  }
+
+  /**
+   * Retrieves a Wallet entity by its QR token.
+   * Useful when you need the wallet id to perform balance operations.
+   */
+  async getByWalletToken(token: string): Promise<Wallet> {
+    const wallet = await this.walletRepository.findByQrToken(token)
+    if (!wallet) {
+      throw new Exception('Wallet not found for the provided token', {
+        status: 404,
+        code: 'WALLET_NOT_FOUND',
+      })
+    }
+    return wallet
   }
 }

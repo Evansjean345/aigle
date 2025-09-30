@@ -69,6 +69,14 @@ export default abstract class WalletRepository {
   ): Promise<AdjustedBalance | null>
 
   /**
+   * Retrieves a wallet associated with the provided QR token.
+   *
+   * @param {string} token - The QR token used to identify and retrieve the associated wallet.
+   * @return {Promise<Wallet>} A promise that resolves to the wallet object associated with the QR token.
+   */
+  abstract findByQrToken(token: string): Promise<Wallet | null>
+
+  /**
    * Deducts the specified amount from the wallet identified by the given ID in a guarded transaction.
    *
    * @param {number} id - The unique identifier of the wallet to be debited.

@@ -28,13 +28,13 @@ export default class WalletRepositoryImpl implements WalletRepository {
   }
 
   /**
-   * Retrieves a wallet entity by its unique identifier.
+   * Searches for a wallet record associated with the provided QR token.
    *
-   * @param {number} id - The unique identifier of the wallet to retrieve.
-   * @return {Promise<Wallet | null>} A promise resolving to the wallet entity if found, or null if no matching wallet is found.
+   * @param {string} token - The QR token to search for.
+   * @return {Promise<Wallet>} A promise that resolves to a Wallet object if a matching record is found.
    */
-  async findById(id: number): Promise<Wallet | null> {
-    return Wallet.find(id)
+  async findByQrToken(token: string): Promise<Wallet | null> {
+    return await Wallet.findBy({ qrcodeToken: token })
   }
 
   /**

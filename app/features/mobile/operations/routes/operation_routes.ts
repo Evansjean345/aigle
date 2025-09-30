@@ -5,6 +5,8 @@ const DepositController = () => import('#mobile/operations/controllers/deposit_c
 const TransfertController = () => import('#mobile/operations/controllers/transfert_controller')
 const TransfertInterController = () =>
   import('#mobile/operations/controllers/transfert_inter_controller')
+const WalletToWalletController = () =>
+  import('#mobile/operations/controllers/wallet_to_wallet_controller')
 
 const mobileOperationRoutes = () =>
   router
@@ -12,6 +14,7 @@ const mobileOperationRoutes = () =>
       router.post('deposit', [DepositController])
       router.post('transfert', [TransfertController])
       router.post('transfert-inter', [TransfertInterController])
+      router.post('wallet-to-wallet', [WalletToWalletController])
     })
     .prefix('mobile/operations')
     .use(middleware.auth())

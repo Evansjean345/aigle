@@ -4,6 +4,7 @@ import WalletService from '#mobile/wallet/services/wallet_service'
 import { toWalletOverviewResult } from '#mobile/wallet/mappers/wallet.mapper'
 import { WalletOverviewResult } from '#mobile/wallet/dtos/wallet_overview.result'
 import { inject } from '@adonisjs/core'
+import TransactionRepository from '#shared/interfaces/repositories/transaction.repository'
 
 @inject()
 export default class GetUserWalletOverviewUseCase {
@@ -12,10 +13,12 @@ export default class GetUserWalletOverviewUseCase {
    *
    * @param {WalletService} walletService - Service responsible for wallet operations.
    * @param {UserRepository} userRepository - Repository for managing user data persistently.
+   * @param transactionRepository
    */
   constructor(
     private readonly walletService: WalletService,
-    private readonly userRepository: UserRepository
+    private readonly userRepository: UserRepository,
+    private readonly transactionRepository: TransactionRepository
   ) {}
 
   /**
@@ -36,14 +39,11 @@ export default class GetUserWalletOverviewUseCase {
     }
 
     const wallet = await this.walletService.getByUserId(user.usersUid)
+    const latestTransactions = await this.transactionRepository.getLatestTransactionByUserId(
+      user.usersUid,
+      9
+    )
 
-    if (!wallet) {
-      throw new Exception('Wallet not found', {
-        status: 404,
-        code: 'WALLET_NOT_FOUND',
-      })
-    }
-
-    return toWalletOverviewResult(wallet)
+    return toWalletOverviewResult(wallet, latestTransactions)
   }
 }

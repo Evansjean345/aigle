@@ -1,8 +1,4 @@
 export interface WebhookResponseDto {
-  status: boolean
+  status: number
   message: string
-  data: {
-    reference: string
-    result: string
-  }
 }

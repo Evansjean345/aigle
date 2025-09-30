@@ -4,4 +4,5 @@ export interface WalletCreatedResult {
   usersId: string
   currencySymbol?: string
   balance: number
+  qrcode: string
 }

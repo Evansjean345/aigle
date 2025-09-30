@@ -7,31 +7,31 @@ export default class Payment extends BaseModel {
   declare id: number
 
   @column()
-  declare payments_uid: string
+  declare paymentsUid: string
 
   @column()
-  declare transactions_id: number
+  declare transactionsId: number
 
   @column()
-  declare transactions_uid: string
+  declare transactionsUid: string
 
   @column()
   declare step: string
 
   @column()
-  declare operation_type: string
+  declare operationType: string
 
   @column({ consume: (value: string | null) => (value ? JSON.parse(value) : null) })
-  declare payment_details: string
+  declare paymentDetails: string
 
   @column()
-  declare users_id: number
+  declare usersId: number
 
   @column()
-  declare users_uid: string
+  declare usersUid: string
 
   @column()
-  declare receiver_id: number
+  declare receiverId: number
 
   @column()
   declare fees: number
@@ -40,49 +40,25 @@ export default class Payment extends BaseModel {
   declare amount: number
 
   @column()
-  declare total_amount: number
+  declare totalAmount: number
 
   @column()
-  declare url_operator: string
-
-  @column()
-  declare debiteur_phone: string
-
-  @column()
-  declare beneficiaire_phone: string
-
-  @column()
-  declare beneficiaire_name: string
+  declare urlOperator?: string
 
   @column()
   declare currency: string
 
-  @column()
-  declare country: string
-
-  @column()
-  declare operator: 'orange' | 'mtn' | 'moov'
-
   @column({ consume: (value: string | null) => (value ? JSON.parse(value) : null) })
-  declare operator_response: string
+  declare operatorResponse: string
 
   @column()
-  declare transaction_metadata: string
-
-  // @column({ consume: (value: string | null) => (value ? JSON.parse(value) : null) })
-  // declare mobile_money_details: string
-
-  // @column({ consume: (value: string | null) => (value ? JSON.parse(value) : null) })
-  // declare credit_card_details: string
-
-  // @column({ consume: (value: string | null) => (value ? JSON.parse(value) : null) })
-  // declare bank_details: string
+  declare transactionMetadata: string
 
   @column()
-  declare date_payement: string
+  declare datePayement: string
 
   @column()
-  declare payment_method: string
+  declare paymentMethod: string
 
   @column()
   declare status: 'draft' | 'pending' | 'success' | 'failed'
@@ -95,7 +71,7 @@ export default class Payment extends BaseModel {
 
   @beforeSave()
   static async BaseModel(payment: Payment) {
-    payment.payments_uid = uuidv4()
-    payment.date_payement = DateTime.now().toFormat('yyyy-MM-dd')
+    payment.paymentsUid = uuidv4()
+    payment.datePayement = DateTime.now().toFormat('yyyy-MM-dd')
   }
 }

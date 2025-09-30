@@ -11,13 +11,27 @@ import { WebhookRequestDto } from '#mobile/webhooks/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#mobile/webhooks/dto/webhook_response.dto'
 import { Logger } from '@adonisjs/core/logger'
 import WalletService from '#mobile/wallet/services/wallet_service'
+import DepositTransactionCompleted from '#mobile/webhooks/events/deposit/deposit_transaction_completed'
+import TransfertTransactionCompleted, {
+  TransfertTransactionCompletedPayload,
+} from '#mobile/webhooks/events/transfert/transfert_transaction_completed'
+import TransfertTransactionFailed from '#mobile/webhooks/events/transfert/transfert_transaction_failed'
 
 /**
- * Handles the business logic for processing transfer webhook events. Mirrors the deposit webhook flow
- * but adapts wallet movements to transfer semantics (wallet is debited at initiation, refunded on failure).
+ * Class responsible for handling and processing transfer-related webhook events.
+ * It validates incoming webhook payloads, ensures idempotency, and performs updates
+ * on transactions, payments, and wallets accordingly.
  */
 @inject()
 export default class HandleTransfertWebhookUseCase {
+  /**
+   * Initializes a new instance of the class.
+   *
+   * @param {PaymentService} paymentService - The service used for handling payment operations.
+   * @param {TransactionService} transactionService - The service used for managing transactions.
+   * @param {WalletService} walletService - The service used for wallet-related operations.
+   * @param {Logger} logger - The logger used for logging activities and errors.
+   */
   constructor(
     private readonly paymentService: PaymentService,
     private readonly transactionService: TransactionService,
@@ -25,6 +39,14 @@ export default class HandleTransfertWebhookUseCase {
     private readonly logger: Logger
   ) {}
 
+  /**
+   * Processes a webhook request for a transfer event, validates payloads, ensures idempotency,
+   * and performs necessary updates to transactions, payments, and wallets.
+   *
+   * @param {WebhookRequestDto} payload - The incoming webhook request data containing transaction reference and other details.
+   * @param {'success' | 'failed'} status - The status of the transfer, either 'success' or 'failed'.
+   * @return {Promise<WebhookResponseDto>} A promise that resolves with a WebhookResponseDto representing the response of the webhook processing.
+   */
   async execute(
     payload: WebhookRequestDto,
     status: 'success' | 'failed'
@@ -61,13 +83,13 @@ export default class HandleTransfertWebhookUseCase {
           'Idempotent webhook call — skipping processing'
         )
         await trx.rollback()
-        return this.createIdempotentResponse(reference, transaction.status)
+        return this.createSuccessResponse()
       }
 
       await this.processWebhook(transaction, payment, wallet, payload, status, trx)
       await trx.commit()
       this.logger.info({ reference, status }, 'Transfer webhook processed successfully')
-      return this.createSuccessResponse(reference, status)
+      return this.createSuccessResponse()
     } catch (error) {
       await trx.rollback()
       this.logger.error(
@@ -111,8 +133,8 @@ export default class HandleTransfertWebhookUseCase {
     const transaction = await this.transactionService.findByReference(reference)
 
     const [payments, wallet] = await Promise.all([
-      this.paymentService.findByTransaction(transaction.transactions_uid || transaction.id),
-      this.walletService.getByUserId(transaction.users_uid),
+      this.paymentService.findByTransaction(transaction.transactionsUid || transaction.id),
+      this.walletService.getByUserId(transaction.usersUid),
     ])
 
     if (payments.length === 0) {
@@ -203,14 +225,29 @@ export default class HandleTransfertWebhookUseCase {
     operatorResponse: any,
     trx: TransactionClientContract
   ): Promise<void> {
-    // mark payment success
     await this.safeMarkPaymentSuccess(payment.id, operatorResponse, trx)
-    // mark transaction success with current wallet balance (no change here)
     await this.safeMarkTransactionSuccess(transaction.id, Number(wallet.balance), trx)
+
+    await TransfertTransactionCompleted.dispatch(<TransfertTransactionCompletedPayload>{
+      reference: transaction.reference,
+      amount: transaction.amount,
+      userId: transaction.usersUid,
+      balanceAfter: wallet.balance || 0,
+      beneficiaryPhone: payment.paymentDetails.phone || 'unknown',
+    })
   }
 
   /**
-   * On transfer failure, mark payment/transaction failed and refund wallet by the net debited amount (transaction.amount).
+   * Processes a failed transfer by marking the transaction and payment as failed
+   * and refunding the wallet with the credited amount from the failed transaction.
+   *
+   * @param {Transaction} transaction - The transaction to be marked as failed.
+   * @param {Payment} payment - The payment to be marked as failed.
+   * @param {Wallet} wallet - The wallet to be refunded with the credited amount.
+   * @param {any} operatorResponse - The response from the operator, detailing the failure.
+   * @param {TransactionClientContract} trx - The database transaction client used for transactional operations.
+   *
+   * @return {Promise<void>} A Promise that resolves when the failed transfer has been processed.
    */
   private async processFailedTransfer(
     transaction: Transaction,
@@ -328,38 +365,11 @@ export default class HandleTransfertWebhookUseCase {
   }
 
   /**
-   * Generates an idempotent response object documenting the current status of a given reference.
+   * Creates a success response object indicating that the webhook request was received successfully.
    *
-   * @param {string} reference - The unique reference identifier for which the response is created.
-   * @param {string} currentStatus - The current status associated with the provided reference.
-   * @return {WebhookResponseDto} The idempotent response object containing the status, message, and data.
+   * @return {WebhookResponseDto} An object containing the status code and a success message.
    */
-  private createIdempotentResponse(reference: string, currentStatus: string): WebhookResponseDto {
-    return {
-      status: true,
-      message: 'Déjà traité — idempotent',
-      data: {
-        reference,
-        result: currentStatus,
-      },
-    }
-  }
-
-  /**
-   * Creates a standardized success response for a webhook.
-   *
-   * @param {string} reference - The unique reference identifier associated with the webhook.
-   * @param {string} status - The status result of the webhook processing.
-   * @return {WebhookResponseDto} An object representing the success response, including the status, message, and associated data.
-   */
-  private createSuccessResponse(reference: string, status: string): WebhookResponseDto {
-    return {
-      status: true,
-      message: 'Webhook traité',
-      data: {
-        reference,
-        result: status,
-      },
-    }
+  private createSuccessResponse(): WebhookResponseDto {
+    return { status: 200, message: 'received' }
   }
 }

@@ -22,6 +22,8 @@ import mobileServicesRoutes from '#mobile/services/routes/services_routes'
 import adminServicesManagementRoutes from '#admin/services_management/routes/services_management_routes'
 import mobileOperationRoutes from '#mobile/operations/routes/operation_routes'
 import mobileWebhookRoutes from '#mobile/webhooks/routes/webhook_routes'
+import mobileTransactionRoutes from '#mobile/transactions/routes/transaction_routes'
+import mobileDeviceRoutes from '#mobile/device/routes/device_routes'
 
 router
   .group(() => {
@@ -30,7 +32,9 @@ router
     router.group(mobileServicesRoutes)
     router.group(mobileOperationRoutes)
     router.group(mobileWebhookRoutes)
+    router.group(mobileTransactionRoutes)
     router.group(adminServicesManagementRoutes)
+    router.group(mobileDeviceRoutes)
     router.group(authRouter(router, middleware)).prefix('auth')
     router
       .group(() => {
@@ -62,10 +66,7 @@ router
     router
       .group(() => {
         router.get('all-by-user', [TransactionsController, 'all_by_user'])
-        router.get('details-by-user/:reference', [
-          TransactionsController,
-          'details_by_user',
-        ])
+        router.get('details-by-user/:reference', [TransactionsController, 'details_by_user'])
         router.get('stream/:reference', [TransactionsController, 'stream_transaction'])
       })
       .use(middleware.auth({ guards: ['api'] }))

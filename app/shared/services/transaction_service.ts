@@ -1,7 +1,10 @@
 import { inject } from '@adonisjs/core'
 import TransactionRepository from '#shared/repositories/transaction_repository_impl'
-import Transaction, { TransactionStatus, TransactionType } from '#shared/models/transaction'
-import Wallet from '#shared/models/wallet'
+import Transaction, {
+  TransactionDirection,
+  TransactionStatus,
+  TransactionType,
+} from '#shared/models/transaction'
 import User from '#shared/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
@@ -27,6 +30,8 @@ export default class TransactionService {
    * Creates a new transaction based on the provided payload, wallet, and user details.
    *
    * @param {Object} payload - An object containing the transaction details.
+   * @param walletId
+   * @param walletBalance
    * @param {string} payload.status - The status of the transaction (e.g., pending, completed).
    * @param {number} payload.amount - The primary amount of the transaction.
    * @param {number} [payload.total_amount] - The total amount including fees, if specified.
@@ -35,7 +40,6 @@ export default class TransactionService {
    * @param {string} [payload.reference] - An optional reference for the transaction.
    * @param {string} [payload.description] - A description or note about the transaction.
    * @param {Record<string, any>} [payload.metadata] - Additional metadata to associate with the transaction.
-   * @param {Wallet} wallet - The wallet object associated with the transaction.
    * @param {User} user - The user performing the transaction.
    * @param {TransactionClientContract} [trx] - An optional transaction client to manage database operations.
    *
@@ -45,21 +49,24 @@ export default class TransactionService {
     payload: {
       status: TransactionStatus
       amount: number
+      direction: TransactionDirection
       total_amount?: number
       operation_type: TransactionType
+      balanceAfter?: number
       fees?: number
       reference?: string
       description?: string
       metadata?: Record<string, any>
     },
-    wallet: Wallet,
+    walletId: number,
+    walletBalance: number,
     user: User,
     trx?: TransactionClientContract
   ): Promise<Transaction> {
     this.logger.info(
       {
         user_id: user.id,
-        wallet_id: wallet.id,
+        wallet_id: walletId,
         amount: payload.amount,
         type: payload.operation_type,
       },
@@ -69,17 +76,18 @@ export default class TransactionService {
 
     transaction.status = payload.status
     transaction.amount = Number(payload.amount)
-    transaction.total_amount = Number(payload.total_amount || 0)
-    transaction.operation_type = payload.operation_type
+    transaction.direction = payload.direction
+    transaction.totalAmount = Number(payload.total_amount || 0)
+    transaction.operationType = payload.operation_type
     transaction.fees = Number(payload.fees || 0)
-    transaction.balance_before = wallet.balance
-    transaction.users_id = user.id
-    transaction.users_uid = user.usersUid!
+    transaction.balanceBefore = walletBalance
+    transaction.usersId = user.id
+    transaction.usersUid = user.usersUid!
 
     if (payload.reference) transaction.reference = payload.reference
-
+    if (payload.balanceAfter) transaction.balanceAfter = payload.balanceAfter
     if (payload.description) transaction.description = payload.description
-    if (payload.metadata) transaction.date_transaction = JSON.stringify(payload.metadata)
+    if (payload.metadata) transaction.dateTransaction = JSON.stringify(payload.metadata)
 
     await this.transactionRepository.save(transaction, trx)
     return transaction
@@ -109,7 +117,7 @@ export default class TransactionService {
     }
 
     transaction.status = 'success' as TransactionStatus
-    transaction.balance_after = walletAfterBalance
+    transaction.balanceAfter = walletAfterBalance
     await this.transactionRepository.save(transaction, trx)
     this.logger.info(
       { transaction_id: transaction.id, balance_after: walletAfterBalance },

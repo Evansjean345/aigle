@@ -62,21 +62,21 @@ export default class PaymentService {
     )
     const payment = new Payment()
 
-    payment.users_id = user.id
-    payment.users_uid = user.usersUid!
+    payment.usersId = user.id
+    payment.usersUid = user.usersUid!
 
-    payment.transactions_id = transaction.id
-    payment.transactions_uid = transaction.transactions_uid
+    payment.transactionsId = transaction.id
+    payment.transactionsUid = transaction.transactionsUid!
 
-    payment.payment_method = payload.payment_method
-    payment.operation_type = payload.operation_type
+    payment.paymentMethod = payload.payment_method
+    payment.operationType = payload.operation_type
 
     payment.fees = Number(payload.fees || transaction.fees || 0)
     payment.amount = Number(payload.amount)
-    payment.total_amount = Number(payload.total_amount)
+    payment.totalAmount = Number(payload.total_amount)
 
     if (payload.payment_details)
-      payment.payment_details = JSON.stringify(payload.payment_details as any)
+      payment.paymentDetails = JSON.stringify(payload.payment_details as any)
 
     if (payload.step) payment.step = payload.step
     if (payload.status) payment.status = payload.status
@@ -128,11 +128,11 @@ export default class PaymentService {
     payment.status = 'success'
 
     if (extra?.operator_response) {
-      payment.operator_response = JSON.stringify(extra.operator_response)
+      payment.operatorResponse = JSON.stringify(extra.operator_response)
     }
 
     if (extra?.url_operator) {
-      payment.url_operator = extra.url_operator
+      payment.urlOperator = extra.url_operator || undefined
     }
 
     this.logger.info({ payment_id: payment.id }, 'Payment marked as success')
@@ -167,7 +167,7 @@ export default class PaymentService {
     payment.status = 'failed'
 
     if (extra?.operator_response) {
-      payment.operator_response = JSON.stringify(extra.operator_response as any)
+      payment.operatorResponse = JSON.stringify(extra.operator_response as any)
     }
 
     this.logger.info({ payment_id: payment.id }, 'Payment marked as failed')

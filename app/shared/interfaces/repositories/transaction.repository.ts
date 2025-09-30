@@ -1,5 +1,6 @@
 import Transaction from '#shared/models/transaction'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 /**
  * An abstract class acting as a repository for managing transaction entities.
@@ -30,4 +31,36 @@ export default abstract class TransactionRepository {
    * @return {Promise<Transaction | null>} A promise that resolves to the transaction object if found, or null if not found.
    */
   abstract findByReference(reference: string): Promise<Transaction | null>
+
+  /**
+   * Finds a transaction by its reference and associated user ID.
+   *
+   * @param {string} reference - The unique reference identifier of the transaction.
+   * @param {string} userId - The unique identifier of the user associated with the transaction.
+   * @return {Promise<Transaction | null>} A promise that resolves to the transaction if found, or null if no matching transaction exists.
+   */
+  abstract findByReferenceAndUserId(reference: string, userId: string): Promise<Transaction | null>
+
+  /**
+   * Retrieves the latest transactions for a specific user, up to a specified limit.
+   *
+   * @param {string} userId - The unique identifier of the user whose transactions are to be retrieved.
+   * @param {number | undefined} limit - The maximum number of transactions to retrieve.
+   * @return {Promise<Transaction[]>} A promise that resolves to an array of the user's latest transactions.
+   */
+  abstract getLatestTransactionByUserId(userId: string, limit?: number): Promise<Transaction[]>
+
+  /**
+   * Fetches a paginated list of transactions associated with a specific user.
+   *
+   * @param {string} userId - The unique identifier for the user.
+   * @param {number} page - The current page number to retrieve.
+   * @param {number} perPage - The number of transactions to fetch per page.
+   * @return {Promise<ModelPaginatorContract<Transaction>>} A promise resolving to the paginated list of transactions.
+   */
+  abstract getAllByUserId(
+    userId: string,
+    page: number,
+    perPage?: number
+  ): Promise<ModelPaginatorContract<Transaction>>
 }

@@ -16,8 +16,20 @@ import { makeRequest } from '../../../../helpers/http_helpers.js'
 import env from '#start/env'
 import WalletService from '#mobile/wallet/services/wallet_service'
 
+/**
+ * Class responsible for handling inter-transfer operations, including fees calculation,
+ * transactions, payment initiation, and external API communication.
+ */
 @inject()
 export default class InterTransfertUseCase {
+  /**
+   * Constructor for initializing the necessary services and repositories.
+   *
+   * @param {ServiceProviderFeesRepositoryImpl} feesRepo - The repository implementation for service provider fees.
+   * @param {TransactionService} transactionService - The service for handling transactions.
+   * @param {PaymentService} paymentService - The service for managing payments.
+   * @param {WalletService} walletService - The service for wallet-related operations.
+   */
   constructor(
     private readonly feesRepo: ServiceProviderFeesRepositoryImpl,
     private readonly transactionService: TransactionService,
@@ -25,6 +37,14 @@ export default class InterTransfertUseCase {
     private readonly walletService: WalletService
   ) {}
 
+  /**
+   * Executes an inter-transfer operation by handling fees calculation, transactions, payment initializations,
+   * and communication with an external checkout API.
+   *
+   * @param {InterTransfertRequestDto} payload - The transfer request data containing details such as amounts, providers, payment methods, and user information.
+   * @param {User} user - The user initiating the inter-transfer operation.
+   * @return {Promise<InterTransfertResponseDto>} A promise that resolves to the result of the inter-transfer process, including transaction reference and status.
+   */
   async execute(payload: InterTransfertRequestDto, user: User): Promise<InterTransfertResponseDto> {
     const serviceType = await this.getServiceType(payload.serviceType)
 
@@ -40,19 +60,20 @@ export default class InterTransfertUseCase {
     )
 
     const wallet = await this.walletService.getByUserId(user.usersUid)
-
     const trx = await db.transaction()
 
     try {
       const transaction = await this.transactionService.createTransaction(
         {
           status: 'pending',
+          direction: 'external',
           amount: amount,
           total_amount: total,
           fees: fees,
           operation_type: serviceType.code as TransactionType,
         },
-        wallet,
+        wallet.id,
+        0,
         user,
         trx
       )
@@ -60,14 +81,14 @@ export default class InterTransfertUseCase {
       // First payment: deposit init (debiteur side)
       const paymentDetailsFrom: Record<string, any> = {
         operator: payload.providerFromCode,
-        debiteur_phone: payload.debiteurPhone,
+        phone: payload.debiteurPhone.replaceAll(' ', ''),
       }
+
       if (payload.pinCode) paymentDetailsFrom.pincode = payload.pinCode
 
       await this.paymentService.createPayment(
         {
           payment_method: payload.paymentMethodDepositCode,
-          operation_type: serviceType.code,
           amount: amount,
           total_amount: total,
           fees: fees,
@@ -83,13 +104,12 @@ export default class InterTransfertUseCase {
       // Second payment: transfert init (beneficiaire side) - draft
       const paymentDetailsTo: Record<string, any> = {
         operator: payload.providerToCode,
-        beneficiaire_phone: payload.beneficiairePhone,
+        phone: payload.beneficiairePhone.replaceAll(' ', ''),
       }
 
       await this.paymentService.createPayment(
         {
           payment_method: payload.paymentMethodTransfertCode,
-          operation_type: serviceType.code,
           amount: amount,
           total_amount: total,
           fees: fees,
@@ -120,6 +140,7 @@ export default class InterTransfertUseCase {
       if (payload.providerFromCode === 'orange' && payload.pinCode) {
         dataSend.otp = payload.pinCode
       }
+
       if (payload.providerFromCode === 'orange' && !payload.pinCode) {
         throw new Exception('Le code temporaire orange money est requis', {
           status: 400,
@@ -151,6 +172,13 @@ export default class InterTransfertUseCase {
     }
   }
 
+  /**
+   * Fetches a service type from the database using a given service type code.
+   *
+   * @param {string} serviceTypeCode - The unique code identifying the service type.
+   * @return {Promise<ServiceType>} A promise that resolves to the ServiceType object corresponding to the provided code.
+   * @throws Will throw an Exception if the service type with the specified code is not found.
+   */
   private async getServiceType(serviceTypeCode: string): Promise<ServiceType> {
     const serviceType = await ServiceType.query().where('code', serviceTypeCode).first()
 
@@ -163,6 +191,17 @@ export default class InterTransfertUseCase {
     return serviceType
   }
 
+  /**
+   * Calculates the total, fees, and amount based on the provided payload and service type.
+   *
+   * @param {Object} payload - The input parameters for fee calculation.
+   * @param {number} payload.amount - The amount for which fees need to be calculated.
+   * @param {number} payload.paymentMethodId - The ID of the payment method being used.
+   * @param {number} payload.providerFromId - The ID of the provider initiating the transaction.
+   * @param {number} [payload.providerToId] - The optional ID of the provider receiving the transaction.
+   * @param {number} serviceTypeId - The ID of the service type for which the fee rule applies.
+   * @return {Promise<{ total: number, fees: number, amount: number }>} An object containing the calculated total, fees, and adjusted amount. Throws an exception if no applicable fee rule is found.
+   */
   private async calculateFees(
     payload: {
       amount: number

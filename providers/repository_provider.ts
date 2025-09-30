@@ -17,12 +17,15 @@ import TransactionRepository from '#shared/interfaces/repositories/transaction.r
 import TransactionRepositoryImpl from '#shared/repositories/transaction_repository_impl'
 import PaymentRepository from '#shared/interfaces/repositories/payment.repository'
 import PaymentRepositoryImpl from '#shared/repositories/payment_repository_impl'
+import DeviceRepository from '#shared/interfaces/repositories/device_repository'
+import DeviceRepositoryImpl from '#shared/repositories/device_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
 
   /**
-   * Register bindings to the container
+   * Enregistre les implémentations des repositories dans le conteneur d'injection de dépendances.
+   * Permet d'accéder aux repositories via leurs interfaces dans toute l'application.
    */
   register() {
     const providers = new Map<any, any>([
@@ -35,6 +38,7 @@ export default class RepositoryProvider {
       [ServiceProviderFeesRepository, ServiceProviderFeesRepositoryImpl],
       [TransactionRepository, TransactionRepositoryImpl],
       [PaymentRepository, PaymentRepositoryImpl],
+      [DeviceRepository, DeviceRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {

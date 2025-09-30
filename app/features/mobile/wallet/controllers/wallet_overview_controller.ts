@@ -18,12 +18,11 @@ export default class WalletOverviewController {
    * Handles the request to retrieve wallet overview for an authenticated user.
    *
    * @param {Object} context - The HTTP context object containing request, response, and authentication details.
-   * @param {Object} context.request - The HTTP request object.
    * @param {Object} context.response - The HTTP response object.
    * @param {Object} context.auth - The authentication object containing user details.
    * @return {Promise<void>} - A promise resolving to the response object containing the wallet overview data.
    */
-  async handle({ request, response, auth }: HttpContext): Promise<void> {
+  async handle({ response, auth }: HttpContext): Promise<void> {
     const authenticatedUser = auth.user!
     const overview = await this.getWalletOverviewUseCase.execute(authenticatedUser.usersUid)
     return response.ok(overview)

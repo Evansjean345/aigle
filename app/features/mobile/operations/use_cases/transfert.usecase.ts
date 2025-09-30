@@ -62,18 +62,20 @@ export default class TransfertUseCase {
         {
           status: 'pending',
           amount: amount,
+          direction: 'debit',
           total_amount: total,
           fees: fees,
           operation_type: serviceType.code as TransactionType,
         },
-        wallet,
+        wallet.id!,
+        Number(wallet.balance),
         user,
         trx
       )
 
       const paymentDetails: Record<string, any> = {
         operator: payload.providerCode,
-        phone: payload.phone,
+        phone: payload.phone.replaceAll(' ', ''),
       }
 
       await this.paymentService.createPayment(

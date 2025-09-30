@@ -1,0 +1,57 @@
+import { HttpContext } from '@adonisjs/core/http'
+import { inject } from '@adonisjs/core'
+import GetUserTransactionsUseCase from '#mobile/transactions/use_cases/get_user_transactions.use_case'
+import GetUserTransactionDetailsUseCase from '#mobile/transactions/use_cases/get_user_transaction_details.use_case'
+
+/**
+ * MobileTransactionsController is responsible for handling operations related
+ * to mobile user transactions, such as listing a user's transaction history.
+ */
+@inject()
+export default class MobileTransactionsController {
+  /**
+   * Constructs an instance of the class with dependencies for managing user transactions and transaction details.
+   *
+   * @param {GetUserTransactionsUseCase} getUserTransactions - Use case for retrieving user transactions.
+   * @param {GetUserTransactionDetailsUseCase} getUserTransactionDetails - Use case for retrieving detailed information about a specific user transaction.
+   */
+  constructor(
+    private readonly getUserTransactions: GetUserTransactionsUseCase,
+    private readonly getUserTransactionDetails: GetUserTransactionDetailsUseCase
+  ) {}
+
+  /**
+   * Handles the retrieval of a list of transactions for the authenticated user
+   * with an optional limit.
+   *
+   * @param {Object} HttpContext - The HTTP context object containing request, response, and auth.
+   * @param {Object} HttpContext.request - The HTTP request object.
+   * @param {Object} HttpContext.response - The HTTP response object.
+   * @param {Object} HttpContext.auth - The authentication object containing user information.
+   * @return {Promise<Object>} A promise that resolves to an HTTP response containing a list of transactions.
+   */
+  async list({ request, response, auth }: HttpContext): Promise<void> {
+    const user = auth.user!
+    const page = request.qs().page
+
+    const transactions = await this.getUserTransactions.execute(user.usersUid, page)
+    return response.ok(transactions)
+  }
+
+  /**
+   * Retrieves the transaction details for a user based on the provided reference.
+   *
+   * @param {Object} context - The context object containing HTTP request and response details.
+   * @param {Object} context.response - The response object used to send back the result.
+   * @param {Object} context.auth - The authentication object containing user information.
+   * @param {Object} context.params - The parameters object containing route parameters.
+   * @return {Promise<void>} A promise that resolves when the response is sent.
+   */
+  async details({ response, auth, params }: HttpContext): Promise<void> {
+    const user = auth.user!
+    const reference = params.reference
+
+    const transaction = await this.getUserTransactionDetails.execute(user.usersUid, reference)
+    return response.ok(transaction)
+  }
+}

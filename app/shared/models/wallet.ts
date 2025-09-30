@@ -21,6 +21,9 @@ export default class Wallet extends BaseModel {
   declare currencySymbol?: string
 
   @column()
+  declare qrcodeToken: string
+
+  @column()
   declare status: 'active' | 'inactive' | 'pending' | 'suspended'
 
   @column.dateTime({ autoCreate: true })

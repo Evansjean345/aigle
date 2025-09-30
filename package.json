@@ -77,6 +77,7 @@
     "@vinejs/vine": "^2.1.0",
     "axios": "^1.7.7",
     "chalk": "^5.3.0",
+    "expo-server-sdk": "^4.0.0",
     "luxon": "^3.5.0",
     "mysql2": "^3.11.3",
     "reflect-metadata": "^0.2.2",

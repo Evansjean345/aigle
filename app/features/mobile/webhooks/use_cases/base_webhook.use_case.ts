@@ -123,7 +123,7 @@ export default abstract class BaseWebhookUseCase {
     const transaction = await this.transactionService.findByReference(reference)
 
     const [payments, wallet] = await Promise.all([
-      this.paymentService.findByTransaction(transaction.transactions_uid || transaction.id),
+      this.paymentService.findByTransaction(transaction.transactionsUid || transaction.id),
       this.getWalletForTransaction(transaction),
     ])
 

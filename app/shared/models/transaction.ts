@@ -6,40 +6,47 @@ import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import Payment from '#shared/models/payment'
 import User from '#shared/models/user'
 
-export type TransactionType = 'deposit' | 'withdrawal' | 'transfer' | 'transfer-inter'
+export type TransactionType = 'deposit' | 'wallet_transfert' | 'transfer' | 'transfer-inter'
 export type TransactionStatus = 'pending' | 'success' | 'failed'
+export type TransactionDirection = 'debit' | 'credit' | 'external'
 
 export default class Transaction extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
   @hasMany(() => Payment, {
-    foreignKey: 'transactions_id',
+    foreignKey: 'transactionsId',
   })
   declare payment: HasMany<typeof Payment>
 
   @belongsTo(() => User, {
-    foreignKey: 'users_id',
+    foreignKey: 'usersId',
   })
   declare user: BelongsTo<typeof User>
 
   @column()
-  declare transactions_uid: string
+  declare transactionsId: number
 
   @column()
-  declare users_id: number
+  declare transactionsUid: string
 
   @column()
-  declare users_uid: string
+  declare usersId: number
+
+  @column()
+  declare usersUid: string
 
   @column()
   declare amount: number
 
   @column()
-  declare total_amount: number
+  declare totalAmount: number
 
   @column()
-  declare operation_type: TransactionType
+  declare operationType: TransactionType
+
+  @column()
+  declare direction: TransactionDirection
 
   @column()
   declare reference: string
@@ -48,16 +55,16 @@ export default class Transaction extends BaseModel {
   declare fees: number
 
   @column()
-  declare balance_before: number | null
+  declare balanceBefore: number | null
 
   @column()
-  declare balance_after: number | null
+  declare balanceAfter: number | null
 
   @column()
-  declare receiver_id: number | null
+  declare receiverId: number | null
 
   @column()
-  declare date_transaction: string
+  declare dateTransaction: string
 
   @column()
   declare description: string | null
@@ -74,9 +81,9 @@ export default class Transaction extends BaseModel {
   @beforeSave()
   static async BaseModel(transaction: Transaction) {
     if (transaction.$isNew) {
-      transaction.transactions_uid = uuidv4()
+      transaction.transactionsUid = uuidv4()
       transaction.reference = 'aigle' + string.random(8)
-      transaction.date_transaction = DateTime.now().toFormat('yyyy-MM-dd')
+      transaction.dateTransaction = DateTime.now().toFormat('yyyy-MM-dd')
     }
   }
 }

@@ -22,7 +22,10 @@ export default class TransfertInterController {
    * @param {Object} HttpContext.auth - The authentication details, including the authenticated user.
    * @return {Promise<void>} A promise that resolves when the inter-transfer handling is complete.
    */
-  async handle({ request, response, auth }: HttpContext) {
+  async handle({ request, response, auth }: HttpContext): Promise<void> {
+    console.log('debugging request')
+    console.log(request.all())
+
     const user = auth.user!
     const payload = await request.validateUsing(interTransfertValidator)
     const result = await this.interTransfertUseCase.execute(toInterTransfertDto(payload), user)

@@ -53,17 +53,19 @@ export default class DepositUseCase {
           status: 'pending',
           amount: amount,
           total_amount: total,
+          direction: 'credit',
           fees: fees,
           operation_type: serviceType.code as TransactionType,
         },
-        wallet,
+        wallet.id,
+        wallet.balance,
         user,
         trx
       )
 
       const paymentDetails: Record<string, any> = {
         operator: payload.providerCode,
-        phone: payload.phone,
+        phone: payload.phone.replaceAll(' ', ''),
       }
 
       if (payload.pinCode) paymentDetails.pincode = payload.pinCode
@@ -107,17 +109,23 @@ export default class DepositUseCase {
 
       await trx.commit()
 
-      await makeRequest({
+      const response = await makeRequest({
         uri: env.get('API_CHECKOUT_URL')!!,
         method: 'post',
         data: dataSend,
       })
+
+      console.log('debugging response in deposit usecase')
+      console.log(response.data.payment_details.wave_launch_url)
 
       return {
         message: 'transaction initiated',
         data: {
           transactionReference: transaction.reference,
           status: transaction.status,
+          ...(payload.providerCode === 'wave' && {
+            wave_url: response.data.payment_details.wave_launch_url,
+          }),
         },
       }
     } catch (error) {

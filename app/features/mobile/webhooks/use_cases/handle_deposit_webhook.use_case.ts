@@ -11,6 +11,15 @@ import Wallet from '#shared/models/wallet'
 import { WebhookRequestDto } from '#mobile/webhooks/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#mobile/webhooks/dto/webhook_response.dto'
 import { Logger } from '@adonisjs/core/logger'
+import DepositTransactionCompleted, {
+  DepositTransactionCompletedPayload,
+} from '#mobile/webhooks/events/deposit/deposit_transaction_completed'
+import DepositTransactionFailed, {
+  DepositTransactionFailedPayload,
+} from '#mobile/webhooks/events/deposit/deposit_transaction_failed'
+import TransfertTransactionCompleted, {
+  TransfertTransactionCompletedPayload,
+} from '#mobile/webhooks/events/transfert/transfert_transaction_completed'
 
 /**
  * Handles the business logic for processing deposit webhook events. This class is responsible for managing
@@ -77,7 +86,7 @@ export default class HandleDepositWebhookUseCase {
           'Idempotent webhook call — skipping processing'
         )
         await trx.rollback()
-        return this.createIdempotentResponse(payload.data.reference, transaction.status)
+        return this.createSuccessResponse()
       }
 
       await this.processWebhook(transaction, payment, wallet, payload, status, trx)
@@ -86,7 +95,7 @@ export default class HandleDepositWebhookUseCase {
         { reference: payload.data.reference, status },
         'Webhook processed successfully'
       )
-      return this.createSuccessResponse(payload.data.reference, status)
+      return this.createSuccessResponse()
     } catch (error) {
       await trx.rollback()
       this.logger.error(
@@ -131,8 +140,8 @@ export default class HandleDepositWebhookUseCase {
     const transaction = await this.transactionService.findByReference(reference)
 
     const [payments, wallet] = await Promise.all([
-      this.paymentService.findByTransaction(transaction.transactions_uid || transaction.id),
-      this.walletRepository.findByUserId(transaction.users_uid),
+      this.paymentService.findByTransaction(transaction.transactionsUid || transaction.id),
+      this.walletRepository.findByUserId(transaction.usersUid),
     ])
 
     if (payments.length === 0) {
@@ -209,6 +218,9 @@ export default class HandleDepositWebhookUseCase {
     if (status === 'success') {
       this.logger.info({ reference: payload.data.reference }, 'Processing successful deposit')
       await this.processSuccessfulDeposit(transaction, payment, wallet, operatorResponse, trx)
+
+      console.log('TransfertTransactionCompleted')
+      console.log(transaction.balanceAfter)
     } else {
       this.logger.info({ reference: payload.data.reference }, 'Processing failed deposit')
       await this.processFailedDeposit(transaction, payment, operatorResponse, trx)
@@ -239,7 +251,7 @@ export default class HandleDepositWebhookUseCase {
     this.logger.debug({ wallet_id: wallet.id }, 'Adjusting wallet balance for successful deposit')
     const updatedWallet = await this.walletRepository.adjustBalance(
       wallet.id,
-      Number(transaction.total_amount || 0),
+      Number(transaction.totalAmount || 0),
       trx
     )
 
@@ -256,6 +268,13 @@ export default class HandleDepositWebhookUseCase {
 
     this.logger.debug({ transaction_id: transaction.id }, 'Marking transaction as success')
     await this.safeMarkTransactionSuccess(transaction.id, updatedWallet.balance!, trx)
+
+    await DepositTransactionCompleted.dispatch(<DepositTransactionCompletedPayload>{
+      reference: transaction.reference,
+      amount: transaction.amount,
+      userId: transaction.usersUid,
+      balanceAfter: updatedWallet.balance || 0,
+    })
   }
 
   /**
@@ -283,6 +302,12 @@ export default class HandleDepositWebhookUseCase {
       this.safeMarkTransactionFailed(transaction.id, trx),
       this.safeMarkPaymentFailed(payment.id, operatorResponse, trx),
     ])
+
+    await DepositTransactionFailed.dispatch(<DepositTransactionFailedPayload>{
+      reference: transaction.reference,
+      amount: transaction.amount,
+      userId: transaction.usersUid,
+    })
   }
 
   /**
@@ -373,38 +398,11 @@ export default class HandleDepositWebhookUseCase {
   }
 
   /**
-   * Creates a response for an idempotent request.
+   * Creates a success response object indicating that the webhook request was received successfully.
    *
-   * @param {string} reference - The unique reference of the request being processed.
-   * @param {string} currentStatus - The current status associated with the request reference.
-   * @return {WebhookResponseDto} An object containing the status, message, and data related to the idempotent request handling.
+   * @return {WebhookResponseDto} An object containing the status code and a success message.
    */
-  private createIdempotentResponse(reference: string, currentStatus: string): WebhookResponseDto {
-    return {
-      status: true,
-      message: 'Déjà traité — idempotent',
-      data: {
-        reference,
-        result: currentStatus,
-      },
-    }
-  }
-
-  /**
-   * Creates a structured success response object for a webhook operation.
-   *
-   * @param {string} reference - A unique identifier or reference for the webhook.
-   * @param {string} status - The result or status description for the webhook processing.
-   * @return {WebhookResponseDto} The object containing success status, message, and associated data.
-   */
-  private createSuccessResponse(reference: string, status: string): WebhookResponseDto {
-    return {
-      status: true,
-      message: 'Webhook traité',
-      data: {
-        reference,
-        result: status,
-      },
-    }
+  private createSuccessResponse(): WebhookResponseDto {
+    return { status: 200, message: 'received' }
   }
 }

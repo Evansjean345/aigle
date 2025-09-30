@@ -171,6 +171,7 @@ export default class TransfertInterService {
         paymentData?.total_amount,
         'subtract'
       )
+
       if (!walletUpdate?.status) {
         return ResponseFormatter.create({
           message: walletUpdate?.message || 'échec lors de la mise à jour du wallet',
