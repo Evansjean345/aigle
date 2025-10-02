@@ -8,5 +8,6 @@ export interface FeeRule {
 
 export interface FeeContext {
   amount: number
+  include_fees?: boolean
   operation: FeeOperation
 }

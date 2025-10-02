@@ -55,6 +55,7 @@ export default class InterTransfertUseCase {
         paymentMethodId: payload.paymentMethodDepositId,
         providerFromId: payload.providerFromId,
         providerToId: payload.providerToId,
+        include_fees: payload.include_fees,
       },
       serviceType.id
     )
@@ -208,6 +209,7 @@ export default class InterTransfertUseCase {
       paymentMethodId: number
       providerFromId: number
       providerToId?: number
+      include_fees?: boolean
     },
     serviceTypeId: number
   ): Promise<{ total: number; fees: number; amount: number }> {
@@ -227,7 +229,7 @@ export default class InterTransfertUseCase {
     }
 
     const { total, fees, amount } = calculateFeeFromRule(
-      { amount: Number(payload.amount), operation: 'subtract' },
+      { amount: Number(payload.amount), operation: 'subtract', include_fees: payload.include_fees },
       rule
     )
 

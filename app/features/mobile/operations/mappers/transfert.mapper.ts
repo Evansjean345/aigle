@@ -15,4 +15,5 @@ export const toTransfertDto = (payload: TransfertValidator): TransfertRequestDto
   paymentMethodCode: payload.payment_method_code,
   paymentMethodId: payload.payment_method_id,
   phone: payload.phone,
+  include_fees: payload.include_fees,
 })

@@ -10,6 +10,7 @@ export interface InterTransfertRequestDto {
   paymentMethodDepositCode: string
   paymentMethodDepositId: number
   pinCode?: string
+  include_fees?: boolean
   // crediting side (to)
   providerToId: number
   providerToCode: string

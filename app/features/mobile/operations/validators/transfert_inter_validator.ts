@@ -30,6 +30,7 @@ const schema = vine.object({
     .exists(async (db, value) =>
       db.from('service_types').select('id').where('code', value).first()
     ),
+  include_fees: vine.boolean().optional(),
   debitaire: vine.object({
     ...operationSchema.getProperties(),
     pincode: vine.string().optional().requiredWhen('provider_code', '=', 'orange'),

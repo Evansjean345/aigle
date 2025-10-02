@@ -115,9 +115,6 @@ export default class DepositUseCase {
         data: dataSend,
       })
 
-      console.log('debugging response in deposit usecase')
-      console.log(response.data.payment_details.wave_launch_url)
-
       return {
         message: 'transaction initiated',
         data: {

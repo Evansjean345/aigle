@@ -279,9 +279,6 @@ export default class WalletToWalletUseCase {
       })
     }
 
-    console.log("debugging normalizedPhone in wallet to wallet use case:")
-    console.log(normalizedPhone)
-
     const recipientUser = await this.userRepository.findByPhone(normalizedPhone)
 
     if (!recipientUser) {

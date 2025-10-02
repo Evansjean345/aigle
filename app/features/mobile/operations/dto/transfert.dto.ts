@@ -9,6 +9,7 @@ export interface TransfertRequestDto {
   paymentMethodCode: string
   paymentMethodId: number
   pinCode?: string
+  include_fees?: boolean
 }
 
 export interface TransfertResponseDto {

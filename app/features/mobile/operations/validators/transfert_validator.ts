@@ -27,6 +27,7 @@ const schema = vine.object({
       db.from('payment_methods').select('id').where('id', value).first()
     ),
   phone: vine.string().trim(),
+  include_fees: vine.boolean().optional(),
 })
 
 export const transfertValidator = vine.compile(schema)

@@ -12,6 +12,7 @@ export const toInterTransfertDto = (
   paymentMethodDepositCode: payload.debitaire.payment_method_code,
   paymentMethodDepositId: payload.debitaire.payment_method_id,
   pinCode: payload.debitaire.pincode,
+  include_fees: payload.include_fees,
   providerToId: payload.beneficiaire.provider_id,
   providerToCode: payload.beneficiaire.provider_code,
   beneficiairePhone: payload.beneficiaire.phone,

@@ -15,16 +15,28 @@ export interface FeeCalculationResult {
  * @return {FeeCalculationResult} The result of the fee calculation, including the original amount, calculated fees, and total amount after applying the fees.
  */
 export function calculateFeeFromRule(ctx: FeeContext, rule: FeeRule): FeeCalculationResult {
+  console.log('calculating fee')
+  console.log(rule.feePercent, rule.feeFixed)
   const amount = Number(ctx.amount)
-  const percentPart = (Number(rule.feePercent || 0) / 100) * amount
-  const fixedPart = Number(rule.feeFixed || 0)
+  const feePercent = Number(rule.feePercent || 0) / 100
+  const feeFixed = Number(rule.feeFixed || 0)
 
-  let fees = Math.floor(percentPart + fixedPart)
+  if (ctx.include_fees) {
+    const amountToSend = Number(ctx.amount)
+    const fees = Math.floor(amountToSend * feePercent + feeFixed)
+    const amountTodebite = amountToSend + fees
 
-  if (fees === 0) {
-    fees = 1
+    console.log('debugging in include fees')
+    console.log('fees|amount|total')
+    console.log(fees, amountTodebite, amountToSend)
+
+    return { amount: amountTodebite, fees, total: amountToSend }
+  } else {
+    const fees = Math.floor(amount * feePercent + feeFixed)
+    const total = ctx.operation === 'subtract' ? amount - fees : amount + fees
+
+    console.log('debugging in not include fees')
+    console.log(fees, amount, total)
+    return { amount, fees, total }
   }
-
-  const total = ctx.operation === 'subtract' ? amount - fees : amount + fees
-  return { amount, fees, total }
 }

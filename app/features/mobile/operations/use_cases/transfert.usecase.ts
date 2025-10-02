@@ -175,7 +175,11 @@ export default class TransfertUseCase {
     }
 
     const { total, fees, amount } = calculateFeeFromRule(
-      { amount: Number(payload.amount), operation: 'subtract' },
+      {
+        amount: Number(payload.amount),
+        operation: 'subtract',
+        include_fees: payload.include_fees,
+      },
       rule
     )
 
