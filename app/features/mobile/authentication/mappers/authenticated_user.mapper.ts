@@ -26,7 +26,7 @@ export const toAuthenticatedUserProfileResponse = (
     id: user.country.id,
     name: user.country.name,
     flag: user.country.flag,
-    code: user.country.iso_code,
+    code: user.country.isoTwo,
   },
 })
 

@@ -2,39 +2,53 @@ import { inject } from '@adonisjs/core'
 import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
 import { Exception } from '@adonisjs/core/exceptions'
 import CheckPhoneResponseDto from '#mobile/authentication/dtos/check_phone.response.dto'
+import CountryRepository from '#shared/interfaces/repositories/country_repository'
+import { concartPhoneNumber } from '../../../../helpers/utiles.js'
 
+/**
+ * Use case class to handle the logic for checking the validity of a phone number
+ * and sending an OTP to the associated user. This class interacts with authentication
+ * and country management services to perform its operations.
+ */
 @inject()
 export default class CheckPhoneUseCase {
   /**
-   * Constructs an instance of the class by initializing the required services.
+   * Constructs an instance of the class with dependencies for authentication and country data management.
    *
-   * @param {AuthentificationService} authenticationService - Service for handling authentication operations.
-   * @param {OtpService} otpService - Service for handling one-time password (OTP) operations.
+   * @param {AuthentificationService} authenticationService - The service used for handling authentication operations.
+   * @param {CountryRepository} countryRepository - The repository used for accessing and managing country data.
    */
   constructor(
     private authenticationService: AuthentificationService,
+    private readonly countryRepository: CountryRepository
   ) {}
 
   /**
-   * Executes the process of checking a phone number and sending an OTP to the user associated with it.
+   * Verifies if a given phone number exists in the system by formatting it with the country's phone code
+   * and checking its validity.
    *
-   * @param {string} payload - The phone number to be validated and used for sending an OTP.
-   * @return {Promise<CheckPhoneResponseDto>} A promise that resolves to an object containing a success message and the phone number.
-   * @throws {Exception} Throws an exception if the phone number is not found or an error occurs while sending the OTP.
+   * @param {string} phoneNumber - The phone number provided by the user.
+   * @param {number} countryId - The unique identifier of the country associated with the phone number.
+   * @return {Promise<CheckPhoneResponseDto>} A promise resolving to a response object containing a message and the formatted phone number. Throws an exception if the phone number does not exist.
    */
-  async execute(payload: string): Promise<CheckPhoneResponseDto> {
-    const user = await this.authenticationService.checkPhoneNumber(payload)
+  async execute(phoneNumber: string, countryId: number): Promise<CheckPhoneResponseDto> {
+    const country = await this.countryRepository.findCountryBy('id', countryId)
+    const formattedPhone = concartPhoneNumber(country.phoneCode, phoneNumber)
+
+    console.log(formattedPhone)
+
+    const user = await this.authenticationService.checkPhoneNumber(formattedPhone)
 
     if (!user) {
-      throw new Exception('Phone number not found', {
+      throw new Exception('Numéro de téléphone introuvable', {
         status: 404,
         code: 'PHONE_NOT_FOUND',
       })
     }
-    
+
     return {
-      message: "phone exists",
-      phone: payload
+      message: 'phone exists',
+      phone: formattedPhone,
     }
   }
 }

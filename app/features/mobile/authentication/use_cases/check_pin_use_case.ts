@@ -17,7 +17,7 @@ export default class CheckPinUseCase {
    * @param {LoginRequestDto} data - The login request data containing user credentials or pin code.
    * @return {Promise<boolean>} A promise that resolves to a boolean indicating the success or failure of the authentication.
    */
-  async execute(data: LoginRequestDto): Promise<boolean> {
-    return this.authService.checkCodePin(data)
+  async execute(data: Pick<LoginRequestDto, 'phone' | 'pincode'>): Promise<boolean> {
+    return await this.authService.checkCodePin(data)
   }
 }

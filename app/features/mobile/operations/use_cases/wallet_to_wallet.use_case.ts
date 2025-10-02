@@ -12,42 +12,54 @@ import {
 } from '#mobile/operations/dto/wallet_to_wallet.dto'
 import { Logger } from '@adonisjs/core/logger'
 import WalletToWalletTransactionCompleted from '#mobile/operations/events/wallet_to_wallet_transaction_completed'
+import { normalizePhone } from '../../../../helpers/utiles.js'
+import UserRepository from '#shared/interfaces/repositories/user_repository'
+import Wallet from '#shared/models/wallet'
+import CountryRepository from '#shared/interfaces/repositories/country_repository'
 
+/**
+ * Use case class responsible for handling wallet-to-wallet transfer operations.
+ */
 @inject()
 export default class WalletToWalletUseCase {
   /**
-   * Constructs an instance of the class with the required services.
+   * Constructs an instance of the class and initializes required services and dependencies.
    *
-   * @param {WalletService} walletService - Handles wallet-related operations.
-   * @param {TransactionService} transactionService - Manages transaction-related functionality.
-   * @param {PaymentService} paymentService - Provides payment-related services.
-   * @param {Logger} logger - Used for logging application events and errors.
+   * @param {WalletService} walletService - Service to manage wallet-related operations.
+   * @param {TransactionService} transactionService - Service to handle transaction functionality.
+   * @param {PaymentService} paymentService - Service to process and manage payments.
+   * @param {UserRepository} userRepository - Repository for accessing and managing user data.
+   * @param countryRepository
+   * @param {Logger} logger - Utility for logging information and errors.
    */
   constructor(
     private readonly walletService: WalletService,
     private readonly transactionService: TransactionService,
     private readonly paymentService: PaymentService,
+    private readonly userRepository: UserRepository,
+    private readonly countryRepository: CountryRepository,
     private readonly logger: Logger
   ) {}
 
   /**
-   * Executes a wallet-to-wallet transfer between the sender and recipient.
-   * Validates wallets, ensures the sender and recipient are different, and updates balances.
-   * Transactions and payment records are created for both parties with a full logging process.
+   * Executes a wallet-to-wallet transfer based on the provided mode.
    *
-   * @param {WalletToWalletRequestDto} payload - The data for the wallet-to-wallet transfer, including recipient QR code and amount.
-   * @param {User} currentUser - The current authenticated user initiating the transfer.
-   * @return {Promise<WalletToWalletResponseDto>} Resolves with the details of the successful transaction, including reference, status, and updated balances.
-   * @throws {Exception} If either wallet is not found, if the wallets are the same, or if an error occurs during the transaction process.
+   * @param {WalletToWalletRequestDto} payload - The details of the transfer request including amount and recipient details.
+   * @param {User} currentUser - The currently authenticated user initiating the transfer.
+   * @param {'by_qrcode' | 'by_phone'} mode - The method of identifying the recipient ('by_qrcode' or 'by_phone').
+   * @return {Promise<WalletToWalletResponseDto>} A promise that resolves to the response containing the status and reference of the transaction.
    */
   async execute(
     payload: WalletToWalletRequestDto,
-    currentUser: User
+    currentUser: User,
+    mode: 'by_qrcode' | 'by_phone'
   ): Promise<WalletToWalletResponseDto> {
     this.logger.info(
       {
         user_id: currentUser.id,
-        qrcode: payload.qrcode.slice(0, 9) + '***',
+        mode,
+        qrcode: mode === 'by_qrcode' && payload.qrcode,
+        recipient_phone: mode === 'by_phone' && payload.recipient_phone,
         amount: payload.amount,
       },
       'Starting wallet-to-wallet transfer'
@@ -55,47 +67,39 @@ export default class WalletToWalletUseCase {
 
     // Resolve sender wallet from current user
     const senderWallet = await this.walletService.getByUserId(currentUser.usersUid!)
+    const senderCountry = await this.countryRepository.findCountryBy('id', currentUser.countryId)
 
-    // Resolve recipient wallet via QR code token
-    const recipientWallet = await this.walletService.getByWalletToken(payload.qrcode)
+    let recipientWallet
 
-    if (!senderWallet || !recipientWallet) {
-      throw new Exception('Sender or recipient wallet not found', {
-        status: 404,
-        code: 'WALLET_NOT_FOUND',
-      })
+    switch (mode) {
+      case 'by_qrcode':
+        recipientWallet = await this.resolveRecipientByQr(payload.qrcode)
+        break
+      case 'by_phone':
+        recipientWallet = await this.resolveRecipientByPhone(
+          payload.recipient_phone,
+          currentUser.usersUid!,
+          senderCountry.phoneCode
+        )
+        break
+      default:
+        throw new Exception('Unsupported mode', { status: 400, code: 'MODE_UNSUPPORTED' })
     }
 
-    if (senderWallet.id === recipientWallet.id) {
-      this.logger.error(
-        {
-          sender_wallet_id: senderWallet.id,
-          recipient_wallet_id: recipientWallet.id,
-        },
-        'Sender and recipient wallets are the same, aborting  transfer'
-      )
-      throw new Exception('Cannot transfer to the same wallet', {
-        status: 400,
-        code: 'SAME_WALLET',
-      })
-    }
+    this.ensureWalletsPresent(senderWallet, recipientWallet)
+    this.ensureDifferentWallets(senderWallet.id, recipientWallet.id)
 
     await senderWallet.load('user')
     await recipientWallet.load('user')
 
-    // Optional safety check: log if provided recipient_phone mismatches account phone
-    if (payload.recipient_phone && payload.recipient_phone !== recipientWallet.user.phone) {
-      this.logger.warn(
-        {
-          expected_phone: recipientWallet.user.phone,
-          provided_phone: payload.recipient_phone,
-          recipient_wallet_id: recipientWallet.id,
-        },
-        'Recipient phone mismatch between QR account and provided phone'
-      )
-    }
+    this.logRecipientPhoneMismatch(
+      mode,
+      payload.recipient_phone,
+      recipientWallet.user.phone,
+      recipientWallet.id
+    )
 
-    const amount = Number(payload.amount)
+    const amount = this.validateAmount(payload.amount)
     const fees = 0
     const total = amount + fees
 
@@ -179,9 +183,7 @@ export default class WalletToWalletUseCase {
           fees: fees,
           payment_details: {
             operator: 'wallet',
-            phone:
-              payload.recipient_phone.replaceAll(' ', '') ||
-              recipientWallet.user.phone.replaceAll(' ', ''),
+            phone: recipientWallet.user.phone,
           },
           status: 'success',
           step: 'wallet_to_wallet',
@@ -199,7 +201,7 @@ export default class WalletToWalletUseCase {
           fees: 0,
           payment_details: {
             operator: 'wallet',
-            phone: senderWallet.user.phone.replaceAll(' ', ''),
+            phone: senderWallet.user.phone,
           },
           status: 'success',
           step: 'wallet_to_wallet',
@@ -232,6 +234,157 @@ export default class WalletToWalletUseCase {
       await trx.rollback()
       this.logger.error({ err: error }, 'Wallet-to-wallet transfer failed')
       throw error
+    }
+  }
+
+  /**
+   * Resolves and retrieves recipient information using a QR code.
+   *
+   * @param {string} [qrcode] The QR code string used to identify the recipient. This parameter is optional but required for the method to function. Throws an exception if not provided.
+   * @return {Promise<Wallet>} A promise that resolves to the recipient details retrieved using the provided QR code.
+   * @throws {Exception} Throws an exception with a 400 status and code 'QRCODE_REQUIRED' if the QR code is not provided.
+   */
+  private async resolveRecipientByQr(qrcode?: string): Promise<Wallet> {
+    if (!qrcode) {
+      throw new Exception('qrcode is required for by_qrcode mode', {
+        status: 400,
+        code: 'QRCODE_REQUIRED',
+      })
+    }
+    return await this.walletService.getByWalletToken(qrcode)
+  }
+
+  /**
+   * Resolves a recipient's wallet information by their phone number.
+   *
+   * @param {string} phoneRaw - The raw phone number provided by the sender.
+   * @param {string} senderUserId - The unique identifier of the sender user.
+   * @param {string} countryPhone - The country code associated with the phone number.
+   * @return {Promise<Wallet>} A promise resolving to the recipient's wallet information.
+   * @throws {Exception} If the phone number is invalid or missing.
+   * @throws {Exception} If the recipient user is not registered with the service.
+   * @throws {Exception} If the sender attempts to transfer to their own account.
+   */
+  private async resolveRecipientByPhone(
+    phoneRaw: string,
+    senderUserId: string,
+    countryPhone: string
+  ): Promise<Wallet> {
+    const normalizedPhone = normalizePhone(phoneRaw, countryPhone)
+
+    if (!normalizedPhone) {
+      throw new Exception('recipient_phone is required for by_phone mode', {
+        status: 400,
+        code: 'PHONE_REQUIRED',
+      })
+    }
+
+    console.log("debugging normalizedPhone in wallet to wallet use case:")
+    console.log(normalizedPhone)
+
+    const recipientUser = await this.userRepository.findByPhone(normalizedPhone)
+
+    if (!recipientUser) {
+      throw new Exception("Ce numéro n'est pas un compte Aigle send", {
+        status: 400,
+        code: 'UNREGISTERED_ACCOUNT',
+      })
+    }
+
+    if (recipientUser.usersUid === senderUserId) {
+      throw new Exception('Transfert vers soi-même interdit', {
+        status: 400,
+        code: 'SELF_TRANSFER',
+      })
+    }
+
+    return await this.walletService.getByUserId(recipientUser.usersUid)
+  }
+
+  /**
+   * Ensures that both the sender and recipient wallets are present.
+   * Throws an exception if either is missing.
+   *
+   * @param {any} sender - The wallet of the sender.
+   * @param {any} recipient - The wallet of the recipient.
+   * @return {void} This method does not return a value.
+   */
+  private ensureWalletsPresent(sender: any, recipient: any): void {
+    if (!sender || !recipient) {
+      throw new Exception('Sender or recipient wallet not found', {
+        status: 404,
+        code: 'WALLET_NOT_FOUND',
+      })
+    }
+  }
+
+  /**
+   * Ensures that the sender's wallet ID and the recipient's wallet ID are different.
+   * Throws an exception if both wallet IDs are the same.
+   *
+   * @param {number} senderWalletId - The unique ID of the sender's wallet.
+   * @param {number} recipientWalletId - The unique ID of the recipient's wallet.
+   * @return {void} Throws an exception if the sender and recipient wallet IDs are identical.
+   */
+  private ensureDifferentWallets(senderWalletId: number, recipientWalletId: number): void {
+    if (senderWalletId === recipientWalletId) {
+      this.logger.error(
+        {
+          sender_wallet_id: senderWalletId,
+          recipient_wallet_id: recipientWalletId,
+        },
+        'Sender and recipient wallets are the same, aborting  transfer'
+      )
+      throw new Exception('Cannot transfer to the same wallet', {
+        status: 400,
+        code: 'SAME_WALLET',
+      })
+    }
+  }
+
+  /**
+   * Validates and converts a given raw amount input into a number.
+   * Throws an exception if the amount is invalid or not a positive number.
+   *
+   * @param {any} amountRaw - The raw input representing the amount.
+   * @return {number} - The validated and converted amount as a number.
+   */
+  private validateAmount(amountRaw: any): number {
+    const amount = Number(amountRaw)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Exception('Montant invalide', { status: 400, code: 'INVALID_AMOUNT' })
+    }
+    return amount
+  }
+
+  /**
+   * Logs a warning when there is a mismatch between the phone number provided and the actual phone number
+   * associated with a recipient wallet, based on the mode of recipient identification.
+   *
+   * @param {'by_qrcode' | 'by_phone'} mode - The mode used to identify the recipient, either 'by_qrcode' or 'by_phone'.
+   * @param {string | undefined} providedPhone - The phone number provided during the identification process.
+   * @param {string | undefined} actualPhone - The phone number actually associated with the recipient's wallet.
+   * @param {number} recipientWalletId - The unique identifier of the recipient's wallet.
+   * @return {void} This method does not return a value.
+   */
+  private logRecipientPhoneMismatch(
+    mode: 'by_qrcode' | 'by_phone',
+    providedPhone: string | undefined,
+    actualPhone: string | undefined,
+    recipientWalletId: number
+  ): void {
+    const provided = normalizePhone(providedPhone)
+    const actual = normalizePhone(actualPhone)
+
+    if (mode === 'by_qrcode' && provided && actual && provided !== actual) {
+      this.logger.warn(
+        {
+          expected_phone: actualPhone,
+          provided_phone: providedPhone,
+          recipient_wallet_id: recipientWalletId,
+        },
+        'Recipient phone mismatch between QR account and provided phone'
+      )
     }
   }
 }

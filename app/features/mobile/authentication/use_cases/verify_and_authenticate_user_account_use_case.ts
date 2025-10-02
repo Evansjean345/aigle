@@ -5,6 +5,8 @@ import User from '#shared/models/user'
 import { AuthenticatedProfileAndTokenResponseDto } from '#mobile/authentication/dtos/authenticated_profile.response.dto'
 import { toAuthenticatedUserProfileAndTokenResponse } from '#mobile/authentication/mappers/authenticated_user.mapper'
 import { inject } from '@adonisjs/core'
+import CountryRepository from '#shared/interfaces/repositories/country_repository'
+import { concartPhoneNumber } from '../../../../helpers/utiles.js'
 
 @inject()
 export default class VerifyAndAuthenticateUserAccountUseCase {
@@ -16,7 +18,8 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
    */
   constructor(
     private readonly authService: AuthentificationService,
-    private readonly otpService: OtpService
+    private readonly otpService: OtpService,
+    private readonly countryRepository: CountryRepository
   ) {}
 
   /**
@@ -32,14 +35,17 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
     payload: {
       phone: string
       otp: string
+      country_id: number
     },
     type: 'register' | 'reset' | 'login'
   ): Promise<AuthenticatedProfileAndTokenResponseDto> {
-    const user = await this.authService.checkPhoneNumber(payload.phone)
+    const country = await this.countryRepository.findCountryBy('id', payload.country_id)
+    const formattedPhone = concartPhoneNumber(country.phoneCode, payload.phone)
+    const user = await this.authService.checkPhoneNumber(formattedPhone)
 
     if (!user) {
-      throw new Exception('Phone number not found', {
-        status: 404,
+      throw new Exception("Ce numéro de téléphone n'existe pas", {
+        status: 400,
         code: 'PHONE_NOT_FOUND',
       })
     }

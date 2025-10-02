@@ -24,7 +24,7 @@ export default class WalletToWalletController {
   async handle({ request, response, auth }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(walletToWalletValidator)
     const user = auth.user!
-    const result = await this.walletToWalletUseCase.execute(payload, user)
+    const result = await this.walletToWalletUseCase.execute(payload, user, 'by_qrcode')
     return response.ok(result)
   }
 }

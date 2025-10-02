@@ -4,9 +4,11 @@ import { DateTime } from 'luxon'
 import OtpRepository from '#shared/interfaces/repositories/OtpRepository'
 import Otp from '#shared/models/otp'
 import { Exception } from '@adonisjs/core/exceptions'
+import { sendSms } from '../../external-services/sms_service.js'
 
 // Simple constants to make OTP behavior easy to tune
 const OTP_EXPIRY_SECONDS = 600
+const OTP_EXPIRY_MINUTES = 10
 const OTP_MAX_ATTEMPTS = 5
 const OTP_LOCK_SECONDS = 60
 
@@ -30,6 +32,8 @@ export default class OtpService {
    * Create and persist an OTP for a user/phone. Returns the saved OTP entity and the plaintext code.
    */
   async createOtp(userId: string, phone: string): Promise<{ entity: Otp; code: string }> {
+    await this.otpRepository.delete(phone)
+
     const code = Math.floor(1000 + Math.random() * 9000).toString()
     const otpHash = await hash.make(code)
     const now = Date.now()
@@ -65,10 +69,10 @@ export default class OtpService {
   async sendOtp(phone: string, userId: string): Promise<{ sent: boolean }> {
     try {
       const { code } = await this.createOtp(userId, phone)
-      const message = `Votre code OTP est ${code}. Il est valide pendant ${OTP_EXPIRY_SECONDS} secondes.`
-      // await sendSms(message, phone)
-
+      const message = `Votre code OTP est ${code}. Il est valide pendant ${OTP_EXPIRY_MINUTES} minutes.`
       console.log(message)
+      //await sendSms(message, phone)
+
       return { sent: true }
     } catch (err) {
       throw new Exception(err.message, {
@@ -91,24 +95,24 @@ export default class OtpService {
     const otp = await this.otpRepository.check(data.phone)
 
     if (!otp) {
-      throw new Exception('Code Otp introuvable', {
-        status: 404,
-        code: 'OTP_NOT_FOUND',
+      throw new Exception('Code Otp incorrect', {
+        status: 400,
+        code: 'OTP_INVALID',
       })
     }
 
     const now = DateTime.now()
 
     if (DateTime.fromJSDate(<Date>otp.expiresAt) < now) {
-      throw new Exception('Code Otp expiré', {
-        status: 403,
+      throw new Exception('Code OTP a expiré', {
+        status: 400,
         code: 'OTP_EXPIRED',
       })
     }
 
     if (otp.lockedUntil && DateTime.fromJSDate(otp.lockedUntil) > now) {
       throw new Exception('Vous êtes temporairement bloqué. Veuillez réessayer plus tard.', {
-        status: 403,
+        status: 400,
         code: 'OTP_LOCKED',
       })
     }
@@ -126,7 +130,7 @@ export default class OtpService {
       await this.otpRepository.save(otp)
 
       throw new Exception('Vous êtes temporairement bloqué. Veuillez réessayer plus tard.', {
-        status: 403,
+        status: 400,
         code: 'OTP_LOCKED',
       })
     }
@@ -138,7 +142,7 @@ export default class OtpService {
       await this.otpRepository.save(otp)
 
       throw new Exception('Code Otp incorrect', {
-        status: 401,
+        status: 400,
         code: 'OTP_INVALID',
       })
     }

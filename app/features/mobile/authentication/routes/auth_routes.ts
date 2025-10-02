@@ -11,7 +11,7 @@ export default function mobileAuthRoutes() {
       router.post('check-phone', [AuthController, 'checkPhone'])
       router.post('register', [AuthController, 'register'])
       router.post('login', [AuthController, 'login'])
-      router.post('verify-credentials', [AuthController, 'verifyUserCrendentials'])
+      router.post('verify-credentials', [AuthController, 'verifyUserCredentials'])
       router.post('verify-account', [AuthController, 'verifyUserAccount'])
       router.post('reset-password', [AuthController, 'resetPassword'])
       router.post('send-otp', [AuthController, 'sendOtp'])

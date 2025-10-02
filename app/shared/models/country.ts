@@ -11,19 +11,22 @@ export default class Country extends BaseModel {
   declare name: string
 
   @column()
+  declare isoThree: string
+
+  @column()
+  declare isoTwo: string
+
+  @column()
+  declare numericCode: string
+
+  @column()
+  declare phoneCode: string
+
+  @column()
+  declare currency: string
+
+  @column()
   declare flag: string
-
-  @column()
-  declare iso_code: string
-
-  @column()
-  declare currency_code: string
-
-  @column()
-  declare currency_symbol: string
-
-  @column()
-  declare phone_code: string
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

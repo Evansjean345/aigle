@@ -24,6 +24,7 @@ import mobileOperationRoutes from '#mobile/operations/routes/operation_routes'
 import mobileWebhookRoutes from '#mobile/webhooks/routes/webhook_routes'
 import mobileTransactionRoutes from '#mobile/transactions/routes/transaction_routes'
 import mobileDeviceRoutes from '#mobile/device/routes/device_routes'
+import mobileProfileRoutes from '#mobile/profile/routes/profile_routes'
 
 router
   .group(() => {
@@ -35,6 +36,7 @@ router
     router.group(mobileTransactionRoutes)
     router.group(adminServicesManagementRoutes)
     router.group(mobileDeviceRoutes)
+    router.group(mobileProfileRoutes)
     router.group(authRouter(router, middleware)).prefix('auth')
     router
       .group(() => {

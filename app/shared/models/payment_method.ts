@@ -15,6 +15,9 @@ export default class PaymentMethod extends BaseModel {
   @column()
   declare label: string
 
+  @column()
+  declare order: number
+
   @hasMany(() => ServiceProviderMethod, {
     foreignKey: 'paymentMethodId',
   })

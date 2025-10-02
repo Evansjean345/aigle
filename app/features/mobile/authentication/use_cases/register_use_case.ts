@@ -3,10 +3,7 @@ import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import WalletService from '#mobile/wallet/services/wallet_service'
 import { RegisterRequestDto } from '#mobile/authentication/dtos/register_request.dto'
-import {
-  toRegisterCommand,
-  toRegisterResponse,
-} from '#mobile/authentication/mappers/register.mapper'
+import { toRegisterCommand } from '#mobile/authentication/mappers/register.mapper'
 import { RegisterResponseDto } from '#mobile/authentication/dtos/register_response.dto'
 import OtpService from '#shared/services/otp_service'
 
@@ -40,7 +37,7 @@ export default class RegisterUseCase {
       await this.walletService.createForUser(user.id, trx)
       await trx.commit()
 
-      await this.otpService.sendOtp(registerCommand.phone, user.id)
+      await this.otpService.sendOtp(user.phone, user.id)
       return { message: 'Un code de vérification a été ce numéro', phone: user.phone }
     } catch (error) {
       await trx.rollback()

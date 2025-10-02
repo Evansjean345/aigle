@@ -5,5 +5,5 @@ export interface RegisterCommand {
   lastName: string
   email?: string
   pincode: string
-  isoCode: string
+  countryId: number
 }

@@ -42,6 +42,7 @@ export default class MobileServicesService {
         id: number
         code: string
         name: string
+        order: number
         providers: {
           id: number
           code: string
@@ -69,6 +70,7 @@ export default class MobileServicesService {
           code: pm.code,
           name: (pm as any).label ?? pm.code,
           id: pm.id,
+          order: pm.order,
           providers: [],
         }
       }
@@ -94,7 +96,7 @@ export default class MobileServicesService {
 
     return {
       serviceType: st.code,
-      methods: Object.values(grouped),
+      methods: Object.values(grouped).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     }
   }
 

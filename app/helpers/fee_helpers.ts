@@ -1,4 +1,5 @@
 import ServiceFee from '#models/service_fee'
+import { Exception } from '@adonisjs/core/exceptions'
 
 export const calculateFee = async (
   amount: number,
@@ -6,8 +7,9 @@ export const calculateFee = async (
   operation: 'add' | 'subtract'
 ) => {
   const serviceFee = await ServiceFee.query().where('services_type', service).first()
+
   if (!serviceFee) {
-    throw new Error(`Frais non définis pour le service: ${service}`)
+    throw new Exception(`Frais non définis pour le service: ${service}`)
   }
 
   const amt = Number(amount)

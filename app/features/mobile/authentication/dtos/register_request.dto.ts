@@ -5,5 +5,5 @@ export interface RegisterRequestDto {
   lastname: string
   email?: string
   pincode: string
-  iso_code: string
+  country_id: number
 }

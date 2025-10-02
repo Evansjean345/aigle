@@ -6,6 +6,7 @@ import { WalletCreatedResult } from '#mobile/wallet/dtos/wallet_created_result'
 import Wallet from '#shared/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
 import { WalletQrScanResult } from '#mobile/wallet/dtos/wallet_qr_scan.result'
+import { randomUUID } from 'node:crypto'
 
 /**
  * Service for managing wallets, including creation, retrieval, and balance adjustments.
@@ -39,6 +40,7 @@ export default class WalletService {
         userId,
         currencySymbol: 'XOF',
         balance: 0,
+        qrcodeToken: randomUUID(),
       },
       trx
     )
@@ -118,7 +120,7 @@ export default class WalletService {
     const wallet = await this.walletRepository.findByQrToken(token)
 
     if (!wallet) {
-      throw new Exception('An account with this token does not exist', {
+      throw new Exception("Aucun compte n'est associé à ce qrcode", {
         status: 400,
         code: 'ACCOUNT_WITH_TOKEN_NOT_FOUND',
       })

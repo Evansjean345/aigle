@@ -3,9 +3,9 @@ import { inject } from '@adonisjs/core'
 import {
   registerValidator,
   loginValidator,
-  checkpinValidator,
   checkPhoneValidator,
   verifyUserAccountValidator,
+  checkPinValidator,
 } from '#validators/auth'
 import RegisterUseCase from '#mobile/authentication/use_cases/register_use_case'
 import LoginUseCase from '#mobile/authentication/use_cases/login_use_case'
@@ -54,7 +54,7 @@ export default class AuthController {
    * @returns {Promise<void>} A promise that resolves with the HTTP response indicating the user has been successfully created.
    */
   async register({ response, request }: HttpContext): Promise<void> {
-    const payload = await registerValidator.validate(request.all())
+    const payload = await request.validateUsing(registerValidator)
     const user = await this.registerUseCase.execute(payload)
     return response.created(user)
   }
@@ -81,12 +81,13 @@ export default class AuthController {
    * @param {Object} HttpContext.request - The request object containing user credentials for validation and authentication.
    * @returns {Promise<void>} A promise that resolves with a response containing the authentication result.
    */
-  async verifyUserCrendentials({ response, request }: HttpContext): Promise<void> {
+  async verifyUserCredentials({ response, request }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(loginValidator)
 
     const result = await this.loginUseCase.execute({
       phone: payload.phone,
       pincode: payload.codepin,
+      country_id: payload.country_id,
     })
 
     return response.created(result)
@@ -128,15 +129,16 @@ export default class AuthController {
    * @param {Object} HttpContext.request - The request object containing the input data.
    * @return {Promise<void>} Returns a Promise that resolves to a response with the state of the PIN code validation.
    */
-  async checkPinCode({ response, request }: HttpContext): Promise<void> {
-    const payload = await checkpinValidator.validate(request.all())
+  async checkPinCode({ response, request, auth }: HttpContext): Promise<void> {
+    const payload = await request.validateUsing(checkPinValidator)
+    const user = auth.user!!
 
-    const state = await this.checkPinUseCase.execute({
-      phone: payload.phone,
-      pincode: payload.pin,
+    const result = await this.checkPinUseCase.execute({
+      phone: user.phone,
+      pincode: payload.pincode,
     })
 
-    return response.created({ state })
+    return response.created({ isValid: result })
   }
 
   /**
@@ -163,7 +165,7 @@ export default class AuthController {
    */
   async checkPhone({ response, request }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(checkPhoneValidator)
-    const responseDto = await this.checkPhoneUseCase.execute(payload.phone)
+    const responseDto = await this.checkPhoneUseCase.execute(payload.phone, payload.country_id)
     return response.created(responseDto)
   }
 
@@ -173,7 +175,9 @@ export default class AuthController {
   }
 
   async sendOtp({ response, request }: HttpContext) {
-    const result = await this.sendOtpUseCase.execute(request.body())
-    return response.status(result.code).send(result)
+    const payload = await request.validateUsing(checkPhoneValidator)
+    const result = await this.sendOtpUseCase.execute(payload)
+
+    return response.created(result)
   }
 }

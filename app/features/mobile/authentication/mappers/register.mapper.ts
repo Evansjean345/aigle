@@ -12,7 +12,7 @@ export const toRegisterCommand = (input: RegisterRequestDto): RegisterCommand =>
   lastName: input.lastname,
   email: input.email,
   pincode: input.pincode,
-  isoCode: input.iso_code,
+  countryId: input.country_id,
 })
 
 /**

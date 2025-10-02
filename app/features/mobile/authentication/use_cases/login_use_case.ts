@@ -24,11 +24,11 @@ export default class LoginUseCase {
    */
   async execute(data: LoginRequestDto): Promise<LoginResult> {
     try {
-        const user = await this.authServices.login(data)
-        await this.otpService.sendOtp(user.phone, user.usersUid)
-        return { message: 'OTP sent successfully' }
+      const user = await this.authServices.login(data)
+      await this.otpService.sendOtp(user.phone, user.usersUid)
+      return { message: 'OTP sent successfully' }
     } catch (error) {
-        throw error
+      throw error
     }
   }
 }

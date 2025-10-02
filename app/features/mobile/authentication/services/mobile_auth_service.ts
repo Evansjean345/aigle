@@ -10,12 +10,19 @@ import { RegisterResult } from '#mobile/authentication/dtos/register.result'
 import LoginCommand from '#mobile/authentication/dtos/login.command'
 import User from '#shared/models/user'
 import hash from '@adonisjs/core/services/hash'
+import { concartPhoneNumber } from '../../../../helpers/utiles.js'
 
 /**
  * Service class responsible for handling user authentication and registration processes.
  */
 @inject()
 export default class AuthentificationService {
+  /**
+   * Constructs an instance of the class with the provided repositories.
+   *
+   * @param {UserRepository} userRepository - Repository instance to manage user data.
+   * @param {CountryRepository} countryRepository - Repository instance to manage country data.
+   */
   constructor(
     protected userRepository: UserRepository,
     protected countryRepository: CountryRepository
@@ -33,21 +40,15 @@ export default class AuthentificationService {
     payload: RegisterCommand,
     trx?: TransactionClientContract
   ): Promise<RegisterResult> {
-    const exists = await this.userRepository.findByPhone(payload.phone)
+    const country = await this.countryRepository.findCountryBy('id', payload.countryId)
+    const formattedPhone = concartPhoneNumber(country.phoneCode, payload.phone)
+
+    const exists = await this.userRepository.findByPhone(formattedPhone)
     if (exists) throw new UserAlreadyExists('Utilisateur existe déjà')
-
-    const country = await this.countryRepository.findByIsoCode(payload.isoCode)
-
-    if (!country) {
-      throw new Exception('Pays inconnu', {
-        status: 400,
-        code: 'COUNTRY_NOT_FOUND',
-      })
-    }
 
     const user = new User()
     user.pincode = payload.pincode
-    user.phone = payload.phone
+    user.phone = formattedPhone
     user.firstname = payload.firstName
     user.lastname = payload.lastName
     user.email = payload.email ?? null
@@ -65,7 +66,10 @@ export default class AuthentificationService {
    * @returns {Promise<LoginResult>} A promise that resolves once the user is verified and an access token is created.
    */
   async login(payload: LoginCommand): Promise<User> {
-    return User.verifyCredentials(payload.phone, payload.pincode)
+    const country = await this.countryRepository.findCountryBy('id', payload.country_id)
+    const formattedPhone = concartPhoneNumber(country.phoneCode, payload.phone)
+
+    return User.verifyCredentials(formattedPhone, payload.pincode)
   }
 
   /**
@@ -79,13 +83,20 @@ export default class AuthentificationService {
     const user = await this.userRepository.findByPhone(payload.phone)
 
     if (!user) {
-      throw new Exception("Aucun compte n'est disponible pour ce numéro", {
+      throw new Exception('User account not found for this number', {
         status: 400,
         code: 'USER_ACCOUNT_NOT_FOUND',
       })
     }
 
-    return await hash.verify(user.pincode, payload.pincode)
+    if (!(await hash.verify(user.pincode, payload.pincode))) {
+      throw new Exception('Invalid pincode', {
+        status: 400,
+        code: 'INVALID_PINCODE',
+      })
+    }
+
+    return true
   }
 
   /**
