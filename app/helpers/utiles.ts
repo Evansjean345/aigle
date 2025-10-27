@@ -73,6 +73,12 @@ export const concartPhoneNumber = (countryPhonecode: string, phone: string): str
   }
 
   const phoneNumberFormatted = cleanPhoneNumber(phone)
+
+  // Vérifier si le numéro commence déjà par l'indicatif pays
+  if (phoneNumberFormatted.startsWith(countryPhonecode)) {
+    return phoneNumberFormatted
+  }
+
   return `${countryPhonecode}${phoneNumberFormatted}`
 }
 /**

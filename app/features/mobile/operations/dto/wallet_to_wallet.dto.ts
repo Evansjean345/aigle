@@ -1,5 +1,5 @@
 export interface WalletToWalletRequestDto {
-  qrcode?: string
+  token?: string
   recipient_phone: string
   amount: number
 }

@@ -16,6 +16,7 @@ import { normalizePhone } from '../../../../helpers/utiles.js'
 import UserRepository from '#shared/interfaces/repositories/user_repository'
 import Wallet from '#shared/models/wallet'
 import CountryRepository from '#shared/interfaces/repositories/country_repository'
+import QrJwtService from '#mobile/qr/services/qr_jwt_service'
 
 /**
  * Use case class responsible for handling wallet-to-wallet transfer operations.
@@ -30,6 +31,7 @@ export default class WalletToWalletUseCase {
    * @param {PaymentService} paymentService - Service to process and manage payments.
    * @param {UserRepository} userRepository - Repository for accessing and managing user data.
    * @param countryRepository
+   * @param qrcodeJwtService
    * @param {Logger} logger - Utility for logging information and errors.
    */
   constructor(
@@ -38,6 +40,7 @@ export default class WalletToWalletUseCase {
     private readonly paymentService: PaymentService,
     private readonly userRepository: UserRepository,
     private readonly countryRepository: CountryRepository,
+    private readonly qrcodeJwtService: QrJwtService,
     private readonly logger: Logger
   ) {}
 
@@ -58,7 +61,7 @@ export default class WalletToWalletUseCase {
       {
         user_id: currentUser.id,
         mode,
-        qrcode: mode === 'by_qrcode' && payload.qrcode,
+        qrcode: mode === 'by_qrcode' && payload.token,
         recipient_phone: mode === 'by_phone' && payload.recipient_phone,
         amount: payload.amount,
       },
@@ -73,7 +76,7 @@ export default class WalletToWalletUseCase {
 
     switch (mode) {
       case 'by_qrcode':
-        recipientWallet = await this.resolveRecipientByQr(payload.qrcode)
+        recipientWallet = await this.resolveRecipientByToken(payload.token)
         break
       case 'by_phone':
         recipientWallet = await this.resolveRecipientByPhone(
@@ -238,20 +241,36 @@ export default class WalletToWalletUseCase {
   }
 
   /**
-   * Resolves and retrieves recipient information using a QR code.
    *
-   * @param {string} [qrcode] The QR code string used to identify the recipient. This parameter is optional but required for the method to function. Throws an exception if not provided.
-   * @return {Promise<Wallet>} A promise that resolves to the recipient details retrieved using the provided QR code.
-   * @throws {Exception} Throws an exception with a 400 status and code 'QRCODE_REQUIRED' if the QR code is not provided.
+   * @param token
+   * @private
    */
-  private async resolveRecipientByQr(qrcode?: string): Promise<Wallet> {
-    if (!qrcode) {
-      throw new Exception('qrcode is required for by_qrcode mode', {
+  private async resolveRecipientByToken(token?: string): Promise<Wallet> {
+    if (!token || token.length === 0) {
+      throw new Exception('token is required for by_qrcode mode', {
         status: 400,
         code: 'QRCODE_REQUIRED',
       })
     }
-    return await this.walletService.getByWalletToken(qrcode)
+
+    const res = await this.qrcodeJwtService.verify(token)
+    console.log(res)
+
+    if (!res.ok) {
+      const errorMap: Record<string, { status: number; message: string }> = {
+        TOKEN_EXPIRED: { status: 410, message: 'Le token a expiré' },
+        TOKEN_REPLAY: { status: 409, message: 'Ce token a déjà été utilisé' },
+      }
+
+      const error = errorMap[res.code] || { status: 422, message: res.code || 'Token invalide' }
+
+      throw new Exception(error.message, {
+        status: error.status,
+        code: res.code || 'TOKEN_INVALID',
+      })
+    }
+
+    return await this.walletService.getByUserId(res.sub)
   }
 
   /**

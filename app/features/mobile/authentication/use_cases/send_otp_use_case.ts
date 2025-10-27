@@ -14,8 +14,9 @@ export default class SendOtpUseCase {
   /**
    * Constructs an instance of the class with the provided dependencies.
    *
-   * @param {UserRepository} userRepository - The repository for managing user data.
-   * @param {OtpService} otpService - The service for handling OTP-related operations.
+   * @param {UserRepository} userRepository - The repository for user data management.
+   * @param {OtpService} otpService - The service responsible for handling OTP (One-Time Password) operations.
+   * @param {CountryRepository} countryRepository - The repository for managing country-related data.
    */
   constructor(
     protected userRepository: UserRepository,

@@ -7,14 +7,16 @@ import { toAuthenticatedUserProfileAndTokenResponse } from '#mobile/authenticati
 import { inject } from '@adonisjs/core'
 import CountryRepository from '#shared/interfaces/repositories/country_repository'
 import { concartPhoneNumber } from '../../../../helpers/utiles.js'
+import env from '#start/env'
 
 @inject()
 export default class VerifyAndAuthenticateUserAccountUseCase {
   /**
-   * Creates an instance of the class.
+   * Initializes a new instance of the class with the specified dependencies.
    *
-   * @param {AuthentificationService} authService - The authentication service used for handling user authentication.
-   * @param {OtpService} otpService - The service used for generating and validating one-time passwords (OTPs).
+   * @param {AuthentificationService} authService - The authentication service used for managing authentication-related operations.
+   * @param {OtpService} otpService - The service used for managing one-time password (OTP) functionalities.
+   * @param {CountryRepository} countryRepository - The repository used for accessing and managing country-related data.
    */
   constructor(
     private readonly authService: AuthentificationService,
@@ -50,15 +52,21 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
       })
     }
 
+    const bypassEnabled = env.get('APPLE_BYPASS_ENABLED') as boolean
+    const applePhone = env.get('APPLE_REVIEW_PHONE') as string | undefined
+
     try {
-      await this.otpService.verifyOtp({ phone: user.phone, enteredOtp: payload.otp })
+      const shouldBypass = bypassEnabled && applePhone && user.phone === applePhone
+
+      if (!shouldBypass) {
+        await this.otpService.verifyOtp({ phone: user.phone, enteredOtp: payload.otp })
+      }
 
       if (type === 'register' && user.status === 'inactive') {
         await this.authService.updateUserAccountStatus(user, 'active')
       }
 
       const token = await User.accessTokens.create(user)
-
       await user.load('country')
       await user.load('wallet')
 

@@ -28,4 +28,14 @@ export default await Env.create(new URL('../', import.meta.url), {
   DB_USER: Env.schema.string(),
   DB_PASSWORD: Env.schema.string.optional(),
   DB_DATABASE: Env.schema.string(),
+
+  REDIS_HOST: Env.schema.string({ format: 'host' }),
+  REDIS_PORT: Env.schema.number(),
+  REDIS_PASSWORD: Env.schema.string.optional(),
+
+  JWT_SECRET: Env.schema.string(),
+  JWT_ALG: Env.schema.string(),
+
+  APPLE_BYPASS_ENABLED: Env.schema.boolean(),
+  APPLE_REVIEW_PHONE: Env.schema.string.optional(),
 })

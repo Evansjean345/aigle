@@ -29,6 +29,12 @@ export default class ServiceProviderMethod extends BaseModel {
   @column({ columnName: 'fee_percent' })
   declare feePercent: number
 
+  @column({ columnName: 'min_amount' })
+  declare minAmount: number
+
+  @column()
+  declare applyFees: boolean
+
   @column()
   declare currency: string
 

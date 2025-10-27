@@ -51,6 +51,8 @@ export default class MobileServicesService {
           feeFixed: number
           feePercent: number
           currency?: string
+          minAmount?: number
+          applyFees?: boolean
           toProviderCode?: string
           toProviderName?: string
           isInterNetwork?: boolean
@@ -64,6 +66,10 @@ export default class MobileServicesService {
       if (!pm || !providerFrom) continue
 
       const key = pm.code
+
+
+
+      console.log(spm.minAmount)
 
       if (!grouped[key]) {
         grouped[key] = {
@@ -90,6 +96,8 @@ export default class MobileServicesService {
           feeFixed: Number(spm.feeFixed ?? 0),
           feePercent: Number(spm.feePercent ?? 0),
           currency: spm.currency ?? undefined,
+          minAmount: spm.minAmount ?? undefined,
+          applyFees: spm.applyFees ?? undefined,
         })
       }
     }

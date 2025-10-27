@@ -166,6 +166,7 @@ export default class AuthController {
   async checkPhone({ response, request }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(checkPhoneValidator)
     const responseDto = await this.checkPhoneUseCase.execute(payload.phone, payload.country_id)
+
     return response.created(responseDto)
   }
 
@@ -174,7 +175,15 @@ export default class AuthController {
     return response.status(user.code).send(user)
   }
 
-  async sendOtp({ response, request }: HttpContext) {
+  /**
+   * Sends an OTP (One-Time Password) to the provided phone number after validating the request payload.
+   *
+   * @param {Object} context - The HTTP context object.
+   * @param {Object} context.response - The HTTP response instance.
+   * @param {Object} context.request - The HTTP request instance.
+   * @return {Promise<void>} A Promise that resolves to a created HTTP response containing the result of the OTP operation.
+   */
+  async sendOtp({ response, request }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(checkPhoneValidator)
     const result = await this.sendOtpUseCase.execute(payload)
 

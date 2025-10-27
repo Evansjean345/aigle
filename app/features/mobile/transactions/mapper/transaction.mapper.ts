@@ -23,8 +23,8 @@ export const toPaginatedTransactionsResponseDto = async (
     data: transactions,
     meta: {
       total: paginatedTransactions.total,
-      currentPage: paginatedTransactions.firstPage,
-      firstPage: paginatedTransactions.currentPage,
+      currentPage: paginatedTransactions.currentPage,
+      firstPage: paginatedTransactions.firstPage,
       lastPage: paginatedTransactions.lastPage,
     },
   }

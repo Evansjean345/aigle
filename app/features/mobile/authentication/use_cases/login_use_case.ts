@@ -3,13 +3,15 @@ import LoginRequestDto from '#mobile/authentication/dtos/login_request.dto'
 import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
 import { LoginResult } from '#mobile/authentication/dtos/login.result'
 import OtpService from '#shared/services/otp_service'
+import env from '#start/env'
 
 @inject()
 export default class LoginUseCase {
   /**
    * Constructs an instance of the class.
    *
-   * @param {AuthentificationService} authServices - The authentication service used for managing authentication tasks.
+   * @param {AuthentificationService} authServices - The authentication service used for managing authentication processes.
+   * @param {OtpService} otpService - The OTP (One-Time Password) service used for handling OTP-related functionalities.
    */
   constructor(
     protected authServices: AuthentificationService,
@@ -25,6 +27,14 @@ export default class LoginUseCase {
   async execute(data: LoginRequestDto): Promise<LoginResult> {
     try {
       const user = await this.authServices.login(data)
+
+      const bypassEnabled = env.get('APPLE_BYPASS_ENABLED') as boolean
+      const applePhone = env.get('APPLE_REVIEW_PHONE') as string | undefined
+
+      if (bypassEnabled && applePhone && user.phone === applePhone) {
+        return { message: 'Bypass OTP activé pour ce numéro' }
+      }
+
       await this.otpService.sendOtp(user.phone, user.usersUid)
       return { message: 'OTP sent successfully' }
     } catch (error) {
