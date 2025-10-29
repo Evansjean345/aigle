@@ -11,10 +11,11 @@ const driveConfig = defineConfig({
    */
   services: {
     fs: services.fs({
-      location: app.makePath('storage'),
+      location: app.makePath('/storage'),
       serveFiles: true,
       routeBasePath: '/uploads',
       visibility: 'public',
+
     }),
     // s3: services.s3({
     //   credentials: {
@@ -56,5 +57,5 @@ const driveConfig = defineConfig({
 export default driveConfig
 
 declare module '@adonisjs/drive/types' {
-  export interface DriveDisks extends InferDriveDisks<typeof driveConfig> {}
+  export interface DriveDisks extends InferDriveDisks<typeof driveConfig> { }
 }

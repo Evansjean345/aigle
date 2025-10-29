@@ -1,0 +1,14 @@
+import router from '@adonisjs/core/services/router'
+import { middleware } from '#start/kernel'
+
+const QrController = () => import('#mobile/qr/controllers/qr_controller')
+
+export default function mobileQrRoutes() {
+  router
+    .group(() => {
+      router.post('issue', [QrController, 'issue']).use(middleware.auth())
+      router.post('resolve', [QrController, 'resolve'])
+      router.post('verify', [QrController, 'verify'])
+    })
+    .prefix('mobile/qr')
+}

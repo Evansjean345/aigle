@@ -1,5 +1,6 @@
 import app from '@adonisjs/core/services/app'
 import { HttpContext, ExceptionHandler } from '@adonisjs/core/http'
+import { errors } from '@vinejs/vine'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
@@ -12,8 +13,27 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * The method is used for handling errors and returning
    * response to the client
    */
-  async handle(error: unknown, ctx: HttpContext) {
-    return super.handle(error, ctx)
+  async handle(error: any, ctx: HttpContext) {
+    if (error instanceof errors.E_VALIDATION_ERROR) {
+      ctx.response.unprocessableEntity(error.messages)
+      return
+    }
+
+    if (error.code === 'INTERNAL_ERROR' || error.status >= 500) {
+      ctx.response.status(500).send({
+        message: app.inProduction ? "Une erreur interne s'est produite" : error.message,
+        status: 500,
+      })
+      return
+    }
+
+    ctx.response.status(error.status).send({
+      message: error.message,
+      status: error.status,
+      code: error.code,
+    })
+
+    return
   }
 
   /**

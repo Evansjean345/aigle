@@ -6,7 +6,7 @@ export async function sendSms(message: string, destinataire: string) {
     const data = {
       username: process.env.MTARGET_USERNAME,
       password: process.env.MTARGET_PASSWORD,
-      msisdn: '+225' + destinataire,
+      msisdn: `+${destinataire}`,
       sender: process.env.MTARGET_SENDER,
       msg: message,
       allowunicode: true,

@@ -29,26 +29,13 @@ export default await Env.create(new URL('../', import.meta.url), {
   DB_PASSWORD: Env.schema.string.optional(),
   DB_DATABASE: Env.schema.string(),
 
-  /*
-  |----------------------------------------------------------
-  | Variables for configuring the drive package
-  |----------------------------------------------------------
-  */
+  REDIS_HOST: Env.schema.string({ format: 'host' }),
+  REDIS_PORT: Env.schema.number(),
+  REDIS_PASSWORD: Env.schema.string.optional(),
 
-  // DRIVE_DISK: Env.schema.enum(['fs', 's3', 'spaces', 'r2', 'gcs'] as const),
-  // AWS_ACCESS_KEY_ID: Env.schema.string(),
-  // AWS_SECRET_ACCESS_KEY: Env.schema.string(),
-  // AWS_REGION: Env.schema.string(),
-  // S3_BUCKET: Env.schema.string(),
-  // SPACES_KEY: Env.schema.string(),
-  // SPACES_SECRET: Env.schema.string(),
-  // SPACES_REGION: Env.schema.string(),
-  // SPACES_BUCKET: Env.schema.string(),
-  // SPACES_ENDPOINT: Env.schema.string(),
-  // R2_KEY: Env.schema.string(),
-  // R2_SECRET: Env.schema.string(),
-  // R2_BUCKET: Env.schema.string(),
-  // R2_ENDPOINT: Env.schema.string(),
-  // GCS_KEY: Env.schema.string(),
-  // GCS_BUCKET: Env.schema.string()
+  JWT_SECRET: Env.schema.string(),
+  JWT_ALG: Env.schema.string(),
+
+  APPLE_BYPASS_ENABLED: Env.schema.boolean(),
+  APPLE_REVIEW_PHONE: Env.schema.string.optional(),
 })

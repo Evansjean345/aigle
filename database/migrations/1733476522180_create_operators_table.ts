@@ -6,10 +6,20 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
-      table.uuid('operators_id')
+      table.uuid('operators_uid')
+
+      table
+        .integer('type_payments_id')
+        .nullable()
+        .unsigned()
+        .references('id')
+        .inTable('type_payments')
+        .onDelete('set null')
+        .onUpdate('set null')
+
+      table.decimal('fees,', 10, 2).defaultTo(0)
       table.string('name').nullable()
-      table.integer('poucentage_fee').defaultTo(0)
-      table.string('operator_type').defaultTo(0)
+      table.string('image_path').nullable()
       table.string('status').defaultTo('active')
       table.timestamp('created_at')
       table.timestamp('updated_at')

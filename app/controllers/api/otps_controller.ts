@@ -7,8 +7,9 @@ export default class OtpsController {
   constructor(private otpServices: OtpService) {} // Changer le nom ici pour éviter la confusion
 
   async send_otp({ response, request }: HttpContext) {
-    const user = await this.otpServices.sendOtp(request.params())
-    return response.status(user.code).send(user)
+    const { phone, userId } = request.params()
+    const res = await this.otpServices.sendOtp(phone, userId)
+    return response.status(res.code).send(res)
   }
 
   async check_otp({ response, request }: HttpContext) {
