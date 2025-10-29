@@ -26,6 +26,7 @@ import mobileTransactionRoutes from '#mobile/transactions/routes/transaction_rou
 import mobileDeviceRoutes from '#mobile/device/routes/device_routes'
 import mobileProfileRoutes from '#mobile/profile/routes/profile_routes'
 import mobileQrRoutes from '#mobile/qr/routes/qr_routes'
+import mobileAirtimeRoutes from '#mobile/airtime/routes/airtime_routes'
 
 router
   .group(() => {
@@ -39,6 +40,7 @@ router
     router.group(mobileDeviceRoutes)
     router.group(mobileProfileRoutes)
     router.group(mobileQrRoutes)
+    router.group(mobileAirtimeRoutes)
     router.group(authRouter(router, middleware)).prefix('auth')
     router
       .group(() => {
