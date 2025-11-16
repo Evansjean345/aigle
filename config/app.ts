@@ -12,6 +12,8 @@ import { defineConfig } from '@adonisjs/core/http'
  */
 export const appKey = new Secret(env.get('APP_KEY'))
 
+export const mobileDeviceDeepLink = env.get('MOBILE_DEVICE_DEEP_LINK_URL')
+
 /**
  * The configuration settings used by the HTTP server
  */

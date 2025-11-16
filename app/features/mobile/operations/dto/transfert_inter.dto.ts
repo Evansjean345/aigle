@@ -24,5 +24,6 @@ export interface InterTransfertResponseDto {
   data: {
     transactionReference: string
     status: TransactionStatus
+    wave_url?: string
   }
 }
