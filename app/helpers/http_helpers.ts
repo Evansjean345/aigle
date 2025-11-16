@@ -56,10 +56,6 @@ export async function makeRequest({
     // })
     const response = await baseURL.request(options)
 
-    // console.log('**********************success*****************************')
-    // console.log(chalk.green('Réponse reçue :', response.data))
-    // console.log('*********************succes*****************************')
-
     return {
       success: true,
       data: response.data,

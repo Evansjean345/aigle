@@ -124,6 +124,9 @@ export default class TransfertUseCase {
         },
       }
     } catch (error) {
+      console.log('debugging error')
+      console.log(error)
+
       await trx.rollback()
       throw error
     }

@@ -38,4 +38,6 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   APPLE_BYPASS_ENABLED: Env.schema.boolean(),
   APPLE_REVIEW_PHONE: Env.schema.string.optional(),
+
+  MOBILE_DEVICE_DEEP_LINK_URL: Env.schema.string(),
 })

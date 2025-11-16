@@ -12,6 +12,7 @@ import { TransactionType } from '#shared/models/transaction'
 import { makeRequest } from '../../../../helpers/http_helpers.js'
 import env from '#start/env'
 import WalletService from '#mobile/wallet/services/wallet_service'
+import config from '@adonisjs/core/services/config'
 
 /**
  * Handles the deposit use case, including the calculation of fees based on a given deposit request payload.
@@ -103,8 +104,8 @@ export default class DepositUseCase {
       }
 
       if (payload.providerCode === 'wave') {
-        dataSend.success_url = 'https://ednashoppinggroup.com/#/'
-        dataSend.error_url = 'https://ednashoppinggroup.com/#/'
+        dataSend.success_url = config.get('app.mobileDeviceDeepLink')
+        dataSend.error_url = config.get('app.mobileDeviceDeepLink')
       }
 
       await trx.commit()
