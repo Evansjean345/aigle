@@ -1,16 +1,16 @@
 import router from '@adonisjs/core/services/router'
 
-import mobileAuthRoutes from '#mobile/authentication/routes/auth_routes'
-import mobileWalletRoutes from '#mobile/wallet/routes/wallet_routes'
+import mobileAuthRoutes from '#features/authentication/presentation/mobile/routes/auth_routes'
+import mobileWalletRoutes from '#features/wallet/presentation/mobile/routes/wallet_routes'
 import mobileServicesRoutes from '#mobile/services/routes/services_routes'
-import adminServicesManagementRoutes from '#admin/services_management/routes/services_management_routes'
-import mobileOperationRoutes from '#mobile/operations/routes/operation_routes'
-import mobileWebhookRoutes from '#mobile/webhooks/routes/webhook_routes'
-import mobileTransactionRoutes from '#mobile/transactions/routes/transaction_routes'
-import mobileDeviceRoutes from '#mobile/device/routes/device_routes'
-import mobileProfileRoutes from '#mobile/profile/routes/profile_routes'
-import mobileQrRoutes from '#mobile/qr/routes/qr_routes'
-import mobileAirtimeRoutes from '#mobile/airtime/routes/airtime_routes'
+import adminServicesManagementRoutes from '#features/fees/presentation/admin/routes/services_management_routes'
+import mobileOperationRoutes from '#features/operations/presentation/mobile/routes/operation_routes'
+import mobileWebhookRoutes from '#features/webhooks/presentation/mobile/routes/webhook_routes'
+import mobileTransactionRoutes from '#features/transactions/presentation/mobile/routes/transaction_routes'
+import mobileDeviceRoutes from '#features/device/presentation/mobile/routes/device_routes'
+import mobileProfileRoutes from '#features/profile/presentation/mobile/routes/profile_routes'
+import mobileQrRoutes from '#features/qr/presentation/mobile/routes/qr_routes'
+import mobileAirtimeRoutes from '#features/airtime/presentation/mobile/routes/airtime_routes'
 
 router
   .group(() => {

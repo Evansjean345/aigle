@@ -1,24 +1,32 @@
 import type { ApplicationService } from '@adonisjs/core/types'
-import WalletRepository from '#shared/interfaces/repositories/wallet_repository'
-import WalletRepositoryImpl from '#shared/repositories/wallet_repository_impl'
+
+// Feature-based imports
+import DeviceRepository from '#features/device/domain/interfaces/device_repository'
+import DeviceRepositoryImpl from '#features/device/infrastructure/repositories/device_repository_impl'
+
+import UserRepository from '#features/authentication/domain/interfaces/user_repository'
+import UserRepositoryImpl from '#features/authentication/infrastructure/repositories/user_repository_impl'
+import OtpRepository from '#features/authentication/domain/interfaces/OtpRepository'
+import OtpRepositoryImpl from '#features/authentication/infrastructure/repositories/otp_repository_impl'
+
+import WalletRepository from '#features/wallet/domain/interfaces/wallet_repository'
+import WalletRepositoryImpl from '#features/wallet/infrastructure/repositories/wallet_repository_impl'
+
+import TransactionRepository from '#features/transactions/domain/interfaces/transaction.repository'
+import TransactionRepositoryImpl from '#features/transactions/infrastructure/repositories/transaction_repository_impl'
+import PaymentRepository from '#features/transactions/domain/interfaces/payment.repository'
+import PaymentRepositoryImpl from '#features/transactions/infrastructure/repositories/payment_repository_impl'
+
+import ServiceProviderFeesRepository from '#features/fees/domain/interfaces/service_provider_fees.repository'
+import { ServiceProviderFeesRepositoryImpl } from '#features/fees/infrastructure/repositories/service_provider_fees_repository_impl'
+
+// Shared repositories (truly shared entities)
 import CountryRepository from '#shared/interfaces/repositories/country_repository'
 import CountryRepositoryImpl from '#shared/repositories/country_repository_impl'
-import UserRepository from '#shared/interfaces/repositories/user_repository'
-import UserRepositoryImpl from '#shared/repositories/user_repository_impl'
-import OtpRepository from '#shared/interfaces/repositories/OtpRepository'
-import OtpRepositoryImpl from '#shared/repositories/otp_repository_impl'
 import ServiceTypeRepository from '#shared/interfaces/services_management/service_type_repository'
 import ServiceTypeRepositoryImpl from '#shared/repositories/service_type_repository_impl'
 import ProviderRepository from '#shared/interfaces/services_management/provider_repository'
 import ProviderRepositoryImpl from '#shared/repositories/provider_repository_impl'
-import ServiceProviderFeesRepository from '#shared/interfaces/repositories/service_provider_fees.repository'
-import { ServiceProviderFeesRepositoryImpl } from '#shared/repositories/service_provider_fees_repository_impl'
-import TransactionRepository from '#shared/interfaces/repositories/transaction.repository'
-import TransactionRepositoryImpl from '#shared/repositories/transaction_repository_impl'
-import PaymentRepository from '#shared/interfaces/repositories/payment.repository'
-import PaymentRepositoryImpl from '#shared/repositories/payment_repository_impl'
-import DeviceRepository from '#shared/interfaces/repositories/device_repository'
-import DeviceRepositoryImpl from '#shared/repositories/device_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
