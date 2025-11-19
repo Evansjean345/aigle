@@ -1,5 +1,5 @@
-import { inject } from '@adonisjs/core'
-import TransactionRepository from '#shared/interfaces/repositories/transaction.repository'
+﻿import { inject } from '@adonisjs/core'
+import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
 import { toTransactionResponseDto } from '#mobile/transactions/mapper/transaction.mapper'
 import { TransactionResponseDTO } from '#mobile/transactions/dto/transaction.dto'
 import { Exception } from '@adonisjs/core/exceptions'

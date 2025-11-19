@@ -1,10 +1,10 @@
-import { inject } from '@adonisjs/core'
-import OtpService from '#shared/services/otp_service'
-import UserRepository from '#shared/interfaces/repositories/user_repository'
+﻿import { inject } from '@adonisjs/core'
+import OtpService from '#features/authentication/application/services/otp_service'
+import UserRepository from '#features/authentication/domain/interfaces/user_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 import { OtpRequestDto, OtpResponseDto } from '#mobile/authentication/dtos/otp.dto'
 import CountryRepository from '#shared/interfaces/repositories/country_repository'
-import { concartPhoneNumber } from '../../../../helpers/utiles.js'
+import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
 
 /**
  * This class is responsible for handling the use case of sending an OTP (One-Time Password) to a user's phone number.

@@ -1,6 +1,6 @@
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import Payment from '#shared/models/payment'
-import PaymentRepository from '#shared/interfaces/repositories/payment.repository'
+﻿import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import Payment from '#features/transactions/domain/models/payment'
+import PaymentRepository from '#features/transactions/domain/interfaces/payment_repository'
 
 /**
  * Implementation of the PaymentRepository interface,

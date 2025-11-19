@@ -1,6 +1,6 @@
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import Transaction from '#shared/models/transaction'
-import TransactionRepository from '#shared/interfaces/repositories/transaction.repository'
+﻿import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import Transaction from '#features/transactions/domain/models/transaction'
+import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
 import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 /**

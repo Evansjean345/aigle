@@ -1,6 +1,6 @@
-import Otp from '#shared/models/otp'
+﻿import Otp from '#features/authentication/domain/models/otp'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import OtpRepository from '#shared/interfaces/repositories/OtpRepository'
+import OtpRepository from '#features/authentication/domain/interfaces/otp_repository'
 
 export default class OtpRepositoryImpl implements OtpRepository {
   /**

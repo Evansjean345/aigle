@@ -1,8 +1,8 @@
-import {
+﻿import {
   AuthenticatedProfileAndTokenResponseDto,
   AuthenticatedProfileResponseDto,
 } from '#mobile/authentication/dtos/authenticated_profile.response.dto'
-import User from '#shared/models/user'
+import User from '#features/authentication/domain/models/user'
 
 /**
  * Converts a `User` entity to an `AuthenticatedProfileResponseDto`.

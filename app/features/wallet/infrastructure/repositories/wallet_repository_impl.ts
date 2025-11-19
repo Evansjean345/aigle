@@ -1,8 +1,8 @@
-import Wallet from '#shared/models/wallet'
+﻿import Wallet from '#features/wallet/domain/models/wallet'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import WalletRepository, {
   AdjustedBalance,
-} from '#shared/interfaces/repositories/wallet_repository'
+} from '#features/wallet/domain/interfaces/wallet_repository'
 
 /**
  * Repository class responsible for managing operations related to Wallet entities.

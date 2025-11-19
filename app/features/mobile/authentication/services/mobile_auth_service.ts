@@ -1,16 +1,16 @@
-import { inject } from '@adonisjs/core'
+﻿import { inject } from '@adonisjs/core'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { UserAlreadyExists } from '#shared/exceptions/user_already_exists'
+import { UserAlreadyExists } from '#shared/kernel/exceptions/user_already_exists'
 import CountryRepository from '#shared/interfaces/repositories/country_repository'
 import { Exception } from '@adonisjs/core/exceptions'
-import UserRepository from '#shared/interfaces/repositories/user_repository'
+import UserRepository from '#features/authentication/domain/interfaces/user_repository'
 import { RegisterCommand } from '#mobile/authentication/dtos/register.command'
 import { toRegisterResult } from '#mobile/authentication/mappers/register.mapper'
 import { RegisterResult } from '#mobile/authentication/dtos/register.result'
 import LoginCommand from '#mobile/authentication/dtos/login.command'
-import User from '#shared/models/user'
+import User from '#features/authentication/domain/models/user'
 import hash from '@adonisjs/core/services/hash'
-import { concartPhoneNumber } from '../../../../helpers/utiles.js'
+import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
 
 /**
  * Service class responsible for handling user authentication and registration processes.

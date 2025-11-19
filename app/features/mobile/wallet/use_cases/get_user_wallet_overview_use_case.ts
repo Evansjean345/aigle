@@ -1,10 +1,10 @@
-import UserRepository from '#shared/interfaces/repositories/user_repository'
+﻿import UserRepository from '#features/authentication/domain/interfaces/user_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 import WalletService from '#mobile/wallet/services/wallet_service'
 import { toWalletOverviewResult } from '#mobile/wallet/mappers/wallet.mapper'
 import { WalletOverviewResult } from '#mobile/wallet/dtos/wallet_overview.result'
 import { inject } from '@adonisjs/core'
-import TransactionRepository from '#shared/interfaces/repositories/transaction.repository'
+import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
 
 @inject()
 export default class GetUserWalletOverviewUseCase {

@@ -1,20 +1,20 @@
-import { inject } from '@adonisjs/core'
+﻿import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import WalletService from '#mobile/wallet/services/wallet_service'
-import TransactionService from '#shared/services/transaction_service'
-import PaymentService from '#shared/services/payment_service'
-import User from '#shared/models/user'
+import TransactionService from '#features/transactions/application/services/transaction_service'
+import PaymentService from '#features/transactions/application/services/payment_service'
+import User from '#features/authentication/domain/models/user'
 import { Exception } from '@adonisjs/core/exceptions'
-import { TransactionType } from '#shared/models/transaction'
+import { TransactionType } from '#features/transactions/domain/models/transaction'
 import {
   WalletToWalletRequestDto,
   WalletToWalletResponseDto,
 } from '#mobile/operations/dto/wallet_to_wallet.dto'
 import { Logger } from '@adonisjs/core/logger'
 import WalletToWalletTransactionCompleted from '#mobile/operations/events/wallet_to_wallet_transaction_completed'
-import { normalizePhone } from '../../../../helpers/utiles.js'
-import UserRepository from '#shared/interfaces/repositories/user_repository'
-import Wallet from '#shared/models/wallet'
+import { normalizePhone } from '#shared/kernel/utils/utiles'
+import UserRepository from '#features/authentication/domain/interfaces/user_repository'
+import Wallet from '#features/wallet/domain/models/wallet'
 import CountryRepository from '#shared/interfaces/repositories/country_repository'
 import QrJwtService from '#mobile/qr/services/qr_jwt_service'
 

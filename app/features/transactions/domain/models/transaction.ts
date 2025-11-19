@@ -1,10 +1,10 @@
-import { DateTime } from 'luxon'
+﻿import { DateTime } from 'luxon'
 import { BaseModel, beforeSave, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
 import string from '@adonisjs/core/helpers/string'
 import { v4 as uuidv4 } from 'uuid'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
-import Payment from '#shared/models/payment'
-import User from '#shared/models/user'
+import Payment from '#features/transactions/domain/models/payment'
+import User from '#features/authentication/domain/models/user'
 
 export type TransactionType = 'deposit' | 'wallet_transfert' | 'transfer' | 'transfer-inter'
 export type TransactionStatus = 'pending' | 'success' | 'failed'

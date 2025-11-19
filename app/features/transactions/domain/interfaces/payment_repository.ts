@@ -1,4 +1,4 @@
-import Payment from '#shared/models/payment'
+﻿import Payment from '#features/transactions/domain/models/payment'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 /**

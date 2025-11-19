@@ -1,5 +1,5 @@
-import { inject } from '@adonisjs/core'
-import { makeRequest } from '../../../../helpers/http_helpers.js'
+﻿import { inject } from '@adonisjs/core'
+import { makeRequest } from '#shared/kernel/utils/http_helpers'
 import env from '#start/env'
 
 @inject()

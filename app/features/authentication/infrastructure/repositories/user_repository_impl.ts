@@ -1,6 +1,6 @@
-import User from '#shared/models/user'
+﻿import User from '#features/authentication/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import UserRepository from '#shared/interfaces/repositories/user_repository'
+import UserRepository from '#features/authentication/domain/interfaces/user_repository'
 
 // Shared repository (pattern): return raw values only, no HTTP/response formatting
 export default class UserRepositoryIml implements UserRepository {

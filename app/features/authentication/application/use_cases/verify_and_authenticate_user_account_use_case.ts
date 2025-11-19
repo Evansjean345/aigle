@@ -1,12 +1,12 @@
-import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
-import OtpService from '#shared/services/otp_service'
+﻿import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
+import OtpService from '#features/authentication/application/services/otp_service'
 import { Exception } from '@adonisjs/core/exceptions'
-import User from '#shared/models/user'
+import User from '#features/authentication/domain/models/user'
 import { AuthenticatedProfileAndTokenResponseDto } from '#mobile/authentication/dtos/authenticated_profile.response.dto'
 import { toAuthenticatedUserProfileAndTokenResponse } from '#mobile/authentication/mappers/authenticated_user.mapper'
 import { inject } from '@adonisjs/core'
 import CountryRepository from '#shared/interfaces/repositories/country_repository'
-import { concartPhoneNumber } from '../../../../helpers/utiles.js'
+import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
 import env from '#start/env'
 
 @inject()

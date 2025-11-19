@@ -1,9 +1,9 @@
-import jwt, { Algorithm } from 'jsonwebtoken'
+﻿import jwt, { Algorithm } from 'jsonwebtoken'
 import redis from '@adonisjs/redis/services/main'
 import crypto from 'node:crypto'
 import config from '@adonisjs/core/services/config'
-import User from '#shared/models/user'
-import UserRepository from '#shared/interfaces/repositories/user_repository'
+import User from '#features/authentication/domain/models/user'
+import UserRepository from '#features/authentication/domain/interfaces/user_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
 

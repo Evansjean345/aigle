@@ -1,8 +1,8 @@
-import { inject } from '@adonisjs/core'
+﻿import { inject } from '@adonisjs/core'
 import hash from '@adonisjs/core/services/hash'
 import { DateTime } from 'luxon'
-import OtpRepository from '#shared/interfaces/repositories/OtpRepository'
-import Otp from '#shared/models/otp'
+import OtpRepository from '#features/authentication/domain/interfaces/otp_repository'
+import Otp from '#features/authentication/domain/models/otp'
 import { Exception } from '@adonisjs/core/exceptions'
 
 // Simple constants to make OTP behavior easy to tune

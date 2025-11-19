@@ -1,8 +1,8 @@
-import { inject } from '@adonisjs/core'
-import DeviceService from '#shared/services/device_service'
+﻿import { inject } from '@adonisjs/core'
+import DeviceService from '#features/device/application/services/device_service'
 import ExpoPushNotificationService from '#shared/services/notification/expo_push_notification_service'
 import WalletToWalletTransactionCompleted from '#mobile/operations/events/wallet_to_wallet_transaction_completed'
-import Transaction from '#shared/models/transaction'
+import Transaction from '#features/transactions/domain/models/transaction'
 
 @inject()
 export default class WalletToWalletTransactionPushNotificationListener {

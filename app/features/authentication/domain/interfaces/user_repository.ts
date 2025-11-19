@@ -1,4 +1,4 @@
-import User from '#shared/models/user'
+﻿import User from '#features/authentication/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 /**

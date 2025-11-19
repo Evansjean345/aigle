@@ -1,7 +1,7 @@
-import Wallet from '#shared/models/wallet'
+﻿import Wallet from '#features/wallet/domain/models/wallet'
 import { WalletCreatedResult } from '#mobile/wallet/dtos/wallet_created_result'
 import { WalletOverviewResult } from '#mobile/wallet/dtos/wallet_overview.result'
-import Transaction from '#shared/models/transaction'
+import Transaction from '#features/transactions/domain/models/transaction'
 import { toTransactionResponseDto } from '#mobile/transactions/mapper/transaction.mapper'
 
 /**

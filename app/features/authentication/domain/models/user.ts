@@ -1,14 +1,14 @@
-import { DateTime } from 'luxon'
+﻿import { DateTime } from 'luxon'
 import { compose, cuid } from '@adonisjs/core/helpers'
 import { BaseModel, column, hasOne, hasMany, belongsTo, beforeCreate } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import hash from '@adonisjs/core/services/hash'
 import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations'
-import Wallet from '#shared/models/wallet'
+import Wallet from '#features/wallet/domain/models/wallet'
 import Document from '#shared/models/document'
 import Country from '#shared/models/country'
-import Transaction from '#shared/models/transaction'
+import Transaction from '#features/transactions/domain/models/transaction'
 import { uniqueID } from '../../helpers/utiles.js'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {

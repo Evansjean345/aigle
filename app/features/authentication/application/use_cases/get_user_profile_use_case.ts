@@ -1,5 +1,5 @@
-import { inject } from '@adonisjs/core'
-import User from '#shared/models/user'
+﻿import { inject } from '@adonisjs/core'
+import User from '#features/authentication/domain/models/user'
 
 @inject()
 export default class GetUserProfileUseCase {

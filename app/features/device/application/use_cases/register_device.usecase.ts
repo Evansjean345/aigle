@@ -1,8 +1,8 @@
-import DeviceService from '../services/device_service.js'
+﻿import DeviceService from '../services/device_service.js'
 import { inject } from '@adonisjs/core'
 import { DeviceRequestDTO, DeviceResponseDTO } from '../dto/device.tdo.js'
 import { toDeviceCommand } from '../mappers/device.mapper.js'
-import User from '#shared/models/user'
+import User from '#features/authentication/domain/models/user'
 
 @inject()
 export default class RegisterDeviceUseCase {

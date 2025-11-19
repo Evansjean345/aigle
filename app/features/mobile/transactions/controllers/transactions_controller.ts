@@ -1,7 +1,7 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import GetUserTransactionsUseCase from '#mobile/transactions/use_cases/get_user_transactions.use_case'
-import GetUserTransactionDetailsUseCase from '#mobile/transactions/use_cases/get_user_transaction_details.use_case'
+import GetUserTransactionsUseCase from '#features/transactions/application/use_cases/get_user_transactions.use_case'
+import GetUserTransactionDetailsUseCase from '#features/transactions/application/use_cases/get_user_transaction_details.use_case'
 
 /**
  * MobileTransactionsController is responsible for handling operations related

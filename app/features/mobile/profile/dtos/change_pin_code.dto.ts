@@ -1,4 +1,4 @@
-import User from '#shared/models/user'
+﻿import User from '#features/authentication/domain/models/user'
 
 export interface ChangePinCodeDTO {
   user: User

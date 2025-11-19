@@ -1,5 +1,5 @@
-import { DateTime } from 'luxon'
-import { TransactionDirection } from '#shared/models/transaction'
+﻿import { DateTime } from 'luxon'
+import { TransactionDirection } from '#features/transactions/domain/models/transaction'
 import { PaymentResponseDTO } from '#mobile/transactions/dto/payment.dto'
 
 export interface TransactionResponseDTO {

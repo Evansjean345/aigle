@@ -1,21 +1,21 @@
-import {
+﻿import {
   InterTransfertRequestDto,
   InterTransfertResponseDto,
 } from '#mobile/operations/dto/transfert_inter.dto'
 import ServiceType from '#shared/models/service_type'
-import { ServiceProviderFeesRepositoryImpl } from '#shared/repositories/service_provider_fees_repository_impl'
-import { calculateFeeFromRule } from '#shared/domain/fees/fee_calculator'
+import { ServiceProviderFeesRepositoryImpl } from '#features/fees/infrastructure/repositories/service_provider_fees_repository_impl'
+import { calculateFeeFromRule } from '#features/fees/domain/services/fee_calculator'
 import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
-import User from '#shared/models/user'
-import TransactionService from '#shared/services/transaction_service'
-import PaymentService from '#shared/services/payment_service'
+import User from '#features/authentication/domain/models/user'
+import TransactionService from '#features/transactions/application/services/transaction_service'
+import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
-import Transaction, { TransactionType } from '#shared/models/transaction'
-import { makeRequest } from '../../../../helpers/http_helpers.js'
+import Transaction, { TransactionType } from '#features/transactions/domain/models/transaction'
+import { makeRequest } from '#shared/kernel/utils/http_helpers'
 import env from '#start/env'
 import WalletService from '#mobile/wallet/services/wallet_service'
-import Payment from '#shared/models/payment'
+import Payment from '#features/transactions/domain/models/payment'
 import config from '@adonisjs/core/services/config'
 
 /**

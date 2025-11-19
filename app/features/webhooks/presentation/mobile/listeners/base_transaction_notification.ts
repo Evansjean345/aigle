@@ -1,4 +1,4 @@
-import DeviceService from '#shared/services/device_service'
+﻿import DeviceService from '#features/device/application/services/device_service'
 import ExpoPushNotificationService from '#shared/services/notification/expo_push_notification_service'
 import DepositTransactionCompleted from '#mobile/webhooks/events/deposit/deposit_transaction_completed'
 import TransfertTransactionCompleted from '#mobile/webhooks/events/transfert/transfert_transaction_completed'

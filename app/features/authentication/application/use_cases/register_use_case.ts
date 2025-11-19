@@ -1,11 +1,11 @@
-import AuthServices from '#mobile/authentication/services/mobile_auth_service'
+﻿import AuthServices from '#mobile/authentication/services/mobile_auth_service'
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import WalletService from '#mobile/wallet/services/wallet_service'
 import { RegisterRequestDto } from '#mobile/authentication/dtos/register_request.dto'
 import { toRegisterCommand } from '#mobile/authentication/mappers/register.mapper'
 import { RegisterResponseDto } from '#mobile/authentication/dtos/register_response.dto'
-import OtpService from '#shared/services/otp_service'
+import OtpService from '#features/authentication/application/services/otp_service'
 
 @inject()
 export default class RegisterUseCase {

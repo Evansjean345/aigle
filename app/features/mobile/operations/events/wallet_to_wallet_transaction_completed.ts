@@ -1,5 +1,5 @@
-import { BaseEvent } from '@adonisjs/core/events'
-import Transaction from '#shared/models/transaction'
+﻿import { BaseEvent } from '@adonisjs/core/events'
+import Transaction from '#features/transactions/domain/models/transaction'
 
 export default class WalletToWalletTransactionCompleted extends BaseEvent {
   /**

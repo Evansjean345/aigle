@@ -1,10 +1,10 @@
-import Transaction from '#shared/models/transaction'
+﻿import Transaction from '#features/transactions/domain/models/transaction'
 import {
   PaginatedTransactionsResponseDTO,
   TransactionResponseDTO,
 } from '#mobile/transactions/dto/transaction.dto'
 import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
-import Payment from '#shared/models/payment'
+import Payment from '#features/transactions/domain/models/payment'
 import { PaymentResponseDTO } from '#mobile/transactions/dto/payment.dto'
 
 /**

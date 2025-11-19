@@ -1,8 +1,8 @@
-import { inject } from '@adonisjs/core'
+﻿import { inject } from '@adonisjs/core'
 import LoginRequestDto from '#mobile/authentication/dtos/login_request.dto'
 import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
 import { LoginResult } from '#mobile/authentication/dtos/login.result'
-import OtpService from '#shared/services/otp_service'
+import OtpService from '#features/authentication/application/services/otp_service'
 import env from '#start/env'
 
 @inject()

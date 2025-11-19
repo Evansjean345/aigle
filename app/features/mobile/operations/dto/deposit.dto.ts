@@ -1,4 +1,4 @@
-import { TransactionStatus } from '#shared/models/transaction'
+﻿import { TransactionStatus } from '#features/transactions/domain/models/transaction'
 
 export interface DepositRequestDto {
   amount: number

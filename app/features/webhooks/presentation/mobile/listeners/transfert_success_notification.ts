@@ -1,7 +1,7 @@
-import { inject } from '@adonisjs/core'
+﻿import { inject } from '@adonisjs/core'
 import BaseTransactionNotification from '#mobile/webhooks/listeners/base_transaction_notification'
 import TransfertTransactionCompleted from '#mobile/webhooks/events/transfert/transfert_transaction_completed'
-import DeviceService from '#shared/services/device_service'
+import DeviceService from '#features/device/application/services/device_service'
 
 @inject()
 export default class TransfertSuccessNotification extends BaseTransactionNotification<TransfertTransactionCompleted> {
