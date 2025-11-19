@@ -11,8 +11,14 @@ export interface ListSpmParams {
 
 export default class ServiceProviderMethodRepository {
   async paginate(params: ListSpmParams) {
-    const { page = 1, limit = 20, isActive, serviceTypeId, paymentMethodId, providerFromId } =
-      params
+    const {
+      page = 1,
+      limit = 20,
+      isActive,
+      serviceTypeId,
+      paymentMethodId,
+      providerFromId,
+    } = params
 
     const query = ServiceProviderMethod.query()
       .preload('serviceType')

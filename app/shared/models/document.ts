@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import { BaseModel, beforeSave, belongsTo, column } from '@adonisjs/lucid/orm'
 import { v4 as uuidv4 } from 'uuid'
-import type { BelongsTo, HasOne } from '@adonisjs/lucid/types/relations'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import User from '#shared/models/user'
 
 export default class Document extends BaseModel {

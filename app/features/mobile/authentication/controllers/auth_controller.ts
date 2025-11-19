@@ -6,7 +6,7 @@ import {
   checkPhoneValidator,
   verifyUserAccountValidator,
   checkPinValidator,
-} from '#validators/auth'
+} from '#mobile/authentication/validators/auth_validator'
 import RegisterUseCase from '#mobile/authentication/use_cases/register_use_case'
 import LoginUseCase from '#mobile/authentication/use_cases/login_use_case'
 import SendOtpUseCase from '#mobile/authentication/use_cases/send_otp_use_case'
@@ -170,6 +170,12 @@ export default class AuthController {
     return response.created(responseDto)
   }
 
+  /**
+   * Handles the reset password process by validating the request payload and executing the use case.
+   *
+   * @param response
+   * @param request
+   */
   async resetPassword({ response, request }: HttpContext) {
     const user = await this.resetPasswordUseCase.execute(request.body())
     return response.status(user.code).send(user)

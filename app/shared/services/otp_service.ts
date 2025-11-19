@@ -4,7 +4,6 @@ import { DateTime } from 'luxon'
 import OtpRepository from '#shared/interfaces/repositories/OtpRepository'
 import Otp from '#shared/models/otp'
 import { Exception } from '@adonisjs/core/exceptions'
-import { sendSms } from '../../external-services/sms_service.js'
 
 // Simple constants to make OTP behavior easy to tune
 const OTP_EXPIRY_SECONDS = 600
@@ -148,6 +147,6 @@ export default class OtpService {
     }
 
     // Optional: Invalidate OTP after a successful verification to prevent reuse
-    await this.otpRepository.delete(otp.phone)
+    await this.otpRepository.delete(data.phone)
   }
 }

@@ -1,4 +1,3 @@
-import AuthServices from '#services/auth_services'
 import { inject } from '@adonisjs/core'
 import User from '#shared/models/user'
 import { Exception } from '@adonisjs/core/exceptions'
@@ -8,13 +7,6 @@ import { Exception } from '@adonisjs/core/exceptions'
  */
 @inject()
 export default class LogoutUseCase {
-  /**
-   * Constructs an instance of the class with the required dependencies.
-   *
-   * @param {AuthServices} authServices - The authentication services used to handle authentication-related operations.
-   */
-  constructor(protected authServices: AuthServices) {}
-
   /**
    * Executes the logout process for the authenticated user by deleting the current access token.
    *

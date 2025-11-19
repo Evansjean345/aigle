@@ -1,4 +1,4 @@
-import AuthServices from '#services/auth_services'
+import AuthServices from '#mobile/authentication/services/mobile_auth_service'
 import { inject } from '@adonisjs/core'
 
 export interface ResetPasswordUseCaseData {
@@ -11,7 +11,6 @@ export default class ResetPasswordUseCase {
   constructor(protected authServices: AuthServices) {}
 
   async execute(data: ResetPasswordUseCaseData) {
-    // Delegate to AuthService which handles update and token issuance
-    return this.authServices.reset_password(data)
+    return this.authServices.resetPassword(data)
   }
 }

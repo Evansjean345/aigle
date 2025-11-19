@@ -134,4 +134,8 @@ export default class AuthentificationService {
 
     return updatedUser.$isPersisted
   }
+
+  async resetPassword(data: { phone: string; password: string }) {
+    return true
+  }
 }

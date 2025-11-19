@@ -1,7 +1,7 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import ChangePasswordUseCase from '#mobile/profile/use_cases/change_pin_code_use_case'
-import { changePasswordValidator } from '#validators/profile'
+import { changePasswordValidator } from '#mobile/profile/validators/profile_validator'
 
 @inject()
 export default class ProfileController {

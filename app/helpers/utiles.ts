@@ -29,21 +29,6 @@ export const cleanPhoneNumber = (phone_number: string): string => {
 }
 
 /**
- * Generates a unique reference string by using the current timestamp.
- *
- * This function creates a reference string that is prefixed with 'AIG-' followed by an 8-character
- * segment derived from the current timestamp in milliseconds.
- *
- * @returns {string} A unique reference string in the format of 'AIG-XXXXXXXX', where 'XXXXXXXX' is the
- * last 8 characters of the current timestamp.
- */
-export const generateReference = (): string => {
-  const timestamp = Date.now()
-  const referenceNumber = timestamp.toString().slice(-8)
-  return `AIG-${referenceNumber}`
-}
-
-/**
  * Asynchronously concatenates a phone number with the country code prefix.
  *
  * This function takes a country identifier and a phone number, then retrieves
@@ -106,7 +91,5 @@ export const normalizePhone = (rawPhone: string, defaultCountryCode: string = '2
 
   if (/^\d{8,10}$/.test(phone)) return `${defaultCountryCode}${phone}`
 
-  console.log('normalized phone')
-  console.log(phone)
   return phone
 }

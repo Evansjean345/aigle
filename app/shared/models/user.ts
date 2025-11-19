@@ -1,14 +1,6 @@
 import { DateTime } from 'luxon'
 import { compose, cuid } from '@adonisjs/core/helpers'
-import {
-  BaseModel,
-  column,
-  hasOne,
-  hasMany,
-  belongsTo,
-  beforeSave,
-  beforeCreate,
-} from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasOne, hasMany, belongsTo, beforeCreate } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import hash from '@adonisjs/core/services/hash'

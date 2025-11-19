@@ -39,7 +39,7 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
   })
   .httpServer()
   .start()
-  .catch((error) => {
+  .catch(async (error) => {
     process.exitCode = 1
-    prettyPrintError(error)
+    await prettyPrintError(error)
   })

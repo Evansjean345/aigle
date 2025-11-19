@@ -1,7 +1,6 @@
 // app/Helpers/HttpHelper.ts
 
 import axios, { AxiosInstance } from 'axios'
-import chalk from 'chalk'
 
 export const baseURL: AxiosInstance = axios.create({
   baseURL: process.env.API_BASE_URL,
