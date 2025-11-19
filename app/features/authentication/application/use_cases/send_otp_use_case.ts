@@ -3,7 +3,7 @@ import OtpService from '#features/authentication/application/services/otp_servic
 import UserRepository from '#features/authentication/domain/interfaces/user_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 import { OtpRequestDto, OtpResponseDto } from '#mobile/authentication/dtos/otp.dto'
-import CountryRepository from '#shared/interfaces/repositories/country_repository'
+import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
 
 /**

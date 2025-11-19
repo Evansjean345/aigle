@@ -1,7 +1,8 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 
-const AuthController = () => import('#mobile/authentication/controllers/auth_controller')
+const AuthController = () =>
+  import('#features/authentication/presentation/mobile/controllers/auth_controller')
 
 // Mobile Authentication Routes
 export default function mobileAuthRoutes() {

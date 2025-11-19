@@ -6,17 +6,17 @@ import {
   checkPhoneValidator,
   verifyUserAccountValidator,
   checkPinValidator,
-} from '#mobile/authentication/validators/auth_validator'
-import RegisterUseCase from '#mobile/authentication/use_cases/register_use_case'
+} from '#features/authentication/presentation/mobile/validators/auth_validator'
+import RegisterUseCase from '#features/authentication/application/use_cases/register_use_case'
 import LoginUseCase from '#mobile/authentication/use_cases/login_use_case'
-import SendOtpUseCase from '#mobile/authentication/use_cases/send_otp_use_case'
-import ResetPasswordUseCase from '#mobile/authentication/use_cases/reset_password_use_case'
-import CheckPinUseCase from '#mobile/authentication/use_cases/check_pin_use_case'
-import GetUserProfileUseCase from '#mobile/authentication/use_cases/get_user_profile_use_case'
-import LogoutUseCase from '#mobile/authentication/use_cases/logout_use_case'
-import CheckPhoneUseCase from '#mobile/authentication/use_cases/check_phone_use_case'
-import { toAuthenticatedUserProfileResponse } from '#mobile/authentication/mappers/authenticated_user.mapper'
-import VerifyAndAuthenticateUserAccountUseCase from '#mobile/authentication/use_cases/verify_and_authenticate_user_account_use_case'
+import SendOtpUseCase from '#features/authentication/application/use_cases/send_otp_use_case'
+import ResetPasswordUseCase from '#features/authentication/application/use_cases/reset_password_use_case'
+import CheckPinUseCase from '#features/authentication/application/use_cases/check_pin_use_case'
+import GetUserProfileUseCase from '#features/authentication/application/use_cases/get_user_profile_use_case'
+import LogoutUseCase from '#features/authentication/application/use_cases/logout_use_case'
+import CheckPhoneUseCase from '#features/authentication/application/use_cases/check_phone_use_case'
+import { toAuthenticatedUserProfileResponse } from '#features/authentication/application/mappers/authenticated_user.mapper'
+import VerifyAndAuthenticateUserAccountUseCase from '#features/authentication/application/use_cases/verify_and_authenticate_user_account_use_case'
 
 @inject()
 export default class AuthController {

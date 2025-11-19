@@ -20,9 +20,10 @@ import PaymentRepositoryImpl from '#features/transactions/infrastructure/reposit
 import ServiceProviderFeesRepository from '#features/fees/domain/interfaces/service_provider_fees.repository'
 import { ServiceProviderFeesRepositoryImpl } from '#features/fees/infrastructure/repositories/service_provider_fees_repository_impl'
 
+import CountryRepository from '#features/country/domain/interfaces/country_repository'
+import CountryRepositoryImpl from '#features/country/infrastructure/repositories/country_repository_impl'
+
 // Shared repositories (truly shared entities)
-import CountryRepository from '#shared/interfaces/repositories/country_repository'
-import CountryRepositoryImpl from '#shared/repositories/country_repository_impl'
 import ServiceTypeRepository from '#shared/interfaces/services_management/service_type_repository'
 import ServiceTypeRepositoryImpl from '#shared/repositories/service_type_repository_impl'
 import ProviderRepository from '#shared/interfaces/services_management/provider_repository'

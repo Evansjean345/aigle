@@ -1,4 +1,4 @@
-﻿import Country from '#features/country/domain/models/country'
+import Country from '../models/country.js'
 
 export default abstract class CountryRepository {
   /**

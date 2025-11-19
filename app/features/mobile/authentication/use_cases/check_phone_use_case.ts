@@ -2,7 +2,7 @@
 import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
 import { Exception } from '@adonisjs/core/exceptions'
 import CheckPhoneResponseDto from '#mobile/authentication/dtos/check_phone.response.dto'
-import CountryRepository from '#shared/interfaces/repositories/country_repository'
+import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
 
 /**

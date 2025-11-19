@@ -7,7 +7,7 @@ import hash from '@adonisjs/core/services/hash'
 import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations'
 import Wallet from '#features/wallet/domain/models/wallet'
 import Document from '#shared/models/document'
-import Country from '#shared/models/country'
+import Country from '#features/country/domain/models/country'
 import Transaction from '#features/transactions/domain/models/transaction'
 import { uniqueID } from '../../helpers/utiles.js'
 

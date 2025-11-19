@@ -15,7 +15,7 @@ import WalletToWalletTransactionCompleted from '#mobile/operations/events/wallet
 import { normalizePhone } from '#shared/kernel/utils/utiles'
 import UserRepository from '#features/authentication/domain/interfaces/user_repository'
 import Wallet from '#features/wallet/domain/models/wallet'
-import CountryRepository from '#shared/interfaces/repositories/country_repository'
+import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import QrJwtService from '#mobile/qr/services/qr_jwt_service'
 
 /**

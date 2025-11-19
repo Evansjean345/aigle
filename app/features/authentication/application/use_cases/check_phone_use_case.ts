@@ -1,8 +1,8 @@
 ﻿import { inject } from '@adonisjs/core'
-import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
+import AuthentificationService from '#features/authentication/application/services/mobile_auth_service'
 import { Exception } from '@adonisjs/core/exceptions'
-import CheckPhoneResponseDto from '#mobile/authentication/dtos/check_phone.response.dto'
-import CountryRepository from '#shared/interfaces/repositories/country_repository'
+import CheckPhoneResponseDto from '#features/authentication/application/dtos/check_phone.response.dto'
+import CountryRepository from '#features/country/interfaces/repositories/country_repository'
 import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
 
 /**

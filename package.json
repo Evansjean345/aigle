@@ -49,6 +49,7 @@
     "#features/qr/*": "./app/features/qr/*.js",
     "#features/airtime/*": "./app/features/airtime/*.js",
     "#features/webhooks/*": "./app/features/webhooks/*.js",
+    "#features/country/*": "./app/features/country/*.js",
     "#mobile/*": "./app/features/mobile/*.js",
     "#admin/*": "./app/features/admin/*.js",
     "#shared/*": "./app/shared/*.js"
