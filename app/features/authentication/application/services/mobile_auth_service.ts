@@ -3,12 +3,12 @@ import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { UserAlreadyExists } from '#shared/kernel/exceptions/user_already_exists'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { Exception } from '@adonisjs/core/exceptions'
-import UserRepository from '#features/authentication/domain/interfaces/user_repository'
-import { RegisterCommand } from '../dtos/register.command.js'
-import { toRegisterResult } from '../mappers/register.mapper.js'
-import { RegisterResult } from '../dtos/register.result.js'
-import LoginCommand from '../dtos/login.command.js'
-import User from '#features/authentication/domain/models/user'
+import UserRepository from '#features/users/domain/interfaces/user_repository'
+import { RegisterCommand } from '#features/authentication/application/dtos/register.command'
+import { toRegisterResult } from '#features/authentication/application/mappers/register.mapper'
+import { RegisterResult } from '#features/authentication/application/dtos/register.result'
+import LoginCommand from '#features/authentication/application/dtos/login.command'
+import User from '#features/users/domain/models/user'
 import hash from '@adonisjs/core/services/hash'
 import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
 
@@ -31,7 +31,7 @@ export default class AuthentificationService {
   /**
    * Registers a new user in the system.
    *
-   * @param {RegisterUseCaseData} payload - The data required to create a new user.
+   * @param {RegisterCommand} payload - The data required to create a new user.
    * @param {TransactionClientContract} [trx] - An optional database transaction instance.
    * @return {Promise<RegisterResult>} A promise that resolves to the newly created user.
    * @throws {UserAlreadyExists} Throws an error if a user with the same phone number already exists.
@@ -136,6 +136,6 @@ export default class AuthentificationService {
   }
 
   async resetPassword(data: { phone: string; password: string }) {
-    return true
+    return data
   }
 }

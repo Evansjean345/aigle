@@ -8,7 +8,7 @@ import {
   checkPinValidator,
 } from '#features/authentication/presentation/mobile/validators/auth_validator'
 import RegisterUseCase from '#features/authentication/application/use_cases/register_use_case'
-import LoginUseCase from '#mobile/authentication/use_cases/login_use_case'
+import LoginUseCase from '#features/authentication/application/use_cases/login_use_case'
 import SendOtpUseCase from '#features/authentication/application/use_cases/send_otp_use_case'
 import ResetPasswordUseCase from '#features/authentication/application/use_cases/reset_password_use_case'
 import CheckPinUseCase from '#features/authentication/application/use_cases/check_pin_use_case'
@@ -18,6 +18,10 @@ import CheckPhoneUseCase from '#features/authentication/application/use_cases/ch
 import { toAuthenticatedUserProfileResponse } from '#features/authentication/application/mappers/authenticated_user.mapper'
 import VerifyAndAuthenticateUserAccountUseCase from '#features/authentication/application/use_cases/verify_and_authenticate_user_account_use_case'
 
+/**
+ * AuthController is responsible for managing user authentication-related operations such as
+ * registration, login, verification, sending OTPs, and managing user sessions.
+ */
 @inject()
 export default class AuthController {
   /**
@@ -170,16 +174,16 @@ export default class AuthController {
     return response.created(responseDto)
   }
 
-  /**
-   * Handles the reset password process by validating the request payload and executing the use case.
-   *
-   * @param response
-   * @param request
-   */
-  async resetPassword({ response, request }: HttpContext) {
-    const user = await this.resetPasswordUseCase.execute(request.body())
-    return response.status(user.code).send(user)
-  }
+  // /**
+  //  * Handles the reset password process by validating the request payload and executing the use case.
+  //  *
+  //  * @param response
+  //  * @param request
+  //  */
+  // async resetPassword({ response, request }: HttpContext) {
+  //   const user = await this.resetPasswordUseCase.execute(request.body())
+  //   return response.status(user.code).send(user)
+  // }
 
   /**
    * Sends an OTP (One-Time Password) to the provided phone number after validating the request payload.

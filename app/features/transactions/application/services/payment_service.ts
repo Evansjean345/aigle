@@ -2,7 +2,7 @@
 import PaymentRepository from '#features/transactions/domain/interfaces/payment_repository'
 import Payment from '#features/transactions/domain/models/payment'
 import Transaction from '#features/transactions/domain/models/transaction'
-import User from '#features/authentication/domain/models/user'
+import User from '#features/users/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
 import { Logger } from '@adonisjs/core/logger'

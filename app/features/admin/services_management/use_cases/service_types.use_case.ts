@@ -1,10 +1,10 @@
-import { inject } from '@adonisjs/core'
+﻿import { inject } from '@adonisjs/core'
 import ServiceTypesService from '../services/service_types.service.js'
 import {
   ServiceTypeCreateDto,
   ServiceTypeUpdateDto,
 } from '#admin/services_management/dtos/service_types.dto'
-import { ListServiceTypesParams } from '#shared/interfaces/services_management/service_type_repository'
+import { ListServiceTypesParams } from '#features/appServices/domain/interfaces/service_type_repository'
 
 @inject()
 export default class ServiceTypesUseCase {

@@ -2,7 +2,7 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 
 const MobileTransactionsController = () =>
-  import('#mobile/transactions/controllers/transactions_controller')
+  import('#features/transactions/presentation/mobile/controllers/transactions_controller')
 
 export default function mobileTransactionRoutes() {
   return router

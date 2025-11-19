@@ -14,7 +14,7 @@ export default function mobileAuthRoutes() {
       router.post('login', [AuthController, 'login'])
       router.post('verify-credentials', [AuthController, 'verifyUserCredentials'])
       router.post('verify-account', [AuthController, 'verifyUserAccount'])
-      router.post('reset-password', [AuthController, 'resetPassword'])
+      // router.post('reset-password', [AuthController, 'resetPassword'])
       router.post('send-otp', [AuthController, 'sendOtp'])
 
       // Protected routes (authentication required)

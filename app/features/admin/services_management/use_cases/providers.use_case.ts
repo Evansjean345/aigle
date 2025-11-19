@@ -1,7 +1,7 @@
-import { inject } from '@adonisjs/core'
+﻿import { inject } from '@adonisjs/core'
 import { ProviderCreateDto, ProviderUpdateDto } from '#admin/services_management/dtos/providers.dto'
 import ProvidersService from '#admin/services_management/services/providers.service'
-import { ListProvidersParams } from '#shared/interfaces/services_management/provider_repository'
+import { ListProvidersParams } from '#features/appServices/domain/interfaces/provider_repository'
 
 @inject()
 export default class ProvidersUseCase {

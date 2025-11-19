@@ -1,4 +1,4 @@
-import Provider from '#shared/models/provider'
+﻿import Provider from '#features/appServices/domain/models/provider'
 import { ProviderCreateDto, ProviderUpdateDto } from '#admin/services_management/dtos/providers.dto'
 import { ProviderResponseDto } from '#admin/services_management/dtos/providers.response.dto'
 

@@ -5,7 +5,13 @@ import WalletRepository, {
 } from '#features/wallet/domain/interfaces/wallet_repository'
 
 /**
- * Repository class responsible for managing operations related to Wallet entities.
+ * Implementation of the `WalletRepository` interface, providing
+ * methods to manage and manipulate wallet data within the system.
+ * Includes operations such as creating wallets, fetching wallets
+ * by specific criteria, updating balances, and handling transactions.
+ *
+ * This class interacts with the database using the `Wallet` model
+ * and can incorporate transaction handling for atomic operations.
  */
 export default class WalletRepositoryImpl implements WalletRepository {
   /**

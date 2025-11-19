@@ -1,11 +1,11 @@
 ﻿import { inject } from '@adonisjs/core'
-import TransactionRepository from '#shared/repositories/transaction_repository_impl'
+import TransactionRepository from '#features/transactions/infrastructure/repositories/transaction_repository_impl'
 import Transaction, {
   TransactionDirection,
   TransactionStatus,
   TransactionType,
 } from '#features/transactions/domain/models/transaction'
-import User from '#features/authentication/domain/models/user'
+import User from '#features/users/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
 import { Logger } from '@adonisjs/core/logger'

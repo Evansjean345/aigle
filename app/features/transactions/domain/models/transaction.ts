@@ -4,7 +4,7 @@ import string from '@adonisjs/core/helpers/string'
 import { v4 as uuidv4 } from 'uuid'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import Payment from '#features/transactions/domain/models/payment'
-import User from '#features/authentication/domain/models/user'
+import User from '#features/users/domain/models/user'
 
 export type TransactionType = 'deposit' | 'wallet_transfert' | 'transfer' | 'transfer-inter'
 export type TransactionStatus = 'pending' | 'success' | 'failed'

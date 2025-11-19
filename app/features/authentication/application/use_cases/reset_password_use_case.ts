@@ -1,4 +1,4 @@
-import AuthServices from '#mobile/authentication/services/mobile_auth_service'
+import AuthServices from '#features/authentication/application/services/mobile_auth_service'
 import { inject } from '@adonisjs/core'
 
 export interface ResetPasswordUseCaseData {

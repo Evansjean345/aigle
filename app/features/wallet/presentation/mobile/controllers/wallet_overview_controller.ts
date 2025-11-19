@@ -1,4 +1,4 @@
-import GetUserWalletOverviewUseCase from '#mobile/wallet/use_cases/get_user_wallet_overview_use_case'
+import GetUserWalletOverviewUseCase from '#features/wallet/application/use_cases/get_user_wallet_overview_use_case'
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 

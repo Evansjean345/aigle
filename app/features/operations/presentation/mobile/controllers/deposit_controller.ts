@@ -1,8 +1,8 @@
 import { HttpContext } from '@adonisjs/core/http'
-import { depositValidator } from '#mobile/operations/validators/deposit_validator'
-import DepositUseCase from '#mobile/operations/use_cases/deposit.usecase'
+import { depositValidator } from '#features/operations/presentation/mobile/validators/deposit_validator'
+import DepositUseCase from '#features/operations/application/use_cases/deposit.usecase'
 import { inject } from '@adonisjs/core'
-import { toDepositDto } from '#mobile/operations/mappers/deposit.mapper'
+import { toDepositDto } from '#features/operations/application/mappers/deposit.mapper'
 
 @inject()
 export default class DepositController {

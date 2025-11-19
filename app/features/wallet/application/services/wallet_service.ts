@@ -2,10 +2,10 @@
 import { inject } from '@adonisjs/core'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { toWalletCreatedResult } from '#mobile/wallet/mappers/wallet.mapper'
-import { WalletCreatedResult } from '#mobile/wallet/dtos/wallet_created_result'
+import { WalletCreatedResult } from '#features/wallet/application/dtos/wallet_created_result'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
-import { WalletQrScanResult } from '#mobile/wallet/dtos/wallet_qr_scan.result'
+import { WalletQrScanResult } from '#features/wallet/application/dtos/wallet_qr_scan.result'
 import { randomUUID } from 'node:crypto'
 
 /**

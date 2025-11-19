@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
-import AuthentificationService from '#mobile/authentication/services/mobile_auth_service'
-import LoginRequestDto from '#mobile/authentication/dtos/login_request.dto'
+import AuthentificationService from '#features/authentication/application/services/mobile_auth_service'
+import LoginRequestDto from '#features/authentication/application/dto/login_request.dto'
 
 @inject()
 export default class CheckPinUseCase {

@@ -1,7 +1,7 @@
-import { inject } from '@adonisjs/core'
-import ServiceType from '#shared/models/service_type'
-import PaymentMethod from '#shared/models/payment_method'
-import Provider from '#shared/models/provider'
+﻿import { inject } from '@adonisjs/core'
+import ServiceType from '#features/appServices/domain/models/service_type'
+import PaymentMethod from '#features/appServices/domain/models/payment_method'
+import Provider from '#features/appServices/domain/models/provider'
 import {
   ServiceProviderMethodCreateDto,
   ServiceProviderMethodUpdateDto,

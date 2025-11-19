@@ -1,5 +1,5 @@
 import WalletService from '#mobile/wallet/services/wallet_service'
-import { WalletQrScanResult } from '#mobile/wallet/dtos/wallet_qr_scan.result'
+import { WalletQrScanResult } from '#features/wallet/application/dtos/wallet_qr_scan.result'
 import { inject } from '@adonisjs/core'
 
 /**

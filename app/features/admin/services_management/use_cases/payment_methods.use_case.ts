@@ -1,10 +1,10 @@
-import { inject } from '@adonisjs/core'
+﻿import { inject } from '@adonisjs/core'
 import PaymentMethodsService from '../services/payment_methods.service.js'
 import {
   PaymentMethodCreateDto,
   PaymentMethodUpdateDto,
 } from '#admin/services_management/dtos/payment_methods.dto'
-import { ListPaymentMethodsParams } from '#shared/interfaces/services_management/payment_method_repository'
+import { ListPaymentMethodsParams } from '#features/appServices/domain/interfaces/payment_method_repository'
 
 @inject()
 export default class PaymentMethodsUseCase {

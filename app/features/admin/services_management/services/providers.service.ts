@@ -1,11 +1,11 @@
-import { inject } from '@adonisjs/core'
-import Provider, { ProviderType } from '#shared/models/provider'
+﻿import { inject } from '@adonisjs/core'
+import Provider, { ProviderType } from '#features/appServices/domain/models/provider'
 import { Exception } from '@adonisjs/core/exceptions'
 import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import { ProviderCreateDto, ProviderUpdateDto } from '#admin/services_management/dtos/providers.dto'
 import ProviderRepository, {
   ListProvidersParams,
-} from '#shared/interfaces/services_management/provider_repository'
+} from '#features/appServices/domain/interfaces/provider_repository'
 
 export const allowedProviderType: ProviderType[] = ['mobile_money', 'bank', 'credit-card']
 

@@ -2,7 +2,7 @@
 import AuthentificationService from '#features/authentication/application/services/mobile_auth_service'
 import { Exception } from '@adonisjs/core/exceptions'
 import CheckPhoneResponseDto from '#features/authentication/application/dtos/check_phone.response.dto'
-import CountryRepository from '#features/country/interfaces/repositories/country_repository'
+import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
 
 /**
@@ -34,8 +34,6 @@ export default class CheckPhoneUseCase {
   async execute(phoneNumber: string, countryId: number): Promise<CheckPhoneResponseDto> {
     const country = await this.countryRepository.findCountryBy('id', countryId)
     const formattedPhone = concartPhoneNumber(country.phoneCode, phoneNumber)
-
-    console.log(formattedPhone)
 
     const user = await this.authenticationService.checkPhoneNumber(formattedPhone)
 

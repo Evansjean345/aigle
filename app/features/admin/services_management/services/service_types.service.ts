@@ -1,13 +1,13 @@
-import { inject } from '@adonisjs/core'
+﻿import { inject } from '@adonisjs/core'
 import {
   ServiceTypeCreateDto,
   ServiceTypeUpdateDto,
 } from '#admin/services_management/dtos/service_types.dto'
 import ServiceTypeRepository, {
   ListServiceTypesParams,
-} from '#shared/interfaces/services_management/service_type_repository'
+} from '#features/appServices/domain/interfaces/service_type_repository'
 import { Exception } from '@adonisjs/core/exceptions'
-import ServiceType from '#shared/models/service_type'
+import ServiceType from '#features/appServices/domain/models/service_type'
 
 @inject()
 export default class ServiceTypesService {

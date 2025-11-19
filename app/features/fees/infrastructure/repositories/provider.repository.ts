@@ -1,4 +1,4 @@
-import Provider, { ProviderType } from '#shared/models/provider'
+﻿import Provider, { ProviderType } from '#features/appServices/domain/models/provider'
 
 export interface ListProvidersParams {
   page?: number

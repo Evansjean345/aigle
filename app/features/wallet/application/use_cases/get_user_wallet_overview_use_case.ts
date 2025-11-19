@@ -1,8 +1,8 @@
-﻿import UserRepository from '#features/authentication/domain/interfaces/user_repository'
+﻿import UserRepository from '#features/users/domain/interfaces/user_repository'
 import { Exception } from '@adonisjs/core/exceptions'
-import WalletService from '#mobile/wallet/services/wallet_service'
-import { toWalletOverviewResult } from '#mobile/wallet/mappers/wallet.mapper'
-import { WalletOverviewResult } from '#mobile/wallet/dtos/wallet_overview.result'
+import WalletService from '#features/wallet/application/services/wallet_service'
+import { toWalletOverviewResult } from '#features/wallet/application/mappers/wallet.mapper'
+import { WalletOverviewResult } from '#features/wallet/application/dtos/wallet_overview.result'
 import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
 

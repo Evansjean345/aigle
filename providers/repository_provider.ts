@@ -4,8 +4,8 @@ import type { ApplicationService } from '@adonisjs/core/types'
 import DeviceRepository from '#features/device/domain/interfaces/device_repository'
 import DeviceRepositoryImpl from '#features/device/infrastructure/repositories/device_repository_impl'
 
-import UserRepository from '#features/authentication/domain/interfaces/user_repository'
-import UserRepositoryImpl from '#features/authentication/infrastructure/repositories/user_repository_impl'
+import UserRepository from 'app/features/user/domain/interfaces/user_repository.js'
+import UserRepositoryImpl from 'app/features/user/infrastructure/user_repository_impl.js'
 import OtpRepository from '#features/authentication/domain/interfaces/OtpRepository'
 import OtpRepositoryImpl from '#features/authentication/infrastructure/repositories/otp_repository_impl'
 
@@ -23,11 +23,10 @@ import { ServiceProviderFeesRepositoryImpl } from '#features/fees/infrastructure
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import CountryRepositoryImpl from '#features/country/infrastructure/repositories/country_repository_impl'
 
-// Shared repositories (truly shared entities)
-import ServiceTypeRepository from '#shared/interfaces/services_management/service_type_repository'
-import ServiceTypeRepositoryImpl from '#shared/repositories/service_type_repository_impl'
-import ProviderRepository from '#shared/interfaces/services_management/provider_repository'
-import ProviderRepositoryImpl from '#shared/repositories/provider_repository_impl'
+import ServiceTypeRepository from '#features/appServices/domain/interfaces/service_type_repository'
+import ServiceTypeRepositoryImpl from '#features/appServices/infrastructure/repositories/service_type_repository_impl'
+import ProviderRepository from '#features/appServices/domain/interfaces/provider_repository'
+import ProviderRepositoryImpl from '#features/appServices/infrastructure/repositories/provider_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}

@@ -1,6 +1,6 @@
 ﻿import { inject } from '@adonisjs/core'
 import hash from '@adonisjs/core/services/hash'
-import UserRepository from '#features/authentication/domain/interfaces/user_repository'
+import UserRepository from 'app/features/user/domain/interfaces/user_repository.js'
 import { Exception } from '@adonisjs/core/exceptions'
 import { ChangePinCodeDTO } from '#mobile/profile/dtos/change_pin_code.dto'
 

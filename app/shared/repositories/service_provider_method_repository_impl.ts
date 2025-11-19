@@ -1,4 +1,4 @@
-import ServiceProviderMethod from '#shared/models/service_provider_method'
+﻿import ServiceProviderMethod from '#features/appServices/domain/models/service_provider_method'
 import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import ServiceProviderMethodRepository, {
   ListSpmParams,

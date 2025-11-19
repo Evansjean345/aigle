@@ -1,4 +1,4 @@
-﻿import User from '#features/authentication/domain/models/user'
+﻿import User from 'app/features/user/domain/models/user.js'
 
 export interface PurchaseAirtimeRequestDto {
   serviceType: string

@@ -1,4 +1,4 @@
-import { ProviderType } from '#shared/models/provider'
+﻿import { ProviderType } from '#features/appServices/domain/models/provider'
 
 export interface ProviderResponseDto {
   id: number

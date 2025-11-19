@@ -1,4 +1,4 @@
-import ServiceType from '#shared/models/service_type'
+﻿import ServiceType from '#features/appServices/domain/models/service_type'
 import { ServiceTypeCreateDto, ServiceTypeUpdateDto } from '#admin/services_management/dtos/service_types.dto'
 import { ServiceTypeResponseDto } from '#admin/services_management/dtos/service_types.response.dto'
 

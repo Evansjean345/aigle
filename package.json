@@ -42,6 +42,7 @@
     "#features/device/*": "./app/features/device/*.js",
     "#features/authentication/*": "./app/features/authentication/*.js",
     "#features/wallet/*": "./app/features/wallet/*.js",
+    "#features/users/*": "./app/features/user/*.js",
     "#features/transactions/*": "./app/features/transactions/*.js",
     "#features/operations/*": "./app/features/operations/*.js",
     "#features/fees/*": "./app/features/fees/*.js",
@@ -50,6 +51,7 @@
     "#features/airtime/*": "./app/features/airtime/*.js",
     "#features/webhooks/*": "./app/features/webhooks/*.js",
     "#features/country/*": "./app/features/country/*.js",
+    "#features/appServices/*": "./app/features/appServices/*.js",
     "#mobile/*": "./app/features/mobile/*.js",
     "#admin/*": "./app/features/admin/*.js",
     "#shared/*": "./app/shared/*.js"

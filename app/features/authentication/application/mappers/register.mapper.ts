@@ -1,7 +1,7 @@
-﻿import { RegisterRequestDto } from '#mobile/authentication/dtos/register_request.dto'
-import { RegisterCommand } from '#mobile/authentication/dtos/register.command'
-import { RegisterResult } from '#mobile/authentication/dtos/register.result'
-import User from '#features/authentication/domain/models/user'
+﻿import { RegisterRequestDto } from '#features/authentication/application/dtos/register_request.dto'
+import { RegisterCommand } from '#features/authentication/application/dtos/register.command'
+import { RegisterResult } from '#features/authentication/application/dtos/register.result'
+import User from '#features/users/domain/models/user'
 
 /**
  * Map HTTP request payload (validated) to RegisterCommand

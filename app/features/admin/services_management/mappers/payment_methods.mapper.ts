@@ -1,4 +1,4 @@
-import PaymentMethod from '#shared/models/payment_method'
+﻿import PaymentMethod from '#features/appServices/domain/models/payment_method'
 import { PaymentMethodCreateDto, PaymentMethodUpdateDto } from '#admin/services_management/dtos/payment_methods.dto'
 import { PaymentMethodResponseDto } from '#admin/services_management/dtos/payment_methods.response.dto'
 

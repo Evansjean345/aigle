@@ -1,4 +1,4 @@
-import { HttpContext } from '@adonisjs/core/http'
+﻿import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import {
   createProviderValidator,
@@ -7,7 +7,7 @@ import {
 } from '#admin/services_management/validators/provider_validator'
 import { SimpleMessagesProvider } from '@vinejs/vine'
 import ProvidersUseCase from '#admin/services_management/use_cases/providers.use_case'
-import { ProviderType } from '#shared/models/provider'
+import { ProviderType } from '#features/appServices/domain/models/provider'
 
 @inject()
 export default class ProvidersController {

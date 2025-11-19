@@ -2,7 +2,7 @@
 import { inject } from '@adonisjs/core'
 import { DeviceRequestDTO, DeviceResponseDTO } from '#mobile/device/dto/device.tdo'
 import { toDeviceCommand } from '#mobile/device/mappers/device.mapper'
-import User from '#features/authentication/domain/models/user'
+import User from 'app/features/user/domain/models/user.js'
 
 @inject()
 export default class RegisterDeviceUseCase {

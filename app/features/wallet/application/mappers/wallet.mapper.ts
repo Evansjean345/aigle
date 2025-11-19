@@ -1,8 +1,8 @@
 ﻿import Wallet from '#features/wallet/domain/models/wallet'
-import { WalletCreatedResult } from '#mobile/wallet/dtos/wallet_created_result'
-import { WalletOverviewResult } from '#mobile/wallet/dtos/wallet_overview.result'
+import { WalletCreatedResult } from '#features/wallet/application/dtos/wallet_created_result'
+import { WalletOverviewResult } from '#features/wallet/application/dtos/wallet_overview.result'
 import Transaction from '#features/transactions/domain/models/transaction'
-import { toTransactionResponseDto } from '#mobile/transactions/mapper/transaction.mapper'
+import { toTransactionResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
 
 /**
  * Transforms a Wallet object into a WalletCreatedResult object by extracting specific properties.
