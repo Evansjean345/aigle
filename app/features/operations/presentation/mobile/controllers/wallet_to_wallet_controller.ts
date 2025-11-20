@@ -1,7 +1,7 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import WalletToWalletUseCase from '#mobile/operations/use_cases/wallet_to_wallet.use_case'
-import { walletToWalletValidator } from '#mobile/operations/validators/wallet_to_wallet_validator'
+import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
+import { walletToWalletValidator } from '#features/operations/presentation/mobile/validators/wallet_to_wallet_validator'
 
 /**
  * Controller responsible for handling wallet-to-wallet operations.

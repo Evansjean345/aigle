@@ -2,20 +2,20 @@
   DepositRequestDto,
   DepositResponseDto,
 } from '#features/operations/application/dto/deposit.dto'
-import ServiceType from '#features/services/domain/service_type'
 import { ServiceProviderFeesRepositoryImpl } from '#features/fees/infrastructure/repositories/service_provider_fees_repository_impl'
-import { calculateFeeFromRule } from '#features/fees/domain/services/fee_calculator'
 import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
-import User from 'app/features/user/domain/models/user.js'
+import User from '#features/users/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
 import { TransactionType } from '#features/transactions/domain/models/transaction'
-import { makeRequest } from '#shared/kernel/utils/http_helpers'
+import { makeRequest } from '#shared/utils/http_helpers'
 import env from '#start/env'
-import WalletService from '#mobile/wallet/services/wallet_service'
+import WalletService from '#features/wallet/application/services/wallet_service'
 import config from '@adonisjs/core/services/config'
+import ServiceTypesService from '#features/catalogs/application/services/service_types.service'
+import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
 
 /**
  * Handles the deposit use case, including the calculation of fees based on a given deposit request payload.
@@ -29,12 +29,16 @@ export default class DepositUseCase {
    * @param {TransactionService} transactionService - The service responsible for managing transactions.
    * @param {PaymentService} paymentService - The service responsible for handling payment processes.
    * @param {WalletService} walletService - The service responsible for managing wallet operations.
+   * @param {ServiceTypesService} serviceTypeService - The service responsible for retrieving service types.
+   * @param {FeeCalculatorService} feeCalculatorService - The service responsible for calculating fees based on a given rule and amount.
    */
   constructor(
     private readonly feesRepo: ServiceProviderFeesRepositoryImpl,
     private readonly transactionService: TransactionService,
     private readonly paymentService: PaymentService,
-    private readonly walletService: WalletService
+    private readonly walletService: WalletService,
+    private readonly serviceTypeService: ServiceTypesService,
+    private readonly feeCalculatorService: FeeCalculatorService
   ) {}
 
   /**
@@ -45,7 +49,7 @@ export default class DepositUseCase {
    * @return {Promise<void>} Resolves when the operation is completed successfully, throws an error otherwise.
    */
   async execute(payload: DepositRequestDto, user: User): Promise<DepositResponseDto> {
-    const serviceType = await this.getServiceType(payload.serviceType)
+    const serviceType = await this.serviceTypeService.findByCode(payload.serviceType)
     const wallet = await this.walletService.getByUserId(user.usersUid)
     const { total, fees, amount } = await this.calculateFees(payload, serviceType.id)
 
@@ -136,25 +140,6 @@ export default class DepositUseCase {
   }
 
   /**
-   * Retrieves the service type based on the provided service type code.
-   *
-   * @param {string} serviceTypeCode - The code representing the service type to be retrieved.
-   * @return {Promise<ServiceType>} A promise that resolves to the retrieved service type object.
-   * @throws {Exception} Throws an exception if the service type is not found or invalid.
-   */
-  private async getServiceType(serviceTypeCode: string): Promise<ServiceType> {
-    const serviceType = await ServiceType.query().where('code', serviceTypeCode).first()
-
-    if (!serviceType) {
-      throw new Exception(`Service type inconnu: ${serviceType}`, {
-        status: 400,
-        code: 'INVALID_SERVICE_TYPE',
-      })
-    }
-    return serviceType
-  }
-
-  /**
    * Calculates the fees for a specific deposit request based on the provided service type and payment details.
    *
    * @param {DepositRequestDto} payload - The deposit request object containing details such as amount, payment method ID, and provider ID.
@@ -180,7 +165,7 @@ export default class DepositUseCase {
       })
     }
 
-    const { total, fees, amount } = calculateFeeFromRule(
+    const { total, fees, amount } = this.feeCalculatorService.calculate(
       { amount: Number(payload.amount), operation: 'subtract' },
       rule
     )

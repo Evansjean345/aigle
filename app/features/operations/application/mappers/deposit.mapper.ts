@@ -1,5 +1,5 @@
-import { DepositValidator } from '#mobile/operations/validators/deposit_validator'
-import { DepositRequestDto } from '#mobile/operations/dto/deposit.dto'
+import { DepositValidator } from '#features/operations/presentation/mobile/validators/deposit_validator'
+import { DepositRequestDto } from '#features/operations/application/dto/deposit.dto'
 
 export const toDepositDto = (payload: DepositValidator): DepositRequestDto => ({
   amount: payload.amount,

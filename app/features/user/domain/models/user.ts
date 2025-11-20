@@ -1,15 +1,14 @@
 ﻿import { DateTime } from 'luxon'
 import { compose, cuid } from '@adonisjs/core/helpers'
-import { BaseModel, column, hasOne, hasMany, belongsTo, beforeCreate } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, belongsTo, column, hasMany, hasOne } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import hash from '@adonisjs/core/services/hash'
 import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations'
 import Wallet from '#features/wallet/domain/models/wallet'
-import Document from '#shared/models/document'
 import Country from '#features/country/domain/models/country'
 import Transaction from '#features/transactions/domain/models/transaction'
-import { uniqueID } from '../../helpers/utiles.js'
+import { uniqueID } from '#shared/utils/utiles'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['phone'],
@@ -101,11 +100,11 @@ export default class User extends compose(BaseModel, AuthFinder) {
   })
   declare wallet: HasOne<typeof Wallet>
 
-  @hasOne(() => Document, {
-    foreignKey: 'userId',
-    localKey: 'usersUid',
-  })
-  declare document: HasOne<typeof Document>
+  // @hasOne(() => Document, {
+  //   foreignKey: 'userId',
+  //   localKey: 'usersUid',
+  // })
+  // declare document: HasOne<typeof Document>
 
   @belongsTo(() => Country, {
     foreignKey: 'countryId',

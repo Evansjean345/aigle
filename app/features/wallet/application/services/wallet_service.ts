@@ -1,7 +1,7 @@
 ﻿import WalletRepository from '#features/wallet/domain/interfaces/wallet_repository'
 import { inject } from '@adonisjs/core'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { toWalletCreatedResult } from '#mobile/wallet/mappers/wallet.mapper'
+import { toWalletCreatedResult } from '#features/wallet/application/mappers/wallet.mapper'
 import { WalletCreatedResult } from '#features/wallet/application/dtos/wallet_created_result'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'

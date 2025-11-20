@@ -6,7 +6,7 @@ import { AuthenticatedProfileAndTokenResponseDto } from '#features/authenticatio
 import { toAuthenticatedUserProfileAndTokenResponse } from '#features/authentication/application/mappers/authenticated_user.mapper'
 import { inject } from '@adonisjs/core'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
-import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
+import { concartPhoneNumber } from '#shared/utils/utiles'
 import env from '#start/env'
 
 @inject()

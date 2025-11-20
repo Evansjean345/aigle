@@ -1,5 +1,5 @@
-﻿import ServiceProviderMethod from '#features/appServices/domain/models/service_provider_method'
-import { FeeRule } from '#features/fees/domain/services/fee_types'
+﻿import ServiceProviderMethod from '#features/catalogs/domain/models/service_provider_method'
+import { FeeRule } from '#features/fees/domain/fee_types'
 import ServiceProviderFeesRepository, {
   SpmRuleLookup,
 } from '#features/fees/domain/interfaces/service_provider_fees_repository'

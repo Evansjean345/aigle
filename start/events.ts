@@ -1,21 +1,19 @@
-// import Event from '@ioc:Adonis/Core/Event'
-// import Logger from '@ioc:Adonis/Core/Logger'
-// import Database from '@ioc:Adonis/Lucid/Database'
-// import Application from '@ioc:Adonis/Core/Application'
-
 import emitter from '@adonisjs/core/services/emitter'
-import WalletToWalletTransactionCompleted from '#mobile/operations/events/wallet_to_wallet_transaction_completed'
-import DepositTransactionCompleted from '#mobile/webhooks/events/deposit/deposit_transaction_completed'
-import TransfertTransactionCompleted from '#mobile/webhooks/events/transfert/transfert_transaction_completed'
+import WalletToWalletTransactionCompleted from '#features/operations/application/events/wallet_to_wallet_transaction_completed'
+import DepositTransactionCompleted from '#features/webhooks/application/events/deposit/deposit_transaction_completed'
+import TransfertTransactionCompleted from '#features/webhooks/application/events/transfert/transfert_transaction_completed'
+
 const WalletToWalletTransactionPushNotificationListener = () =>
-  import('#mobile/operations/listeners/wallet_to_wallet_transaction_push_notification_listener')
+  import(
+    '#features/notifications/application/listeners/on_wallet_to_wallet_transaction_notification'
+  )
 
-const DepositSuccessNotification = () =>
-  import('#mobile/webhooks/listeners/deposit_success_notification')
+const OnDepositSuccessNotification = () =>
+  import('#features/notifications/application/listeners/on_deposit_success_notification')
 
-const TransfertSuccessNotification = () =>
-  import('#mobile/webhooks/listeners/transfert_success_notification')
+const OnTransfertSuccessNotification = () =>
+  import('#features/notifications/application/listeners/on_transfert_success_notification')
 
-emitter.on(DepositTransactionCompleted, [DepositSuccessNotification])
-emitter.on(TransfertTransactionCompleted, [TransfertSuccessNotification])
+emitter.on(DepositTransactionCompleted, [OnDepositSuccessNotification])
+emitter.on(TransfertTransactionCompleted, [OnTransfertSuccessNotification])
 emitter.on(WalletToWalletTransactionCompleted, [WalletToWalletTransactionPushNotificationListener])

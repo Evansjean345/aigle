@@ -4,7 +4,7 @@ import UserRepository from '#features/users/domain/interfaces/user_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 import { OtpRequestDto, OtpResponseDto } from '#features/authentication/application/dtos/otp.dto'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
-import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
+import { concartPhoneNumber } from '#shared/utils/utiles'
 
 /**
  * This class is responsible for handling the use case of sending an OTP (One-Time Password) to a user's phone number.

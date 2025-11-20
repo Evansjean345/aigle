@@ -10,7 +10,6 @@ import {
 import RegisterUseCase from '#features/authentication/application/use_cases/register_use_case'
 import LoginUseCase from '#features/authentication/application/use_cases/login_use_case'
 import SendOtpUseCase from '#features/authentication/application/use_cases/send_otp_use_case'
-import ResetPasswordUseCase from '#features/authentication/application/use_cases/reset_password_use_case'
 import CheckPinUseCase from '#features/authentication/application/use_cases/check_pin_use_case'
 import GetUserProfileUseCase from '#features/authentication/application/use_cases/get_user_profile_use_case'
 import LogoutUseCase from '#features/authentication/application/use_cases/logout_use_case'
@@ -31,7 +30,6 @@ export default class AuthController {
    * @param registerUseCase - Use case handling user registration logic.
    * @param verifyAndAuthenticateUseCase - Use case for verifying and authenticating user accounts.
    * @param sendOtpUseCase - Use case for sending OTP for user authentication or verification.
-   * @param resetPasswordUseCase - Use case for handling password reset operations.
    * @param checkPinUseCase - Use case for validating and checking user PIN codes.
    * @param getUserProfileUseCase - Use case to retrieve the profile of authenticated users.
    * @param logoutUseCase - Use case for logging out authenticated users.
@@ -42,7 +40,6 @@ export default class AuthController {
     private registerUseCase: RegisterUseCase,
     private verifyAndAuthenticateUseCase: VerifyAndAuthenticateUserAccountUseCase,
     private sendOtpUseCase: SendOtpUseCase,
-    private resetPasswordUseCase: ResetPasswordUseCase,
     private checkPinUseCase: CheckPinUseCase,
     private getUserProfileUseCase: GetUserProfileUseCase,
     private logoutUseCase: LogoutUseCase,

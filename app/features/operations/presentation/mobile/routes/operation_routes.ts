@@ -1,12 +1,14 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 
-const DepositController = () => import('#mobile/operations/controllers/deposit_controller')
-const TransfertController = () => import('#mobile/operations/controllers/transfert_controller')
+const DepositController = () =>
+  import('#features/operations/presentation/mobile/controllers/deposit_controller')
+const TransfertController = () =>
+  import('#features/operations/presentation/mobile/controllers/transfert_controller')
 const TransfertInterController = () =>
-  import('#mobile/operations/controllers/transfert_inter_controller')
+  import('#features/operations/presentation/mobile/controllers/transfert_inter_controller')
 const WalletToWalletController = () =>
-  import('#mobile/operations/controllers/wallet_to_wallet_controller')
+  import('#features/operations/presentation/mobile/controllers/wallet_to_wallet_controller')
 
 const mobileOperationRoutes = () =>
   router

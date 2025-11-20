@@ -1,22 +1,23 @@
 ﻿import {
   InterTransfertRequestDto,
   InterTransfertResponseDto,
-} from '#mobile/operations/dto/transfert_inter.dto'
-import ServiceType from '#features/appServices/domain/models/service_type'
+} from '#features/operations/application/dto/transfert_inter.dto'
+import ServiceType from '#features/catalogs/domain/models/service_type'
 import { ServiceProviderFeesRepositoryImpl } from '#features/fees/infrastructure/repositories/service_provider_fees_repository_impl'
-import { calculateFeeFromRule } from '#features/fees/domain/services/fee_calculator'
 import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
-import User from 'app/features/user/domain/models/user.js'
+import User from '#features/users/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
 import Transaction, { TransactionType } from '#features/transactions/domain/models/transaction'
-import { makeRequest } from '#shared/kernel/utils/http_helpers'
+import { makeRequest } from '#shared/utils/http_helpers'
 import env from '#start/env'
-import WalletService from '#mobile/wallet/services/wallet_service'
+import WalletService from '#features/wallet/application/services/wallet_service'
 import Payment from '#features/transactions/domain/models/payment'
 import config from '@adonisjs/core/services/config'
+import ServiceTypesService from '#features/catalogs/application/services/service_types.service'
+import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
 
 /**
  * Class responsible for handling inter-transfer operations, including fees calculation,
@@ -31,12 +32,16 @@ export default class InterTransfertUseCase {
    * @param {TransactionService} transactionService - Service for handling transactions.
    * @param {PaymentService} paymentService - Service for managing payment operations.
    * @param {WalletService} walletService - Service for handling wallet functionalities.
+   * @param {ServiceTypesService} serviceTypeService - Service for retrieving service types.
+   * @param {FeeCalculatorService} feeCalculatorService - Service for calculating fees.
    */
   constructor(
     private readonly feesRepo: ServiceProviderFeesRepositoryImpl,
     private readonly transactionService: TransactionService,
     private readonly paymentService: PaymentService,
-    private readonly walletService: WalletService
+    private readonly walletService: WalletService,
+    private readonly serviceTypeService: ServiceTypesService,
+    private readonly feeCalculatorService: FeeCalculatorService
   ) {}
 
   /**
@@ -50,7 +55,7 @@ export default class InterTransfertUseCase {
     this.validateOrangeMoneyRequirements(payload)
 
     const [serviceType, wallet] = await Promise.all([
-      this.getServiceType(payload.serviceType),
+      this.serviceTypeService.findByCode(payload.serviceType),
       this.walletService.getByUserId(user.usersUid),
     ])
 
@@ -299,8 +304,6 @@ export default class InterTransfertUseCase {
       dataSend.error_url = config.get('app.mobileDeviceDeepLink')
     }
 
-    console.log('debugging dataSend')
-    console.log(dataSend)
     return dataSend
   }
 
@@ -324,9 +327,6 @@ export default class InterTransfertUseCase {
       waveUrl = checkoutResponse.data.payment_details.wave_launch_url
     }
 
-    console.log('waveUrl', waveUrl)
-    console.log(providerCode)
-
     return {
       message: 'Initialisation du dépot inter effectuée',
       data: {
@@ -335,26 +335,6 @@ export default class InterTransfertUseCase {
         wave_url: waveUrl,
       },
     }
-  }
-
-  /**
-   * Fetches the service type associated with the provided service type code.
-   *
-   * @param {string} serviceTypeCode - The unique code representing the service type to be retrieved.
-   * @return {Promise<ServiceType>} A promise that resolves to the matched ServiceType object.
-   * @throws {Exception} If the service type associated with the given code is not found.
-   */
-  private async getServiceType(serviceTypeCode: string): Promise<ServiceType> {
-    const serviceType = await ServiceType.query().where('code', serviceTypeCode).first()
-
-    if (!serviceType) {
-      throw new Exception(`Service type inconnu: ${serviceTypeCode}`, {
-        status: 400,
-        code: 'INVALID_SERVICE_TYPE',
-      })
-    }
-
-    return serviceType
   }
 
   /**
@@ -395,7 +375,7 @@ export default class InterTransfertUseCase {
       })
     }
 
-    const { total, fees, amount } = calculateFeeFromRule(
+    const { total, fees, amount } = this.feeCalculatorService.calculate(
       {
         amount: Number(payload.amount),
         operation: 'subtract',

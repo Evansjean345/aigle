@@ -1,6 +1,6 @@
 ﻿import { inject } from '@adonisjs/core'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { UserAlreadyExists } from '#shared/kernel/exceptions/user_already_exists'
+import { UserAlreadyExists } from '#shared/exceptions/user_already_exists'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 import UserRepository from '#features/users/domain/interfaces/user_repository'
@@ -10,7 +10,7 @@ import { RegisterResult } from '#features/authentication/application/dtos/regist
 import LoginCommand from '#features/authentication/application/dtos/login.command'
 import User from '#features/users/domain/models/user'
 import hash from '@adonisjs/core/services/hash'
-import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
+import { concartPhoneNumber } from '#shared/utils/utiles'
 
 /**
  * Service class responsible for handling user authentication and registration processes.

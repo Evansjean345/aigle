@@ -48,7 +48,13 @@ export default class UserRepositoryIml implements UserRepository {
     return user
   }
 
-  // Persist an existing user entity. If trx is provided, use it.
+  /**
+   * Saves a user instance to the database using an optional database transaction.
+   *
+   * @param {User} user - The user instance to be saved.
+   * @param {TransactionClientContract} [trx] - An optional transaction client to use for the operation.
+   * @return {Promise<User>} A promise that resolves with the saved user instance.
+   */
   async save(user: User, trx?: TransactionClientContract): Promise<User> {
     if (trx) {
       await user.useTransaction(trx).save()

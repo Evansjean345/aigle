@@ -9,6 +9,7 @@ export default function mobileTransactionRoutes() {
     .group(() => {
       router.get('/', [MobileTransactionsController, 'list'])
       router.get('/:reference', [MobileTransactionsController, 'details'])
+      router.get('/stream/:reference', [MobileTransactionsController, 'streamTransaction'])
     })
     .prefix('mobile/transactions')
     .use(middleware.auth())

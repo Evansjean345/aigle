@@ -36,6 +36,7 @@ export default defineConfig({
     () => import('@adonisjs/drive/drive_provider'),
     () => import('#providers/repository_provider'),
     () => import('@adonisjs/redis/redis_provider'),
+    () => import('#providers/notification_service_provider')
   ],
 
   /*

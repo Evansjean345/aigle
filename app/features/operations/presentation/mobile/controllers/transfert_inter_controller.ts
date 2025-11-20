@@ -1,8 +1,8 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import InterTransfertUseCase from '#mobile/operations/use_cases/transfert_inter.usecase'
-import { interTransfertValidator } from '#mobile/operations/validators/transfert_inter_validator'
-import { toInterTransfertDto } from '#mobile/operations/mappers/transfert_inter.mapper'
+import InterTransfertUseCase from '#features/operations/application/use_cases/transfert_inter.usecase'
+import { interTransfertValidator } from '#features/operations/presentation/mobile/validators/transfert_inter_validator'
+import { toInterTransfertDto } from '#features/operations/application/mappers/transfert_inter.mapper'
 
 @inject()
 export default class TransfertInterController {
@@ -23,9 +23,6 @@ export default class TransfertInterController {
    * @return {Promise<void>} A promise that resolves when the inter-transfer handling is complete.
    */
   async handle({ request, response, auth }: HttpContext): Promise<void> {
-    console.log('debugging request')
-    console.log(request.all())
-
     const user = auth.user!
     const payload = await request.validateUsing(interTransfertValidator)
     const result = await this.interTransfertUseCase.execute(toInterTransfertDto(payload), user)

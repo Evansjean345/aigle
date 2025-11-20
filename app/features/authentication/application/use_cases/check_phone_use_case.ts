@@ -3,7 +3,7 @@ import AuthentificationService from '#features/authentication/application/servic
 import { Exception } from '@adonisjs/core/exceptions'
 import CheckPhoneResponseDto from '#features/authentication/application/dtos/check_phone.response.dto'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
-import { concartPhoneNumber } from '#shared/kernel/utils/utiles'
+import { concartPhoneNumber } from '#shared/utils/utiles'
 
 /**
  * Use case class to handle the logic for checking the validity of a phone number

@@ -1,10 +1,13 @@
 import { HttpContext } from '@adonisjs/core/http'
-import { transfertValidator } from '#mobile/operations/validators/transfert_validator'
-import TransfertUseCase from '#mobile/operations/use_cases/transfert.usecase'
+import { transfertValidator } from '#features/operations/presentation/mobile/validators/transfert_validator'
+import TransfertUseCase from '#features/operations/application/use_cases/transfert.usecase'
 import { inject } from '@adonisjs/core'
-import { toTransfertDto } from '#mobile/operations/mappers/transfert.mapper'
-import WalletToWalletUseCase from '#mobile/operations/use_cases/wallet_to_wallet.use_case'
+import { toTransfertDto } from '#features/operations/application/mappers/transfert.mapper'
+import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
 
+/**
+ * Controller responsible for handling user transactions.
+ */
 @inject()
 export default class TransfertController {
   /**

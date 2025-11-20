@@ -1,9 +1,9 @@
 import { inject } from '@adonisjs/core'
 import { HttpContext } from '@adonisjs/core/http'
 import { Logger } from '@adonisjs/core/logger'
-import { WebhookRequestDto } from '#mobile/webhooks/dto/webhook_request.dto'
-import HandleTransfertInterFirstWebhookUseCase from '#mobile/webhooks/use_cases/handle_transfert_inter_first_webhook.use_case'
-import HandleTransfertInterSecondWebhookUseCase from '#mobile/webhooks/use_cases/handle_transfert_inter_second_webhook.use_case'
+import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
+import HandleTransfertInterFirstWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_first_webhook.use_case'
+import HandleTransfertInterSecondWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_second_webhook.use_case'
 
 @inject()
 export default class TransfertInterWebhookController {
@@ -13,6 +13,11 @@ export default class TransfertInterWebhookController {
     private readonly logger: Logger
   ) {}
 
+  /**
+   * Handle inter-network first operation success webhook
+   * @param request
+   * @param response
+   */
   async interSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
@@ -42,6 +47,11 @@ export default class TransfertInterWebhookController {
     }
   }
 
+  /**
+   * Handle inter-network first operation failure webhook
+   * @param request
+   * @param response
+   */
   async interFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
@@ -71,6 +81,11 @@ export default class TransfertInterWebhookController {
     }
   }
 
+  /**
+   * Handle inter-network second operation success webhook
+   * @param request
+   * @param response
+   */
   async interSecondSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
@@ -100,6 +115,11 @@ export default class TransfertInterWebhookController {
     }
   }
 
+  /**
+   * Handle inter-network second operation failure webhook
+   * @param request
+   * @param response
+   */
   async interSecondFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 

@@ -56,4 +56,27 @@ export default class MobileTransactionsController {
     const transaction = await this.getUserTransactionDetails.execute(user.usersUid, reference)
     return response.ok(transaction)
   }
+
+  /**
+   * Streams transaction data for a specific user and reference using server-sent events.
+   *
+   * @param {Object} context - The HttpContext object containing the request context.
+   * @param {object} context.response - The HTTP response object used to send data to the client.
+   * @param {object} context.auth - The authentication object containing the authenticated user.
+   * @param {object} context.params - The route parameters.
+   * @param {string} context.params.reference - The reference identifier for the transaction.
+   * @return {Promise<void>} Resolves with the streamed transaction data.
+   */
+  async streamTransaction({ response, auth, params }: HttpContext): Promise<void> {
+    const user = auth.user!
+    const reference = params.reference
+
+    const transaction = await this.getUserTransactionDetails.execute(user.usersUid, reference)
+
+    response.header('Content-Type', 'text/event-stream')
+    response.header('Cache-Control', 'no-cache')
+    response.header('Connection', 'keep-alive')
+
+    return response.send(`data: ${JSON.stringify(transaction)}\r\n\r\n`)
+  }
 }

@@ -1,5 +1,5 @@
-import { TransfertValidator } from '#mobile/operations/validators/transfert_validator'
-import { TransfertRequestDto } from '#mobile/operations/dto/transfert.dto'
+import { TransfertValidator } from '#features/operations/presentation/mobile/validators/transfert_validator'
+import { TransfertRequestDto } from '#features/operations/application/dto/transfert.dto'
 
 /**
  * Converts a `TransfertValidator` payload object into a `TransfertRequestDto`.

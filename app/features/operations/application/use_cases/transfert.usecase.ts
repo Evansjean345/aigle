@@ -1,17 +1,21 @@
-﻿import { TransfertRequestDto, TransfertResponseDto } from '#mobile/operations/dto/transfert.dto'
-import ServiceType from '#features/appServices/domain/models/service_type'
+﻿import {
+  TransfertRequestDto,
+  TransfertResponseDto,
+} from '#features/operations/application/dto/transfert.dto'
 import { ServiceProviderFeesRepositoryImpl } from '#features/fees/infrastructure/repositories/service_provider_fees_repository_impl'
-import { calculateFeeFromRule } from '#features/fees/domain/services/fee_calculator'
+
 import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
-import User from 'app/features/user/domain/models/user.js'
+import User from '#features/users/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
 import { TransactionType } from '#features/transactions/domain/models/transaction'
-import { makeRequest } from '#shared/kernel/utils/http_helpers'
+import { makeRequest } from '#shared/utils/http_helpers'
 import env from '#start/env'
-import WalletService from '#mobile/wallet/services/wallet_service'
+import WalletService from '#features/wallet/application/services/wallet_service'
+import ServiceTypesService from '#features/catalogs/application/services/service_types.service'
+import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
 
 /**
  * Represents a use case for handling transfer operations.
@@ -25,12 +29,16 @@ export default class TransfertUseCase {
    * @param {TransactionService} transactionService - The service for managing transactions.
    * @param {PaymentService} paymentService - The service for handling payments.
    * @param {WalletService} walletService - The service for managing wallet operations.
+   * @param {ServiceTypesService} serviceTypeService - The service for retrieving service types.
+   * @param {FeeCalculatorService} feeCalculatorService - The service for calculating fees based on a given rule and amount.
    */
   constructor(
     private readonly feesRepo: ServiceProviderFeesRepositoryImpl,
     private readonly transactionService: TransactionService,
     private readonly paymentService: PaymentService,
-    private readonly walletService: WalletService
+    private readonly walletService: WalletService,
+    private readonly serviceTypeService: ServiceTypesService,
+    private readonly feeCalculatorService: FeeCalculatorService
   ) {}
 
   /**
@@ -44,7 +52,7 @@ export default class TransfertUseCase {
    * @throws {Exception} Throws an error if wallet balance is insufficient, wallet adjustment fails, or any other error occurs during the operation.
    */
   async execute(payload: TransfertRequestDto, user: User): Promise<TransfertResponseDto> {
-    const serviceType = await this.getServiceType(payload.serviceType)
+    const serviceType = await this.serviceTypeService.findByCode(payload.serviceType)
     const wallet = await this.walletService.getByUserId(user.usersUid)
     const { total, fees, amount } = await this.calculateFees(payload, serviceType.id)
 
@@ -133,26 +141,6 @@ export default class TransfertUseCase {
   }
 
   /**
-   * Retrieves a service type based on the provided service type code.
-   *
-   * @param {string} serviceTypeCode - The unique code representing the service type.
-   * @return {Promise<ServiceType>} A promise that resolves to the service type object.
-   * @throws {Exception} If the service type is not found, an exception is thrown with an appropriate status and code.
-   */
-  private async getServiceType(serviceTypeCode: string): Promise<ServiceType> {
-    const serviceType = await ServiceType.query().where('code', serviceTypeCode).first()
-
-    if (!serviceType) {
-      throw new Exception(`Service type inconnu: ${serviceType}`, {
-        status: 400,
-        code: 'INVALID_SERVICE_TYPE',
-      })
-    }
-
-    return serviceType
-  }
-
-  /**
    * Calculates the fees, total amount, and net amount based on the provided payload and service type.
    *
    * @param {TransfertRequestDto} payload - The payload containing details of the transfer request, including payment method, provider ID, and amount.
@@ -177,7 +165,7 @@ export default class TransfertUseCase {
       })
     }
 
-    const { total, fees, amount } = calculateFeeFromRule(
+    const { total, fees, amount } = this.feeCalculatorService.calculate(
       {
         amount: Number(payload.amount),
         operation: 'subtract',

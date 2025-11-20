@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
-import HandleDepositWebhookUseCase from '#mobile/webhooks/use_cases/handle_deposit_webhook.use_case'
+import HandleDepositWebhookUseCase from '#features/webhooks/application/use_cases/handle_deposit_webhook.use_case'
 import { HttpContext } from '@adonisjs/core/http'
-import { WebhookRequestDto } from '#mobile/webhooks/dto/webhook_request.dto'
+import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { Logger } from '@adonisjs/core/logger'
 
 /**

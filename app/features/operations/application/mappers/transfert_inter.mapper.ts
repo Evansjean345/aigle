@@ -1,5 +1,5 @@
-import { InterTransfertRequestDto } from '#mobile/operations/dto/transfert_inter.dto'
-import { InterTransfertValidator } from '#mobile/operations/validators/transfert_inter_validator'
+import { InterTransfertRequestDto } from '#features/operations/application/dto/transfert_inter.dto'
+import { InterTransfertValidator } from '#features/operations/presentation/mobile/validators/transfert_inter_validator'
 
 export const toInterTransfertDto = (
   payload: InterTransfertValidator
