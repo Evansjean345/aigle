@@ -25,8 +25,23 @@ export default await Env.create(new URL('../', import.meta.url), {
   JWT_SECRET: Env.schema.string(),
   JWT_ALG: Env.schema.string(),
 
+  CLOUDINARY_CLOUD_NAME: Env.schema.string(),
+  CLOUDINARY_API_KEY: Env.schema.string(),
+  CLOUDINARY_API_SECRET: Env.schema.string(),
+
   APPLE_BYPASS_ENABLED: Env.schema.boolean(),
   APPLE_REVIEW_PHONE: Env.schema.string.optional(),
 
   MOBILE_DEVICE_DEEP_LINK_URL: Env.schema.string(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring the drive package
+  |----------------------------------------------------------
+  */
+  DRIVE_DISK: Env.schema.enum(['fs', 's3'] as const),
+  AWS_ACCESS_KEY_ID: Env.schema.string(),
+  AWS_SECRET_ACCESS_KEY: Env.schema.string(),
+  AWS_REGION: Env.schema.string(),
+  S3_BUCKET: Env.schema.string()
 })

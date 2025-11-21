@@ -1,4 +1,8 @@
-alter table service_provider_methods
-    add min_amount int null;
-alter table service_provider_methods
-    add apply_feeds tinyint null default 1;
+ALTER TABLE `kyc_documents`
+	CHANGE COLUMN `document_type` `document_type` ENUM('CNI','PASSPORT','PERMIT_CONDUIT','SELFIE') NULL DEFAULT NULL COLLATE 'utf8mb4_uca1400_ai_ci' AFTER `user_id`;
+
+ALTER TABLE `kyc_documents`
+	CHANGE COLUMN `status` `status` ENUM('pending','approved','rejected','in_submission') NULL DEFAULT NULL COLLATE 'utf8mb4_uca1400_ai_ci' AFTER `selfie_url`;
+
+ALTER TABLE `kyc_documents`
+	CHANGE COLUMN `document_type` `document_type` ENUM('CNI','PASSPORT','PERMIT_CONDUIT') NULL DEFAULT NULL COLLATE 'utf8mb4_uca1400_ai_ci' AFTER `user_id`;

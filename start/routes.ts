@@ -11,6 +11,7 @@ import userAccountMobileRoutes from '#features/users/presentation/mobile/routes/
 import mobileQrRoutes from '#features/qr/presentation/mobile/routes/qr_routes'
 
 import adminServicesManagementRoutes from '#features/catalogs/presentation/admin/routes/services_management_routes'
+import mobileKycRoutes from '#features/kyc/presentation/mobile/routes/kyc_routes'
 
 router
   .group(() => {
@@ -23,6 +24,7 @@ router
     router.group(mobileDeviceRoutes)
     router.group(userAccountMobileRoutes)
     router.group(mobileQrRoutes)
+    router.group(mobileKycRoutes)
 
     router.group(adminServicesManagementRoutes)
   })

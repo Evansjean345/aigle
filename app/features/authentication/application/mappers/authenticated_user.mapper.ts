@@ -18,10 +18,11 @@ export const toAuthenticatedUserProfileResponse = (
   lastname: user.lastname,
   phone: user.phone,
   accountNumber: user.accountNumber,
-  identityStatus: user.identityStatus,
   accountType: user.accountType,
-  picture_url: user.pictureUrl,
+  pictureUrl: user.pictureUrl,
   status: user.status,
+  kycStatus: user.kycStatus,
+  kycLevel: user.kycLevel,
   country: {
     id: user.country.id,
     name: user.country.name,

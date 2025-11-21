@@ -1,13 +1,16 @@
+import { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
+
 export interface AuthenticatedProfileResponseDto {
   accountNumber: string
   id: string
   firstname: string
   lastname: string
-  identityStatus: 'pending' | 'approved' | 'rejected'
   phone: string
   accountType: string
-  picture_url: string | null
+  pictureUrl: string | null
   status: 'active' | 'inactive' | 'pending' | 'suspended'
+  kycLevel: KycLevelState
+  kycStatus: 'pending' | 'approved' | 'rejected'
   country: Country
 }
 

@@ -9,6 +9,8 @@ import Wallet from '#features/wallet/domain/models/wallet'
 import Country from '#features/country/domain/models/country'
 import Transaction from '#features/transactions/domain/models/transaction'
 import { uniqueID } from '#shared/utils/utiles'
+import KycLevel from '#features/kyc/domain/models/kyc_level'
+import { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['phone'],
@@ -62,6 +64,12 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare pincode: string
 
   @column()
+  declare kycLevel: KycLevelState
+
+  @column()
+  declare kycStatus: 'pending' | 'approved' | 'rejected'
+
+  @column()
   declare identityStatus: 'pending' | 'approved' | 'rejected'
 
   @column.dateTime({ autoCreate: true })
@@ -100,14 +108,14 @@ export default class User extends compose(BaseModel, AuthFinder) {
   })
   declare wallet: HasOne<typeof Wallet>
 
-  // @hasOne(() => Document, {
-  //   foreignKey: 'userId',
-  //   localKey: 'usersUid',
-  // })
-  // declare document: HasOne<typeof Document>
-
   @belongsTo(() => Country, {
     foreignKey: 'countryId',
   })
   declare country: BelongsTo<typeof Country>
+
+  @belongsTo(() => KycLevel, {
+    foreignKey: 'kycLevel',
+    localKey: 'level',
+  })
+  declare keyLevel: BelongsTo<typeof KycLevel>
 }

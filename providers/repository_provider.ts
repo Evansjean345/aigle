@@ -27,6 +27,8 @@ import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_
 import ServiceTypeRepositoryImpl from '#features/catalogs/infrastructure/repositories/service_type_repository_impl'
 import ProviderRepository from '#features/catalogs/domain/interfaces/provider_repository'
 import ProviderRepositoryImpl from '#features/catalogs/infrastructure/repositories/provider_repository_impl'
+import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
+import KycDocumentRepositoryImpl from '#features/kyc/infrastructures/repositories/kyc_document_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -47,6 +49,7 @@ export default class RepositoryProvider {
       [TransactionRepository, TransactionRepositoryImpl],
       [PaymentRepository, PaymentRepositoryImpl],
       [DeviceRepository, DeviceRepositoryImpl],
+      [KycDocumentRepository, KycDocumentRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {
