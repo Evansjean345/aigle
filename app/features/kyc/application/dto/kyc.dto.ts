@@ -4,10 +4,7 @@ export interface KycDocumentRequestDto {
   documentType: KycDocumentType
   documentRectoUrl: any
   documentVersoUrl: any
-}
-
-export interface KycSelfiRequestDto {
-  selfiUrl: any
+  documentsSelfieUrl: any
 }
 
 export interface KycDocumentResponseDto {

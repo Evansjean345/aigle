@@ -1,5 +1,5 @@
-﻿import User from 'app/features/user/domain/models/user.js'
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+﻿import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import User from '#features/user/domain/models/user'
 
 /**
  * Abstract class representing a repository for managing User entities.

@@ -8,6 +8,7 @@ import FileStorageService from '#shared/infrastructure/file_storage_service'
 import { KycDocumentNextAction, KycDocumentStatus } from '#features/kyc/domain/enum/kyc_enum'
 import { Exception } from '@adonisjs/core/exceptions'
 import KycDocument from '#features/kyc/domain/models/kyc_document'
+import KycDocumentSubmitted from '#features/kyc/application/events/kyc_document_submitted'
 
 /**
  *
@@ -27,11 +28,12 @@ export default class SubmitKycDocumentUsecase {
   ) {}
 
   /**
-   * Submit KYC documents for a user
+   * Submits KYC (Know Your Customer) documents for a given user.
    *
-   * @param userId
-   * @param kycDocument
-   * @returns {Promise<KycDocumentResponseDto>}
+   * @param {string} userId - The unique identifier of the user submitting KYC documents.
+   * @param {KycDocumentRequestDto} kycDocument - The details of the KYC document including URLs for document images and type.
+   * @return {Promise<KycDocumentResponseDto>} A promise resolving to a response object that contains the submission status and next action.
+   * @throws {Exception} If the user has already submitted KYC documents in an approved or pending state.
    */
   async execute(
     userId: string,
@@ -49,9 +51,10 @@ export default class SubmitKycDocumentUsecase {
       })
     }
 
-    const { rectoUrl, versoUrl } = await this.uploadDocumentFiles(
+    const { rectoUrl, versoUrl, selfiUrl } = await this.uploadDocumentFiles(
       kycDocument.documentRectoUrl,
       kycDocument.documentVersoUrl,
+      kycDocument.documentsSelfieUrl,
       userId
     )
 
@@ -59,22 +62,24 @@ export default class SubmitKycDocumentUsecase {
       existingKyc.documentType = kycDocument.documentType
       existingKyc.documentRectoUrl = rectoUrl
       existingKyc.documentVersoUrl = versoUrl
-      existingKyc.nextAction = KycDocumentNextAction.SELFIE
-      existingKyc.status = KycDocumentStatus.IN_SUBMISSION
+      existingKyc.selfieUrl = selfiUrl
+      existingKyc.status = KycDocumentStatus.PENDING
 
       await this.kycDocumentRepository.saveKycDocument(existingKyc)
     } else {
       const newKycDocument = new KycDocument()
 
       newKycDocument.userId = userId
-      newKycDocument.nextAction = KycDocumentNextAction.SELFIE
       newKycDocument.documentType = kycDocument.documentType
       newKycDocument.documentRectoUrl = rectoUrl
       newKycDocument.documentVersoUrl = versoUrl
-      newKycDocument.status = KycDocumentStatus.IN_SUBMISSION
+      newKycDocument.selfieUrl = selfiUrl
+      newKycDocument.status = KycDocumentStatus.PENDING
 
       await this.kycDocumentRepository.saveKycDocument(newKycDocument)
     }
+
+    await KycDocumentSubmitted.dispatch(userId, KycDocumentStatus.PENDING)
 
     return {
       message: 'kyc documents submitted successfully',
@@ -83,29 +88,33 @@ export default class SubmitKycDocumentUsecase {
   }
 
   /**
-   * Uploads document files (recto and verso) to the file storage service for the specified user.
+   * Uploads the provided document files (front side, back side, and selfie) to the file storage service specific to the user's ID.
    *
-   * @param recto The front side of the document to be uploaded.
-   * @param verso The back side of the document to be uploaded.
-   * @param userId The unique identifier of the user to associate the uploaded files with.
-   * @return A Promise that resolves to an object containing the URLs of the uploaded recto and verso files.
+   * @param {any} recto - The file representing the front side of the ID document.
+   * @param {any} verso - The file representing the back side of the ID document.
+   * @param {any} selfie - The file representing the user's selfie image.
+   * @param {string} userId - The unique identifier of the user for whom the files are being uploaded.
+   * @return {Promise<{rectoUrl: string, versoUrl: string}>} A promise that resolves to an object containing the URLs of the uploaded recto (front side) and verso (back side) files.
+   * @throws {Exception} If any of the required files (recto, verso, or selfie) are missing.
    */
   private async uploadDocumentFiles(
     recto: any,
     verso: any,
+    selfie: any,
     userId: string
-  ): Promise<{ rectoUrl: string; versoUrl: string }> {
-    if (!recto || !verso) {
-      throw new Exception('Please upload both front and back of your ID', {
+  ): Promise<{ rectoUrl: string; versoUrl: string; selfiUrl: string }> {
+    if (!recto || !verso || !selfie) {
+      throw new Exception('Please upload both front and back and selfi of your ID', {
         status: 400,
         code: 'MISSING_KYC_DOCUMENTS',
       })
     }
 
-    const [rectoUrl, versoUrl] = await Promise.all([
+    const [rectoUrl, versoUrl, selfiUrl] = await Promise.all([
       this.fileStorageService.uploadFile(recto, `kyc_documents/${userId}`),
       this.fileStorageService.uploadFile(verso, `kyc_documents/${userId}`),
+      this.fileStorageService.uploadFile(selfie, `kyc_selfies/${userId}`),
     ])
-    return { rectoUrl, versoUrl }
+    return { rectoUrl, versoUrl, selfiUrl }
   }
 }

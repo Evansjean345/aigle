@@ -89,4 +89,13 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       .orderBy('createdAt', 'desc')
       .limit(limit)
   }
+
+  /**
+   * Fetches all transactions with their associated user and payment details.
+   *
+   * @return {Promise<ModelPaginatorContract<Transaction>>} A promise that resolves to an array of Transaction objects with preloaded relations.
+   */
+  async all(page = 1, perPage = 50): Promise<ModelPaginatorContract<Transaction>> {
+    return Transaction.query().preload('user').preload('payment').paginate(page, perPage)
+  }
 }

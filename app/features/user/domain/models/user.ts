@@ -11,6 +11,7 @@ import Transaction from '#features/transactions/domain/models/transaction'
 import { uniqueID } from '#shared/utils/utiles'
 import KycLevel from '#features/kyc/domain/models/kyc_level'
 import { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
+import { UserKycStatus, UserStatus } from '#features/user/domain/enum'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['phone'],
@@ -46,7 +47,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare birthday: Date
 
   @column()
-  declare status: 'active' | 'inactive' | 'suspended'
+  declare status: UserStatus
 
   @column({ serializeAs: null })
   declare adresse: string | null
@@ -60,14 +61,16 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column({ serializeAs: null })
   declare password: string
 
-  @column()
+  @column({
+    serializeAs: null,
+  })
   declare pincode: string
 
   @column()
   declare kycLevel: KycLevelState
 
   @column()
-  declare kycStatus: 'pending' | 'approved' | 'rejected'
+  declare kycStatus: UserKycStatus
 
   @column()
   declare identityStatus: 'pending' | 'approved' | 'rejected'

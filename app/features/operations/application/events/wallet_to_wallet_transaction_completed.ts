@@ -13,8 +13,6 @@ export default class WalletToWalletTransactionCompleted extends BaseEvent {
       senderPhone: string
     }
   ) {
-    console.log('event listener started')
-    console.log(payload)
     super()
   }
 }

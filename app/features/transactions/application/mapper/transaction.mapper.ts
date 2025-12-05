@@ -1,23 +1,24 @@
 ﻿import Transaction from '#features/transactions/domain/models/transaction'
 import {
-  PaginatedTransactionsResponseDTO,
-  TransactionResponseDTO,
-} from '#features/transactions/application/dto/transaction.dto'
+  MobileTransactionResponseDTO,
+  PaginatedMobileTransactionsResponseDTO,
+} from '#features/transactions/application/dto/mobile_transaction.dto'
+import {
+  AdminTransactionResponseDTO,
+  PaginatedAdminTransactionsResponseDTO,
+} from '#features/transactions/application/dto/admin_transaction.dto'
 import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import Payment from '#features/transactions/domain/models/payment'
 import { PaymentResponseDTO } from '#features/transactions/application/dto/payment.dto'
 
 /**
- * Converts a paginated list of transaction models into a paginated TransactionResponseDTO.
- *
- * @param {ModelPaginatorContract<Transaction>} paginatedTransactions - The paginated transaction data.
- * @returns {TransactionResponseDTO} The converted paginated transaction response DTO.
+ * Converts a paginated list of transaction models into a paginated MobileTransactionResponseDTO.
  */
-export const toPaginatedTransactionsResponseDto = async (
+export const toPaginatedMobileTransactionsResponseDto = async (
   paginatedTransactions: ModelPaginatorContract<Transaction>
-): Promise<PaginatedTransactionsResponseDTO> => {
+): Promise<PaginatedMobileTransactionsResponseDTO> => {
   const items = paginatedTransactions.all()
-  const transactions: TransactionResponseDTO[] = items.map(toTransactionResponseDto)
+  const transactions: MobileTransactionResponseDTO[] = items.map(toMobileTransactionResponseDto)
 
   return {
     data: transactions,
@@ -31,17 +32,14 @@ export const toPaginatedTransactionsResponseDto = async (
 }
 
 /**
- * Converts a Transaction object into a TransactionResponseDto object.
- *
- * @param {Transaction} transaction - The transaction object to be converted.
- * @returns {Object} A DTO representation of the transaction containing
- * properties such as fees, operation type, total amount, reference, amount,
- * status, date of transaction, and payment details.
+ * Converts a Transaction object into a MobileTransactionResponseDTO object.
  */
-export const toTransactionResponseDto = (transaction: Transaction): TransactionResponseDTO => {
+export const toMobileTransactionResponseDto = (
+  transaction: Transaction
+): MobileTransactionResponseDTO => {
   let paymentResponse: PaymentResponseDTO[] = []
 
-  if (transaction.payment.length > 0) {
+  if (transaction.payment && transaction.payment.length > 0) {
     paymentResponse = transaction.payment.map(toTransactionPayment)
   }
 
@@ -61,10 +59,63 @@ export const toTransactionResponseDto = (transaction: Transaction): TransactionR
 }
 
 /**
+ * Converts a paginated list of transaction models into a paginated AdminTransactionResponseDTO.
+ */
+export const toPaginatedAdminTransactionsResponseDto = async (
+  paginatedTransactions: ModelPaginatorContract<Transaction>
+): Promise<PaginatedAdminTransactionsResponseDTO> => {
+  const items = paginatedTransactions.all()
+  const transactions: AdminTransactionResponseDTO[] = items.map(toAdminTransactionResponseDto)
+
+  return {
+    data: transactions,
+    meta: {
+      total: paginatedTransactions.total,
+      currentPage: paginatedTransactions.currentPage,
+      firstPage: paginatedTransactions.firstPage,
+      lastPage: paginatedTransactions.lastPage,
+    },
+  }
+}
+
+/**
+ * Converts a Transaction object into a AdminTransactionResponseDTO object.
+ */
+export const toAdminTransactionResponseDto = (
+  transaction: Transaction
+): AdminTransactionResponseDTO => {
+  let paymentResponse: PaymentResponseDTO[] = []
+
+  if (transaction.payment && transaction.payment.length > 0) {
+    paymentResponse = transaction.payment.map(toTransactionPayment)
+  }
+
+  return {
+    id: transaction.id,
+    transactionUid: transaction.transactionsUid,
+    reference: transaction.reference,
+    amount: transaction.amount,
+    fees: transaction.fees,
+    totalAmount: transaction.totalAmount,
+    balanceBefore: transaction.balanceBefore || 0,
+    balanceAfter: transaction.balanceAfter || 0,
+    operationType: transaction.operationType,
+    direction: transaction.direction,
+    status: transaction.status,
+    description: transaction.description,
+    createdAt: transaction.createdAt,
+    updatedAt: transaction.updatedAt,
+    payment: paymentResponse,
+    user: {
+      id: transaction.user.usersUid,
+      firstname: transaction.user.firstname,
+      lastname: transaction.user.lastname,
+    },
+  }
+}
+
+/**
  * Converts a given `Payment` object to a `PaymentResponseDTO` object.
- *
- * @param {Payment} payment - The payment object containing information about the payment method, operation type, and payment details.
- * @returns {PaymentResponseDTO} The structured response object containing key details from the payment.
  */
 export const toTransactionPayment = (payment: Payment): PaymentResponseDTO => ({
   paymentMethod: payment.paymentMethod,

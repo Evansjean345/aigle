@@ -1,8 +1,8 @@
-﻿import { DateTime } from 'luxon'
+import { DateTime } from 'luxon'
 import { TransactionDirection } from '#features/transactions/domain/models/transaction'
 import { PaymentResponseDTO } from '#features/transactions/application/dto/payment.dto'
 
-export interface TransactionResponseDTO {
+export interface MobileTransactionResponseDTO {
   transactionId: string
   reference: string
   amount: number
@@ -12,7 +12,7 @@ export interface TransactionResponseDTO {
   status: string
   balanceAfter: number
   direction: TransactionDirection
-  dateTransaction: DateTime<boolean>
+  dateTransaction: DateTime
   payment: PaymentResponseDTO[]
 }
 
@@ -23,7 +23,7 @@ export interface Meta {
   firstPage: number
 }
 
-export interface PaginatedTransactionsResponseDTO {
-  data: TransactionResponseDTO[]
+export interface PaginatedMobileTransactionsResponseDTO {
+  data: MobileTransactionResponseDTO[]
   meta: Meta
 }

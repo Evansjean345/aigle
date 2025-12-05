@@ -2,13 +2,10 @@ import { HttpContext } from '@adonisjs/core/http'
 import {
   errorMessages,
   kycDocumentValidator,
-  kycSelfiValidator,
-  selfiErrorMessages,
 } from '#features/kyc/presentation/mobile/validators/kyc_document_validator'
 import { SimpleMessagesProvider } from '@vinejs/vine'
 import SubmitKycDocumentUsecase from '#features/kyc/application/usecases/submit_kyc_document.usecase'
 import { inject } from '@adonisjs/core'
-import SubmitKycSelfiUsecase from '#features/kyc/application/usecases/submit_kyc_selfi.usecase'
 
 /**
  * Controller class for handling KYC submission operations.
@@ -18,20 +15,19 @@ export default class KycSubmitionController {
   /**
    *
    * @param submitKycDocumentsUseCase
-   * @param submitKycSelfiUsecase
    */
-  constructor(
-    private readonly submitKycDocumentsUseCase: SubmitKycDocumentUsecase,
-    private readonly submitKycSelfiUsecase: SubmitKycSelfiUsecase
-  ) {}
+  constructor(private readonly submitKycDocumentsUseCase: SubmitKycDocumentUsecase) {}
 
   /**
-   * Submits KYC documents for a user.
-   * @param request
-   * @param response
-   * @param auth
+   * Submits KYC (Know Your Customer) documents for verification.
+   *
+   * @param {object} HttpContext - The HTTP context of the request.
+   * @param {object} HttpContext.request - The HTTP request object containing user input and data.
+   * @param {object} HttpContext.response - The HTTP response object used to send back a response.
+   * @param {object} HttpContext.auth - The authentication object to verify user login status.
+   * @return {Promise<void>} A Promise that resolves to the created KYC document response.
    */
-  async submitKycDocuments({ request, response, auth }: HttpContext) {
+  async submitKycDocuments({ request, response, auth }: HttpContext): Promise<void> {
     if (!(await auth.check())) return response.unauthorized()
 
     const payload = await request.validateUsing(kycDocumentValidator, {
@@ -42,29 +38,9 @@ export default class KycSubmitionController {
       documentRectoUrl: payload.document_recto,
       documentVersoUrl: payload.document_verso,
       documentType: payload.document_type,
+      documentsSelfieUrl: payload.selfie_image,
     })
 
     return response.created(kycDocumentResponse)
-  }
-
-  /**
-   * Submits a selfie image for KYC verification.
-   * @param request
-   * @param response
-   * @param auth
-   * @returns {Promise<void>}
-   */
-  async submitKycSelfie({ request, response, auth }: HttpContext): Promise<void> {
-    if (!(await auth.check())) return response.unauthorized()
-    const payload = await request.validateUsing(kycSelfiValidator, {
-      messagesProvider: new SimpleMessagesProvider(selfiErrorMessages),
-    })
-
-    const kycSelfieResponse = await this.submitKycSelfiUsecase.execute(
-      auth.user!!.usersUid,
-      payload.selfie_image
-    )
-
-    response.created(kycSelfieResponse)
   }
 }

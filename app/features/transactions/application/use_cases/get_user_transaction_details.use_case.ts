@@ -1,7 +1,7 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
-import { toTransactionResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
-import { TransactionResponseDTO } from '#features/transactions/application/dto/transaction.dto'
+import { toMobileTransactionResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
+import { MobileTransactionResponseDTO } from '#features/transactions/application/dto/mobile_transaction.dto'
 import { Exception } from '@adonisjs/core/exceptions'
 
 /**
@@ -21,9 +21,9 @@ export default class GetUserTransactionDetailsUseCase {
    *
    * @param {string} userId - The unique identifier of the user whose transactions are to be retrieved.
    * @param {string} transactionRef - The reference of the transaction to be queried.
-   * @return {Promise<TransactionResponseDTO>} A promise resolving to a DTO containing the paginated transactions matching the criteria.
+   * @return {Promise<MobileTransactionResponseDTO>} A promise resolving to a DTO containing the paginated transactions matching the criteria.
    */
-  async execute(userId: string, transactionRef: string): Promise<TransactionResponseDTO> {
+  async execute(userId: string, transactionRef: string): Promise<MobileTransactionResponseDTO> {
     const transaction = await this.transactionRepository.findByReferenceAndUserId(
       transactionRef,
       userId
@@ -36,6 +36,6 @@ export default class GetUserTransactionDetailsUseCase {
       })
     }
 
-    return toTransactionResponseDto(transaction)
+    return toMobileTransactionResponseDto(transaction)
   }
 }

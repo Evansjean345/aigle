@@ -1,7 +1,7 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
-import { toPaginatedTransactionsResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
-import { PaginatedTransactionsResponseDTO } from '#features/transactions/application/dto/transaction.dto'
+import { toPaginatedMobileTransactionsResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
+import { PaginatedMobileTransactionsResponseDTO } from '#features/transactions/application/dto/mobile_transaction.dto'
 
 /**
  * Use case for retrieving a paginated list of transactions for a specific user.
@@ -20,14 +20,14 @@ export default class GetUserTransactionsUseCase {
    *
    * @param {string} userId - The unique identifier of the user whose transactions are being retrieved.
    * @param {number} page - The page number for the transactions to retrieve, used for pagination.
-   * @return {Promise<Transaction[]>} A promise that resolves with an array of transactions for the specified user and page.
+   * @return {Promise<PaginatedMobileTransactionsResponseDTO>} A promise that resolves with an array of transactions for the specified user and page.
    */
-  async execute(userId: string, page: number): Promise<PaginatedTransactionsResponseDTO> {
+  async execute(userId: string, page: number): Promise<PaginatedMobileTransactionsResponseDTO> {
     const paginatedTransactionsQuery = await this.transactionRepository.getAllByUserId(
       userId,
       page,
       16
     )
-    return toPaginatedTransactionsResponseDto(paginatedTransactionsQuery)
+    return toPaginatedMobileTransactionsResponseDto(paginatedTransactionsQuery)
   }
 }

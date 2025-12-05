@@ -8,15 +8,13 @@ export const kycDocumentValidator = vine.compile(
       extnames: ['png', 'jpg', 'jpeg'],
       size: '5mb',
     }),
-    document_verso: vine.file({
-      extnames: ['png', 'jpg', 'jpeg'],
-      size: '5mb',
-    }),
-  })
-)
-
-export const kycSelfiValidator = vine.compile(
-  vine.object({
+    document_verso: vine
+      .file({
+        extnames: ['png', 'jpg', 'jpeg'],
+        size: '5mb',
+      })
+      .optional()
+      .requiredWhen('document_type', 'in', ['CNI', 'PERMIT_CONDUIT']),
     selfie_image: vine.file({
       extnames: ['png', 'jpg', 'jpeg'],
       size: '10mb',
@@ -32,9 +30,6 @@ export const errorMessages = {
   'document_recto.file.extname': 'Le fichier doit être au format JPG, PNG ou JPEG',
   'document_verso.file.size': 'Le fichier ne doit pas dépasser 5 Mo',
   'document_verso.file.extname': 'Le fichier doit être au format JPG, PNG ou JPEG',
-}
-
-export const selfiErrorMessages = {
   'selfie_image.required': 'La photo selfie est obligatoire',
   'selfie_image.file.size': 'Le fichier ne doit pas dépasser 10 Mo',
   'selfie_image.file.extname': 'Le fichier doit être au format JPG, PNG ou JPEG',

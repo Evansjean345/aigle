@@ -2,6 +2,7 @@ import emitter from '@adonisjs/core/services/emitter'
 import WalletToWalletTransactionCompleted from '#features/operations/application/events/wallet_to_wallet_transaction_completed'
 import DepositTransactionCompleted from '#features/webhooks/application/events/deposit/deposit_transaction_completed'
 import TransfertTransactionCompleted from '#features/webhooks/application/events/transfert/transfert_transaction_completed'
+import KycDocumentSubmitted from '#features/kyc/application/events/kyc_document_submitted'
 
 const WalletToWalletTransactionPushNotificationListener = () =>
   import(
@@ -14,6 +15,10 @@ const OnDepositSuccessNotification = () =>
 const OnTransfertSuccessNotification = () =>
   import('#features/notifications/application/listeners/on_transfert_success_notification')
 
+const OnUserKycStatusUpdate = () =>
+  import('#features/user/application/listeners/on_user_kyc_status_update')
+
 emitter.on(DepositTransactionCompleted, [OnDepositSuccessNotification])
 emitter.on(TransfertTransactionCompleted, [OnTransfertSuccessNotification])
 emitter.on(WalletToWalletTransactionCompleted, [WalletToWalletTransactionPushNotificationListener])
+emitter.on(KycDocumentSubmitted, [OnUserKycStatusUpdate])

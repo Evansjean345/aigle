@@ -1,0 +1,2 @@
+alter table users
+    modify kyc_status enum ('NOT_STARTED', 'PENDING_IN_REVIEW', 'VERIFIED', 'REJECTED') default 'NOT_STARTED' null;

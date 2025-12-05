@@ -63,4 +63,13 @@ export default abstract class TransactionRepository {
     page: number,
     perPage?: number
   ): Promise<ModelPaginatorContract<Transaction>>
+
+  /**
+   * Fetches a paginated list of all transactions.
+   *
+   * @param {number} [page] - The page number to retrieve. Optional.
+   * @param {number} [perPage] - The number of items per page. Optional.
+   * @return {Promise<ModelPaginatorContract<Transaction>>} A promise that resolves to a paginated list of transactions.
+   */
+  abstract all(page?: number, perPage?: number): Promise<ModelPaginatorContract<Transaction>>
 }
