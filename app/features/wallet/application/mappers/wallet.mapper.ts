@@ -2,7 +2,7 @@
 import { WalletCreatedResult } from '#features/wallet/application/dtos/wallet_created_result'
 import { WalletOverviewResult } from '#features/wallet/application/dtos/wallet_overview.result'
 import Transaction from '#features/transactions/domain/models/transaction'
-import { toTransactionResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
+import { toMobileTransactionResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
 
 /**
  * Transforms a Wallet object into a WalletCreatedResult object by extracting specific properties.
@@ -30,5 +30,5 @@ export const toWalletOverviewResult = (
   transactions: Transaction[]
 ): WalletOverviewResult => ({
   wallet: toWalletCreatedResult(wallet),
-  transactions: transactions.map(toTransactionResponseDto),
+  transactions: transactions.map(toMobileTransactionResponseDto),
 })

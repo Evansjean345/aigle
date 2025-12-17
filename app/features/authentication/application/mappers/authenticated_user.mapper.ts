@@ -19,7 +19,7 @@ export const toAuthenticatedUserProfileResponse = (
   phone: user.phone,
   accountNumber: user.accountNumber,
   accountType: user.accountType,
-  pictureUrl: user.pictureUrl,
+  pictureUrl: user.kycDocument?.selfieUrl || '',
   status: user.status,
   kycStatus: user.kycStatus,
   kycLevel: user.kycLevel,

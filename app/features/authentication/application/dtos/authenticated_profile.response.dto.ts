@@ -1,4 +1,5 @@
 import { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
+import { UserKycStatus, UserStatus } from '#features/user/domain/enum'
 
 export interface AuthenticatedProfileResponseDto {
   accountNumber: string
@@ -8,9 +9,9 @@ export interface AuthenticatedProfileResponseDto {
   phone: string
   accountType: string
   pictureUrl: string | null
-  status: 'active' | 'inactive' | 'pending' | 'suspended'
+  status: UserStatus
   kycLevel: KycLevelState
-  kycStatus: 'pending' | 'approved' | 'rejected'
+  kycStatus: UserKycStatus
   country: Country
 }
 

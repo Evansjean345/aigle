@@ -1,8 +1,9 @@
-import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
-import type { HasMany } from '@adonisjs/lucid/types/relations'
+import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import { KycAttemp } from '#features/kyc/domain/models/kyc_attemp'
+import User from '#features/user/domain/models/user'
 
 export default class KycDocument extends BaseModel {
   static table = 'kyc_documents'
@@ -45,4 +46,10 @@ export default class KycDocument extends BaseModel {
 
   @hasMany(() => KycAttemp)
   declare attempts: HasMany<typeof KycAttemp>
+
+  @belongsTo(() => User, {
+    foreignKey: 'userId',
+    localKey: 'usersUid',
+  })
+  declare user: BelongsTo<typeof User>
 }

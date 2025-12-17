@@ -8,6 +8,7 @@ import { inject } from '@adonisjs/core'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber } from '#shared/utils/utiles'
 import env from '#start/env'
+import { UserStatus } from '#features/user/domain/enum'
 
 @inject()
 export default class VerifyAndAuthenticateUserAccountUseCase {
@@ -63,12 +64,13 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
       }
 
       if (type === 'register' && user.status === 'inactive') {
-        await this.authService.updateUserAccountStatus(user, 'active')
+        await this.authService.updateUserAccountStatus(user, UserStatus.ACTIVE)
       }
 
       const token = await User.accessTokens.create(user)
       await user.load('country')
       await user.load('wallet')
+      await user.load('kycDocument')
 
       return toAuthenticatedUserProfileAndTokenResponse(user, token.value!.release())
     } catch (error) {

@@ -11,6 +11,7 @@ import LoginCommand from '#features/authentication/application/dtos/login.comman
 import User from '#features/users/domain/models/user'
 import hash from '@adonisjs/core/services/hash'
 import { concartPhoneNumber } from '#shared/utils/utiles'
+import { UserStatus } from '#features/user/domain/enum'
 
 /**
  * Service class responsible for handling user authentication and registration processes.
@@ -52,7 +53,7 @@ export default class AuthentificationService {
     user.firstname = payload.firstName
     user.lastname = payload.lastName
     user.email = payload.email ?? null
-    user.status = 'inactive'
+    user.status = UserStatus.INACTIVE
     user.countryId = country.id
 
     const userCreated = await this.userRepository.save(user, trx)
@@ -113,13 +114,13 @@ export default class AuthentificationService {
    * Updates the account status of a given user.
    *
    * @param {User} user - The user whose account status needs to be updated.
-   * @param {'active' | 'inactive' | 'suspended'} status - The new status to be assigned to the user's account.
+   * @param {UserStatus} status - The new status to be assigned to the user's account.
    * @param trx
    * @return {Promise<void>} A promise that resolves when the user's account status is successfully updated.
    */
   async updateUserAccountStatus(
     user: User,
-    status: 'active' | 'inactive' | 'suspended',
+    status: UserStatus,
     trx?: TransactionClientContract
   ): Promise<boolean> {
     user.status = status
