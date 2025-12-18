@@ -12,11 +12,6 @@ import OtpRepositoryImpl from '#features/authentication/infrastructure/repositor
 import WalletRepository from '#features/wallet/domain/interfaces/wallet_repository'
 import WalletRepositoryImpl from '#features/wallet/infrastructure/repositories/wallet_repository_impl'
 
-import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
-import TransactionRepositoryImpl from '#features/transactions/infrastructure/repositories/transaction_repository_impl'
-import PaymentRepository from '#features/transactions/domain/interfaces/payment_repository'
-import PaymentRepositoryImpl from '#features/transactions/infrastructure/repositories/payment_repository_impl'
-
 import ServiceProviderFeesRepository from '#features/fees/domain/interfaces/service_provider_fees_repository'
 import { ServiceProviderFeesRepositoryImpl } from '#features/fees/infrastructure/repositories/service_provider_fees_repository_impl'
 
@@ -46,8 +41,6 @@ export default class RepositoryProvider {
       [ServiceTypeRepository, ServiceTypeRepositoryImpl],
       [ProviderRepository, ProviderRepositoryImpl],
       [ServiceProviderFeesRepository, ServiceProviderFeesRepositoryImpl],
-      [TransactionRepository, TransactionRepositoryImpl],
-      [PaymentRepository, PaymentRepositoryImpl],
       [DeviceRepository, DeviceRepositoryImpl],
       [KycDocumentRepository, KycDocumentRepositoryImpl],
     ])

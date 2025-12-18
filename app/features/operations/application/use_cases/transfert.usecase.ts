@@ -10,12 +10,14 @@ import User from '#features/users/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
-import { TransactionType } from '#features/transactions/domain/models/transaction'
+import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import { makeRequest } from '#shared/utils/http_helpers'
 import env from '#start/env'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import ServiceTypesService from '#features/catalogs/application/services/service_types.service'
 import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
+import AccountValidationService from '#features/user/application/services/account_validation_service'
+import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
 
 /**
  * Represents a use case for handling transfer operations.
@@ -31,6 +33,8 @@ export default class TransfertUseCase {
    * @param {WalletService} walletService - The service for managing wallet operations.
    * @param {ServiceTypesService} serviceTypeService - The service for retrieving service types.
    * @param {FeeCalculatorService} feeCalculatorService - The service for calculating fees based on a given rule and amount.
+   * @param accountValidationService
+   * @param transactionLimitValidationService
    */
   constructor(
     private readonly feesRepo: ServiceProviderFeesRepositoryImpl,
@@ -38,7 +42,9 @@ export default class TransfertUseCase {
     private readonly paymentService: PaymentService,
     private readonly walletService: WalletService,
     private readonly serviceTypeService: ServiceTypesService,
-    private readonly feeCalculatorService: FeeCalculatorService
+    private readonly feeCalculatorService: FeeCalculatorService,
+    private readonly accountValidationService: AccountValidationService,
+    private readonly transactionLimitValidationService: TransactionLimitValidationService
   ) {}
 
   /**
@@ -55,6 +61,13 @@ export default class TransfertUseCase {
     const serviceType = await this.serviceTypeService.findByCode(payload.serviceType)
     const wallet = await this.walletService.getByUserId(user.usersUid)
     const { total, fees, amount } = await this.calculateFees(payload, serviceType.id)
+
+    await this.accountValidationService.validateAccount(user)
+    await this.transactionLimitValidationService.validateTransactionLimit({
+      user,
+      amount,
+      transactionType: TransactionType.TRANSFERT,
+    })
 
     if (Number(wallet.balance) < Number(amount)) {
       throw new Exception("vous n'avez pas de font suffisant pour effectuer cette operation", {

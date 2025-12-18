@@ -11,6 +11,7 @@ import TransactionService from '#features/transactions/application/services/tran
 import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
 import Transaction, { TransactionType } from '#features/transactions/domain/models/transaction'
+import { TransactionType as TransactionTypeEnum } from '#features/transactions/domain/enums/transaction_type'
 import { makeRequest } from '#shared/utils/http_helpers'
 import env from '#start/env'
 import WalletService from '#features/wallet/application/services/wallet_service'
@@ -18,6 +19,8 @@ import Payment from '#features/transactions/domain/models/payment'
 import config from '@adonisjs/core/services/config'
 import ServiceTypesService from '#features/catalogs/application/services/service_types.service'
 import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
+import AccountValidationService from '#features/user/application/services/account_validation_service'
+import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
 
 /**
  * Class responsible for handling inter-transfer operations, including fees calculation,
@@ -34,6 +37,8 @@ export default class InterTransfertUseCase {
    * @param {WalletService} walletService - Service for handling wallet functionalities.
    * @param {ServiceTypesService} serviceTypeService - Service for retrieving service types.
    * @param {FeeCalculatorService} feeCalculatorService - Service for calculating fees.
+   * @param accountValidationService
+   * @param transactionLimitValidationService
    */
   constructor(
     private readonly feesRepo: ServiceProviderFeesRepositoryImpl,
@@ -41,7 +46,9 @@ export default class InterTransfertUseCase {
     private readonly paymentService: PaymentService,
     private readonly walletService: WalletService,
     private readonly serviceTypeService: ServiceTypesService,
-    private readonly feeCalculatorService: FeeCalculatorService
+    private readonly feeCalculatorService: FeeCalculatorService,
+    private readonly accountValidationService: AccountValidationService,
+    private readonly transactionLimitValidationService: TransactionLimitValidationService
   ) {}
 
   /**
@@ -69,6 +76,14 @@ export default class InterTransfertUseCase {
       },
       serviceType.id
     )
+
+    // Validations: compte + limites (inter transfer = debit)
+    await this.accountValidationService.validateAccount(user)
+    await this.transactionLimitValidationService.validateTransactionLimit({
+      user,
+      amount,
+      transactionType: TransactionTypeEnum.TRANSFERT_INTER,
+    })
 
     const trx = await db.transaction()
 

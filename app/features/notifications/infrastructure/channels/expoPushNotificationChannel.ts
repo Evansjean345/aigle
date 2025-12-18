@@ -54,8 +54,7 @@ export default class ExpoPushNotificationChannel implements NotificationChannel 
     if (messages.length === 0) return
 
     try {
-      const tickets = await this.#expoInstance.sendPushNotificationsAsync(messages)
-      console.log('Expo push tickets:', tickets)
+      await this.#expoInstance.sendPushNotificationsAsync(messages)
     } catch (error) {
       console.error('Error sending Expo push:', error)
     }

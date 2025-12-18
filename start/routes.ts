@@ -9,10 +9,7 @@ import mobileTransactionRoutes from '#features/transactions/presentation/mobile/
 import mobileDeviceRoutes from '#features/device/presentation/mobile/routes/device_routes'
 import userAccountMobileRoutes from '#features/users/presentation/mobile/routes/profile_routes'
 import mobileQrRoutes from '#features/qr/presentation/mobile/routes/qr_routes'
-
-import adminServicesManagementRoutes from '#features/catalogs/presentation/admin/routes/services_management_routes'
 import mobileKycRoutes from '#features/kyc/presentation/mobile/routes/kyc_routes'
-import adminTransactionRoutes from '#features/transactions/presentation/admin/routes/transaction_routes'
 
 router
   .group(() => {
@@ -26,8 +23,5 @@ router
     router.group(userAccountMobileRoutes)
     router.group(mobileQrRoutes)
     router.group(mobileKycRoutes)
-
-    router.group(adminServicesManagementRoutes)
-    router.group(adminTransactionRoutes)
   })
   .prefix('/api')

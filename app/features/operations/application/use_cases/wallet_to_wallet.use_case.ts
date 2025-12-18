@@ -1,75 +1,105 @@
 ﻿import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
+import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { Exception } from '@adonisjs/core/exceptions'
+import { Logger } from '@adonisjs/core/logger'
+
 import WalletService from '#features/wallet/application/services/wallet_service'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import User from '#features/users/domain/models/user'
-import { Exception } from '@adonisjs/core/exceptions'
-import Transaction, { TransactionType } from '#features/transactions/domain/models/transaction'
+import Transaction from '#features/transactions/domain/models/transaction'
+import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
+import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import {
   WalletToWalletRequestDto,
   WalletToWalletResponseDto,
 } from '#features/operations/application/dto/wallet_to_wallet.dto'
-import { Logger } from '@adonisjs/core/logger'
 import WalletToWalletTransactionCompleted from '#features/operations/application/events/wallet_to_wallet_transaction_completed'
 import { normalizePhone } from '#shared/utils/utiles'
 import UserRepository from '#features/users/domain/interfaces/user_repository'
 import Wallet from '#features/wallet/domain/models/wallet'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import QrJwtService from '#features/qr/application/services/qr_jwt_service'
+import AccountValidationService from '#features/user/application/services/account_validation_service'
+import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
+import Payment from '#features/transactions/domain/models/payment'
 
-/**
- * Class responsible for handling wallet-to-wallet transfers.
- * This use case facilitates money transfers between wallets, either using a QR code or a phone number.
- */
+type TransferMode = 'by_qrcode' | 'by_phone'
+
+interface TransferContext {
+  senderWallet: Wallet
+  recipientWallet: Wallet
+  amount: number
+  fees: number
+  total: number
+  currentUser: User
+}
+
+interface BalanceSnapshot {
+  senderBefore: number
+  recipientBefore: number
+  senderAfter: number
+  recipientAfter: number
+}
+
 @inject()
 export default class WalletToWalletUseCase {
   /**
-   * Constructs an instance of the class.
+   * Constructs an instance of the class by injecting required services and repositories.
    *
-   * @param {WalletService} walletService - Service responsible for handling wallet-related operations.
-   * @param {TransactionService} transactionService - Service responsible for managing transactions.
-   * @param {PaymentService} paymentService - Service responsible for payment processing.
-   * @param {UserRepository} userRepository - Repository for managing user data.
-   * @param {CountryRepository} countryRepository - Repository for accessing country-related data.
-   * @param {QrJwtService} qrcodeJwtService - Service for generating and validating QR code-based JWT tokens.
-   * @param {Logger} logger - Logging utility for tracking and recording application events.
+   * @param {WalletService} walletService - Service for managing user wallets and related operations.
+   * @param {TransactionService} transactionService - Service for handling transactions and payment processing.
+   * @param {PaymentService} paymentService - Service for managing payment operations and integrations.
+   * @param {CountryRepository} countryRepository - Repository for managing country-related data and configurations.
+   * @param {Logger} logger - Service for logging application events and errors.
+   * @param {AccountValidationService} accountValidationService - Service for validating user accounts and credentials.
+   * @param {TransactionLimitValidationService} transactionLimitValidationService - Service for validating transaction limits and rules.
    */
   constructor(
     private readonly walletService: WalletService,
     private readonly transactionService: TransactionService,
     private readonly paymentService: PaymentService,
-    private readonly userRepository: UserRepository,
     private readonly countryRepository: CountryRepository,
-    private readonly qrcodeJwtService: QrJwtService,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly accountValidationService: AccountValidationService,
+    private readonly transactionLimitValidationService: TransactionLimitValidationService
   ) {}
 
   /**
-   * Executes a wallet-to-wallet transfer operation.
+   * Executes a wallet-to-wallet transfer operation based on the provided payload, the current user, and the transfer mode.
    *
-   * @param {WalletToWalletRequestDto} payload - The request payload containing transfer details such as recipient and amount.
-   * @param {User} currentUser - The user who is initiating the transfer.
-   * @param {'by_qrcode' | 'by_phone'} mode - The mode of transfer, either by scanning QR code or using recipient's phone number.
-   * @return {Promise<WalletToWalletResponseDto>} A promise that resolves to the response containing details of the transfer operation.
+   * @param {WalletToWalletRequestDto} payload - The details of the transfer request including sender, receiver, and amount.
+   * @param {User} currentUser - The user initiating the transfer operation.
+   * @param {TransferMode} mode - The mode in which the transfer is to be executed (e.g., instant, scheduled).
+   * @return {Promise<WalletToWalletResponseDto>} - A promise that resolves to the response of the wallet-to-wallet transfer, including status and any relevant details.
    */
   async execute(
     payload: WalletToWalletRequestDto,
     currentUser: User,
-    mode: 'by_qrcode' | 'by_phone'
+    mode: TransferMode
   ): Promise<WalletToWalletResponseDto> {
-    this.logger.info(
-      {
-        user_id: currentUser.id,
-        mode,
-        qrcode: mode === 'by_qrcode' && payload.token,
-        recipient_phone: mode === 'by_phone' && payload.recipient_phone,
-        amount: payload.amount,
-      },
-      'Starting wallet-to-wallet transfer'
-    )
+    this.logTransferStart(currentUser, mode, payload)
 
-    // Parallel data fetching for better performance
+    const context = await this.prepareTransferContext(payload, currentUser, mode)
+    await this.validateTransferParties(context)
+
+    return this.executeTransfer(context)
+  }
+
+  /**
+   * Prepares the transfer context by resolving wallets, validating them, and calculating transfer details.
+   *
+   * @param payload The details of the wallet-to-wallet transfer request.
+   * @param currentUser The user initiating the transfer.
+   * @param mode The transfer mode, indicating how the recipient should be resolved.
+   * @return A `TransferContext` object containing sender and recipient wallets, transfer amounts, and other related details.
+   */
+  private async prepareTransferContext(
+    payload: WalletToWalletRequestDto,
+    currentUser: User,
+    mode: TransferMode
+  ): Promise<TransferContext> {
     const [senderWallet, senderCountry] = await Promise.all([
       this.walletService.getByUserId(currentUser.usersUid!),
       this.countryRepository.findCountryBy('id', currentUser.countryId),
@@ -82,212 +112,107 @@ export default class WalletToWalletUseCase {
       senderCountry.phoneCode
     )
 
-    this.validateTransfer(senderWallet, recipientWallet)
+    this.validateWallets(senderWallet, recipientWallet)
+    await this.ensureWalletsUsersLoaded(senderWallet, recipientWallet)
 
-    // Preload users in parallel
-    await Promise.all([senderWallet.load('user'), recipientWallet.load('user')])
+    this.logRecipientPhoneMismatch(mode, payload.recipient_phone, recipientWallet)
 
-    this.logRecipientPhoneMismatch(
-      mode,
-      payload.recipient_phone,
-      recipientWallet.user.phone,
-      recipientWallet.id
-    )
+    const amount = this.parseAndValidateAmount(payload.amount)
 
-    const amount = this.validateAmount(payload.amount)
-    const fees = 0
-    const total = amount + fees
-
-    return await this.executeTransfer({
+    return {
       senderWallet,
       recipientWallet,
       amount,
-      fees,
-      total,
+      fees: 0,
+      total: amount, // amount + fees
       currentUser,
+    }
+  }
+
+  /**
+   * Validates the parties involved in a transfer operation.
+   * Ensures that both the sender and recipient meet the necessary conditions for the transfer.
+   *
+   * @param {TransferContext} context - The context of the transfer containing the current user, recipient wallet, and transfer amount.
+   * @return {Promise<void>} A promise that resolves when the validation is complete.
+   */
+  private async validateTransferParties(context: TransferContext): Promise<void> {
+    const { currentUser, recipientWallet, amount } = context
+
+    await this.validateUserForTransfer(currentUser, amount, TransactionDirection.DEBIT)
+    await this.validateUserForTransfer(recipientWallet.user, amount, TransactionDirection.CREDIT)
+  }
+
+  /**
+   * Validates whether the user is eligible to perform a wallet transfer transaction.
+   *
+   * @param {User} user - The user initiating the transfer operation.
+   * @param {number} amount - The amount to be transferred.
+   * @param {TransactionDirection} direction - The direction of the transaction (e.g., incoming or outgoing).
+   * @return {Promise<void>} A promise that resolves when the validation is complete.
+   */
+  private async validateUserForTransfer(
+    user: User,
+    amount: number,
+    direction: TransactionDirection
+  ): Promise<void> {
+    await this.accountValidationService.validateAccount(user)
+    await this.transactionLimitValidationService.validateTransactionLimit({
+      user,
+      amount,
+      transactionType: TransactionType.WALLET_TRANSFERT,
+      direction,
     })
   }
 
   /**
-   * Resolves the recipient based on the specified mode and payload.
+   * Executes a wallet-to-wallet transfer by debiting the sender's wallet and crediting the recipient's wallet.
+   * The method ensures transactional integrity and creates the corresponding transactions and payments.
    *
-   * @param {'by_qrcode' | 'by_phone'} mode The method to resolve the recipient, either via QR code or phone number.
-   * @param {WalletToWalletRequestDto} payload The request payload containing recipient details.
-   * @param {string} senderUserId The ID of the user who is sending the request.
-   * @param {string} phoneCode The phone code of the recipient when resolving by phone.
-   * @return {Promise<Wallet>} A Promise that resolves to the recipient's Wallet object.
-   * @throws {Exception} Throws an exception if the mode is unsupported.
+   * @param {TransferContext} context - The transfer context containing details about the sender, recipient, amount, fees, total, and the current user.
+   * @return {Promise<WalletToWalletResponseDto>} A promise that resolves to a response object containing the transfer result details.
    */
-  private async resolveRecipient(
-    mode: 'by_qrcode' | 'by_phone',
-    payload: WalletToWalletRequestDto,
-    senderUserId: string,
-    phoneCode: string
-  ): Promise<Wallet> {
-    if (mode === 'by_qrcode') {
-      return this.resolveRecipientByToken(payload.token)
+  private async executeTransfer(context: TransferContext): Promise<WalletToWalletResponseDto> {
+    const { senderWallet, recipientWallet, amount, fees, total, currentUser } = context
+
+    const balances: BalanceSnapshot = {
+      senderBefore: senderWallet.balance,
+      recipientBefore: recipientWallet.balance,
+      senderAfter: 0,
+      recipientAfter: 0,
     }
-
-    if (mode === 'by_phone') {
-      return this.resolveRecipientByPhone(payload.recipient_phone, senderUserId, phoneCode)
-    }
-
-    throw new Exception('Unsupported mode', { status: 400, code: 'MODE_UNSUPPORTED' })
-  }
-
-  /**
-   * Validates if the transfer between the sender and recipient wallets can proceed.
-   *
-   * @param {Wallet} senderWallet - The wallet from which funds are being transferred.
-   * @param {Wallet} recipientWallet - The wallet to which funds are being transferred.
-   * @throws {Exception} Throws an exception if the sender or recipient wallet is not found, or if the sender and recipient wallets are the same.
-   * @return {void}
-   */
-  private validateTransfer(senderWallet: Wallet, recipientWallet: Wallet): void {
-    if (!senderWallet || !recipientWallet) {
-      throw new Exception('Sender or recipient wallet not found', {
-        status: 404,
-        code: 'WALLET_NOT_FOUND',
-      })
-    }
-
-    if (senderWallet.id === recipientWallet.id) {
-      this.logger.error(
-        {
-          sender_wallet_id: senderWallet.id,
-          recipient_wallet_id: recipientWallet.id,
-        },
-        'Sender and recipient wallets are the same, aborting transfer'
-      )
-      throw new Exception('Cannot transfer to the same wallet', {
-        status: 400,
-        code: 'SAME_WALLET',
-      })
-    }
-  }
-
-  /**
-   * Executes a wallet-to-wallet transfer, updating balances and creating payment records.
-   *
-   * @param {Object} params - The parameters required for the transfer.
-   * @param {Wallet} params.senderWallet - The wallet of the sender.
-   * @param {Wallet} params.recipientWallet - The wallet of the recipient.
-   * @param {number} params.amount - The amount to be transferred.
-   * @param {number} params.fees - The fees for the transaction.
-   * @param {number} params.total - The total amount to be debited from the sender's wallet (amount + fees).
-   * @param {User} params.currentUser - The current user initiating the transaction.
-   * @return {Promise<WalletToWalletResponseDto>} A promise that resolves with the response object containing details of the transfer.
-   */
-  private async executeTransfer(params: {
-    senderWallet: Wallet
-    recipientWallet: Wallet
-    amount: number
-    fees: number
-    total: number
-    currentUser: User
-  }): Promise<WalletToWalletResponseDto> {
-    const { senderWallet, recipientWallet, amount, fees, total, currentUser } = params
-
-    const senderBalanceBefore = senderWallet.balance
-    const recipientBalanceBefore = recipientWallet.balance
 
     const trx = await db.transaction()
 
     try {
-      // Update balances in parallel
+      // Mise à jour des soldes en parallèle
       const [senderAfter, recipientAfter] = await Promise.all([
         this.walletService.debitBalance(senderWallet.id, total, trx),
         this.walletService.creditBalance(recipientWallet.id, amount, trx),
       ])
 
       if (!senderAfter || !recipientAfter) {
-        throw new Exception('Failed to update wallet balances', { status: 500 })
+        throw new Exception('Échec de la mise à jour des soldes', { status: 500 })
       }
 
-      this.logger.info(
-        {
-          sender_wallet_id: senderWallet.id,
-          recipient_wallet_id: recipientWallet.id,
-          sender_balance_after: senderAfter.balance,
-          recipient_balance_after: recipientAfter.balance,
-          amount,
-          fees,
-        },
-        'Balances updated for wallet-to-wallet'
-      )
+      balances.senderAfter = senderAfter.balance
+      balances.recipientAfter = recipientAfter.balance
 
-      // Create transactions
-      const [senderTx, recipientTx] = await this.createTransactionPair({
-        senderWallet,
-        recipientWallet,
-        amount,
-        fees,
-        total,
-        senderAfter,
-        recipientAfter,
-        senderBalanceBefore,
-        recipientBalanceBefore,
-        currentUser,
-        trx,
-      })
+      this.logBalancesUpdated(context, balances)
 
-      // Create payment records in parallel
-      await Promise.all([
-        this.paymentService.createPayment(
-          {
-            payment_method: 'internal',
-            amount,
-            total_amount: total,
-            fees,
-            payment_details: {
-              operator: 'wallet',
-              phone: recipientWallet.user.phone,
-            },
-            status: 'success',
-            step: 'wallet_to_wallet',
-          },
-          senderTx,
-          currentUser,
-          trx
-        ),
-        this.paymentService.createPayment(
-          {
-            payment_method: 'internal',
-            amount,
-            total_amount: amount,
-            fees: 0,
-            payment_details: {
-              operator: 'wallet',
-              phone: senderWallet.user.phone,
-            },
-            status: 'success',
-            step: 'wallet_to_wallet',
-          },
-          recipientTx,
-          currentUser,
-          trx
-        ),
-      ])
-
-      this.logger.info(
-        { reference: senderTx.reference, status: 'success' },
-        'Wallet-to-wallet transfer completed'
+      // Création des transactions et paiements
+      const [senderTx, recipientTx] = await this.createTransactionsAndPayments(
+        context,
+        balances,
+        trx
       )
 
       await trx.commit()
-
-      // Fire event asynchronously (don't await)
-      await WalletToWalletTransactionCompleted.dispatch(senderTx, recipientTx, {
-        recipienPhone: recipientWallet.user.phone,
-        senderPhone: senderWallet.user.phone,
-      })
+      this.dispatchCompletionEvent(senderTx, recipientTx, senderWallet, recipientWallet)
 
       return {
         message: 'Transfert wallet-to-wallet effectué avec succès',
-        data: {
-          reference: senderTx.reference,
-          status: 'success',
-        },
+        data: { reference: senderTx.reference, status: 'success' },
       }
     } catch (error) {
       await trx.rollback()
@@ -297,53 +222,21 @@ export default class WalletToWalletUseCase {
   }
 
   /**
-   * Creates a pair of transactions for a wallet-to-wallet transfer.
+   * Creates transactions and associated payment records for a wallet-to-wallet transfer.
    *
-   * @param {Object} params - The parameters for the transaction pair creation.
-   * @param {Wallet} params.senderWallet - The wallet of the sender.
-   * @param {Wallet} params.recipientWallet - The wallet of the recipient.
-   * @param {number} params.amount - The amount to be transferred.
-   * @param {number} params.fees - The fees associated with the transaction.
-   * @param {number} params.total - The total amount charged from the sender's wallet (amount + fees).
-   * @param {Object} params.senderAfter - The sender's wallet state after the transaction.
-   * @param {string} params.senderAfter.id - The ID of the sender's wallet.
-   * @param {number} params.senderAfter.balance - The balance of the sender's wallet after the transaction.
-   * @param {Object} params.recipientAfter - The recipient's wallet state after the transaction.
-   * @param {string} params.recipientAfter.id - The ID of the recipient's wallet.
-   * @param {number} params.recipientAfter.balance - The balance of the recipient's wallet after the transaction.
-   * @param {number} params.senderBalanceBefore - The sender's wallet balance before the transaction.
-   * @param {number} params.recipientBalanceBefore - The recipient's wallet balance before the transaction.
-   * @param {User} params.currentUser - The user initiating the transaction.
-   * @param {any} params.trx - The database transaction object.
-   * @return {Promise<[Transaction, Transaction]>} - A promise that resolves to an array containing the sender and recipient transactions.
+   * @param {TransferContext} context - The transfer context containing details of the sender, recipient, amount, fees, and other related information.
+   * @param {BalanceSnapshot} balances - Snapshot of the sender's and recipient's wallet balances before and after the transactions.
+   * @param {TransactionClientContract} trx - The database transaction client used to perform the operations atomically.
+   * @return {Promise<[Transaction, Transaction]>} A promise that resolves to an array containing the sender's transaction and the recipient's transaction.
    */
-  private async createTransactionPair(params: {
-    senderWallet: Wallet
-    recipientWallet: Wallet
-    amount: number
-    fees: number
-    total: number
-    senderAfter: Pick<Wallet, 'id' | 'balance'>
-    recipientAfter: Pick<Wallet, 'id' | 'balance'>
-    senderBalanceBefore: number
-    recipientBalanceBefore: number
-    currentUser: User
-    trx: any
-  }): Promise<[Transaction, Transaction]> {
-    const {
-      senderWallet,
-      recipientWallet,
-      amount,
-      fees,
-      total,
-      senderAfter,
-      recipientAfter,
-      senderBalanceBefore,
-      recipientBalanceBefore,
-      currentUser,
-      trx,
-    } = params
+  private async createTransactionsAndPayments(
+    context: TransferContext,
+    balances: BalanceSnapshot,
+    trx: TransactionClientContract
+  ): Promise<[Transaction, Transaction]> {
+    const { senderWallet, recipientWallet, amount, fees, total, currentUser } = context
 
+    // Transactions en parallèle
     const [senderTx, recipientTx] = await Promise.all([
       this.transactionService.createTransaction(
         {
@@ -352,12 +245,12 @@ export default class WalletToWalletUseCase {
           direction: 'debit',
           total_amount: total,
           fees,
-          balanceAfter: senderAfter.balance,
-          operation_type: 'wallet_transfert' as TransactionType,
-          description: 'Wallet to Wallet transfer',
+          balanceAfter: balances.senderAfter,
+          operation_type: TransactionType.WALLET_TRANSFERT,
+          description: `Transfert to ${recipientWallet.user.firstname}${recipientWallet.user.lastname}`,
         },
         senderWallet.id,
-        senderBalanceBefore,
+        balances.senderBefore,
         currentUser,
         trx
       ),
@@ -368,23 +261,41 @@ export default class WalletToWalletUseCase {
           direction: 'credit',
           total_amount: amount,
           fees: 0,
-          operation_type: 'wallet_transfert' as TransactionType,
-          description: `Received from ${senderWallet.user.firstname}`,
-          balanceAfter: recipientAfter.balance,
+          balanceAfter: balances.recipientAfter,
+          operation_type: TransactionType.WALLET_TRANSFERT,
+          description: `Received from ${senderWallet.user.firstname}${senderWallet.user.lastname}`,
         },
         recipientWallet.id,
-        recipientBalanceBefore,
+        balances.recipientBefore,
         recipientWallet.user,
         trx
       ),
     ])
 
+    // Paiements en parallèle
+    await Promise.all([
+      this.createPaymentRecord(
+        senderTx,
+        recipientWallet.user.phone,
+        amount,
+        total,
+        fees,
+        currentUser,
+        trx
+      ),
+      this.createPaymentRecord(
+        recipientTx,
+        senderWallet.user.phone,
+        amount,
+        amount,
+        0,
+        currentUser,
+        trx
+      ),
+    ])
+
     this.logger.info(
-      {
-        sender_tx_id: senderTx.id,
-        recipient_tx_id: recipientTx.id,
-        reference: senderTx.reference,
-      },
+      { sender_tx_id: senderTx.id, recipient_tx_id: recipientTx.id, reference: senderTx.reference },
       'Transactions created for wallet-to-wallet'
     )
 
@@ -392,90 +303,135 @@ export default class WalletToWalletUseCase {
   }
 
   /**
-   * Resolves a recipient wallet using a provided token by verifying it via the QR code service.
+   * Creates a payment record by invoking the payment service with the specified details.
    *
-   * @param {string} [token] - The token to be verified and used for resolving the recipient.
-   *                           This token is required for by_qrcode mode.
-   * @return {Promise<Wallet>} A promise that resolves to a wallet associated with the resolved recipient.
-   * @throws {Exception} If the token is missing, invalid, expired, already used, or any other verification issue occurs.
+   * @param {Transaction} transaction - The transaction object associated with the payment.
+   * @param {string} phone - The phone number involved in the payment.
+   * @param {number} amount - The amount being transferred in the payment.
+   * @param {number} totalAmount - The total amount of the transaction, including fees.
+   * @param {number} fees - The fees associated with the transaction.
+   * @param {User} user - The user initiating the payment.
+   * @param {TransactionClientContract} trx - The transaction client contract used for handling the database transaction.
+   * @return {Promise<Payment>} A promise that resolves with the created payment record.
    */
-  private async resolveRecipientByToken(token?: string): Promise<Wallet> {
-    if (!token?.length) {
-      throw new Exception('token is required for by_qrcode mode', {
-        status: 400,
-        code: 'QRCODE_REQUIRED',
-      })
-    }
-
-    const res = await this.qrcodeJwtService.verify(token)
-
-    if (!res.ok) {
-      const errorMap: Record<string, { status: number; message: string }> = {
-        TOKEN_EXPIRED: { status: 410, message: 'Le token a expiré' },
-        TOKEN_REPLAY: { status: 409, message: 'Ce token a déjà été utilisé' },
-      }
-
-      const error = errorMap[res.code] || { status: 422, message: res.code || 'Token invalide' }
-
-      throw new Exception(error.message, {
-        status: error.status,
-        code: res.code || 'TOKEN_INVALID',
-      })
-    }
-
-    return this.walletService.getByUserId(res.sub)
+  private createPaymentRecord(
+    transaction: Transaction,
+    phone: string,
+    amount: number,
+    totalAmount: number,
+    fees: number,
+    user: User,
+    trx: TransactionClientContract
+  ): Promise<Payment> {
+    return this.paymentService.createPayment(
+      {
+        payment_method: 'internal',
+        amount,
+        total_amount: totalAmount,
+        fees,
+        payment_details: { operator: 'wallet', phone },
+        status: 'success',
+        step: 'wallet_to_wallet',
+      },
+      transaction,
+      user,
+      trx
+    )
   }
 
   /**
-   * Resolves the recipient's wallet based on their phone number.
+   * Resolves the recipient of a transfer request based on the specified transfer mode.
    *
-   * @param {string} phoneRaw - The raw phone number of the recipient.
-   * @param {string} senderUserId - The user ID of the sender initiating the transaction.
-   * @param {string} countryPhone - The country code for the phone number.
-   * @return {Promise<Wallet>} A promise that resolves to the recipient's wallet object.
-   * @throws {Exception} Throws an exception if the phone number is invalid, not linked to an account, or pertains to the sender.
+   * @param {TransferMode} mode - The mode of the transfer (e.g., 'by_qrcode', 'by_phone').
+   * @param {WalletToWalletRequestDto} payload - The transfer request payload containing relevant details.
+   * @param {string} senderUserId - The unique identifier of the sender.
+   * @param {string} phoneCode - The phone code for validation when the transfer mode is 'by_phone'.
+   * @return {Promise<Wallet>} A promise that resolves to the recipient's wallet information if the mode is supported.
+   * @throws {Exception} Throws an exception if the mode is not supported.
    */
-  private async resolveRecipientByPhone(
-    phoneRaw: string,
+  private async resolveRecipient(
+    mode: TransferMode,
+    payload: WalletToWalletRequestDto,
     senderUserId: string,
-    countryPhone: string
+    phoneCode: string
   ): Promise<Wallet> {
-    const normalizedPhone = normalizePhone(phoneRaw, countryPhone)
-
-    if (!normalizedPhone) {
-      throw new Exception('recipient_phone is required for by_phone mode', {
-        status: 400,
-        code: 'PHONE_REQUIRED',
-      })
+    switch (mode) {
+      case 'by_qrcode':
+        return this.walletService.getByWalletToken(payload.token)
+      case 'by_phone':
+        return this.walletService.getWalletByPhoneNumber(
+          payload.recipient_phone,
+          senderUserId,
+          phoneCode
+        )
+      default:
+        throw new Exception('Mode non supporté', { status: 400, code: 'MODE_UNSUPPORTED' })
     }
-
-    const recipientUser = await this.userRepository.findByPhone(normalizedPhone)
-
-    if (!recipientUser) {
-      throw new Exception("Ce numéro n'est pas un compte Aigle send", {
-        status: 400,
-        code: 'UNREGISTERED_ACCOUNT',
-      })
-    }
-
-    if (recipientUser.usersUid === senderUserId) {
-      throw new Exception('Transfert vers soi-même interdit', {
-        status: 400,
-        code: 'SELF_TRANSFER',
-      })
-    }
-
-    return this.walletService.getByUserId(recipientUser.usersUid)
   }
 
   /**
-   * Validates and converts the input amount to a number. Ensures the amount is a positive, finite number.
+   * Resolves the recipient's wallet information by their phone number.
    *
-   * @param {any} amountRaw - The raw input representing the amount to validate and convert.
-   * @return {number} The validated and processed amount as a number.
-   * @throws {Exception} If the input amount is not finite or is less than or equal to zero.
+   * @param {string} phoneRaw - The raw phone number input provided by the user.
+   * @param {string} senderUserId - The unique identifier of the sender initiating the transfer.
+   * @param {string} countryPhone - The country code associated with the phone number.
+   * @return {Promise<Wallet>} A promise that resolves to the recipient's wallet information.
+   * @throws {Exception} If the phone number is not provided, invalid, not associated with an account, or matches the sender's account.
    */
-  private validateAmount(amountRaw: any): number {
+
+  /**
+   * Validates the sender and recipient wallets to ensure they exist and are not the same.
+   *
+   * @param {Wallet} senderWallet - The wallet of the sender.
+   * @param {Wallet} recipientWallet - The wallet of the recipient.
+   * @return {void} - Throws an error if validation fails.
+   * @throws {Exception} If either the sender or recipient wallet is not found, or if both wallets are the same.
+   */
+  private validateWallets(senderWallet: Wallet, recipientWallet: Wallet): void {
+    if (!senderWallet || !recipientWallet) {
+      throw new Exception("Portefeuille de l'expéditeur ou du destinataire introuvable", {
+        status: 404,
+        code: 'WALLET_NOT_FOUND',
+      })
+    }
+
+    if (senderWallet.id === recipientWallet.id) {
+      this.logger.error(
+        { sender_wallet_id: senderWallet.id, recipient_wallet_id: recipientWallet.id },
+        'Sender and recipient wallets are the same'
+      )
+      throw new Exception('Impossible de transférer vers le même portefeuille', {
+        status: 400,
+        code: 'SAME_WALLET',
+      })
+    }
+  }
+
+  /**
+   * Ensures that the user information for the provided sender and recipient wallets is loaded.
+   * If the user data is not preloaded, it triggers the loading process for each wallet.
+   *
+   * @param {Wallet} sender - The wallet object associated with the sender.
+   * @param {Wallet} recipient - The wallet object associated with the recipient.
+   * @return {Promise<void>} A promise that resolves when the user information for both wallets is confirmed to be loaded.
+   */
+  private async ensureWalletsUsersLoaded(sender: Wallet, recipient: Wallet): Promise<void> {
+    await Promise.all([
+      sender.$preloaded.user ? Promise.resolve() : sender.load('user'),
+      recipient.$preloaded.user ? Promise.resolve() : recipient.load('user'),
+    ])
+  }
+
+  /**
+   * Parses and validates the given raw amount.
+   * Converts the input to a number and ensures it meets the criteria of a valid amount.
+   * If the input is invalid, an exception is thrown.
+   *
+   * @param {unknown} amountRaw - The raw input to be parsed and validated as a numeric amount.
+   * @return {number} The parsed and validated amount as a positive finite number.
+   * @throws {Exception} If the input is not a valid positive number.
+   */
+  private parseAndValidateAmount(amountRaw: unknown): number {
     const amount = Number(amountRaw)
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new Exception('Montant invalide', { status: 400, code: 'INVALID_AMOUNT' })
@@ -484,31 +440,75 @@ export default class WalletToWalletUseCase {
   }
 
   /**
-   * Logs a warning if the recipient's phone number does not match the provided one.'
+   * Dispatches a completion event for a wallet-to-wallet transaction, including details of the sender and recipient.
+   * Handles errors during the event dispatch process by logging them.
    *
-   * @param mode
-   * @param providedPhone
-   * @param actualPhone
-   * @param recipientWalletId
-   * @private
+   * @param senderTx The transaction object for the sender.
+   * @param recipientTx The transaction object for the recipient.
+   * @param senderWallet The wallet object of the sender.
+   * @param recipientWallet The wallet object of the recipient.
+   * @return void
    */
-  private logRecipientPhoneMismatch(
-    mode: 'by_qrcode' | 'by_phone',
-    providedPhone: string | undefined,
-    actualPhone: string | undefined,
-    recipientWalletId: number
+  private dispatchCompletionEvent(
+    senderTx: Transaction,
+    recipientTx: Transaction,
+    senderWallet: Wallet,
+    recipientWallet: Wallet
   ): void {
-    if (mode !== 'by_qrcode' || !providedPhone || !actualPhone) return
+    WalletToWalletTransactionCompleted.dispatch(senderTx, recipientTx, {
+      recipienPhone: recipientWallet.user.phone,
+      senderPhone: senderWallet.user.phone,
+    }).catch((err) => this.logger.error({ err }, 'Failed to dispatch completion event'))
+  }
+
+  // Logging helpers
+  private logTransferStart(
+    user: User,
+    mode: TransferMode,
+    payload: WalletToWalletRequestDto
+  ): void {
+    this.logger.info(
+      {
+        user_id: user.id,
+        mode,
+        ...(mode === 'by_qrcode' && { qrcode: payload.token }),
+        ...(mode === 'by_phone' && { recipient_phone: payload.recipient_phone }),
+        amount: payload.amount,
+      },
+      'Starting wallet-to-wallet transfer'
+    )
+  }
+
+  private logBalancesUpdated(context: TransferContext, balances: BalanceSnapshot): void {
+    this.logger.info(
+      {
+        sender_wallet_id: context.senderWallet.id,
+        recipient_wallet_id: context.recipientWallet.id,
+        sender_balance_after: balances.senderAfter,
+        recipient_balance_after: balances.recipientAfter,
+        amount: context.amount,
+        fees: context.fees,
+      },
+      'Balances updated for wallet-to-wallet'
+    )
+  }
+
+  private logRecipientPhoneMismatch(
+    mode: TransferMode,
+    providedPhone: string | undefined,
+    recipientWallet: Wallet
+  ): void {
+    if (mode !== 'by_qrcode' || !providedPhone || !recipientWallet.user.phone) return
 
     const provided = normalizePhone(providedPhone)
-    const actual = normalizePhone(actualPhone)
+    const actual = normalizePhone(recipientWallet.user.phone)
 
     if (provided && actual && provided !== actual) {
       this.logger.warn(
         {
-          expected_phone: actualPhone,
+          expected_phone: recipientWallet.user.phone,
           provided_phone: providedPhone,
-          recipient_wallet_id: recipientWalletId,
+          recipient_wallet_id: recipientWallet.id,
         },
         'Recipient phone mismatch between QR account and provided phone'
       )

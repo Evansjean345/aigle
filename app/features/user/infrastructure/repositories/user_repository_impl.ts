@@ -1,10 +1,24 @@
 ﻿import User from '#features/users/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import UserRepository from '#features/users/domain/interfaces/user_repository'
+import { ExtractModelRelations } from '@adonisjs/lucid/types/relations'
 
 export default class UserRepositoryIml implements UserRepository {
-  async all(): Promise<User[]> {
-    return await User.query().orderBy('created_at', 'desc')
+  /**
+   * Fetches all user records from the database, optionally preloading specified relations.
+   *
+   * @param {ExtractModelRelations<User>[]} [relations] - An optional array of relations to preload for each user record.
+   * @return {Promise<User[]>} A promise that resolves to an array of user records ordered by their creation date in descending order.
+   */
+  async all(relations?: ExtractModelRelations<User>[]): Promise<User[]> {
+    const query = User.query()
+
+    if (relations) {
+      for (const relationName of relations) {
+        query.preload(relationName)
+      }
+    }
+    return query.orderBy('created_at', 'desc')
   }
 
   /**

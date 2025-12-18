@@ -36,7 +36,8 @@ export default defineConfig({
     () => import('@adonisjs/drive/drive_provider'),
     () => import('#providers/repository_provider'),
     () => import('@adonisjs/redis/redis_provider'),
-    () => import('#providers/notification_service_provider')
+    () => import('#providers/notification_service_provider'),
+    () => import('#features/transactions/transaction_provider'),
   ],
 
   /*
@@ -51,6 +52,7 @@ export default defineConfig({
     () => import('#start/routes'),
     () => import('#start/kernel'),
     () => import('#start/events'),
+    () => import('#start/admin_routes'),
   ],
 
   /*

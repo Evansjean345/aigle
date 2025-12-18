@@ -5,8 +5,15 @@ import { toWalletCreatedResult } from '#features/wallet/application/mappers/wall
 import { WalletCreatedResult } from '#features/wallet/application/dtos/wallet_created_result'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
-import { WalletQrScanResult } from '#features/wallet/application/dtos/wallet_qr_scan.result'
 import { randomUUID } from 'node:crypto'
+import QrJwtService from '#features/qr/application/services/qr_jwt_service'
+import { normalizePhone } from '#shared/utils/utiles'
+import UserRepository from '#features/user/domain/interfaces/user_repository'
+
+const TOKEN_ERRORS: Record<string, { status: number; message: string }> = {
+  TOKEN_EXPIRED: { status: 410, message: 'Le token a expiré' },
+  TOKEN_REPLAY: { status: 409, message: 'Ce token a déjà été utilisé' },
+}
 
 /**
  * Service for managing wallets, including creation, retrieval, and balance adjustments.
@@ -17,8 +24,14 @@ export default class WalletService {
    * Constructs an instance of the class.
    *
    * @param {WalletRepository} walletRepository - The repository used to interact with wallet data.
+   * @param qrcodeJwtService
+   * @param userRepository
    */
-  constructor(private walletRepository: WalletRepository) {}
+  constructor(
+    private walletRepository: WalletRepository,
+    private qrcodeJwtService: QrJwtService,
+    private userRepository: UserRepository
+  ) {}
 
   /**
    * Creates a wallet for the specified user if it doesn't already exist.
@@ -116,37 +129,67 @@ export default class WalletService {
    * @return {Promise<{phone: string, token: string}>} A promise that resolves to an object containing the user's phone number and the wallet token.
    * @throws {Exception} If the wallet is not found, an exception is thrown with a status of 404 and the code 'WALLET_NOT_FOUND'.
    */
-  async getUserAccountByWalletToken(token: string): Promise<WalletQrScanResult> {
-    const wallet = await this.walletRepository.findByQrToken(token)
-
-    if (!wallet) {
-      throw new Exception("Aucun compte n'est associé à ce qrcode", {
+  async getByWalletToken(token?: string): Promise<Wallet> {
+    if (!token?.length) {
+      throw new Exception('Token requis pour le mode QR code', {
         status: 400,
-        code: 'ACCOUNT_WITH_TOKEN_NOT_FOUND',
+        code: 'QRCODE_REQUIRED',
       })
     }
 
-    await wallet.load('user')
+    const res = await this.qrcodeJwtService.verify(token)
 
-    return {
-      name: wallet.user.firstname + ' ' + wallet.user.lastname,
-      phone: wallet.user.phone,
-      token: token,
+    if (!res.ok) {
+      const error = TOKEN_ERRORS[res.code] ?? { status: 422, message: res.code || 'Token invalide' }
+      throw new Exception(error.message, {
+        status: error.status,
+        code: res.code || 'TOKEN_INVALID',
+      })
     }
+
+    return this.getByUserId(res.sub)
   }
 
   /**
-   * Retrieves a Wallet entity by its QR token.
-   * Useful when you need the wallet id to perform balance operations.
+   * Retrieves a wallet associated with a given phone number.
+   * Validates the phone number, ensures the recipient exists, and checks that the sender is not transferring to themselves.
+   *
+   * @param {string} phoneRaw - The raw phone number provided by the sender.
+   * @param {string} senderUserId - The unique identifier of the sender's user account.
+   * @param {string} countryPhone - The country code to normalize the phone number.
+   * @return {Promise<Wallet>} A promise that resolves to the wallet associated with the recipient's user account.
+   * @throws {Exception} Throws an exception if the phone number is invalid, if no recipient exists, or if the sender is attempting to transfer to their own account.
    */
-  async getByWalletToken(token: string): Promise<Wallet> {
-    const wallet = await this.walletRepository.findByQrToken(token)
-    if (!wallet) {
-      throw new Exception('Wallet not found for the provided token', {
-        status: 404,
-        code: 'WALLET_NOT_FOUND',
+  async getWalletByPhoneNumber(
+    phoneRaw: string,
+    senderUserId: string,
+    countryPhone: string
+  ): Promise<Wallet> {
+    const normalizedPhone = normalizePhone(phoneRaw, countryPhone)
+
+    if (!normalizedPhone) {
+      throw new Exception('Numéro de téléphone du destinataire requis', {
+        status: 400,
+        code: 'PHONE_REQUIRED',
       })
     }
-    return wallet
+
+    const recipientUser = await this.userRepository.findByPhone(normalizedPhone)
+
+    if (!recipientUser) {
+      throw new Exception("Ce numéro n'est pas un compte Aigle send", {
+        status: 400,
+        code: 'UNREGISTERED_ACCOUNT',
+      })
+    }
+
+    if (recipientUser.usersUid === senderUserId) {
+      throw new Exception('Transfert vers soi-même interdit', {
+        status: 400,
+        code: 'SELF_TRANSFER',
+      })
+    }
+
+    return this.getByUserId(recipientUser.usersUid)
   }
 }

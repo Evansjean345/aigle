@@ -23,9 +23,6 @@ export default class OnDepositSuccessNotification {
       `Votre dépôt de ${event.data.amount} F CFA a été crédité sur votre compte. Nouveau solde: ${event.data.balanceAfter} CFA. Référence: ${event.data.reference}`
     )
 
-    console.log('debugging notification:')
-    console.log(notification)
-
     await this.notificationService.sendVia(NotificationChannelType.PushNotification, notification)
   }
 }

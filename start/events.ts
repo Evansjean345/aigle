@@ -5,9 +5,10 @@ import TransfertTransactionCompleted from '#features/webhooks/application/events
 import KycDocumentSubmitted from '#features/kyc/application/events/kyc_document_submitted'
 
 const WalletToWalletTransactionPushNotificationListener = () =>
-  import(
-    '#features/notifications/application/listeners/on_wallet_to_wallet_transaction_notification'
-  )
+  import('#features/notifications/application/listeners/on_wallet_to_wallet_transaction_notification')
+
+const PersistUserTransactionsVolumeListener = () =>
+  import('#features/transactions/application/listeners/persist_user_transactions_volume')
 
 const OnDepositSuccessNotification = () =>
   import('#features/notifications/application/listeners/on_deposit_success_notification')
@@ -18,7 +19,16 @@ const OnTransfertSuccessNotification = () =>
 const OnUserKycStatusUpdate = () =>
   import('#features/user/application/listeners/on_user_kyc_status_update')
 
-emitter.on(DepositTransactionCompleted, [OnDepositSuccessNotification])
-emitter.on(TransfertTransactionCompleted, [OnTransfertSuccessNotification])
-emitter.on(WalletToWalletTransactionCompleted, [WalletToWalletTransactionPushNotificationListener])
+emitter.listen(DepositTransactionCompleted, [
+  OnDepositSuccessNotification,
+  PersistUserTransactionsVolumeListener,
+])
+emitter.listen(TransfertTransactionCompleted, [
+  OnTransfertSuccessNotification,
+  PersistUserTransactionsVolumeListener,
+])
+emitter.listen(WalletToWalletTransactionCompleted, [
+  PersistUserTransactionsVolumeListener,
+  WalletToWalletTransactionPushNotificationListener,
+])
 emitter.on(KycDocumentSubmitted, [OnUserKycStatusUpdate])

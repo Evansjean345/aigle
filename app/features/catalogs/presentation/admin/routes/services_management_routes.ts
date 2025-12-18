@@ -41,6 +41,6 @@ export default function adminServicesManagementRoutes() {
       router.put('service-provider-methods/:id', [ServiceProviderMethodsController, 'update'])
       router.delete('service-provider-methods/:id', [ServiceProviderMethodsController, 'destroy'])
     })
-    .prefix('admin/services-management')
+    .prefix('/services-management')
     .use(middleware.auth({ guards: ['api'] }))
 }

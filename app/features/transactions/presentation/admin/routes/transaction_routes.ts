@@ -8,5 +8,5 @@ export default function adminTransactionRoutes() {
     .group(() => {
       router.get('/', [AdminTransactionController, 'all'])
     })
-    .prefix('admin/transactions')
+    .prefix('transactions')
 }

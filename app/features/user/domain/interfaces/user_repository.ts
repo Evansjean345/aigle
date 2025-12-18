@@ -1,5 +1,6 @@
 ﻿import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import User from '#features/user/domain/models/user'
+import { ExtractModelRelations } from '@adonisjs/lucid/types/relations'
 
 /**
  * Abstract class representing a repository for managing User entities.
@@ -13,11 +14,12 @@ import User from '#features/user/domain/models/user'
  */
 export default abstract class UserRepository {
   /**
-   * Retrieves all user entities from the system.
+   * Retrieves all User entities, optionally including specified related models.
    *
-   * @return {Promise<User[]>} A promise that resolves to an array of User objects.
+   * @param {ExtractModelRelations<User>[]} [relations] - Optional list of relations to preload for each user.
+   * @return {Promise<User[]>} A promise that resolves to an array of User entities.
    */
-  abstract all(): Promise<User[]>
+  abstract all(relations?: ExtractModelRelations<User>[]): Promise<User[]>
 
   /**
    * Finds a user by their unique identifier.

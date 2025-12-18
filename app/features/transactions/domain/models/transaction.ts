@@ -5,10 +5,9 @@ import { v4 as uuidv4 } from 'uuid'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import Payment from '#features/transactions/domain/models/payment'
 import User from '#features/users/domain/models/user'
-
-export type TransactionType = 'deposit' | 'wallet_transfert' | 'transfer' | 'transfer-inter'
-export type TransactionStatus = 'pending' | 'success' | 'failed'
-export type TransactionDirection = 'debit' | 'credit' | 'external'
+import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 
 export default class Transaction extends BaseModel {
   @column({ isPrimary: true })

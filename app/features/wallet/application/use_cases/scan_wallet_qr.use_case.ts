@@ -19,9 +19,7 @@ export default class ScanWalletQrUseCase {
    * Executes the provided QR code string and retrieves the wallet account information.
    *
    * @param {string} qrcode - The QR code string representing the wallet token.
-   * @return {Promise<WalletQrScanResult>} A promise that resolves to the result of scanning the wallet's QR code.
+   * @return {Promise<void>} A promise that resolves to the result of scanning the wallet's QR code.
    */
-  async execute(qrcode: string): Promise<WalletQrScanResult> {
-    return await this.walletService.getUserAccountByWalletToken(qrcode)
-  }
+  async execute(qrcode: string): Promise<void> {}
 }
