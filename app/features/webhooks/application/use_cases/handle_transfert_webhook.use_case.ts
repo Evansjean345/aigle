@@ -4,16 +4,20 @@ import TransactionService from '#features/transactions/application/services/tran
 import { Exception } from '@adonisjs/core/exceptions'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
-import Transaction, { TransactionStatus } from '#features/transactions/domain/models/transaction'
+import Transaction from '#features/transactions/domain/models/transaction'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import Payment from '#features/transactions/domain/models/payment'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
 import { Logger } from '@adonisjs/core/logger'
+import LedgerService from '#features/ledger/application/services/ledger_service'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import TransfertTransactionCompleted, {
   TransfertTransactionCompletedPayload,
 } from '#features/webhooks/application/events/transfert/transfert_transaction_completed'
+import { LedgerDirection } from '#features/ledger/domain/ledger_enums'
 
 /**
  * Class responsible for handling and processing transfer-related webhook events.
@@ -29,12 +33,14 @@ export default class HandleTransfertWebhookUseCase {
    * @param {TransactionService} transactionService - The service used for managing transactions.
    * @param {WalletService} walletService - The service used for wallet-related operations.
    * @param {Logger} logger - The logger used for logging activities and errors.
+   * @param ledgerService
    */
   constructor(
     private readonly paymentService: PaymentService,
     private readonly transactionService: TransactionService,
     private readonly walletService: WalletService,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly ledgerService: LedgerService
   ) {}
 
   /**
@@ -47,7 +53,7 @@ export default class HandleTransfertWebhookUseCase {
    */
   async execute(
     payload: WebhookRequestDto,
-    status: 'success' | 'failed'
+    status: TransactionStatus
   ): Promise<WebhookResponseDto> {
     this.validatePayload(payload)
     const { reference } = payload.data
@@ -159,9 +165,11 @@ export default class HandleTransfertWebhookUseCase {
     payment: Payment,
     incomingStatus: TransactionStatus
   ): boolean {
-    const isIncomingSuccess = incomingStatus === 'success'
-    const isCurrentSuccess = transaction.status === 'success' || payment.status === 'success'
-    const isCurrentFailed = transaction.status === 'failed' || payment.status === 'failed'
+    const isIncomingSuccess = incomingStatus === TransactionStatus.SUCCESS
+    const isCurrentSuccess =
+      transaction.status === TransactionStatus.SUCCESS || payment.status === PaymentStatus.SUCCESS
+    const isCurrentFailed =
+      transaction.status === TransactionStatus.FAILED || payment.status === PaymentStatus.FAILED
 
     return (isIncomingSuccess && isCurrentSuccess) || (!isIncomingSuccess && isCurrentFailed)
   }
@@ -183,7 +191,7 @@ export default class HandleTransfertWebhookUseCase {
     payment: Payment,
     wallet: Wallet,
     payload: WebhookRequestDto,
-    status: string,
+    status: TransactionStatus,
     trx: TransactionClientContract
   ): Promise<void> {
     const operatorResponse = { operator_response: payload as any }
@@ -199,7 +207,7 @@ export default class HandleTransfertWebhookUseCase {
       'Processing transfer webhook body'
     )
 
-    if (status === 'success') {
+    if (status === TransactionStatus.SUCCESS) {
       await this.processSuccessfulTransfer(transaction, payment, wallet, operatorResponse, trx)
     } else {
       await this.processFailedTransfer(transaction, payment, wallet, operatorResponse, trx)
@@ -266,6 +274,20 @@ export default class HandleTransfertWebhookUseCase {
       Number(transaction.amount || 0),
       trx
     )
+
+    if (refunded) {
+      await this.ledgerService.createEntry(
+        {
+          transaction: transaction,
+          walletId: wallet.id,
+          direction: LedgerDirection.CREDIT,
+          amountBrut: transaction.amount,
+          fees: transaction.fees,
+          balanceAfter: refunded.balance,
+        },
+        trx
+      )
+    }
 
     if (!refunded) {
       throw new Exception('Echec de remboursement du wallet', {

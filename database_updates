@@ -6,3 +6,48 @@ ALTER TABLE `kyc_documents`
 
 ALTER TABLE `kyc_documents`
 	CHANGE COLUMN `document_type` `document_type` ENUM('CNI','PASSPORT','PERMIT_CONDUIT') NULL DEFAULT NULL COLLATE 'utf8mb4_uca1400_ai_ci' AFTER `user_id`;
+
+alter table payments
+    drop column fees;
+
+alter table payments
+    drop column amount;
+
+alter table payments
+    drop column total_amount;
+
+alter table payments
+    drop column currency_code_from;
+
+alter table payments
+    drop column currency_code_to;
+
+alter table payments
+    drop column exchange_rate;
+
+alter table payments
+    drop column callback_status;
+
+alter table payments
+    drop foreign key payments_receiver_id_foreign;
+
+alter table payments
+    drop column receiver_id;
+
+alter table payments
+    drop foreign key payments_users_id_foreign;
+
+alter table payments
+    drop column users_id;
+
+alter table payments
+    drop foreign key payments_users_uid_foreign;
+
+alter table payments
+    drop column users_uid;
+
+alter table transactions
+    drop column balance_before;
+
+alter table transactions
+    drop column balance_after;

@@ -1,3 +1,5 @@
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+
 export interface WalletToWalletRequestDto {
   token?: string
   recipient_phone: string
@@ -8,6 +10,6 @@ export interface WalletToWalletResponseDto {
   message: string
   data: {
     reference: string
-    status: 'success' | 'pending' | 'failed'
+    status: TransactionStatus
   }
 }

@@ -1,6 +1,8 @@
 import { DateTime } from 'luxon'
 import { BaseModel, beforeSave, column } from '@adonisjs/lucid/orm'
 import { v4 as uuidv4 } from 'uuid'
+import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
+import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 
 export default class Payment extends BaseModel {
   @column({ isPrimary: true })
@@ -16,37 +18,13 @@ export default class Payment extends BaseModel {
   declare transactionsUid: string
 
   @column()
-  declare step: string
+  declare step: PaymentStep
 
   @column()
   declare operationType: string
 
   @column({ consume: (value: string | null) => (value ? JSON.parse(value) : null) })
   declare paymentDetails: string
-
-  @column()
-  declare usersId: number
-
-  @column()
-  declare usersUid: string
-
-  @column()
-  declare receiverId: number
-
-  @column()
-  declare fees: number
-
-  @column()
-  declare amount: number
-
-  @column()
-  declare totalAmount: number
-
-  @column()
-  declare urlOperator?: string
-
-  @column()
-  declare currency: string
 
   @column({ consume: (value: string | null) => (value ? JSON.parse(value) : null) })
   declare operatorResponse: string
@@ -61,7 +39,7 @@ export default class Payment extends BaseModel {
   declare paymentMethod: string
 
   @column()
-  declare status: 'draft' | 'pending' | 'success' | 'failed'
+  declare status: PaymentStatus
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

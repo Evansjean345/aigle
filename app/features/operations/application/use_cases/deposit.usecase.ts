@@ -2,15 +2,16 @@
   DepositRequestDto,
   DepositResponseDto,
 } from '#features/operations/application/dto/deposit.dto'
-import { ServiceProviderFeesRepositoryImpl } from '#features/fees/infrastructure/repositories/service_provider_fees_repository_impl'
-import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
 import User from '#features/users/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
-import { makeRequest } from '#shared/utils/http_helpers'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
+import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
+import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import env from '#start/env'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import config from '@adonisjs/core/services/config'
@@ -18,6 +19,7 @@ import ServiceTypesService from '#features/catalogs/application/services/service
 import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
+import HttpClient from '#shared/infrastructure/http_client_service'
 
 /**
  * Handles the deposit use case, including the calculation of fees based on a given deposit request payload.
@@ -27,7 +29,6 @@ export default class DepositUseCase {
   /**
    * Constructs a new instance of the class with dependencies injected for handling service provider fees, transactions, payments, and wallet operations.
    *
-   * @param {ServiceProviderFeesRepositoryImpl} feesRepo - The repository implementation for managing service provider fees.
    * @param {TransactionService} transactionService - The service responsible for managing transactions.
    * @param {PaymentService} paymentService - The service responsible for handling payment processes.
    * @param {WalletService} walletService - The service responsible for managing wallet operations.
@@ -37,14 +38,14 @@ export default class DepositUseCase {
    * @param transactionLimitValidationService
    */
   constructor(
-    private readonly feesRepo: ServiceProviderFeesRepositoryImpl,
     private readonly transactionService: TransactionService,
     private readonly paymentService: PaymentService,
     private readonly walletService: WalletService,
     private readonly serviceTypeService: ServiceTypesService,
     private readonly feeCalculatorService: FeeCalculatorService,
     private readonly accountValidationService: AccountValidationService,
-    private readonly transactionLimitValidationService: TransactionLimitValidationService
+    private readonly transactionLimitValidationService: TransactionLimitValidationService,
+    private readonly httpClient: HttpClient
   ) {}
 
   /**
@@ -57,9 +58,15 @@ export default class DepositUseCase {
   async execute(payload: DepositRequestDto, user: User): Promise<DepositResponseDto> {
     const serviceType = await this.serviceTypeService.findByCode(payload.serviceType)
     const wallet = await this.walletService.getByUserId(user.usersUid)
-    const { total, fees, amount } = await this.calculateFees(payload, serviceType.id)
+    const { total, fees, amount } = await this.feeCalculatorService.calculateForService(
+      {
+        serviceTypeId: serviceType.id,
+        paymentMethodId: payload.paymentMethodId,
+        providerFromId: payload.providerId,
+      },
+      { amount: Number(payload.amount), operation: 'subtract' }
+    )
 
-    // Validations: compte + limites (basées sur le KYC et le volume)
     await this.accountValidationService.validateAccount(user)
     await this.transactionLimitValidationService.validateTransactionLimit({
       user,
@@ -72,15 +79,14 @@ export default class DepositUseCase {
     try {
       const transaction = await this.transactionService.createTransaction(
         {
-          status: 'pending',
+          status: TransactionStatus.PENDING,
           amount: amount,
           total_amount: total,
-          direction: 'credit',
+          direction: TransactionDirection.CREDIT,
           fees: fees,
           operation_type: serviceType.code as TransactionType,
         },
         wallet.id,
-        wallet.balance,
         user,
         trx
       )
@@ -96,12 +102,9 @@ export default class DepositUseCase {
         {
           payment_method: payload.paymentMethodCode,
           operation_type: serviceType.code,
-          amount: amount,
-          total_amount: total,
-          fees: fees,
           payment_details: paymentDetails,
-          status: 'pending',
-          step: 'initialized',
+          status: PaymentStatus.PENDING,
+          step: PaymentStep.DEPOSIT_INIT,
         },
         transaction,
         user,
@@ -130,12 +133,11 @@ export default class DepositUseCase {
       }
 
       await trx.commit()
+      const response = await this.httpClient.post(env.get('API_CHECKOUT_URL')!!, dataSend)
 
-      const response = await makeRequest({
-        uri: env.get('API_CHECKOUT_URL')!!,
-        method: 'post',
-        data: dataSend,
-      })
+      if (!response.success) {
+        throw new Error(response.error.message)
+      }
 
       return {
         message: 'transaction initiated',
@@ -151,39 +153,5 @@ export default class DepositUseCase {
       await trx.rollback()
       throw error
     }
-  }
-
-  /**
-   * Calculates the fees for a specific deposit request based on the provided service type and payment details.
-   *
-   * @param {DepositRequestDto} payload - The deposit request object containing details such as amount, payment method ID, and provider ID.
-   * @param {number} serviceTypeId - The ID of the service type for which the fees need to be calculated.
-   * @return {Promise<{total: number, fees: number, amount: number}>} A promise that resolves to an object containing the total amount, fees, and amount after applying fees.
-   * @throws {Exception} Throws an exception if no applicable fee rule is found for the given context.
-   */
-  private async calculateFees(
-    payload: DepositRequestDto,
-    serviceTypeId: number
-  ): Promise<{ total: number; fees: number; amount: number }> {
-    const rule = await this.feesRepo.findRule({
-      serviceTypeId: serviceTypeId,
-      paymentMethodId: payload.paymentMethodId,
-      providerFromId: payload.providerId,
-      onlyActive: true,
-    })
-
-    if (!rule) {
-      throw new Exception('Aucune règle de frais trouvée pour ce contexte', {
-        status: 404,
-        code: 'NO_RULE_FOUND',
-      })
-    }
-
-    const { total, fees, amount } = this.feeCalculatorService.calculate(
-      { amount: Number(payload.amount), operation: 'subtract' },
-      rule
-    )
-
-    return { total, fees, amount }
   }
 }

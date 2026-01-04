@@ -112,7 +112,8 @@ export default class WalletService {
     amount: number,
     trx?: TransactionClientContract
   ): Promise<{ id: number; balance: number } | null> {
-    if (amount <= 0) throw new Exception('Invalid amount', { status: 400, code: 'INVALID_AMOUNT' })
+    if (amount <= 0)
+      throw new Exception('Montant invalide', { status: 400, code: 'INVALID_AMOUNT' })
     const updated = await this.walletRepository.debitGuarded(walletId, amount, trx)
 
     if (!updated) {

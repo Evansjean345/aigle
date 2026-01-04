@@ -3,16 +3,12 @@
   InterTransfertResponseDto,
 } from '#features/operations/application/dto/transfert_inter.dto'
 import ServiceType from '#features/catalogs/domain/models/service_type'
-import { ServiceProviderFeesRepositoryImpl } from '#features/fees/infrastructure/repositories/service_provider_fees_repository_impl'
-import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
 import User from '#features/users/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
-import Transaction, { TransactionType } from '#features/transactions/domain/models/transaction'
 import { TransactionType as TransactionTypeEnum } from '#features/transactions/domain/enums/transaction_type'
-import { makeRequest } from '#shared/utils/http_helpers'
 import env from '#start/env'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import Payment from '#features/transactions/domain/models/payment'
@@ -21,6 +17,15 @@ import ServiceTypesService from '#features/catalogs/application/services/service
 import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
+import LedgerService from '#features/ledger/application/services/ledger_service'
+import { LedgerDirection } from '#features/ledger/domain/ledger_enums'
+import Transaction from '#features/transactions/domain/models/transaction'
+import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
+import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
+import { Exception } from '@adonisjs/core/exceptions'
+import HttpClient from '#shared/infrastructure/http_client_service'
 
 /**
  * Class responsible for handling inter-transfer operations, including fees calculation,
@@ -31,7 +36,6 @@ export default class InterTransfertUseCase {
   /**
    * Constructs an instance of the class with the provided dependencies.
    *
-   * @param {ServiceProviderFeesRepositoryImpl} feesRepo - Repository for managing service provider fees.
    * @param {TransactionService} transactionService - Service for handling transactions.
    * @param {PaymentService} paymentService - Service for managing payment operations.
    * @param {WalletService} walletService - Service for handling wallet functionalities.
@@ -39,16 +43,18 @@ export default class InterTransfertUseCase {
    * @param {FeeCalculatorService} feeCalculatorService - Service for calculating fees.
    * @param accountValidationService
    * @param transactionLimitValidationService
+   * @param ledgerService
    */
   constructor(
-    private readonly feesRepo: ServiceProviderFeesRepositoryImpl,
     private readonly transactionService: TransactionService,
     private readonly paymentService: PaymentService,
     private readonly walletService: WalletService,
     private readonly serviceTypeService: ServiceTypesService,
     private readonly feeCalculatorService: FeeCalculatorService,
     private readonly accountValidationService: AccountValidationService,
-    private readonly transactionLimitValidationService: TransactionLimitValidationService
+    private readonly transactionLimitValidationService: TransactionLimitValidationService,
+    private readonly ledgerService: LedgerService,
+    private readonly httpClient: HttpClient
   ) {}
 
   /**
@@ -66,15 +72,18 @@ export default class InterTransfertUseCase {
       this.walletService.getByUserId(user.usersUid),
     ])
 
-    const { total, fees, amount } = await this.calculateFees(
+    const { total, fees, amount } = await this.feeCalculatorService.calculateForService(
       {
-        amount: payload.amount,
+        serviceTypeId: serviceType.id,
         paymentMethodId: payload.paymentMethodDepositId,
         providerFromId: payload.providerFromId,
         providerToId: payload.providerToId,
-        include_fees: payload.include_fees,
       },
-      serviceType.id
+      {
+        amount: Number(payload.amount),
+        operation: 'subtract',
+        include_fees: payload.include_fees,
+      }
     )
 
     // Validations: compte + limites (inter transfer = debit)
@@ -93,6 +102,17 @@ export default class InterTransfertUseCase {
         trx
       )
 
+      await this.ledgerService.createEntry(
+        {
+          transaction: transaction,
+          walletId: wallet.id,
+          direction: LedgerDirection.EXTERNAL,
+          amountBrut: transaction.totalAmount,
+          fees: transaction.fees,
+          balanceAfter: wallet.balance,
+        },
+        trx
+      )
       await trx.commit()
       const checkoutResponse = await this.initiateCheckout(payload, amount, transaction.reference)
 
@@ -148,22 +168,21 @@ export default class InterTransfertUseCase {
 
     const transaction = await this.transactionService.createTransaction(
       {
-        status: 'pending',
-        direction: 'external',
+        status: TransactionStatus.PENDING,
+        direction: TransactionDirection.EXTERNAL,
         amount,
         total_amount: total,
         fees,
-        operation_type: serviceType.code as TransactionType,
+        operation_type: serviceType.code as TransactionTypeEnum,
       },
       wallet.id,
-      0,
       user,
       trx
     )
 
     await Promise.all([
-      this.createDepositPayment(payload, amount, total, fees, transaction, user, trx),
-      this.createTransferPayment(payload, amount, total, fees, transaction, user, trx),
+      this.createDepositPayment(payload, transaction, user, trx),
+      this.createTransferPayment(payload, transaction, user, trx),
     ])
 
     return transaction
@@ -173,9 +192,6 @@ export default class InterTransfertUseCase {
    * Creates a deposit payment using the provided details.
    *
    * @param {InterTransfertRequestDto} payload - The transfer request data containing provider and account details.
-   * @param {number} amount - The amount to be deposited.
-   * @param {number} total - The total amount including fees.
-   * @param {number} fees - The fees associated with the transaction.
    * @param {any} transaction - The transaction object associated with the deposit.
    * @param {User} user - The user initiating the deposit.
    * @param {any} trx - The transactional context for ensuring database consistency.
@@ -183,9 +199,6 @@ export default class InterTransfertUseCase {
    */
   private async createDepositPayment(
     payload: InterTransfertRequestDto,
-    amount: number,
-    total: number,
-    fees: number,
     transaction: Transaction,
     user: User,
     trx: any
@@ -202,12 +215,10 @@ export default class InterTransfertUseCase {
     return this.paymentService.createPayment(
       {
         payment_method: payload.paymentMethodDepositCode,
-        amount,
-        total_amount: total,
-        fees,
+        operation_type: TransactionTypeEnum.DEPOSIT_INTER,
         payment_details: paymentDetails,
-        status: 'pending',
-        step: 'deposit_init',
+        status: PaymentStatus.PENDING,
+        step: PaymentStep.DEPOSIT_INIT,
       },
       transaction,
       user,
@@ -219,9 +230,6 @@ export default class InterTransfertUseCase {
    * Creates a transfer payment by preparing the payment details and invoking the payment service.
    *
    * @param {InterTransfertRequestDto} payload - Data transfer object containing transfer request details.
-   * @param {number} amount - The base amount for the transaction.
-   * @param {number} total - The total amount including fees.
-   * @param {number} fees - The applicable fee for the transfer transaction.
    * @param {any} transaction - The transaction object for additional transfer context.
    * @param {User} user - The user initiating the transfer.
    * @param {any} trx - The database transaction object for managing the atomic operations.
@@ -229,9 +237,6 @@ export default class InterTransfertUseCase {
    */
   private async createTransferPayment(
     payload: InterTransfertRequestDto,
-    amount: number,
-    total: number,
-    fees: number,
     transaction: Transaction,
     user: User,
     trx: any
@@ -244,12 +249,10 @@ export default class InterTransfertUseCase {
     return this.paymentService.createPayment(
       {
         payment_method: payload.paymentMethodTransfertCode,
-        amount,
-        total_amount: total,
-        fees,
+        operation_type: TransactionTypeEnum.TRANSFERT_INTER_STEP,
         payment_details: paymentDetails,
-        status: 'draft',
-        step: 'transfert_init',
+        status: PaymentStatus.DRAFT,
+        step: PaymentStep.TRANSFERT_INIT,
       },
       transaction,
       user,
@@ -272,11 +275,7 @@ export default class InterTransfertUseCase {
   ): Promise<Record<string, any>> {
     const dataSend = this.buildCheckoutPayload(payload, amount, reference)
 
-    const response = await makeRequest({
-      uri: env.get('API_CHECKOUT_URL')!!,
-      method: 'post',
-      data: dataSend,
-    })
+    const response = await this.httpClient.post(env.get('API_CHECKOUT_URL')!!, dataSend)
 
     console.log('Response from inter-reseaux transaction:', response)
 
@@ -350,55 +349,5 @@ export default class InterTransfertUseCase {
         wave_url: waveUrl,
       },
     }
-  }
-
-  /**
-   * Calculates the applicable fees based on the given payload and service type.
-   *
-   * @param {Object} payload - The payload containing information for fee calculation.
-   * @param {number} payload.amount - The transaction amount.
-   * @param {number} payload.paymentMethodId - The ID of the payment method.
-   * @param {number} payload.providerFromId - The ID of the provider initiating the transaction.
-   * @param {number} [payload.providerToId] - The optional ID of the provider receiving the transaction.
-   * @param {boolean} [payload.include_fees] - Whether to include fees in the calculation.
-   * @param {number} serviceTypeId - The ID of the service type.
-   * @return {Promise<{total: number, fees: number, amount: number}>} Resolves with the calculated total, fees, and resulting amount.
-   * @throws {Exception} If no applicable rule is found for the given context.
-   */
-  private async calculateFees(
-    payload: {
-      amount: number
-      paymentMethodId: number
-      providerFromId: number
-      providerToId?: number
-      include_fees?: boolean
-    },
-    serviceTypeId: number
-  ): Promise<{ total: number; fees: number; amount: number }> {
-    const rule = await this.feesRepo.findRule({
-      serviceTypeId,
-      paymentMethodId: payload.paymentMethodId,
-      providerFromId: payload.providerFromId,
-      providerToId: payload.providerToId,
-      onlyActive: true,
-    })
-
-    if (!rule) {
-      throw new Exception('Aucune règle de frais trouvée pour ce contexte', {
-        status: 404,
-        code: 'NO_RULE_FOUND',
-      })
-    }
-
-    const { total, fees, amount } = this.feeCalculatorService.calculate(
-      {
-        amount: Number(payload.amount),
-        operation: 'subtract',
-        include_fees: payload.include_fees,
-      },
-      rule
-    )
-
-    return { total, fees, amount }
   }
 }

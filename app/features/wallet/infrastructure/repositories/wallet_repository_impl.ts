@@ -81,9 +81,6 @@ export default class WalletRepositoryImpl implements WalletRepository {
     delta: number,
     trx?: TransactionClientContract
   ): Promise<AdjustedBalance | null> {
-    console.log('debugging delta')
-    console.log(Math.abs(delta))
-
     const wallet = await Wallet.query({ client: trx })
       .where('id', id)
       .where('balance', '>=', delta < 0 ? Math.abs(delta) : 0)

@@ -38,6 +38,7 @@ export default defineConfig({
     () => import('@adonisjs/redis/redis_provider'),
     () => import('#providers/notification_service_provider'),
     () => import('#features/transactions/transaction_provider'),
+    () => import('#features/ledger/ledger_provider'),
   ],
 
   /*

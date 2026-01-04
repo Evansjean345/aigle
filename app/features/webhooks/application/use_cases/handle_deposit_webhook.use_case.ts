@@ -5,16 +5,20 @@ import WalletRepository from '#features/wallet/domain/interfaces/wallet_reposito
 import { Exception } from '@adonisjs/core/exceptions'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
-import Transaction, { TransactionStatus } from '#features/transactions/domain/models/transaction'
+import Transaction from '#features/transactions/domain/models/transaction'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import Payment from '#features/transactions/domain/models/payment'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
 import { Logger } from '@adonisjs/core/logger'
+import LedgerService from '#features/ledger/application/services/ledger_service'
 import DepositTransactionCompleted from '#features/webhooks/application/events/deposit/deposit_transaction_completed'
 import DepositTransactionFailed, {
   DepositTransactionFailedPayload,
 } from '#features/webhooks/application/events/deposit/deposit_transaction_failed'
+import { LedgerDirection } from '#features/ledger/domain/ledger_enums'
 
 /**
  * Handles the business logic for processing deposit webhook events. This class is responsible for managing
@@ -29,12 +33,14 @@ export default class HandleDepositWebhookUseCase {
    * @param {TransactionService} transactionService - The service for managing transaction-related business logic.
    * @param {WalletRepository} walletRepository - The repository for accessing wallet-related data and operations.
    * @param logger
+   * @param ledgerService
    */
   constructor(
     private readonly paymentService: PaymentService,
     private readonly transactionService: TransactionService,
     private readonly walletRepository: WalletRepository,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly ledgerService: LedgerService
   ) {}
 
   /**
@@ -46,7 +52,7 @@ export default class HandleDepositWebhookUseCase {
    */
   async execute(
     payload: WebhookRequestDto,
-    status: 'success' | 'failed'
+    status: TransactionStatus
   ): Promise<WebhookResponseDto> {
     this.validatePayload(payload)
     const { reference: webTransactionRef } = payload.data
@@ -171,9 +177,11 @@ export default class HandleDepositWebhookUseCase {
     payment: Payment,
     incomingStatus: TransactionStatus
   ): boolean {
-    const isIncomingSuccess = incomingStatus === 'success'
-    const isCurrentSuccess = transaction.status === 'success' || payment.status === 'success'
-    const isCurrentFailed = transaction.status === 'failed' || payment.status === 'failed'
+    const isIncomingSuccess = incomingStatus === TransactionStatus.SUCCESS
+    const isCurrentSuccess =
+      transaction.status === TransactionStatus.SUCCESS || payment.status === PaymentStatus.SUCCESS
+    const isCurrentFailed =
+      transaction.status === TransactionStatus.FAILED || payment.status === PaymentStatus.FAILED
 
     return (isIncomingSuccess && isCurrentSuccess) || (!isIncomingSuccess && isCurrentFailed)
   }
@@ -194,7 +202,7 @@ export default class HandleDepositWebhookUseCase {
     payment: Payment,
     wallet: Wallet,
     payload: WebhookRequestDto,
-    status: string,
+    status: TransactionStatus,
     trx: TransactionClientContract
   ): Promise<void> {
     const operatorResponse = { operator_response: payload as any }
@@ -210,12 +218,9 @@ export default class HandleDepositWebhookUseCase {
       'Processing webhook body'
     )
 
-    if (status === 'success') {
+    if (status === TransactionStatus.SUCCESS) {
       this.logger.info({ reference: payload.data.reference }, 'Processing successful deposit')
       await this.processSuccessfulDeposit(transaction, payment, wallet, operatorResponse, trx)
-
-      console.log('TransfertTransactionCompleted')
-      console.log(transaction.balanceAfter)
     } else {
       this.logger.info({ reference: payload.data.reference }, 'Processing failed deposit')
       await this.processFailedDeposit(transaction, payment, operatorResponse, trx)
@@ -250,7 +255,7 @@ export default class HandleDepositWebhookUseCase {
       trx
     )
 
-    if (!updatedWallet) {
+    if (!updatedWallet || !updatedWallet.balance || !updatedWallet.id) {
       this.logger.error(
         { wallet_id: wallet.id },
         'Failed to update wallet during successful deposit'
@@ -263,6 +268,18 @@ export default class HandleDepositWebhookUseCase {
 
     this.logger.debug({ transaction_id: transaction.id }, 'Marking transaction as success')
     await this.safeMarkTransactionSuccess(transaction.id, updatedWallet.balance!, trx)
+
+    await this.ledgerService.createEntry(
+      {
+        transaction: transaction,
+        walletId: wallet.id,
+        direction: LedgerDirection.CREDIT,
+        amountBrut: transaction.totalAmount,
+        fees: transaction.fees,
+        balanceAfter: updatedWallet.balance,
+      },
+      trx
+    )
 
     await DepositTransactionCompleted.dispatch({
       reference: transaction.reference,

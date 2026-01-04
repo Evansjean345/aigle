@@ -19,8 +19,10 @@ export default class UsersController {
    * @param {Object} HttpContext.response - The outgoing HTTP response object.
    * @return {Promise<Object>} A JSON response with a message.
    */
-  async index({ response }: HttpContext) {
-    const users = await this.getAllUsersUseCase.execute()
+  async index({ request, response }: HttpContext) {
+    const page = request.input('page', 1)
+    const perPage = request.input('perPage', 10)
+    const users = await this.getAllUsersUseCase.execute(page, perPage)
     return response.ok(users)
   }
 }

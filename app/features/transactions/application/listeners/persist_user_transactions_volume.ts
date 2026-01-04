@@ -1,4 +1,5 @@
 import TransactionVolumeCache from '#features/transactions/domain/interfaces/transaction_volume_cache'
+import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import { inject } from '@adonisjs/core'
 import DepositTransactionCompleted from '#features/webhooks/application/events/deposit/deposit_transaction_completed'
 import TransfertTransactionCompleted from '#features/webhooks/application/events/transfert/transfert_transaction_completed'
@@ -10,8 +11,12 @@ export default class PersistUserTransactionsVolume {
    * Constructs an instance of the class.
    *
    * @param {TransactionVolumeCache} transactionVolumeCache - A cache instance for managing transaction volumes.
+   * @param {IdempotencyProvider} idempotency - A provider for handling idempotency.
    */
-  constructor(private readonly transactionVolumeCache: TransactionVolumeCache) {}
+  constructor(
+    private readonly transactionVolumeCache: TransactionVolumeCache,
+    private readonly idempotency: IdempotencyProvider
+  ) {}
 
   /**
    * Handles various transaction events, updating the model accordingly based on
@@ -69,7 +74,7 @@ export default class PersistUserTransactionsVolume {
     amount: number,
     timestamp?: Date | string | import('luxon').DateTime
   ): Promise<void> {
-    const ok = await this.transactionVolumeCache.markProcessed(reference)
+    const ok = await this.idempotency.checkAndMark(reference)
     if (!ok) return
 
     await this.transactionVolumeCache.incrementOnSuccess({ userId, amount, timestamp })

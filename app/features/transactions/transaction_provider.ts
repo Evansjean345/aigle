@@ -6,6 +6,8 @@ import PaymentRepository from '#features/transactions/domain/interfaces/payment_
 import PaymentRepositoryImpl from '#features/transactions/infrastructure/repositories/payment_repository_impl'
 import TransactionVolumeCache from '#features/transactions/domain/interfaces/transaction_volume_cache'
 import RedisTransactionVolumeCache from '#features/transactions/infrastructure/redis_transaction_volume_cache'
+import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
+import RedisIdempotencyProvider from '#features/transactions/infrastructure/redis_idempotency_provider'
 
 export default class TransactionProvider {
   constructor(protected app: ApplicationService) {}
@@ -15,6 +17,7 @@ export default class TransactionProvider {
       [TransactionRepository, TransactionRepositoryImpl],
       [PaymentRepository, PaymentRepositoryImpl],
       [TransactionVolumeCache, RedisTransactionVolumeCache],
+      [IdempotencyProvider, RedisIdempotencyProvider],
     ])
 
     for (const [contract, implementation] of providers) {

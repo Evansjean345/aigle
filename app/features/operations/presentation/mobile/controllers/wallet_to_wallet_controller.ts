@@ -2,6 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
 import { walletToWalletValidator } from '#features/operations/presentation/mobile/validators/wallet_to_wallet_validator'
+import { TransferMode } from '#features/operations/application/services/wallet_transfer_context_service'
 
 /**
  * Controller responsible for handling wallet-to-wallet operations.
@@ -24,7 +25,12 @@ export default class WalletToWalletController {
   async handle({ request, response, auth }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(walletToWalletValidator)
     const user = auth.user!
-    const result = await this.walletToWalletUseCase.execute(payload, user, 'by_qrcode')
+
+    const headers = request.headers()
+    console.log('debugging headers')
+    console.log(headers)
+
+    const result = await this.walletToWalletUseCase.execute(payload, user, TransferMode.BY_QRCODE)
     return response.ok(result)
   }
 }

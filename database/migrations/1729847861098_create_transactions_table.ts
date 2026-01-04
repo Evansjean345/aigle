@@ -37,8 +37,6 @@ export default class extends BaseSchema {
       table.decimal('fees', 15, 2).notNullable()
       table.decimal('amount', 15, 2).notNullable()
       table.decimal('total_amount', 15, 2).notNullable()
-      table.decimal('balance_before', 15, 2).nullable()
-      table.decimal('balance_after', 15, 2).nullable()
 
       table.string('operation_type').nullable()
       table.date('date_transaction').nullable()

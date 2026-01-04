@@ -10,9 +10,6 @@ export default class FileStorageService {
   async uploadFile(filePath: any, destinationPath: string): Promise<string> {
     const key = `${destinationPath}/${cuid()}.${filePath.extname}`
     await filePath.moveToDisk(key, 's3')
-
-    console.log(filePath.meta.url)
-
     return filePath.meta.url
   }
 }

@@ -129,15 +129,33 @@ export default class RedisTransactionVolumeCache implements TransactionVolumeCac
   }
 
   /**
-   * Marks a transaction as processed in the redis datastore with a specified time-to-live (TTL).
+   * Retrieves the monthly volumes for a list of users.
    *
-   * @param {string} txId - The unique identifier of the transaction to mark as processed.
-   * @param {number} [ttlSeconds=86400] - The time-to-live for the key, in seconds. Default is 86400 seconds (1 day).
-   * @return {Promise<boolean>} A promise that resolves to `true` if the operation was successful, otherwise `false`.
+   * @param {string[]} userIds - The list of user identifiers.
+   * @param {Date | string | DateTime} [dt] - The optional date to specify the month.
+   * @returns {Promise<Record<string, number>>} A promise that resolves to a record of user ID and their monthly volume.
    */
-  async markProcessed(txId: string, ttlSeconds: number = 86400): Promise<boolean> {
-    const key = `tx:vol:processed:${txId}`
-    const res = await redis.set(key, '1', 'EX', ttlSeconds, 'NX')
-    return res === 'OK'
+  async getMonthlyVolumesForUsers(
+    userIds: string[],
+    dt?: Date | string | DateTime
+  ): Promise<Record<string, number>> {
+    const ts = RedisTransactionVolumeCache.normalize(dt)
+    const pipeline = redis.pipeline()
+
+    userIds.forEach((userId) => {
+      pipeline.get(this.monthKey(userId, ts))
+    })
+
+    const results = await pipeline.exec()
+    const volumes: Record<string, number> = {}
+
+    userIds.forEach((userId, index) => {
+      const val = results ? results[index] : null
+      volumes[userId] =
+        val && Array.isArray(val) ? (val[1] ? Number(val[1]) : 0) : val ? Number(val) : 0
+    })
+
+    return volumes
   }
+
 }

@@ -3,6 +3,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import HandleTransfertWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_webhook.use_case'
 import { Logger } from '@adonisjs/core/logger'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 
 @inject()
 export default class TransferWebhookController {
@@ -25,7 +26,7 @@ export default class TransferWebhookController {
     )
 
     try {
-      const result = await this.handleTransfertWebhook.execute(payload, 'success')
+      const result = await this.handleTransfertWebhook.execute(payload, TransactionStatus.SUCCESS)
       this.logger.info({ reference: payload?.data?.reference }, 'Transfer success processed')
       return response.ok(result)
     } catch (error: any) {
@@ -51,7 +52,7 @@ export default class TransferWebhookController {
     )
 
     try {
-      const result = await this.handleTransfertWebhook.execute(payload, 'failed')
+      const result = await this.handleTransfertWebhook.execute(payload, TransactionStatus.FAILED)
       this.logger.info({ reference: payload?.data?.reference }, 'Transfer failure processed')
       return response.ok(result)
     } catch (error: any) {

@@ -4,6 +4,7 @@ import { Logger } from '@adonisjs/core/logger'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import HandleTransfertInterFirstWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_first_webhook.use_case'
 import HandleTransfertInterSecondWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_second_webhook.use_case'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 
 @inject()
 export default class TransfertInterWebhookController {
@@ -32,7 +33,10 @@ export default class TransfertInterWebhookController {
     )
 
     try {
-      const result = await this.handleTransfertInterFirstWebhook.execute(payload, 'success')
+      const result = await this.handleTransfertInterFirstWebhook.execute(
+        payload,
+        TransactionStatus.SUCCESS
+      )
       this.logger.info(
         { reference: payload?.data?.reference },
         'Inter-network first success processed'
@@ -66,7 +70,10 @@ export default class TransfertInterWebhookController {
     )
 
     try {
-      const result = await this.handleTransfertInterFirstWebhook.execute(payload, 'failed')
+      const result = await this.handleTransfertInterFirstWebhook.execute(
+        payload,
+        TransactionStatus.FAILED
+      )
       this.logger.info(
         { reference: payload?.data?.reference },
         'Inter-network first failure processed'
@@ -100,7 +107,10 @@ export default class TransfertInterWebhookController {
     )
 
     try {
-      const result = await this.handleTransfertInterSecondWebhook.execute(payload, 'success')
+      const result = await this.handleTransfertInterSecondWebhook.execute(
+        payload,
+        TransactionStatus.SUCCESS
+      )
       this.logger.info(
         { reference: payload?.data?.reference },
         'Inter-network second success processed'
@@ -134,7 +144,10 @@ export default class TransfertInterWebhookController {
     )
 
     try {
-      const result = await this.handleTransfertInterSecondWebhook.execute(payload, 'failed')
+      const result = await this.handleTransfertInterSecondWebhook.execute(
+        payload,
+        TransactionStatus.FAILED
+      )
       this.logger.info(
         { reference: payload?.data?.reference },
         'Inter-network second failure processed'

@@ -35,11 +35,15 @@ export default abstract class TransactionVolumeCache {
   abstract getMonthlyVolume(userId: string | number, dt?: Date | string | DateTime): Promise<number>
 
   /**
-   * Marks a transaction as processed in the redis datastore with a specified time-to-live (TTL).
+   * Retrieves the monthly volumes for a list of users.
    *
-   * @param {string} txId - The unique identifier of the transaction to mark as processed.
-   * @param {number} [ttlSeconds=86400] - The time-to-live for the key, in seconds. Default is 86400 seconds (1 day).
-   * @return {Promise<boolean>} A promise that resolves to `true` if the operation was successful, otherwise `false`.
+   * @param {string[]} userIds - The list of user identifiers.
+   * @param {Date | string | DateTime} [dt] - The optional date to specify the month.
+   * @returns {Promise<Record<string, number>>} A promise that resolves to a record of user ID and their monthly volume.
    */
-  abstract markProcessed(txId: string, ttlSeconds?: number): Promise<boolean>
+  abstract getMonthlyVolumesForUsers(
+    userIds: string[],
+    dt?: Date | string | DateTime
+  ): Promise<Record<string, number>>
+
 }

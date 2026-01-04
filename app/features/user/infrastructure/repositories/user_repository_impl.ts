@@ -1,7 +1,8 @@
-﻿import User from '#features/users/domain/models/user'
+﻿import User from '#features/user/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import UserRepository from '#features/users/domain/interfaces/user_repository'
+import UserRepository from '#features/user/domain/interfaces/user_repository'
 import { ExtractModelRelations } from '@adonisjs/lucid/types/relations'
+import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 export default class UserRepositoryIml implements UserRepository {
   /**
@@ -19,6 +20,30 @@ export default class UserRepositoryIml implements UserRepository {
       }
     }
     return query.orderBy('created_at', 'desc')
+  }
+
+  /**
+   * Retrieves a paginated list of User entities.
+   *
+   * @param {number} page - The page number to retrieve.
+   * @param {number} perPage - The number of users per page.
+   * @param {ExtractModelRelations<User>[]} [relations] - Optional list of relations to preload.
+   * @returns {Promise<ModelPaginatorContract<User>>}
+   */
+  async paginate(
+    page: number,
+    perPage: number,
+    relations?: ExtractModelRelations<User>[]
+  ): Promise<ModelPaginatorContract<User>> {
+    const query = User.query()
+
+    if (relations) {
+      for (const relationName of relations) {
+        query.preload(relationName)
+      }
+    }
+
+    return query.orderBy('created_at', 'desc').paginate(page, perPage)
   }
 
   /**

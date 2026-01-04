@@ -2,30 +2,31 @@ import User from '#features/user/domain/models/user'
 import { AdminUserListItemResponseDto } from '#features/user/application/dtos/admin/users.response.dto'
 
 export function mapUserToAdminListItemDto(user: User): AdminUserListItemResponseDto {
-  const wallet = (user as any).wallet?.$attributes
-  const keyLevel = (user as any).keyLevel?.$attributes
-  const kycDocument = (user as any).kycDocument?.$attributes
-  const country = (user as any).country?.$attributes
-
   return {
     usersUid: user.usersUid,
     fullname: [user.firstname, user.lastname].filter(Boolean).join(' ').trim(),
     phone: user.phone,
-    country: country?.code ?? null,
-    accountType: user.accountType,
+    country: {
+      name: user.country.name,
+      flag: user.country.flag,
+      phoneCode: user.country.phoneCode,
+    },
     status: user.status,
     createdAt: user.createdAt,
+    profilePic: user.kycDocument?.selfieUrl || null,
+    transactionVolume: {
+      monthly_limit: user.keyLevel.monthlyLimit,
+      monthly: user.transactionVolumes.monthly,
+    },
     kyc: {
-      level: keyLevel?.level ?? (user as any).kycLevel ?? null,
-      status: (user as any).kycStatus ?? null,
-      documentType: kycDocument?.documentType ?? null,
-      documentStatus: kycDocument?.status ?? null,
-      nextAction: kycDocument?.nextAction ?? null,
+      level: user.keyLevel.level,
+      status: user.kycStatus,
+      documentType: user.kycDocument?.documentType,
+      documentStatus: user.kycDocument?.status,
     },
     wallet: {
-      balance: wallet?.balance ?? null,
-      currency: wallet?.currencySymbol ?? null,
-      balanceLimit: keyLevel?.balanceLimit ?? null,
+      balance: user.wallet.balance,
+      currency: user.wallet.currencySymbol,
     },
   }
 }

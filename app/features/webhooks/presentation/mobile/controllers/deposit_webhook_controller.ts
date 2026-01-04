@@ -3,6 +3,7 @@ import HandleDepositWebhookUseCase from '#features/webhooks/application/use_case
 import { HttpContext } from '@adonisjs/core/http'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { Logger } from '@adonisjs/core/logger'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 
 /**
  * Controller for handling deposit webhook events.
@@ -45,7 +46,7 @@ export default class DepositWebhookController {
     )
 
     try {
-      const result = await this.handleDepositWebhook.execute(payload, 'success')
+      const result = await this.handleDepositWebhook.execute(payload, TransactionStatus.SUCCESS)
       this.logger.info({ reference: payload?.data?.reference }, 'Deposit success processed')
       return response.ok(result)
     } catch (error: any) {
@@ -80,7 +81,7 @@ export default class DepositWebhookController {
     )
 
     try {
-      const result = await this.handleDepositWebhook.execute(payload, 'failed')
+      const result = await this.handleDepositWebhook.execute(payload, TransactionStatus.FAILED)
       this.logger.info({ reference: payload?.data?.reference }, 'Deposit failure processed')
       return response.ok(result)
     } catch (error: any) {

@@ -5,12 +5,14 @@ import { Exception } from '@adonisjs/core/exceptions'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
 import Transaction from '#features/transactions/domain/models/transaction'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import Payment from '#features/transactions/domain/models/payment'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
 import { Logger } from '@adonisjs/core/logger'
-import { makeRequest } from '#shared/utils/http_helpers'
 import env from '#start/env'
+import HttpClient from '#shared/infrastructure/http_client_service'
 
 /**
  * Use the case responsible for handling the first webhook of an inter-transfer transaction.
@@ -27,7 +29,8 @@ export default class HandleTransfertInterFirstWebhookUseCase {
   constructor(
     private readonly paymentService: PaymentService,
     private readonly transactionService: TransactionService,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly httpClient: HttpClient
   ) {}
 
   /**
@@ -39,7 +42,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
    */
   async execute(
     payload: WebhookRequestDto,
-    status: 'success' | 'failed'
+    status: TransactionStatus
   ): Promise<WebhookResponseDto> {
     this.logger.info({ status, payload }, 'Inter-transfer first webhook received')
     this.validatePayload(payload)
@@ -158,11 +161,13 @@ export default class HandleTransfertInterFirstWebhookUseCase {
   private isIdempotentRequest(
     transaction: Transaction,
     payment: Payment,
-    incomingStatus: 'success' | 'failed'
+    incomingStatus: TransactionStatus
   ): boolean {
-    if (payment.status === 'success' && incomingStatus === 'success') return true
-    if (payment.status === 'failed' && incomingStatus === 'failed') return true
-    return transaction.status !== 'pending'
+    if (payment.status === PaymentStatus.SUCCESS && incomingStatus === TransactionStatus.SUCCESS)
+      return true
+    if (payment.status === PaymentStatus.FAILED && incomingStatus === TransactionStatus.FAILED)
+      return true
+    return transaction.status !== TransactionStatus.PENDING
   }
 
   /**
@@ -182,17 +187,17 @@ export default class HandleTransfertInterFirstWebhookUseCase {
     firstPayment: Payment,
     secondPayment: Payment,
     operatorResponse: any,
-    status: 'success' | 'failed',
+    status: TransactionStatus,
     trx: TransactionClientContract
   ): Promise<WebhookResponseDto> {
-    if (status === 'success') {
+    if (status === TransactionStatus.SUCCESS) {
       this.logger.debug(
         { reference: transaction.reference, first_payment_id: firstPayment.id },
         'Marking first payment as success'
       )
       await this.paymentService.markSuccess(
         firstPayment.id,
-        { operator_response: operatorResponse },
+        { operatorResponse: operatorResponse },
         trx
       )
 
@@ -216,7 +221,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
 
         const dataSend: Record<string, any> = {
           operation_type: secondPayment.paymentMethod,
-          amount: Number(secondPayment.totalAmount),
+          amount: Number(transaction.totalAmount),
           provider: details?.operator,
           number: details?.phone,
           country: 'ci',
@@ -226,11 +231,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
           notify_failure_url: env.get('NOTIFY_TRANSFERT_INTER_SECOND_FAILURE_URL'),
         }
 
-        await makeRequest({
-          uri: env.get('API_TRANSFERT_URL')!!,
-          method: 'post',
-          data: dataSend,
-        })
+        await this.httpClient.post(env.get('API_TRANSFERT_URL')!!, dataSend)
         this.logger.info(
           {
             reference: transaction.reference,
@@ -263,12 +264,12 @@ export default class HandleTransfertInterFirstWebhookUseCase {
       await Promise.all([
         this.paymentService.markFailed(
           firstPayment.id,
-          { operator_response: operatorResponse },
+          { operatorResponse: operatorResponse },
           trx
         ),
         this.paymentService.markFailed(secondPayment.id, {}, trx),
+        await this.transactionService.markFailed(transaction.id, trx),
       ])
-      await this.transactionService.markFailed(transaction.id, trx)
       return this.createSuccessResponse()
     }
   }

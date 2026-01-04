@@ -6,6 +6,8 @@ import User from '#features/users/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
 import { Logger } from '@adonisjs/core/logger'
+import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
+import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 
 /**
  * Service class for handling payment-related operations.
@@ -45,12 +47,9 @@ export default class PaymentService {
     payload: Partial<Payment> & {
       payment_method: string
       operation_type: string
-      amount: number
-      total_amount: number
-      fees?: number
       payment_details?: Record<string, any> | null
-      step?: string
-      status?: Payment['status']
+      step?: PaymentStep
+      status?: PaymentStatus
     },
     transaction: Transaction,
     user: User,
@@ -62,18 +61,11 @@ export default class PaymentService {
     )
     const payment = new Payment()
 
-    payment.usersId = user.id
-    payment.usersUid = user.usersUid!
-
     payment.transactionsId = transaction.id
     payment.transactionsUid = transaction.transactionsUid!
 
     payment.paymentMethod = payload.payment_method
     payment.operationType = payload.operation_type
-
-    payment.fees = Number(payload.fees || transaction.fees || 0)
-    payment.amount = Number(payload.amount)
-    payment.totalAmount = Number(payload.total_amount)
 
     if (payload.payment_details)
       payment.paymentDetails = JSON.stringify(payload.payment_details as any)
@@ -112,27 +104,26 @@ export default class PaymentService {
    */
   async markSuccess(
     id: string | number,
-    extra?: Partial<Pick<Payment, 'operator_response' | 'url_operator' | 'status'>>,
+    extra?: Partial<Pick<Payment, 'status' | 'operatorResponse'>>,
     trx?: TransactionClientContract
   ): Promise<Payment> {
     const payment = await this.getByUidOrId(id)
 
-    if (payment.status === 'success') {
-      this.logger.info({ payment_id: payment.id }, 'Payment already successful')
+    if (payment.status === PaymentStatus.SUCCESS) {
+      this.logger.warn(
+        { payment_id: payment.id, status: payment.status },
+        'Payment already successful'
+      )
       throw new Exception('Payment already successful', {
         status: 400,
         code: 'PAYMENT_ALREADY_SUCCESSFUL',
       })
     }
 
-    payment.status = 'success'
+    payment.status = PaymentStatus.SUCCESS
 
-    if (extra?.operator_response) {
-      payment.operatorResponse = JSON.stringify(extra.operator_response)
-    }
-
-    if (extra?.url_operator) {
-      payment.urlOperator = extra.url_operator || undefined
+    if (extra?.operatorResponse) {
+      payment.operatorResponse = JSON.stringify(extra.operatorResponse)
     }
 
     this.logger.info({ payment_id: payment.id }, 'Payment marked as success')
@@ -154,20 +145,20 @@ export default class PaymentService {
    */
   async markFailed(
     id: string | number,
-    extra?: Partial<Pick<Payment, 'operator_response' | 'status'>>,
+    extra?: Partial<Pick<Payment, 'operatorResponse' | 'status'>>,
     trx?: TransactionClientContract
   ): Promise<Payment> {
     const payment = await this.getByUidOrId(id)
 
-    if (payment.status === 'failed') {
+    if (payment.status === PaymentStatus.FAILED) {
       this.logger.info({ payment_id: payment.id }, 'Payment already failed')
       throw new Exception('Payment already failed', { status: 400, code: 'PAYMENT_ALREADY_FAILED' })
     }
 
-    payment.status = 'failed'
+    payment.status = PaymentStatus.FAILED
 
-    if (extra?.operator_response) {
-      payment.operatorResponse = JSON.stringify(extra.operator_response as any)
+    if (extra?.operatorResponse) {
+      payment.operatorResponse = JSON.stringify(extra.operatorResponse as any)
     }
 
     this.logger.info({ payment_id: payment.id }, 'Payment marked as failed')

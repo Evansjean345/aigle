@@ -1,6 +1,7 @@
 ﻿import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import User from '#features/user/domain/models/user'
 import { ExtractModelRelations } from '@adonisjs/lucid/types/relations'
+import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 /**
  * Abstract class representing a repository for managing User entities.
@@ -20,6 +21,20 @@ export default abstract class UserRepository {
    * @return {Promise<User[]>} A promise that resolves to an array of User entities.
    */
   abstract all(relations?: ExtractModelRelations<User>[]): Promise<User[]>
+
+  /**
+   * Retrieves a paginated list of User entities.
+   *
+   * @param {number} page - The page number to retrieve.
+   * @param {number} perPage - The number of users per page.
+   * @param {ExtractModelRelations<User>[]} [relations] - Optional list of relations to preload.
+   * @returns {Promise<ModelPaginatorContract<User>>}
+   */
+  abstract paginate(
+    page: number,
+    perPage: number,
+    relations?: ExtractModelRelations<User>[]
+  ): Promise<ModelPaginatorContract<User>>
 
   /**
    * Finds a user by their unique identifier.

@@ -6,24 +6,39 @@ export interface AdminUserListItemResponseDto {
   usersUid: string
   fullname: string
   phone: string
-  country: string | null
-  accountType: string
+  country: {
+    name: string
+    flag: string
+    phoneCode: string
+  }
+  profilePic: string | null
   status: UserStatus
   createdAt: DateTime<boolean>
-
+  transactionVolume: {
+    monthly_limit: number
+    monthly: number
+  }
   kyc: {
-    level: number | null
-    status: UserKycStatus | null
+    level: number
+    status: UserKycStatus
     documentType: KycDocumentType | null
     documentStatus: KycDocumentStatus | null
-    nextAction: string | null
   }
-
   wallet: {
-    balance: number | null
-    currency: string | null
-    balanceLimit: number | null
+    balance: number
+    currency?: string
   }
 }
 
-export type AdminUsersListResponseDto = AdminUserListItemResponseDto[]
+export interface PaginatedAdminUsersResponseDto {
+  data: AdminUserListItemResponseDto[]
+  meta: {
+    total: number
+    currentPage: number
+    firstPage: number
+    lastPage: number
+    perPage: number
+  }
+}
+
+export type AdminUsersListResponseDto = PaginatedAdminUsersResponseDto

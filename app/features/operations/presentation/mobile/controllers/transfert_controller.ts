@@ -4,6 +4,8 @@ import TransfertUseCase from '#features/operations/application/use_cases/transfe
 import { inject } from '@adonisjs/core'
 import { toTransfertDto } from '#features/operations/application/mappers/transfert.mapper'
 import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
+import { TransferMode } from '#features/operations/application/services/wallet_transfer_context_service'
+import { PaymentMethod } from '#features/transactions/domain/enums/payment_method'
 
 /**
  * Controller responsible for handling user transactions.
@@ -35,18 +37,25 @@ export default class TransfertController {
     const user = auth.user!
     const payload = await request.validateUsing(transfertValidator)
 
+    const headers = request.headers()
+    console.log('debugging headers')
+    console.log({
+      ...headers,
+      ip: request.ip(),
+    })
+
     const paymentMethod = payload.payment_method_code
 
     switch (paymentMethod) {
-      case 'mobile_money':
+      case PaymentMethod.MOBILE_MONEY:
         const result = await this.transfertUseCase.execute(toTransfertDto(payload), user)
         return response.ok(result)
-      case 'wallet':
+      case PaymentMethod.WALLET:
         const data = { amount: payload.amount, recipient_phone: payload.phone }
         const walletTOWalletResult = await this.walletTowalletUseCase.execute(
           data,
           user,
-          'by_phone'
+          TransferMode.BY_PHONE
         )
         return response.ok(walletTOWalletResult)
 

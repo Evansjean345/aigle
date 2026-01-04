@@ -1,14 +1,13 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/infrastructure/repositories/transaction_repository_impl'
-import Transaction, {
-  TransactionDirection,
-  TransactionStatus,
-  TransactionType,
-} from '#features/transactions/domain/models/transaction'
 import User from '#features/users/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
 import { Logger } from '@adonisjs/core/logger'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
+import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
+import Transaction from '#features/transactions/domain/models/transaction'
 
 /**
  * Shared TransactionService: creates and manages transaction records.
@@ -59,7 +58,6 @@ export default class TransactionService {
       metadata?: Record<string, any>
     },
     walletId: number,
-    walletBalance: number,
     user: User,
     trx?: TransactionClientContract
   ): Promise<Transaction> {
@@ -79,13 +77,11 @@ export default class TransactionService {
     transaction.direction = payload.direction
     transaction.totalAmount = Number(payload.total_amount || 0)
     transaction.operationType = payload.operation_type
-    transaction.fees = Number(payload.fees || 0)
-    transaction.balanceBefore = walletBalance
     transaction.usersId = user.id
     transaction.usersUid = user.usersUid!
 
+    if (payload.fees !== undefined) transaction.fees = Number(payload.fees)
     if (payload.reference) transaction.reference = payload.reference
-    if (payload.balanceAfter) transaction.balanceAfter = payload.balanceAfter
     if (payload.description) transaction.description = payload.description
     if (payload.metadata) transaction.dateTransaction = JSON.stringify(payload.metadata)
 
@@ -108,7 +104,7 @@ export default class TransactionService {
   ): Promise<Transaction> {
     const transaction = await this.getByUidOrId(id)
 
-    if (transaction.status === 'success') {
+    if (transaction.status === TransactionStatus.SUCCESS) {
       this.logger.info({ transaction_id: transaction.id }, 'Transaction already successful')
       throw new Exception('Transaction already successful', {
         status: 400,
@@ -116,8 +112,7 @@ export default class TransactionService {
       })
     }
 
-    transaction.status = 'success' as TransactionStatus
-    transaction.balanceAfter = walletAfterBalance
+    transaction.status = TransactionStatus.SUCCESS
     await this.transactionRepository.save(transaction, trx)
     this.logger.info(
       { transaction_id: transaction.id, balance_after: walletAfterBalance },
@@ -136,13 +131,13 @@ export default class TransactionService {
   async markFailed(id: number, trx?: TransactionClientContract): Promise<Transaction> {
     const transaction = await this.getByUidOrId(id)
 
-    if (transaction.status === 'failed')
+    if (transaction.status === TransactionStatus.FAILED)
       throw new Exception('Transaction already failed', {
         status: 400,
         code: 'TRANSACTION_ALREADY_FAILED',
       })
 
-    transaction.status = 'failed' as TransactionStatus
+    transaction.status = TransactionStatus.FAILED
     await this.transactionRepository.save(transaction, trx)
     this.logger.info({ transaction_id: transaction.id }, 'Transaction marked as failed')
     return transaction

@@ -6,11 +6,15 @@ import { Exception } from '@adonisjs/core/exceptions'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
 import Transaction from '#features/transactions/domain/models/transaction'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import Payment from '#features/transactions/domain/models/payment'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
 import { Logger } from '@adonisjs/core/logger'
+import LedgerService from '#features/ledger/application/services/ledger_service'
+import { LedgerDirection } from '#features/ledger/domain/ledger_enums'
 
 /**
  * Use case for handling the second webhook for inter-transfer payments.
@@ -26,12 +30,14 @@ export default class HandleTransfertInterSecondWebhookUseCase {
    * @param {TransactionService} transactionService - Service to manage transaction-related functionalities.
    * @param {WalletService} walletService - Service for wallet operations and management.
    * @param {Logger} logger - Logging service for capturing logs and debugging information.
+   * @param ledgerService
    */
   constructor(
     private readonly paymentService: PaymentService,
     private readonly transactionService: TransactionService,
     private readonly walletService: WalletService,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    private readonly ledgerService: LedgerService
   ) {}
 
   /**
@@ -43,7 +49,7 @@ export default class HandleTransfertInterSecondWebhookUseCase {
    */
   async execute(
     payload: WebhookRequestDto,
-    status: 'success' | 'failed'
+    status: TransactionStatus
   ): Promise<WebhookResponseDto> {
     this.logger.info({ status, payload }, 'Inter-transfer second webhook received')
     this.validatePayload(payload)
@@ -157,11 +163,13 @@ export default class HandleTransfertInterSecondWebhookUseCase {
   private isIdempotentRequest(
     transaction: Transaction,
     payment: Payment,
-    incomingStatus: 'success' | 'failed'
+    incomingStatus: TransactionStatus
   ): boolean {
-    if (payment.status === 'success' && incomingStatus === 'success') return true
-    if (payment.status === 'failed' && incomingStatus === 'failed') return true
-    return transaction.status !== 'pending'
+    if (payment.status === PaymentStatus.SUCCESS && incomingStatus === TransactionStatus.SUCCESS)
+      return true
+    if (payment.status === PaymentStatus.FAILED && incomingStatus === TransactionStatus.FAILED)
+      return true
+    return transaction.status !== TransactionStatus.PENDING
   }
 
   /**
@@ -181,17 +189,17 @@ export default class HandleTransfertInterSecondWebhookUseCase {
     secondPayment: Payment,
     wallet: Wallet,
     operatorResponse: any,
-    status: 'success' | 'failed',
+    status: TransactionStatus,
     trx: TransactionClientContract
   ): Promise<WebhookResponseDto> {
-    if (status === 'success') {
+    if (status === TransactionStatus.SUCCESS) {
       this.logger.debug(
         { reference: transaction.reference, second_payment_id: secondPayment.id },
         'Marking second payment as success'
       )
       await this.paymentService.markSuccess(
         secondPayment.id,
-        { operator_response: operatorResponse },
+        { operatorResponse: operatorResponse },
         trx
       )
       this.logger.debug(
@@ -203,6 +211,17 @@ export default class HandleTransfertInterSecondWebhookUseCase {
         'Marking transaction as success'
       )
       await this.transactionService.markSuccess(transaction.id, wallet.balance, trx)
+      await this.ledgerService.createEntry(
+        {
+          transaction: transaction,
+          walletId: wallet.id,
+          direction: LedgerDirection.EXTERNAL,
+          amountBrut: transaction.totalAmount,
+          fees: 0,
+          balanceAfter: wallet.balance,
+        },
+        trx
+      )
       return this.createSuccessResponse()
     } else {
       this.logger.debug(
@@ -211,7 +230,7 @@ export default class HandleTransfertInterSecondWebhookUseCase {
       )
       await this.paymentService.markFailed(
         secondPayment.id,
-        { operator_response: operatorResponse },
+        { operatorResponse: operatorResponse },
         trx
       )
       await this.transactionService.markFailed(transaction.id, trx)

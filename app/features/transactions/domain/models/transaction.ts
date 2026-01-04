@@ -54,12 +54,6 @@ export default class Transaction extends BaseModel {
   declare fees: number
 
   @column()
-  declare balanceBefore: number | null
-
-  @column()
-  declare balanceAfter: number | null
-
-  @column()
   declare receiverId: number | null
 
   @column()
