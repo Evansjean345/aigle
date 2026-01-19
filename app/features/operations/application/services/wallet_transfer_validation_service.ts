@@ -7,22 +7,26 @@ import AccountValidationService from '#features/user/application/services/accoun
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
 import Wallet from '#features/wallet/domain/models/wallet'
 import User from '#features/users/domain/models/user'
-import { TransferContext, TransferMode } from '#features/operations/application/services/wallet_transfer_context_service'
+import {
+  TransferContext,
+  TransferMode,
+} from '#features/operations/application/services/wallet_transfer_context_service'
 import { normalizePhone } from '#shared/utils/utiles'
+import logger from '@adonisjs/core/services/logger'
 
 @inject()
 export default class WalletTransferValidationService {
+  private readonly logger: Logger = logger.use('transaction')
+
   /**
    * Creates a new instance of the class.
    *
    * @param {AccountValidationService} accountValidationService - Service used to validate account details.
    * @param {TransactionLimitValidationService} transactionLimitValidationService - Service used to validate transaction limits.
-   * @param {Logger} logger - Logger instance used for logging operations.
    */
   constructor(
     private readonly accountValidationService: AccountValidationService,
-    private readonly transactionLimitValidationService: TransactionLimitValidationService,
-    private readonly logger: Logger
+    private readonly transactionLimitValidationService: TransactionLimitValidationService
   ) {}
 
   /**

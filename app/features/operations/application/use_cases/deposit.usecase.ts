@@ -36,6 +36,7 @@ export default class DepositUseCase {
    * @param {FeeCalculatorService} feeCalculatorService - The service responsible for calculating fees based on a given rule and amount.
    * @param accountValidationService
    * @param transactionLimitValidationService
+   * @param httpClient
    */
   constructor(
     private readonly transactionService: TransactionService,

@@ -44,7 +44,10 @@ export default class KycDocument extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
-  @hasMany(() => KycAttemp)
+  @hasMany(() => KycAttemp, {
+    foreignKey: 'kycDocumentId',
+    localKey: 'id',
+  })
   declare attempts: HasMany<typeof KycAttemp>
 
   @belongsTo(() => User, {

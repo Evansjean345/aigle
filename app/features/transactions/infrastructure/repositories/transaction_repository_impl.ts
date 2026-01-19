@@ -2,6 +2,7 @@
 import Transaction from '#features/transactions/domain/models/transaction'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
 import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 
 /**
  * Handles operations related to transactions within the transaction repository.
@@ -47,7 +48,15 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    * @return {Promise<Transaction|null>} A promise that resolves to the transaction record if found, or null if no matching record exists.
    */
   async findByUidOrId(id: string | number): Promise<Transaction | null> {
-    return await Transaction.query().where('transactionsUid', id).orWhere('id', id).first()
+    return await Transaction.query()
+      .preload('user')
+      .preload('payment')
+      .preload('ledger', (query) => {
+        query.preload('wallet')
+      })
+      .where('transactionsUid', id)
+      .orWhere('id', id)
+      .first()
   }
 
   /**
@@ -57,7 +66,12 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    * @return {Promise<Transaction|null>} A promise resolving to the transaction object if found, or null if no matching record exists.
    */
   async findByReference(reference: string): Promise<Transaction | null> {
-    return await Transaction.query().where('reference', reference).first()
+    return await Transaction.query()
+      .preload('user')
+      .preload('payment')
+      .preload('ledger')
+      .where('reference', reference)
+      .first()
   }
 
   /**
@@ -96,6 +110,28 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    * @return {Promise<ModelPaginatorContract<Transaction>>} A promise that resolves to an array of Transaction objects with preloaded relations.
    */
   async all(page = 1, perPage = 50): Promise<ModelPaginatorContract<Transaction>> {
-    return Transaction.query().preload('user').preload('payment').paginate(page, perPage)
+    return Transaction.query()
+      .preload('user')
+      .preload('payment')
+      .orderBy('created_at', 'desc')
+      .paginate(page, perPage)
+  }
+
+  async countSuccessByDate(userId: string, date: string): Promise<number> {
+    const result = await Transaction.query()
+      .where('usersUid', userId)
+      .where('status', TransactionStatus.SUCCESS)
+      .whereRaw('DATE(created_at) = ?', [date])
+      .count('* as total')
+
+    return Number(result[0].$extras.total || 0)
+  }
+
+  async findLastSuccessByUserId(userId: string): Promise<Transaction | null> {
+    return await Transaction.query()
+      .where('usersUid', userId)
+      .where('status', TransactionStatus.SUCCESS)
+      .orderBy('created_at', 'desc')
+      .first()
   }
 }

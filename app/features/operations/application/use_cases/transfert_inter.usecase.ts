@@ -17,8 +17,6 @@ import ServiceTypesService from '#features/catalogs/application/services/service
 import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
-import LedgerService from '#features/ledger/application/services/ledger_service'
-import { LedgerDirection } from '#features/ledger/domain/ledger_enums'
 import Transaction from '#features/transactions/domain/models/transaction'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
@@ -43,7 +41,7 @@ export default class InterTransfertUseCase {
    * @param {FeeCalculatorService} feeCalculatorService - Service for calculating fees.
    * @param accountValidationService
    * @param transactionLimitValidationService
-   * @param ledgerService
+   * @param httpClient
    */
   constructor(
     private readonly transactionService: TransactionService,
@@ -53,7 +51,6 @@ export default class InterTransfertUseCase {
     private readonly feeCalculatorService: FeeCalculatorService,
     private readonly accountValidationService: AccountValidationService,
     private readonly transactionLimitValidationService: TransactionLimitValidationService,
-    private readonly ledgerService: LedgerService,
     private readonly httpClient: HttpClient
   ) {}
 
@@ -99,18 +96,6 @@ export default class InterTransfertUseCase {
     try {
       const transaction = await this.createTransactionWithPayments(
         { serviceType, wallet, amount, total, fees, user, payload },
-        trx
-      )
-
-      await this.ledgerService.createEntry(
-        {
-          transaction: transaction,
-          walletId: wallet.id,
-          direction: LedgerDirection.EXTERNAL,
-          amountBrut: transaction.totalAmount,
-          fees: transaction.fees,
-          balanceAfter: wallet.balance,
-        },
         trx
       )
       await trx.commit()

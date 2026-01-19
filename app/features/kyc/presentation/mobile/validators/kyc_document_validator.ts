@@ -14,7 +14,7 @@ export const kycDocumentValidator = vine.compile(
         size: '5mb',
       })
       .optional()
-      .requiredWhen('document_type', 'in', ['CNI', 'PERMIT_CONDUIT']),
+      .requiredWhen('document_type', 'in', [KycDocumentType.CNI, KycDocumentType.PERMIT_CONDUIT]),
     selfie_image: vine.file({
       extnames: ['png', 'jpg', 'jpeg'],
       size: '10mb',

@@ -3,11 +3,11 @@ import TransactionRepository from '#features/transactions/infrastructure/reposit
 import User from '#features/users/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
-import { Logger } from '@adonisjs/core/logger'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import Transaction from '#features/transactions/domain/models/transaction'
+import transactionLog from '#shared/infrastructure/logging/transaction_log'
 
 /**
  * Shared TransactionService: creates and manages transaction records.
@@ -18,19 +18,14 @@ export default class TransactionService {
    * Constructs an instance of the class with the provided TransactionRepository.
    *
    * @param {TransactionRepository} transactionRepository - The repository used to manage transactions.
-   * @param {Logger} logger - Application logger for structured logging.
    */
-  constructor(
-    private transactionRepository: TransactionRepository,
-    private readonly logger: Logger
-  ) {}
+  constructor(private transactionRepository: TransactionRepository) {}
 
   /**
    * Creates a new transaction based on the provided payload, wallet, and user details.
    *
    * @param {Object} payload - An object containing the transaction details.
    * @param walletId
-   * @param walletBalance
    * @param {string} payload.status - The status of the transaction (e.g., pending, completed).
    * @param {number} payload.amount - The primary amount of the transaction.
    * @param {number} [payload.total_amount] - The total amount including fees, if specified.
@@ -61,12 +56,15 @@ export default class TransactionService {
     user: User,
     trx?: TransactionClientContract
   ): Promise<Transaction> {
-    this.logger.info(
+    transactionLog.info(
+      'TRANSACTION_CREATING',
       {
-        user_id: user.id,
-        wallet_id: walletId,
-        amount: payload.amount,
-        type: payload.operation_type,
+        user: { id: user.id },
+        wallet: { id: walletId },
+        transaction: {
+          amount: payload.amount,
+          type: payload.operation_type,
+        },
       },
       'Creating transaction'
     )
@@ -105,7 +103,11 @@ export default class TransactionService {
     const transaction = await this.getByUidOrId(id)
 
     if (transaction.status === TransactionStatus.SUCCESS) {
-      this.logger.info({ transaction_id: transaction.id }, 'Transaction already successful')
+      transactionLog.info(
+        'TRANSACTION_ALREADY_SUCCESSFUL',
+        { transaction: { id: transaction.id } },
+        'Transaction already successful'
+      )
       throw new Exception('Transaction already successful', {
         status: 400,
         code: 'TRANSACTION_ALREADY_SUCCESSFUL',
@@ -114,8 +116,12 @@ export default class TransactionService {
 
     transaction.status = TransactionStatus.SUCCESS
     await this.transactionRepository.save(transaction, trx)
-    this.logger.info(
-      { transaction_id: transaction.id, balance_after: walletAfterBalance },
+    transactionLog.info(
+      'TRANSACTION_MARKED_SUCCESS',
+      {
+        transaction: { id: transaction.id },
+        wallet: { balanceAfter: walletAfterBalance },
+      },
       'Transaction marked as success'
     )
     return transaction
@@ -139,7 +145,11 @@ export default class TransactionService {
 
     transaction.status = TransactionStatus.FAILED
     await this.transactionRepository.save(transaction, trx)
-    this.logger.info({ transaction_id: transaction.id }, 'Transaction marked as failed')
+    transactionLog.info(
+      'TRANSACTION_MARKED_FAILED',
+      { transaction: { id: transaction.id } },
+      'Transaction marked as failed'
+    )
     return transaction
   }
 
@@ -151,7 +161,11 @@ export default class TransactionService {
    * @throws {Exception} Throws an exception if the transaction is not found, including status and error code details.
    */
   async getByUidOrId(id: string | number): Promise<Transaction> {
-    this.logger.debug({ id }, 'Looking up transaction by id or uid')
+    transactionLog.debug(
+      'TRANSACTION_LOOKUP',
+      { transaction: { id } },
+      'Looking up transaction by id or uid'
+    )
     const transaction = await this.transactionRepository.findByUidOrId(id)
 
     if (!transaction)
@@ -160,7 +174,11 @@ export default class TransactionService {
         code: 'TRANSACTION_NOT_FOUND',
       })
 
-    this.logger.info({ transaction_id: transaction.id }, 'Transaction retrieved')
+    transactionLog.info(
+      'TRANSACTION_RETRIEVED',
+      { transaction: { id: transaction.id } },
+      'Transaction retrieved'
+    )
     return transaction
   }
 
@@ -172,7 +190,11 @@ export default class TransactionService {
    * @throws {Exception} If the transaction is not found, an exception is thrown with status 404 and code 'TRANSACTION_NOT_FOUND'.
    */
   async findByReference(reference: string): Promise<Transaction> {
-    this.logger.debug({ reference }, 'Looking up transaction by reference')
+    transactionLog.debug(
+      'TRANSACTION_LOOKUP_BY_REF',
+      { transaction: { reference } },
+      'Looking up transaction by reference'
+    )
     const transaction = await this.transactionRepository.findByReference(reference)
 
     if (!transaction) {
@@ -182,8 +204,9 @@ export default class TransactionService {
       })
     }
 
-    this.logger.info(
-      { transaction_id: transaction.id, reference },
+    transactionLog.info(
+      'TRANSACTION_RETRIEVED_BY_REF',
+      { transaction: { id: transaction.id, reference } },
       'Transaction retrieved by reference'
     )
     return transaction

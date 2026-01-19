@@ -8,6 +8,7 @@ export default function adminUsersRoute() {
     .group(() => {
       router.group(() => {
         router.get('/', [UsersController, 'index'])
+        router.get('/:id/wallet-stats', [UsersController, 'walletStats'])
       })
     })
     .prefix('users')

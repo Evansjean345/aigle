@@ -5,9 +5,9 @@ import Transaction from '#features/transactions/domain/models/transaction'
 import User from '#features/users/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
-import { Logger } from '@adonisjs/core/logger'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
+import transactionLog from '#shared/infrastructure/logging/transaction_log'
 
 /**
  * Service class for handling payment-related operations.
@@ -18,12 +18,8 @@ export default class PaymentService {
    * Creates an instance of the class with the given payment repository.
    *
    * @param {PaymentRepository} paymentRepository - The repository for handling payment-related operations.
-   * @param {Logger} logger - Application logger for structured logging.
    */
-  constructor(
-    private paymentRepository: PaymentRepository,
-    private readonly logger: Logger
-  ) {}
+  constructor(private paymentRepository: PaymentRepository) {}
 
   /**
    * Creates a new payment record and saves it to the database.
@@ -55,7 +51,8 @@ export default class PaymentService {
     user: User,
     trx?: TransactionClientContract
   ): Promise<Payment> {
-    this.logger.info(
+    transactionLog.info(
+      'INIT_PAYMENT_CREATION',
       { transaction_id: transaction.id, user_id: user.id, method: payload.payment_method },
       'Creating payment'
     )
@@ -110,7 +107,8 @@ export default class PaymentService {
     const payment = await this.getByUidOrId(id)
 
     if (payment.status === PaymentStatus.SUCCESS) {
-      this.logger.warn(
+      transactionLog.warn(
+        'PAYMENT_ALREADY_SUCCESSFUL',
         { payment_id: payment.id, status: payment.status },
         'Payment already successful'
       )
@@ -126,7 +124,11 @@ export default class PaymentService {
       payment.operatorResponse = JSON.stringify(extra.operatorResponse)
     }
 
-    this.logger.info({ payment_id: payment.id }, 'Payment marked as success')
+    transactionLog.info(
+      'PAYMENT_MARKED_AS_SUCCESS',
+      { payment_id: payment.id },
+      'Payment marked as success'
+    )
     return this.paymentRepository.save(payment, trx)
   }
 
@@ -151,7 +153,11 @@ export default class PaymentService {
     const payment = await this.getByUidOrId(id)
 
     if (payment.status === PaymentStatus.FAILED) {
-      this.logger.info({ payment_id: payment.id }, 'Payment already failed')
+      transactionLog.info(
+        'PAYMENT_ALREADY_FAILED',
+        { payment_id: payment.id },
+        'Payment already failed'
+      )
       throw new Exception('Payment already failed', { status: 400, code: 'PAYMENT_ALREADY_FAILED' })
     }
 
@@ -161,7 +167,11 @@ export default class PaymentService {
       payment.operatorResponse = JSON.stringify(extra.operatorResponse as any)
     }
 
-    this.logger.info({ payment_id: payment.id }, 'Payment marked as failed')
+    transactionLog.info(
+      'PAYMENT_MARKED_AS_FAILED',
+      { payment: { id: payment.id } },
+      'Payment marked as failed'
+    )
     return this.paymentRepository.save(payment, trx)
   }
 
@@ -172,9 +182,17 @@ export default class PaymentService {
    * @return {Promise<Payment | null>} A promise that resolves to the transaction record if found, or null if no record matches the provided identifier.
    */
   async findByTransaction(transactionIdOrUid: number | string): Promise<Payment[]> {
-    this.logger.debug({ transaction_ref: transactionIdOrUid }, 'Finding payments by transaction')
+    transactionLog.debug(
+      'PAYMENT_LOOKUP_BY_TRANSACTION',
+      { transaction: { ref: transactionIdOrUid } },
+      'Finding payments by transaction'
+    )
     const payments = await this.paymentRepository.findByTransaction(transactionIdOrUid)
-    this.logger.debug({ count: payments.length }, 'Payments found for transaction')
+    transactionLog.debug(
+      'PAYMENTS_FOUND',
+      { payments: { count: payments.length } },
+      'Payments found for transaction'
+    )
     return payments
   }
 }

@@ -1,11 +1,11 @@
-﻿import jwt, {Algorithm} from 'jsonwebtoken'
+﻿import jwt, { Algorithm } from 'jsonwebtoken'
 import redis from '@adonisjs/redis/services/main'
 import crypto from 'node:crypto'
 import config from '@adonisjs/core/services/config'
 import User from '#features/users/domain/models/user'
 import UserRepository from '#features/users/domain/interfaces/user_repository'
-import {Exception} from '@adonisjs/core/exceptions'
-import {inject} from '@adonisjs/core'
+import { Exception } from '@adonisjs/core/exceptions'
+import { inject } from '@adonisjs/core'
 
 export type VerifyResult =
   | { ok: true; sub: string; nonce: string }
@@ -19,6 +19,11 @@ export type VerifyResult =
         | 'KEY_NOT_FOUND'
         | 'ACCOUNT_NOT_FOUND'
     }
+
+export const TOKEN_ERRORS: Record<string, { status: number; message: string }> = {
+  TOKEN_EXPIRED: { status: 410, message: 'Le token a expiré' },
+  TOKEN_REPLAY: { status: 409, message: 'Ce token a déjà été utilisé' },
+}
 
 /**
  * Service de génération et vérification des QR JWT pour paiements type Wave
@@ -46,8 +51,9 @@ export default class QrJwtService {
   private algorithm = config.get('jwt.jwtAlg') as string
 
   /**
+   * Creates an instance of the class with a specified user repository.
    *
-   * @param userRepository
+   * @param {UserRepository} userRepository - The repository used for managing user data.
    */
   constructor(private readonly userRepository: UserRepository) {}
 
@@ -116,7 +122,6 @@ export default class QrJwtService {
         nonce: decoded.n,
       }
     } catch (e: any) {
-      console.log(e)
       if (e?.name === 'TokenExpiredError') return { ok: false, code: 'TOKEN_EXPIRED' }
       if (e?.name === 'JsonWebTokenError' || e?.name === 'NotBeforeError')
         return { ok: false, code: 'TOKEN_INVALID' }

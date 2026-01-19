@@ -1,6 +1,8 @@
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
+import KycDocument from '#features/kyc/domain/models/kyc_document'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 
 export class KycAttemp extends BaseModel {
   static table = 'kyc_attemps'
@@ -13,6 +15,18 @@ export class KycAttemp extends BaseModel {
 
   @column()
   declare documentType: KycDocumentType
+
+  @column()
+  declare documentRectoUrl?: string
+
+  @column()
+  declare kycDocumentId: number
+
+  @column()
+  declare documentVersoUrl?: string
+
+  @column()
+  declare selfieUrl?: string
 
   @column()
   declare attemptNumber: number
@@ -34,4 +48,10 @@ export class KycAttemp extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+  @belongsTo(() => KycDocument, {
+    foreignKey: 'kycDocumentId',
+    localKey: 'id',
+  })
+  declare kycDocument: BelongsTo<typeof KycDocument>
 }

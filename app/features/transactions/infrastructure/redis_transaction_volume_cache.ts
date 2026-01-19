@@ -157,5 +157,18 @@ export default class RedisTransactionVolumeCache implements TransactionVolumeCac
 
     return volumes
   }
+  /**
+   * Clears all transaction volumes for a specific user (daily and monthly).
+   *
+   * @param {string} userId - The unique identifier of the user.
+   * @return {Promise<void>} A promise that resolves once the operation is complete.
+   */
+  async clearVolume(userId: string): Promise<void> {
+    const pattern = `tx:vol:user:${userId}:*`
+    const keys = await redis.keys(pattern)
 
+    if (keys.length > 0) {
+      await redis.del(...keys)
+    }
+  }
 }

@@ -10,9 +10,9 @@ import { PaymentStatus } from '#features/transactions/domain/enums/payment_statu
 import Payment from '#features/transactions/domain/models/payment'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
-import { Logger } from '@adonisjs/core/logger'
 import env from '#start/env'
 import HttpClient from '#shared/infrastructure/http_client_service'
+import transactionLog from '#shared/infrastructure/logging/transaction_log'
 
 /**
  * Use the case responsible for handling the first webhook of an inter-transfer transaction.
@@ -24,12 +24,11 @@ export default class HandleTransfertInterFirstWebhookUseCase {
    *
    * @param {PaymentService} paymentService - The service responsible for handling payment operations.
    * @param {TransactionService} transactionService - The service responsible for managing transactions.
-   * @param {Logger} logger - The logger utility for logging information, warnings, and errors.
+   * @param {HttpClient} httpClient - The HTTP client for external API calls.
    */
   constructor(
     private readonly paymentService: PaymentService,
     private readonly transactionService: TransactionService,
-    private readonly logger: Logger,
     private readonly httpClient: HttpClient
   ) {}
 
@@ -44,22 +43,31 @@ export default class HandleTransfertInterFirstWebhookUseCase {
     payload: WebhookRequestDto,
     status: TransactionStatus
   ): Promise<WebhookResponseDto> {
-    this.logger.info({ status, payload }, 'Inter-transfer first webhook received')
+    transactionLog.info(
+      'INTER_TRANSFER_FIRST_WEBHOOK_RECEIVED',
+      { webhook: { status, reference: payload.data?.reference } },
+      'Inter-transfer first webhook received'
+    )
     this.validatePayload(payload)
 
     const reference = payload.data.reference
     const operatorResponse = payload.data
-    this.logger.debug({ reference, status }, 'Inter-transfer first webhook validated')
+    transactionLog.debug(
+      'INTER_TRANSFER_FIRST_VALIDATED',
+      { webhook: { reference, status } },
+      'Inter-transfer first webhook validated'
+    )
 
     const trx = await db.transaction()
 
     try {
       const { transaction, payments } = await this.loadEntities(reference)
-      this.logger.debug(
+      transactionLog.debug(
+        'INTER_TRANSFER_FIRST_ENTITIES_LOADED',
         {
-          reference,
-          transaction_id: transaction.id,
-          payments_count: payments.length,
+          webhook: { reference },
+          transaction: { id: transaction.id },
+          payments: { count: payments.length },
         },
         'Loaded transaction and payments for inter-transfer first step'
       )
@@ -76,12 +84,11 @@ export default class HandleTransfertInterFirstWebhookUseCase {
 
       const idempotent = this.isIdempotentRequest(transaction, firstPayment, status)
 
-      this.logger.debug(
+      transactionLog.debug(
+        'INTER_TRANSFER_FIRST_IDEMPOTENCY_CHECK',
         {
-          reference,
-          payment_id: firstPayment?.id,
-          current_payment_status: firstPayment?.status,
-          incoming_status: status,
+          webhook: { reference, incomingStatus: status },
+          payment: { id: firstPayment?.id, status: firstPayment?.status },
           idempotent,
         },
         'Inter-transfer first step idempotency check'
@@ -89,16 +96,19 @@ export default class HandleTransfertInterFirstWebhookUseCase {
 
       if (idempotent) {
         await trx.commit()
-        this.logger.info({ reference }, 'Inter-transfer first step is idempotent, acknowledging')
+        transactionLog.info(
+          'INTER_TRANSFER_FIRST_IDEMPOTENT',
+          { webhook: { reference } },
+          'Inter-transfer first step is idempotent, acknowledging'
+        )
         return this.createSuccessResponse()
       }
 
-      this.logger.info(
+      transactionLog.info(
+        'INTER_TRANSFER_FIRST_PROCESSING',
         {
-          reference,
-          first_payment_id: firstPayment.id,
-          second_payment_id: secondPayment.id,
-          status,
+          webhook: { reference, status },
+          payments: { firstId: firstPayment.id, secondId: secondPayment.id },
         },
         'Processing inter-transfer first step'
       )
@@ -113,11 +123,22 @@ export default class HandleTransfertInterFirstWebhookUseCase {
       )
 
       await trx.commit()
-      this.logger.info({ reference, status }, 'Inter-transfer first step processed')
+      transactionLog.info(
+        'INTER_TRANSFER_FIRST_SUCCESS',
+        { webhook: { reference, status } },
+        'Inter-transfer first step processed'
+      )
       return result
     } catch (error) {
       await trx.rollback()
-      this.logger.error({ err: error, payload }, 'Inter-transfer first step webhook failed')
+      transactionLog.error(
+        'INTER_TRANSFER_FIRST_ERROR',
+        {
+          webhook: { reference: payload.data?.reference },
+          error: { message: (error as any)?.message || 'Unknown error' },
+        },
+        'Inter-transfer first step webhook failed'
+      )
       throw error
     }
   }
@@ -191,8 +212,9 @@ export default class HandleTransfertInterFirstWebhookUseCase {
     trx: TransactionClientContract
   ): Promise<WebhookResponseDto> {
     if (status === TransactionStatus.SUCCESS) {
-      this.logger.debug(
-        { reference: transaction.reference, first_payment_id: firstPayment.id },
+      transactionLog.debug(
+        'INTER_TRANSFER_FIRST_MARKING_SUCCESS',
+        { transaction: { reference: transaction.reference }, payment: { id: firstPayment.id } },
         'Marking first payment as success'
       )
       await this.paymentService.markSuccess(
@@ -208,10 +230,11 @@ export default class HandleTransfertInterFirstWebhookUseCase {
             const raw = (secondPayment as any)?.paymentDetails
             return typeof raw === 'string' ? JSON.parse(raw) : (raw ?? {})
           } catch {
-            this.logger.error(
+            transactionLog.error(
+              'INTER_TRANSFER_FIRST_PARSE_ERROR',
               {
-                reference: transaction.reference,
-                payment_id: secondPayment.id,
+                transaction: { reference: transaction.reference },
+                payment: { id: secondPayment.id },
               },
               'Failed to get the payment details for the second payment'
             )
@@ -232,32 +255,39 @@ export default class HandleTransfertInterFirstWebhookUseCase {
         }
 
         await this.httpClient.post(env.get('API_TRANSFERT_URL')!!, dataSend)
-        this.logger.info(
+        transactionLog.info(
+          'INTER_TRANSFER_SECOND_INITIATED',
           {
-            reference: transaction.reference,
-            second_payment_id: secondPayment.id,
-            provider: dataSend.provider,
-            number_masked:
-              typeof dataSend.number === 'string'
-                ? dataSend.number.replace(/\d(?=\d{2})/g, '*')
-                : dataSend.number,
+            transaction: { reference: transaction.reference },
+            payment: { id: secondPayment.id },
+            transfer: {
+              provider: dataSend.provider,
+              numberMasked:
+                typeof dataSend.number === 'string'
+                  ? dataSend.number.replace(/\d(?=\d{2})/g, '*')
+                  : dataSend.number,
+            },
           },
           'Second inter-transfer step initiated'
         )
       } catch (err) {
-        this.logger.error(
-          { err, step: 'initiate_second_transfer', ref: transaction.reference },
+        transactionLog.error(
+          'INTER_TRANSFER_SECOND_INIT_FAILED',
+          {
+            transaction: { reference: transaction.reference },
+            error: { message: (err as any)?.message || 'Unknown error' },
+          },
           'Failed to initiate second inter-transfer step'
         )
       }
 
       return this.createSuccessResponse()
     } else {
-      this.logger.debug(
+      transactionLog.debug(
+        'INTER_TRANSFER_FIRST_MARKING_FAILED',
         {
-          reference: transaction.reference,
-          first_payment_id: firstPayment.id,
-          second_payment_id: secondPayment.id,
+          transaction: { reference: transaction.reference },
+          payments: { firstId: firstPayment.id, secondId: secondPayment.id },
         },
         'Marking first and second payments/transaction as failed'
       )

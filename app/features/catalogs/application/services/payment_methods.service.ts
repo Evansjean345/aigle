@@ -1,5 +1,5 @@
 ﻿import { inject } from '@adonisjs/core'
-import PaymentMethodRepository from '#features/catalogs/infrastructure/repositories/payment_method_repository_impl'
+import PaymentMethodRepository from '#features/catalogs/domain/interfaces/payment_method_repository'
 import {
   PaymentMethodCreateDto,
   PaymentMethodUpdateDto,

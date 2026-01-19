@@ -20,10 +20,16 @@ import CountryRepositoryImpl from '#features/country/infrastructure/repositories
 
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
 import ServiceTypeRepositoryImpl from '#features/catalogs/infrastructure/repositories/service_type_repository_impl'
+import PaymentMethodRepository from '#features/catalogs/domain/interfaces/payment_method_repository'
+import PaymentMethodRepositoryImpl from '#features/catalogs/infrastructure/repositories/payment_method_repository_impl'
 import ProviderRepository from '#features/catalogs/domain/interfaces/provider_repository'
 import ProviderRepositoryImpl from '#features/catalogs/infrastructure/repositories/provider_repository_impl'
+import ServiceProviderMethodRepository from '#features/catalogs/domain/interfaces/service_provider_method_repository'
+import ServiceProviderMethodRepositoryImpl from '#features/catalogs/infrastructure/repositories/service_provider_method_repository_impl'
 import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
 import KycDocumentRepositoryImpl from '#features/kyc/infrastructures/repositories/kyc_document_repository_impl'
+import KycLevelRepository from '#features/kyc/domain/imterfaces/kyc_level_repository'
+import KycLevelRepositoryImpl from '#features/kyc/infrastructures/repositories/kyc_level_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -39,10 +45,13 @@ export default class RepositoryProvider {
       [CountryRepository, CountryRepositoryImpl],
       [OtpRepository, OtpRepositoryImpl],
       [ServiceTypeRepository, ServiceTypeRepositoryImpl],
+      [PaymentMethodRepository, PaymentMethodRepositoryImpl],
       [ProviderRepository, ProviderRepositoryImpl],
+      [ServiceProviderMethodRepository, ServiceProviderMethodRepositoryImpl],
       [ServiceProviderFeesRepository, ServiceProviderFeesRepositoryImpl],
       [DeviceRepository, DeviceRepositoryImpl],
       [KycDocumentRepository, KycDocumentRepositoryImpl],
+      [KycLevelRepository, KycLevelRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {

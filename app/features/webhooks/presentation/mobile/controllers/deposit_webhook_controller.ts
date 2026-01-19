@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import HandleDepositWebhookUseCase from '#features/webhooks/application/use_cases/handle_deposit_webhook.use_case'
 import { HttpContext } from '@adonisjs/core/http'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
-import { Logger } from '@adonisjs/core/logger'
+import { Logger, LoggerService } from '@adonisjs/core/logger'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 
 /**
@@ -19,10 +19,13 @@ export default class DepositWebhookController {
    * @param {HandleDepositWebhookUseCase} handleDepositWebhook - The use case that manages deposit webhook handling logic.
    * @param {Logger} logger - Application logger for structured logging.
    */
+  private readonly logger: LoggerService
   constructor(
     private readonly handleDepositWebhook: HandleDepositWebhookUseCase,
-    private readonly logger: Logger
-  ) {}
+    private readonly baseLogger: Logger
+  ) {
+    this.logger = this.baseLogger.use('transaction')
+  }
 
   /**
    * Handles a successful deposit webhook event by processing the payload and returning an appropriate response.

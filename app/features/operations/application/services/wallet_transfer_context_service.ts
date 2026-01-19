@@ -54,6 +54,7 @@ export default class WalletTransferContextService {
       this.countryRepository.findCountryBy('id', currentUser.countryId),
     ])
 
+    // Get recipient wallet based on the specified transfer mode
     const recipientWallet = await this.resolveRecipient(
       mode,
       payload,

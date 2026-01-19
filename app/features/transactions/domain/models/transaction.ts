@@ -1,10 +1,11 @@
 ﻿import { DateTime } from 'luxon'
-import { BaseModel, beforeSave, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeSave, belongsTo, column, hasMany, hasOne } from '@adonisjs/lucid/orm'
 import string from '@adonisjs/core/helpers/string'
 import { v4 as uuidv4 } from 'uuid'
-import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
+import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations'
 import Payment from '#features/transactions/domain/models/payment'
 import User from '#features/users/domain/models/user'
+import Ledger from '#features/ledger/domain/models/ledger'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
@@ -12,20 +13,7 @@ import { TransactionDirection } from '#features/transactions/domain/enums/transa
 export default class Transaction extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
-
-  @hasMany(() => Payment, {
-    foreignKey: 'transactionsId',
-  })
-  declare payment: HasMany<typeof Payment>
-
-  @belongsTo(() => User, {
-    foreignKey: 'usersId',
-  })
-  declare user: BelongsTo<typeof User>
-
-  @column()
-  declare transactionsId: number
-
+  
   @column()
   declare transactionsUid: string
 
@@ -70,6 +58,21 @@ export default class Transaction extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+  @hasMany(() => Payment, {
+    foreignKey: 'transactionsId',
+  })
+  declare payment: HasMany<typeof Payment>
+
+  @hasOne(() => Ledger, {
+    foreignKey: 'transactionId',
+  })
+  declare ledger: HasOne<typeof Ledger>
+
+  @belongsTo(() => User, {
+    foreignKey: 'usersId',
+  })
+  declare user: BelongsTo<typeof User>
 
   @beforeSave()
   static async BaseModel(transaction: Transaction) {

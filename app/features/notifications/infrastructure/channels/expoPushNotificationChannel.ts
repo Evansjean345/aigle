@@ -49,6 +49,8 @@ export default class ExpoPushNotificationChannel implements NotificationChannel 
           data: notification.data ?? {},
         })
       }
+
+      console.log(JSON.stringify(messages, null, 2))
     }
 
     if (messages.length === 0) return

@@ -8,7 +8,6 @@ const mobileKycRoutes = () =>
   router
     .group(() => {
       router.post('submit-documents', [KycSubmittionController, 'submitKycDocuments'])
-      router.post('submit-selfie', [KycSubmittionController, 'submitKycSelfie'])
     })
     .prefix('mobile/kyc')
     .use(middleware.auth())

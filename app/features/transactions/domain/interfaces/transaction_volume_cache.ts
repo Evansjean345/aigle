@@ -46,4 +46,11 @@ export default abstract class TransactionVolumeCache {
     dt?: Date | string | DateTime
   ): Promise<Record<string, number>>
 
+  /**
+   * Clears all transaction volumes for a specific user (daily and monthly).
+   *
+   * @param {string} userId - The unique identifier of the user.
+   * @return {Promise<void>} A promise that resolves once the operation is complete.
+   */
+  abstract clearVolume(userId: string): Promise<void>
 }

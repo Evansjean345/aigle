@@ -1,5 +1,4 @@
 import router from '@adonisjs/core/services/router'
-import { middleware } from '#start/kernel'
 
 const ServiceTypesController = () =>
   import('#features/catalogs/presentation/admin/controllers/service_types_controller')
@@ -42,5 +41,4 @@ export default function adminServicesManagementRoutes() {
       router.delete('service-provider-methods/:id', [ServiceProviderMethodsController, 'destroy'])
     })
     .prefix('/services-management')
-    .use(middleware.auth({ guards: ['api'] }))
 }

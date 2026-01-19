@@ -111,6 +111,17 @@ export const toAdminTransactionResponseDto = (
       firstname: transaction.user.firstname,
       lastname: transaction.user.lastname,
     },
+    ledgers: transaction.ledgers?.map((ledger) => ({
+      id: ledger.id,
+      walletId: ledger.walletId,
+      walletCurrencySymbol: (ledger.wallet as any)?.currencySymbol,
+      direction: ledger.direction,
+      amountBrut: ledger.amountBrut,
+      fees: ledger.fees,
+      totalAmount: ledger.totalAmount,
+      balanceAfter: ledger.balanceAfter,
+      createdAt: ledger.createdAt,
+    })),
   }
 }
 

@@ -17,7 +17,32 @@ const loggerConfig = defineConfig({
       transport: {
         targets: targets()
           .pushIf(!app.inProduction, targets.pretty())
-          .pushIf(app.inProduction, targets.file({ destination: 1 }))
+          .push({
+            target: 'pino-roll',
+            level: 'info',
+            options: {
+              file: app.makePath('logs/app.log'),
+              mkdir: true,
+            },
+          })
+          .toArray(),
+      },
+    },
+    transaction: {
+      enabled: true,
+      name: `${env.get('APP_NAME')}-transaction`,
+      level: 'info',
+      transport: {
+        targets: targets()
+          .pushIf(!app.inProduction, targets.pretty())
+          .push({
+            target: 'pino-roll',
+            level: 'info',
+            options: {
+              file: app.makePath('logs/transaction.log'),
+              mkdir: true,
+            },
+          })
           .toArray(),
       },
     },

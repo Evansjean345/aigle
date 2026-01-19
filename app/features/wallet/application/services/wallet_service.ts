@@ -6,14 +6,9 @@ import { WalletCreatedResult } from '#features/wallet/application/dtos/wallet_cr
 import Wallet from '#features/wallet/domain/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
 import { randomUUID } from 'node:crypto'
-import QrJwtService from '#features/qr/application/services/qr_jwt_service'
+import QrJwtService, { TOKEN_ERRORS } from '#features/qr/application/services/qr_jwt_service'
 import { normalizePhone } from '#shared/utils/utiles'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
-
-const TOKEN_ERRORS: Record<string, { status: number; message: string }> = {
-  TOKEN_EXPIRED: { status: 410, message: 'Le token a expiré' },
-  TOKEN_REPLAY: { status: 409, message: 'Ce token a déjà été utilisé' },
-}
 
 /**
  * Service for managing wallets, including creation, retrieval, and balance adjustments.

@@ -11,3 +11,41 @@ export interface KycDocumentResponseDto {
   message: string
   nextAction: string
 }
+
+export interface AdminKycListDto {
+  id: number
+  userId: string
+  documentType: string
+  documentRectoUrl?: string
+  documentVersoUrl?: string
+  selfieUrl?: string
+  status: string
+  comment?: string
+  createdAt: string
+  attempts?: any[]
+  user: {
+    firstname: string
+    lastname: string
+    usersUid: string
+    kycLevel: number
+    kycStatus: string
+    status: string
+    phone: string
+    wallet?: {
+      id: number
+      balance: number
+    }
+  }
+}
+
+export interface KycStatsDto {
+  total: number
+  pending: number
+  verified: number
+  rejected: number
+  byDocumentType: {
+    CNI: number
+    PASSPORT: number
+    PERMIT_CONDUIT: number
+  }
+}

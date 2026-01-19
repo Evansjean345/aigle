@@ -19,10 +19,8 @@ import ServiceTypesService from '#features/catalogs/application/services/service
 import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
-import LedgerService from '#features/ledger/application/services/ledger_service'
-import { LedgerDirection } from '#features/ledger/domain/ledger_enums'
-import { Logger } from '@adonisjs/core/logger'
 import HttpClient, { HttpClientError } from '#shared/infrastructure/http_client_service'
+import transactionLog from '#shared/infrastructure/logging/transaction_log'
 
 @inject()
 export default class TransfertUseCase {
@@ -34,8 +32,6 @@ export default class TransfertUseCase {
     private readonly feeCalculatorService: FeeCalculatorService,
     private readonly accountValidationService: AccountValidationService,
     private readonly transactionLimitValidationService: TransactionLimitValidationService,
-    private readonly ledgerService: LedgerService,
-    private readonly logger: Logger,
     private readonly httpClient: HttpClient
   ) {}
 
@@ -68,7 +64,6 @@ export default class TransfertUseCase {
     ])
 
     this.assertSufficientBalance(wallet.balance, amount)
-
     const trx = await db.transaction()
 
     try {
@@ -109,17 +104,6 @@ export default class TransfertUseCase {
           user,
           trx
         ),
-        this.ledgerService.createEntry(
-          {
-            transaction,
-            walletId: wallet.id!,
-            direction: LedgerDirection.DEBIT,
-            amountBrut: total,
-            fees,
-            balanceAfter: updatedWallet.balance,
-          },
-          trx
-        ),
       ])
 
       await this.initiateExternalTransfer(payload, transaction.reference, total)
@@ -135,10 +119,11 @@ export default class TransfertUseCase {
     } catch (error) {
       await trx.rollback()
 
-      this.logger.error(
+      transactionLog.error(
+        'TRANSFER_FAILED',
         {
-          wallet_id: wallet.id,
-          user_id: user.usersUid,
+          wallet: { id: wallet.id },
+          user: { id: user.usersUid },
           amount,
           error: error instanceof Error ? error.message : 'Unknown error',
         },

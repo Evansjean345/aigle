@@ -72,4 +72,21 @@ export default abstract class TransactionRepository {
    * @return {Promise<ModelPaginatorContract<Transaction>>} A promise that resolves to a paginated list of transactions.
    */
   abstract all(page?: number, perPage?: number): Promise<ModelPaginatorContract<Transaction>>
+
+  /**
+   * Counts the number of successful transactions for a user on a specific date.
+   *
+   * @param {string} userId - The unique identifier of the user.
+   * @param {string} date - The date (YYYY-MM-DD).
+   * @return {Promise<number>}
+   */
+  abstract countSuccessByDate(userId: string, date: string): Promise<number>
+
+  /**
+   * Retrieves the last successful transaction for a user.
+   *
+   * @param {string} userId - The unique identifier of the user.
+   * @return {Promise<Transaction | null>}
+   */
+  abstract findLastSuccessByUserId(userId: string): Promise<Transaction | null>
 }

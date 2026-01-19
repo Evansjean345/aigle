@@ -12,13 +12,12 @@ import Payment from '#features/transactions/domain/models/payment'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
-import { Logger } from '@adonisjs/core/logger'
 import LedgerService from '#features/ledger/application/services/ledger_service'
 import DepositTransactionCompleted from '#features/webhooks/application/events/deposit/deposit_transaction_completed'
 import DepositTransactionFailed, {
   DepositTransactionFailedPayload,
 } from '#features/webhooks/application/events/deposit/deposit_transaction_failed'
-import { LedgerDirection } from '#features/ledger/domain/ledger_enums'
+import transactionLog from '#shared/infrastructure/logging/transaction_log'
 
 /**
  * Handles the business logic for processing deposit webhook events. This class is responsible for managing
@@ -32,14 +31,12 @@ export default class HandleDepositWebhookUseCase {
    * @param {PaymentService} paymentService - The service responsible for handling payment operations.
    * @param {TransactionService} transactionService - The service for managing transaction-related business logic.
    * @param {WalletRepository} walletRepository - The repository for accessing wallet-related data and operations.
-   * @param logger
    * @param ledgerService
    */
   constructor(
     private readonly paymentService: PaymentService,
     private readonly transactionService: TransactionService,
     private readonly walletRepository: WalletRepository,
-    private readonly logger: Logger,
     private readonly ledgerService: LedgerService
   ) {}
 
@@ -57,32 +54,35 @@ export default class HandleDepositWebhookUseCase {
     this.validatePayload(payload)
     const { reference: webTransactionRef } = payload.data
 
-    this.logger.info({ reference: webTransactionRef, status }, 'Processing deposit webhook')
+    transactionLog.info(
+      'DEPOSIT_WEBHOOK_PROCESSING',
+      { webhook: { reference: webTransactionRef, status } },
+      'Processing deposit webhook'
+    )
 
     const trx = await db.transaction()
 
     try {
       const { transaction, payment, wallet } = await this.loadRequiredEntities(webTransactionRef)
 
-      this.logger.debug(
+      transactionLog.debug(
+        'DEPOSIT_ENTITIES_LOADED',
         {
-          reference: webTransactionRef,
-          transaction_id: transaction.id,
-          payment_id: payment.id,
-          wallet_id: wallet.id,
-          transaction_status: transaction.status,
-          payment_status: payment.status,
+          webhook: { reference: webTransactionRef },
+          transaction: { id: transaction.id, status: transaction.status },
+          payment: { id: payment.id, status: payment.status },
+          wallet: { id: wallet.id },
         },
         'Loaded entities for deposit webhook'
       )
 
       if (this.isIdempotentRequest(transaction, payment, status)) {
-        this.logger.warn(
+        transactionLog.warn(
+          'DEPOSIT_WEBHOOK_IDEMPOTENT',
           {
-            reference: payload.data.reference,
-            transaction_status: transaction.status,
-            payment_status: payment.status,
-            incoming_status: status,
+            webhook: { reference: payload.data.reference, incomingStatus: status },
+            transaction: { status: transaction.status },
+            payment: { status: payment.status },
           },
           'Idempotent webhook call — skipping processing'
         )
@@ -92,19 +92,23 @@ export default class HandleDepositWebhookUseCase {
 
       await this.processWebhook(transaction, payment, wallet, payload, status, trx)
       await trx.commit()
-      this.logger.info(
-        { reference: payload.data.reference, status },
+      transactionLog.info(
+        'DEPOSIT_WEBHOOK_SUCCESS',
+        { webhook: { reference: payload.data.reference, status } },
         'Webhook processed successfully'
       )
       return this.createSuccessResponse()
     } catch (error) {
       await trx.rollback()
-      this.logger.error(
+      transactionLog.error(
+        'DEPOSIT_WEBHOOK_ERROR',
         {
-          status: (error as any).status || 500,
-          data: (error as any).data || {},
-          reference: payload.data.reference,
-          err: error,
+          webhook: { reference: payload.data.reference },
+          error: {
+            status: (error as any).status || 500,
+            message: (error as any).message || 'Webhook processing error',
+            data: (error as any).data || {},
+          },
         },
         (error as any).message || 'Webhook processing error'
       )
@@ -207,22 +211,32 @@ export default class HandleDepositWebhookUseCase {
   ): Promise<void> {
     const operatorResponse = { operator_response: payload as any }
 
-    this.logger.debug(
+    transactionLog.debug(
+      'DEPOSIT_WEBHOOK_BODY_PROCESSING',
       {
-        reference: payload.data.reference,
-        transaction_id: transaction.id,
-        payment_id: payment.id,
-        wallet_id: wallet.id,
-        status,
+        webhook: { reference: payload.data.reference, status },
+        transaction: { id: transaction.id },
+        payment: { id: payment.id },
+        wallet: { id: wallet.id },
       },
       'Processing webhook body'
     )
 
     if (status === TransactionStatus.SUCCESS) {
-      this.logger.info({ reference: payload.data.reference }, 'Processing successful deposit')
+      transactionLog.info(
+        'DEPOSIT_SUCCESS_PROCESSING',
+        { webhook: { reference: payload.data.reference } },
+        'Processing successful deposit'
+      )
       await this.processSuccessfulDeposit(transaction, payment, wallet, operatorResponse, trx)
-    } else {
-      this.logger.info({ reference: payload.data.reference }, 'Processing failed deposit')
+    }
+
+    if (status === TransactionStatus.FAILED) {
+      transactionLog.info(
+        'DEPOSIT_FAILED_PROCESSING',
+        { webhook: { reference: payload.data.reference } },
+        'Processing failed deposit'
+      )
       await this.processFailedDeposit(transaction, payment, operatorResponse, trx)
     }
   }
@@ -245,10 +259,18 @@ export default class HandleDepositWebhookUseCase {
     operatorResponse: any,
     trx: TransactionClientContract
   ): Promise<void> {
-    this.logger.debug({ payment_id: payment.id }, 'Marking payment as success')
+    transactionLog.debug(
+      'DEPOSIT_PAYMENT_MARKING_SUCCESS',
+      { payment: { id: payment.id } },
+      'Marking payment as success'
+    )
     await this.safeMarkPaymentSuccess(payment.id, operatorResponse, trx)
 
-    this.logger.debug({ wallet_id: wallet.id }, 'Adjusting wallet balance for successful deposit')
+    transactionLog.debug(
+      'DEPOSIT_WALLET_ADJUSTING',
+      { wallet: { id: wallet.id } },
+      'Adjusting wallet balance for successful deposit'
+    )
     const updatedWallet = await this.walletRepository.adjustBalance(
       wallet.id,
       Number(transaction.totalAmount || 0),
@@ -256,8 +278,9 @@ export default class HandleDepositWebhookUseCase {
     )
 
     if (!updatedWallet || !updatedWallet.balance || !updatedWallet.id) {
-      this.logger.error(
-        { wallet_id: wallet.id },
+      transactionLog.error(
+        'DEPOSIT_WALLET_UPDATE_FAILED',
+        { wallet: { id: wallet.id } },
         'Failed to update wallet during successful deposit'
       )
       throw new Exception('Echec de mise à jour du wallet', {
@@ -266,18 +289,18 @@ export default class HandleDepositWebhookUseCase {
       })
     }
 
-    this.logger.debug({ transaction_id: transaction.id }, 'Marking transaction as success')
+    transactionLog.debug(
+      'DEPOSIT_TRANSACTION_MARKING_SUCCESS',
+      { transaction: { id: transaction.id } },
+      'Marking transaction as success'
+    )
     await this.safeMarkTransactionSuccess(transaction.id, updatedWallet.balance!, trx)
 
-    await this.ledgerService.createEntry(
-      {
-        transaction: transaction,
-        walletId: wallet.id,
-        direction: LedgerDirection.CREDIT,
-        amountBrut: transaction.totalAmount,
-        fees: transaction.fees,
-        balanceAfter: updatedWallet.balance,
-      },
+    await this.ledgerService.recordDeposit(
+      transaction,
+      wallet.id,
+      wallet.balance,
+      updatedWallet.balance,
       trx
     )
 
@@ -305,8 +328,9 @@ export default class HandleDepositWebhookUseCase {
     operatorResponse: any,
     trx: TransactionClientContract
   ): Promise<void> {
-    this.logger.debug(
-      { transaction_id: transaction.id, payment_id: payment.id },
+    transactionLog.debug(
+      'DEPOSIT_MARKING_FAILED',
+      { transaction: { id: transaction.id }, payment: { id: payment.id } },
       'Marking payment and transaction as failed'
     )
     // Process both in parallel since they're independent
@@ -341,7 +365,11 @@ export default class HandleDepositWebhookUseCase {
       await this.paymentService.markSuccess(paymentId, operatorResponse, trx)
     } catch (error: any) {
       if (error?.code !== 'PAYMENT_ALREADY_SUCCESSFUL') throw error
-      this.logger.info({ payment_id: paymentId }, 'Payment already successful, skipping')
+      transactionLog.info(
+        'DEPOSIT_PAYMENT_ALREADY_SUCCESS',
+        { payment: { id: paymentId } },
+        'Payment already successful, skipping'
+      )
     }
   }
 
@@ -362,8 +390,9 @@ export default class HandleDepositWebhookUseCase {
       await this.transactionService.markSuccess(transactionId, balance, trx)
     } catch (error: any) {
       if (error?.code !== 'TRANSACTION_ALREADY_SUCCESSFUL') throw error
-      this.logger.info(
-        { transaction_id: transactionId },
+      transactionLog.info(
+        'DEPOSIT_TRANSACTION_ALREADY_SUCCESS',
+        { transaction: { id: transactionId } },
         'Transaction already successful, skipping'
       )
     }
@@ -384,7 +413,11 @@ export default class HandleDepositWebhookUseCase {
       await this.transactionService.markFailed(transactionId, trx)
     } catch (error: any) {
       if (error?.code !== 'TRANSACTION_ALREADY_FAILED') throw error
-      this.logger.info({ transaction_id: transactionId }, 'Transaction already failed, skipping')
+      transactionLog.info(
+        'DEPOSIT_TRANSACTION_ALREADY_FAILED',
+        { transaction: { id: transactionId } },
+        'Transaction already failed, skipping'
+      )
     }
   }
 
@@ -405,7 +438,11 @@ export default class HandleDepositWebhookUseCase {
       await this.paymentService.markFailed(paymentId, operatorResponse, trx)
     } catch (error: any) {
       if (error?.code !== 'PAYMENT_ALREADY_FAILED') throw error
-      this.logger.info({ payment_id: paymentId }, 'Payment already failed, skipping')
+      transactionLog.info(
+        'DEPOSIT_PAYMENT_ALREADY_FAILED',
+        { payment: { id: paymentId } },
+        'Payment already failed, skipping'
+      )
     }
   }
 

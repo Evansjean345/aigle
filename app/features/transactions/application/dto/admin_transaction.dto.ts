@@ -23,6 +23,18 @@ export interface AdminTransactionResponseDTO {
     firstname: string
     lastname: string
   }
+  ledgers?: {
+    id: number
+    walletId: number
+    walletLabel?: string
+    walletCurrencySymbol?: string
+    direction: string
+    amountBrut: number
+    fees: number
+    totalAmount: number
+    balanceAfter: number
+    createdAt: DateTime
+  }[]
 }
 
 export interface Meta {
