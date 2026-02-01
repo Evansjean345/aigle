@@ -49,6 +49,8 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
       documentType?: string
       userId?: string
       search?: string
+      startDate?: string
+      endDate?: string
     }
   ): Promise<any> {
     const query = KycDocument.query()
@@ -79,6 +81,10 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
           .orWhere('phone', 'like', `%${filters.search}%`)
           .orWhere('users_uid', 'like', `%${filters.search}%`)
       })
+    }
+
+    if (filters?.startDate || filters?.endDate) {
+      query.withScopes((scopes) => scopes.filterByDateRange(filters.startDate, filters.endDate))
     }
 
     return query.orderBy('created_at', 'desc').paginate(page, perPage)

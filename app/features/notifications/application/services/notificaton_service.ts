@@ -48,4 +48,15 @@ export default class NotificationService {
     if (!channel) throw new Error(`Channel ${channelName} not found`)
     return channel.send(notification)
   }
+
+  /**
+   * Sends a push notification to specific push tokens.
+   *
+   * @param {string[]} tokens - Array of push tokens to send the notification to.
+   * @param {Notification} notification - The notification object to be sent.
+   * @return {Promise<void>} Returns a promise that resolves when the notification is sent.
+   */
+  async sendPushToTokens(tokens: string[], notification: Notification): Promise<void> {
+    return this.expoPushChannel.sendToTokens(tokens, notification)
+  }
 }

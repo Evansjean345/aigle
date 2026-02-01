@@ -300,6 +300,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
         this.paymentService.markFailed(secondPayment.id, {}, trx),
         await this.transactionService.markFailed(transaction.id, trx),
       ])
+
       return this.createSuccessResponse()
     }
   }

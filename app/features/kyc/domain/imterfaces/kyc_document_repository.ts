@@ -28,6 +28,8 @@ export default abstract class KycDocumentRepository {
       documentType?: string
       userId?: string
       search?: string
+      startDate?: string
+      endDate?: string
     }
   ): Promise<any>
 

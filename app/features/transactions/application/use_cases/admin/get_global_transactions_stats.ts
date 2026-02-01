@@ -14,10 +14,12 @@ export default class GetGlobalTransactionsStatsUseCase {
   /**
    * Retrieves and calculates statistical data related to all transactions.
    *
+   * @param {string} [startDate] - Optional start date filter.
+   * @param {string} [endDate] - Optional end date filter.
    * @return {Promise<UserTransactionsStatsDTO>} A promise that resolves to an object containing statistics about the transactions, including total volumes, counts, rates, and average transaction value.
    */
-  async execute(): Promise<UserTransactionsStatsDTO> {
-    const stats = await this.transactionsRepository.getStats()
+  async execute(startDate?: string, endDate?: string): Promise<UserTransactionsStatsDTO> {
+    const stats = await this.transactionsRepository.getStats({ startDate, endDate })
 
     return {
       totalInVolume: stats.totalIn,

@@ -29,6 +29,8 @@ export default class GetAllKycDocumentsUseCase {
       documentType?: string
       userId?: string
       search?: string
+      startDate?: string
+      endDate?: string
     }
   ): Promise<{ meta: any; data: AdminKycListDto[] }> {
     const paginatedKyc = await this.kycDocumentRepository.findAll(page, perPage, filters)

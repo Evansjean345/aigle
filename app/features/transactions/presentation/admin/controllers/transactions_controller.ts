@@ -39,8 +39,21 @@ export default class TransactionsController {
   async all({ request, response }: HttpContext): Promise<void> {
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 16)
+    const type = request.input('type')
+    const status = request.input('status')
+    const search = request.input('search')
+    const startDate = request.input('startDate')
+    const endDate = request.input('endDate')
+    const userId = request.input('userId', request.input('user_id'))
 
-    const transactions = await this.getAllTransactionsUseCase.execute(page, perPage)
+    const transactions = await this.getAllTransactionsUseCase.execute(page, perPage, {
+      type,
+      status,
+      search,
+      startDate,
+      endDate,
+      userId,
+    })
     return response.ok(transactions)
   }
 
@@ -75,7 +88,20 @@ export default class TransactionsController {
     const { id } = params
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 16)
-    const transactions = await this.getUserTransactionsUseCase.execute(id, page, perPage)
+    const type = request.input('type')
+    const status = request.input('status')
+    const search = request.input('search')
+    const startDate = request.input('startDate')
+    const endDate = request.input('endDate')
+
+    const transactions = await this.getAllTransactionsUseCase.execute(page, perPage, {
+      type,
+      status,
+      search,
+      startDate,
+      endDate,
+      userId: id,
+    })
     return response.ok(transactions)
   }
 
@@ -86,8 +112,10 @@ export default class TransactionsController {
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async stats({ response }: HttpContext): Promise<void> {
-    const stats = await this.getGlobalTransactionsStatsUseCase.execute()
+  async stats({ request, response }: HttpContext): Promise<void> {
+    const startDate = request.input('startDate')
+    const endDate = request.input('endDate')
+    const stats = await this.getGlobalTransactionsStatsUseCase.execute(startDate, endDate)
     return response.ok(stats)
   }
 
@@ -99,9 +127,11 @@ export default class TransactionsController {
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async getUserTransactionStats({ params, response }: HttpContext): Promise<void> {
+  async getUserTransactionStats({ params, request, response }: HttpContext): Promise<void> {
     const { id } = params
-    const stats = await this.getUserTransactionsStatsUseCase.execute(id)
+    const startDate = request.input('startDate')
+    const endDate = request.input('endDate')
+    const stats = await this.getUserTransactionsStatsUseCase.execute(id, startDate, endDate)
     return response.ok(stats)
   }
 }

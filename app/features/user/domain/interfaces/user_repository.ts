@@ -28,12 +28,16 @@ export default abstract class UserRepository {
    * @param {number} page - The page number to retrieve.
    * @param {number} perPage - The number of users per page.
    * @param {ExtractModelRelations<User>[]} [relations] - Optional list of relations to preload.
+   * @param {string} [search] - Optional search term.
    * @returns {Promise<ModelPaginatorContract<User>>}
    */
   abstract paginate(
     page: number,
     perPage: number,
-    relations?: ExtractModelRelations<User>[]
+    relations?: ExtractModelRelations<User>[],
+    search?: string,
+    startDate?: string,
+    endDate?: string
   ): Promise<ModelPaginatorContract<User>>
 
   /**
@@ -73,7 +77,9 @@ export default abstract class UserRepository {
   /**
    * Retrieves user statistics.
    *
+   * @param {string} [startDate] - Optional start date filter.
+   * @param {string} [endDate] - Optional end date filter.
    * @return {Promise<Record<string, number>>} A promise that resolves to a record of user statistics.
    */
-  abstract getStats(): Promise<Record<string, number>>
+  abstract getStats(startDate?: string, endDate?: string): Promise<Record<string, number>>
 }

@@ -31,12 +31,16 @@ export default class UserRepositoryIml implements UserRepository {
    * @param {number} page - The page number to retrieve.
    * @param {number} perPage - The number of users per page.
    * @param {ExtractModelRelations<User>[]} [relations] - Optional list of relations to preload.
+   * @param {string} [search] - Optional search term.
    * @returns {Promise<ModelPaginatorContract<User>>}
    */
   async paginate(
     page: number,
     perPage: number,
-    relations?: ExtractModelRelations<User>[]
+    relations?: ExtractModelRelations<User>[],
+    search?: string,
+    startDate?: string,
+    endDate?: string
   ): Promise<ModelPaginatorContract<User>> {
     const query = User.query()
 
@@ -44,6 +48,14 @@ export default class UserRepositoryIml implements UserRepository {
       for (const relationName of relations) {
         query.preload(relationName)
       }
+    }
+
+    if (search) {
+      query.withScopes((scopes) => scopes.search(search))
+    }
+
+    if (startDate || endDate) {
+      query.withScopes((scopes) => scopes.filterByDateRange(startDate, endDate))
     }
 
     return query.orderBy('created_at', 'desc').paginate(page, perPage)
@@ -107,18 +119,35 @@ export default class UserRepositoryIml implements UserRepository {
   }
 
   /**
-   * Retrieves user statistics.
+   * Fetches statistical data about user accounts from the database.
    *
-   * @return {Promise<Record<string, number>>} A promise that resolves to a record of user statistics.
+   * @param {string} [startDate] - Optional start date filter.
+   * @param {string} [endDate] - Optional end date filter.
+   * @return {Promise<Record<string, number>>} A promise that resolves to an object containing the following properties:
+   * - `totalUsers`: Total number of users.
+   * - `activeAccounts`: Number of active accounts.
+   * - `inactiveAccounts`: Number of inactive accounts.
+   * - `blockedAccounts`: Number of blocked accounts.
+   * - `kycVerified`: Number of users with verified KYC status.
+   * - `registeredToday`: Number of users who registered today.
+   * - `registeredInRange`: Number of users who registered in the specified range.
    */
-  async getStats(): Promise<Record<string, number>> {
+  async getStats(startDate?: string, endDate?: string): Promise<Record<string, number>> {
     const today = DateTime.now().toISODate()
+
+    const query = User.query()
+
+    if (startDate || endDate) {
+      query.withScopes((scopes) => scopes.filterByDateRange(startDate, endDate))
+    }
 
     const result = await db
       .from(User.table)
       .select(
         db.raw('COUNT(*) as totalUsers'),
-        db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as activeAccounts', [UserStatus.ACTIVE]),
+        db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as activeAccounts', [
+          UserStatus.ACTIVE,
+        ]),
         db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactiveAccounts', [
           UserStatus.INACTIVE,
         ]),
@@ -132,6 +161,9 @@ export default class UserRepositoryIml implements UserRepository {
       )
       .first()
 
+    const rangeResult = await query.count('* as total')
+    const totalInRange = rangeResult[0].$extras.total
+
     return {
       totalUsers: Number(result.totalUsers || 0),
       activeAccounts: Number(result.activeAccounts || 0),
@@ -139,6 +171,7 @@ export default class UserRepositoryIml implements UserRepository {
       blockedAccounts: Number(result.blockedAccounts || 0),
       kycVerified: Number(result.kycVerified || 0),
       registeredToday: Number(result.registeredToday || 0),
+      registeredInRange: Number(totalInRange || 0),
     }
   }
 }

@@ -2,6 +2,8 @@ import TransactionRepository from '#features/transactions/domain/interfaces/tran
 import { inject } from '@adonisjs/core'
 import { PaginatedAdminTransactionsResponseDTO } from '#features/transactions/application/dto/admin_transaction.dto'
 import { toPaginatedAdminTransactionsResponseDto } from '#features/transactions/application/mapper/admin_transaction.mapper'
+import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 
 @inject()
 export default class GetAllTransactionsUseCase {
@@ -17,10 +19,22 @@ export default class GetAllTransactionsUseCase {
    *
    * @param {number} [page=1] - The page number of the paginated results. Defaults to 1 if not specified.
    * @param {number} [perPage=16] - The number of transactions per page. Defaults to 16 if not specified.
+   * @param {Object} [filters] - Optional filters.
    * @return {Promise<PaginatedAdminTransactionsResponseDTO>} A promise that resolves to an array of Transaction DTOs.
    */
-  async execute(page?: number, perPage?: number): Promise<PaginatedAdminTransactionsResponseDTO> {
-    const transactions = await this.transactionsRepository.all(page, perPage)
+  async execute(
+    page: number = 1,
+    perPage: number = 16,
+    filters?: {
+      type?: TransactionType
+      status?: TransactionStatus
+      search?: string
+      startDate?: string
+      endDate?: string
+      userId?: string
+    }
+  ): Promise<PaginatedAdminTransactionsResponseDTO> {
+    const transactions = await this.transactionsRepository.all(page, perPage, filters)
     return toPaginatedAdminTransactionsResponseDto(transactions)
   }
 }

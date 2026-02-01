@@ -37,17 +37,21 @@ export default class KycController {
    */
   async index({ request, response }: HttpContext): Promise<void> {
     const page = request.input('page', 1)
-    const perPage = request.input('limit', request.input('perPage', 20))
+    const perPage = request.input('perPage', request.input('limit', 20))
     const status = request.input('status')
-    const documentType = request.input('document_type')
+    const documentType = request.input('documentType', request.input('document_type'))
     const userId = request.input('user_id')
     const search = request.input('search')
+    const startDate = request.input('start_date')
+    const endDate = request.input('end_date')
 
     const kycDocuments = await this.getAllKycDocumentsUseCase.execute(page, perPage, {
       status,
       documentType,
       userId,
       search,
+      startDate,
+      endDate,
     })
 
     return response.ok(kycDocuments)
@@ -72,13 +76,18 @@ export default class KycController {
    * @return {Promise<void>} A promise that resolves when the document is successfully sent in the response.
    */
   async kycDetails({ params, response }: HttpContext): Promise<void> {
-    const kycDocument = await this.getKycDocumentByIdUseCase.execute(params.id)
+    try {
+      const kycDocument = await this.getKycDocumentByIdUseCase.execute(params.id)
 
-    if (!kycDocument) {
+      if (!kycDocument) {
+        return response.notFound({ message: 'KYC document not found' })
+      }
+
+      return response.ok(kycDocument)
+    } catch (error) {
+      console.error(error)
       return response.notFound({ message: 'KYC document not found' })
     }
-
-    return response.ok(kycDocument)
   }
 
   /**
@@ -99,11 +108,11 @@ export default class KycController {
    * Récupère le document KYC d'un utilisateur spécifique.
    */
   async getUserKyc({ params, response }: HttpContext): Promise<void> {
-    const { id } = params // userId
+    const { id } = params
     const kycDocument = await this.getUserKycDocumentUseCase.execute(id)
 
     if (!kycDocument) {
-      return response.notFound({ message: 'KYC document not found for this user' })
+      return response.ok(null)
     }
 
     return response.ok(kycDocument)

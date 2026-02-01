@@ -1,6 +1,8 @@
 ﻿import Transaction from '#features/transactions/domain/models/transaction'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
+import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 
 /**
  * An abstract class acting as a repository for managing transaction entities.
@@ -69,9 +71,24 @@ export default abstract class TransactionRepository {
    *
    * @param {number} [page] - The page number to retrieve. Optional.
    * @param {number} [perPage] - The number of items per page. Optional.
+   * @param {Object} [filters] - Optional filters.
+   * @param {TransactionType} [filters.type] - Filter by transaction type.
+   * @param {TransactionStatus} [filters.status] - Filter by transaction status.
+   * @param {string} [filters.search] - Search term.
    * @return {Promise<ModelPaginatorContract<Transaction>>} A promise that resolves to a paginated list of transactions.
    */
-  abstract all(page?: number, perPage?: number): Promise<ModelPaginatorContract<Transaction>>
+  abstract all(
+    page?: number,
+    perPage?: number,
+    filters?: {
+      type?: TransactionType
+      status?: TransactionStatus
+      search?: string
+      startDate?: string
+      endDate?: string
+      userId?: string
+    }
+  ): Promise<ModelPaginatorContract<Transaction>>
 
   /**
    * Counts the number of successful transactions for a user on a specific date.
@@ -95,6 +112,8 @@ export default abstract class TransactionRepository {
    *
    * @param {Object} options - Filtering options.
    * @param {string} options.userId - Optional user ID to filter stats.
+   * @param {string} [options.startDate] - Optional start date filter.
+   * @param {string} [options.endDate] - Optional end date filter.
    * @return {Promise<{
    *   totalIn: number,
    *   totalOut: number,
@@ -108,7 +127,7 @@ export default abstract class TransactionRepository {
    *   pendingCount: number
    * }>}
    */
-  abstract getStats(options?: { userId?: string }): Promise<{
+  abstract getStats(options?: { userId?: string; startDate?: string; endDate?: string }): Promise<{
     totalIn: number
     totalOut: number
     transferVolume: number

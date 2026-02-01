@@ -139,14 +139,24 @@ export default class DeviceService {
    * @throws {FailedToSaveOrUpdateDeviceException} Throws an error if the operation fails.
    */
   async saveDevice(payload: DeviceCommandDTO, userId: string): Promise<Device> {
-    const existingDevice = await this.deviceRepository.findByUserAndDeviceIdentifiers(
-      userId,
-      payload.fingerprintHash,
-      payload.deviceUid
+    const existingDevice = await this.deviceRepository.findByFingerprintHash(
+      payload.fingerprintHash
     )
 
     if (existingDevice) {
+      const deviceBelongsToUser = existingDevice.userId === userId
+
+      // Si le device n'appartient pas à l'utilisateur, vérifier si son quota de devices est atteint
+      if (!deviceBelongsToUser) {
+        await this.ensureMaxDevicesNotReached(userId)
+      }
+
       try {
+        // Vérifier si c'est le seul device de l'utilisateur pour mettre à jour isPrimary
+        const userDeviceCount = await this.deviceRepository.countByUserId(userId)
+        const shouldBePrimary =
+          userDeviceCount === 0 || (deviceBelongsToUser && userDeviceCount === 1)
+
         existingDevice.merge({
           userId: userId,
           deviceUid: payload.deviceUid,
@@ -159,9 +169,17 @@ export default class DeviceService {
           isRooted: payload.isRooted,
           ipLastSeen: payload.ipLastSeen,
           lastSeenAt: DateTime.now(),
+          isPrimary: shouldBePrimary,
         })
 
-        return await this.deviceRepository.save(existingDevice)
+        const savedDevice = await this.deviceRepository.save(existingDevice)
+
+        // Envoyer une notification si le device n'appartient pas à l'utilisateur (connexion à un appareil existant d'un autre utilisateur)
+        if (!deviceBelongsToUser) {
+          await NewDeviceDetected.dispatch(userId, savedDevice)
+        }
+
+        return savedDevice
       } catch (error) {
         appLog.error(
           'FAILED TO UPDATE DEVICE',

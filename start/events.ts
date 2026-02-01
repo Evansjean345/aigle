@@ -5,6 +5,7 @@ import TransfertTransactionCompleted from '#features/webhooks/application/events
 import WalletToWalletTransactionFailed from '#features/operations/application/events/wallet_to_wallet_transaction_failed'
 import DepositTransactionFailed from '#features/webhooks/application/events/deposit/deposit_transaction_failed'
 import TransfertTransactionFailed from '#features/webhooks/application/events/transfert/transfert_transaction_failed'
+import TransfertInterTransactionFailed from '#features/webhooks/application/events/transfert_inter/transfert_inter_transaction_failed'
 import KycDocumentSubmitted from '#features/kyc/application/events/kyc_document_submitted'
 import KycDocumentProcessed from '#features/kyc/application/events/kyc_document_processed'
 import UserKycStatusUpdated from '#features/user/application/events/user_kyc_status_updated'
@@ -65,3 +66,4 @@ emitter.listen(WalletStatusChanged, [OnWalletStatusChangedNotification])
 emitter.listen(DepositTransactionFailed, [HandleTransactionFailure])
 emitter.listen(TransfertTransactionFailed, [HandleTransactionFailure])
 emitter.listen(WalletToWalletTransactionFailed, [HandleTransactionFailure])
+emitter.listen(TransfertInterTransactionFailed, [HandleTransactionFailure])

@@ -16,7 +16,12 @@ export default class GetLedgerStatsUseCase {
    * @param {object} filters - Filtering criteria for statistics.
    * @return {Promise<any>} A promise that resolves to ledger statistics.
    */
-  async execute(filters: { walletId?: number; period?: string }): Promise<any> {
+  async execute(filters: {
+    walletId?: number
+    period?: string
+    startDate?: string
+    endDate?: string
+  }): Promise<any> {
     return await this.ledgerRepository.getStats(filters)
   }
 }

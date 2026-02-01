@@ -1,6 +1,14 @@
 ﻿import { DateTime } from 'luxon'
 import { compose, cuid } from '@adonisjs/core/helpers'
-import { BaseModel, beforeCreate, belongsTo, column, hasMany, hasOne } from '@adonisjs/lucid/orm'
+import {
+  BaseModel,
+  beforeCreate,
+  belongsTo,
+  column,
+  hasMany,
+  hasOne,
+  scope,
+} from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import hash from '@adonisjs/core/services/hash'
@@ -131,4 +139,25 @@ export default class User extends compose(BaseModel, AuthFinder) {
     localKey: 'usersUid',
   })
   declare devices: HasMany<typeof Device>
+
+  static search = scope((query, searchTerm: string) => {
+    query.where((subQuery) => {
+      subQuery
+        .where('firstname', 'like', `%${searchTerm}%`)
+        .orWhere('lastname', 'like', `%${searchTerm}%`)
+        .orWhere('phone', 'like', `%${searchTerm}%`)
+    })
+  })
+
+  static filterByDateRange = scope((query, startDate?: string, endDate?: string) => {
+    if (startDate && endDate) {
+      query
+        .where('created_at', '>=', `${startDate} 00:00:00`)
+        .andWhere('created_at', '<=', `${endDate} 23:59:59`)
+    } else if (startDate) {
+      query
+        .where('created_at', '>=', `${startDate} 00:00:00`)
+        .andWhere('created_at', '<=', `${startDate} 23:59:59`)
+    }
+  })
 }

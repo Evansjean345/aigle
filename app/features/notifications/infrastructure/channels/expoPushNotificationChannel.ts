@@ -68,4 +68,37 @@ export default class ExpoPushNotificationChannel implements NotificationChannel 
       console.error('Error sending Expo push:', error)
     }
   }
+
+  /**
+   * Send notification to specific push tokens
+   * @param tokens - Array of push tokens to send the notification to
+   * @param notification - The notification to send
+   */
+  async sendToTokens(tokens: string[], notification: Notification): Promise<void> {
+    if (!tokens || tokens.length === 0) {
+      return
+    }
+
+    const messages = []
+
+    for (const token of tokens) {
+      if (Expo.isExpoPushToken(token)) {
+        messages.push({
+          to: token,
+          title: notification.title,
+          sound: 'default',
+          body: notification.message,
+          data: notification.data ?? {},
+        })
+      }
+    }
+
+    if (messages.length === 0) return
+
+    try {
+      await this.#expoInstance.sendPushNotificationsAsync(messages)
+    } catch (error) {
+      console.error('Error sending Expo push to specific tokens:', error)
+    }
+  }
 }

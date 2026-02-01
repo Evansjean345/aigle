@@ -4,6 +4,7 @@ import GetAllUsersUseCase from '#features/user/application/use_cases/admin/get_a
 import GetUserWalletStatsUseCase from '#features/user/application/use_cases/admin/get_user_wallet_stats_use_case'
 import GetAdminUserDetailsUseCase from '#features/user/application/use_cases/admin/get_admin_user_details_use_case'
 import ChangeUserStateUseCase from '#features/user/application/use_cases/admin/change_user_state_use_case'
+import GetUserStatsUseCase from '#features/user/application/use_cases/admin/get_user_stats_use_case'
 
 import { UserStatus } from '#features/user/domain/enum'
 
@@ -16,12 +17,14 @@ export default class UsersController {
    * @param {GetUserWalletStatsUseCase} getUserWalletStatsUseCase
    * @param {GetAdminUserDetailsUseCase} getAdminUserDetailsUseCase
    * @param {ChangeUserStateUseCase} changeUserStateUseCase
+   * @param {GetUserStatsUseCase} getUserStatsUseCase
    */
   constructor(
     private readonly getAllUsersUseCase: GetAllUsersUseCase,
     private readonly getUserWalletStatsUseCase: GetUserWalletStatsUseCase,
     private readonly getAdminUserDetailsUseCase: GetAdminUserDetailsUseCase,
-    private readonly changeUserStateUseCase: ChangeUserStateUseCase
+    private readonly changeUserStateUseCase: ChangeUserStateUseCase,
+    private readonly getUserStatsUseCase: GetUserStatsUseCase
   ) {}
 
   /**
@@ -35,8 +38,24 @@ export default class UsersController {
   async index({ request, response }: HttpContext): Promise<void> {
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 50)
-    const users = await this.getAllUsersUseCase.execute(page, perPage)
+    const search = request.input('search')
+    const startDate = request.input('startDate')
+    const endDate = request.input('endDate')
+    const users = await this.getAllUsersUseCase.execute(page, perPage, search, startDate, endDate)
     return response.ok(users)
+  }
+
+  /**
+   * Retrieves general user statistics.
+   *
+   * @param {HttpContext} context - The HTTP context object.
+   * @return {Promise<void>}
+   */
+  async stats({ request, response }: HttpContext): Promise<void> {
+    const startDate = request.input('startDate')
+    const endDate = request.input('endDate')
+    const stats = await this.getUserStatsUseCase.execute(startDate, endDate)
+    return response.ok(stats)
   }
 
   /**

@@ -30,9 +30,6 @@ export default class KycSubmitionController {
   async submitKycDocuments({ request, response, auth }: HttpContext): Promise<void> {
     if (!(await auth.check())) return response.unauthorized()
 
-    console.log('debugging document')
-    console.log(request.all())
-
     const payload = await request.validateUsing(kycDocumentValidator, {
       messagesProvider: new SimpleMessagesProvider(errorMessages),
     })

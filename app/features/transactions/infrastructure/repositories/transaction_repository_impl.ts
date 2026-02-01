@@ -111,17 +111,51 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
   /**
    * Fetches all transactions with their associated user and payment details.
    *
+   * @param {number} [page=1] - The page number to retrieve.
+   * @param {number} [perPage=50] - The number of transactions per page.
+   * @param {Object} [filters] - Optional filters.
    * @return {Promise<ModelPaginatorContract<Transaction>>} A promise that resolves to an array of Transaction objects with preloaded relations.
    */
-  async all(page = 1, perPage = 50): Promise<ModelPaginatorContract<Transaction>> {
-    return Transaction.query()
+  async all(
+    page: number = 1,
+    perPage: number = 50,
+    filters?: {
+      type?: TransactionType
+      status?: TransactionStatus
+      search?: string
+      startDate?: string
+      endDate?: string
+      userId?: string
+    }
+  ): Promise<ModelPaginatorContract<Transaction>> {
+    const query = Transaction.query()
       .preload('user')
-      .preload('ledger', (query) => {
-        query.preload('wallet')
+      .preload('ledger', (q) => {
+        q.preload('wallet')
       })
       .preload('payment')
-      .orderBy('created_at', 'desc')
-      .paginate(page, perPage)
+
+    if (filters?.userId) {
+      query.where('usersUid', filters.userId)
+    }
+
+    if (filters?.type) {
+      query.withScopes((scope) => scope.filterByType(filters.type!))
+    }
+
+    if (filters?.status) {
+      query.withScopes((scope) => scope.filterByStatus(filters.status!))
+    }
+
+    if (filters?.search) {
+      query.withScopes((scope) => scope.search(filters.search!))
+    }
+
+    if (filters?.startDate || filters?.endDate) {
+      query.withScopes((scope) => scope.filterByDateRange(filters.startDate, filters.endDate))
+    }
+
+    return query.orderBy('created_at', 'desc').paginate(page, perPage)
   }
 
   /**
@@ -173,12 +207,26 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    * - `failedCount`: The count of failed transactions.
    * - `pendingCount`: The count of pending transactions.
    */
-  async getStats(options?: { userId?: string }): Promise<Record<string, number>> {
+  async getStats(options?: { userId?: string; startDate?: string; endDate?: string }): Promise<{
+    totalIn: number
+    totalOut: number
+    transferVolume: number
+    interNetworkVolume: number
+    walletTransferVolume: number
+    totalFees: number
+    count: number
+    successCount: number
+    failedCount: number
+    pendingCount: number
+  }> {
     const query = Transaction.query()
-    const isGlobal = !options?.userId
 
     if (options?.userId) {
       query.where('usersUid', options.userId)
+    }
+
+    if (options?.startDate || options?.endDate) {
+      query.withScopes((scope) => scope.filterByDateRange(options.startDate, options.endDate))
     }
 
     const result = await query
@@ -209,16 +257,10 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
         ),
         db.raw(
           `COALESCE(SUM(CASE
-                 WHEN status = ? AND operation_type = ? ${isGlobal ? 'AND direction = ?' : ''} THEN amount
+                 WHEN status = ? AND operation_type = ? THEN amount
                  ELSE 0
-          END), 0) as walletTransferVolume`,
-          isGlobal
-            ? [
-                TransactionStatus.SUCCESS,
-                TransactionType.WALLET_TRANSFERT,
-                TransactionDirection.DEBIT,
-              ]
-            : [TransactionStatus.SUCCESS, TransactionType.WALLET_TRANSFERT]
+          END), 0) as interNetworkVolume`,
+          [TransactionStatus.SUCCESS, TransactionType.TRANSFERT_INTER]
         ),
         db.raw(
           `COALESCE(SUM(CASE

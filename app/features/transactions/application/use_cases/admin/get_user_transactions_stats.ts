@@ -15,10 +15,16 @@ export default class GetUserTransactionsStatsUseCase {
    * Retrieves and calculates statistical data related to a user's transactions.
    *
    * @param {string} userId - The unique identifier of the user for whom transaction statistics are being calculated.
+   * @param {string} [startDate] - Optional start date filter.
+   * @param {string} [endDate] - Optional end date filter.
    * @return {Promise<UserTransactionsStatsDTO>} A promise that resolves to an object containing statistics about the user's transactions, including total volumes, counts, rates, and average transaction value.
    */
-  async execute(userId: string): Promise<UserTransactionsStatsDTO> {
-    const stats = await this.transactionsRepository.getStats({ userId })
+  async execute(
+    userId: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<UserTransactionsStatsDTO> {
+    const stats = await this.transactionsRepository.getStats({ userId, startDate, endDate })
 
     return {
       totalInVolume: stats.totalIn,

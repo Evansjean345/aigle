@@ -3,6 +3,7 @@ import TransactionFailureCache from '#features/transactions/domain/interfaces/tr
 import DepositTransactionFailed from '#features/webhooks/application/events/deposit/deposit_transaction_failed'
 import TransfertTransactionFailed from '#features/webhooks/application/events/transfert/transfert_transaction_failed'
 import WalletToWalletTransactionFailed from '#features/operations/application/events/wallet_to_wallet_transaction_failed'
+import TransfertInterTransactionFailed from '#features/webhooks/application/events/transfert_inter/transfert_inter_transaction_failed'
 
 @inject()
 export default class HandleTransactionFailure {
@@ -16,10 +17,14 @@ export default class HandleTransactionFailure {
   /**
    * Handles the given transaction failure event by increasing the failure count for the associated user.
    *
-   * @param {DepositTransactionFailed | TransfertTransactionFailed | WalletToWalletTransactionFailed} event - The transaction failure event containing user-specific data.
+   * @param {DepositTransactionFailed | TransfertTransactionFailed | WalletToWalletTransactionFailed | TransfertInterTransactionFailed} event - The transaction failure event containing user-specific data.
    */
   async handle(
-    event: DepositTransactionFailed | TransfertTransactionFailed | WalletToWalletTransactionFailed
+    event:
+      | DepositTransactionFailed
+      | TransfertTransactionFailed
+      | WalletToWalletTransactionFailed
+      | TransfertInterTransactionFailed
   ) {
     const userId = event.data.userId
     await this.failureCache.incrementFailure(userId)

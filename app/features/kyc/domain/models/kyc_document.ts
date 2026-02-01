@@ -1,4 +1,4 @@
-import { BaseModel, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column, hasMany, scope } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
@@ -55,4 +55,16 @@ export default class KycDocument extends BaseModel {
     localKey: 'usersUid',
   })
   declare user: BelongsTo<typeof User>
+
+  static filterByDateRange = scope((query, startDate?: string, endDate?: string) => {
+    if (startDate && endDate) {
+      query
+        .where('created_at', '>=', `${startDate} 00:00:00`)
+        .andWhere('created_at', '<=', `${endDate} 23:59:59`)
+    } else if (startDate) {
+      query
+        .where('created_at', '>=', `${startDate} 00:00:00`)
+        .andWhere('created_at', '<=', `${startDate} 23:59:59`)
+    }
+  })
 }

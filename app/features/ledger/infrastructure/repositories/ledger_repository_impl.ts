@@ -65,6 +65,8 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
       operationType?: LedgerOperationType | string
       startDate?: string
       endDate?: string
+      search?: string
+      userId?: string
     }
   ): Promise<ModelPaginatorContract<Ledger>> {
     const query = Ledger.query()
@@ -72,8 +74,13 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
         scopes.filterByWallet(filters?.walletId)
         scopes.filterByDirection(filters?.direction)
         scopes.filterByOperationType(filters?.operationType)
-        scopes.filterByStartDate(filters?.startDate)
-        scopes.filterByEndDate(filters?.endDate)
+        scopes.filterByUser(filters?.userId)
+        if (filters?.startDate || filters?.endDate) {
+          scopes.filterByDateRange(filters.startDate, filters.endDate)
+        }
+        if (filters?.search) {
+          scopes.search(filters.search)
+        }
       })
       .select([
         'id',
@@ -116,12 +123,18 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
    * - `total_external`: Thee total external transactions within the specified wallet and period.
    * - `period`: The period used for calculations.
    */
-  async getStats(filters: { walletId?: number; period?: string }): Promise<Record<string, any>> {
-    const dateFilter = this.getDateFilter(filters.period || '30d')
+  async getStats(filters: {
+    walletId?: number
+    period?: string
+    startDate?: string
+    endDate?: string
+  }): Promise<Record<string, any>> {
     const baseQuery = Ledger.query().withScopes((scopes) => {
       scopes.filterByWallet(filters.walletId)
-      if (dateFilter) {
-        scopes.filterByStartDate(dateFilter.toSQL()!)
+
+      if (filters.startDate || filters.endDate) {
+        console.log(filters.startDate, filters.endDate)
+        scopes.filterByDateRange(filters.startDate, filters.endDate)
       }
     })
 

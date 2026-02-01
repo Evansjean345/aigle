@@ -8,26 +8,26 @@ export function mapUserToAdminListItemDto(user: User): AdminUserListItemResponse
     fullname: [user.firstname, user.lastname].filter(Boolean).join(' ').trim(),
     phone: user.phone,
     country: {
-      name: user.country.name,
-      flag: user.country.flag,
-      phoneCode: user.country.phoneCode,
+      name: user.country?.name || '',
+      flag: user.country?.flag || '',
+      phoneCode: user.country?.phoneCode || '',
     },
     status: user.status,
     createdAt: user.createdAt,
     profilePic: user.kycDocument?.selfieUrl || null,
     transactionVolume: {
-      monthly_limit: user.keyLevel.monthlyLimit,
-      monthly: user.transactionVolumes.monthly,
+      monthly_limit: user.keyLevel?.monthlyLimit || 0,
+      monthly: user.transactionVolumes?.monthly || 0,
     },
     kyc: {
-      level: user.keyLevel.level,
+      level: user.keyLevel?.level || 0,
       status: user.kycStatus,
       documentType: user.kycDocument?.documentType,
       documentStatus: user.kycDocument?.status,
     },
     wallet: {
-      balance: user.wallet.balance,
-      currency: user.wallet.currencySymbol,
+      balance: user.wallet?.balance || 0,
+      currency: user.wallet?.currencySymbol || '',
     },
   }
 }

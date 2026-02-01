@@ -22,7 +22,10 @@ export default class GetUserLedgerStatsUseCase {
    * @param {object} filters - Additional filtering criteria for statistics.
    * @return {Promise<any | null>} A promise that resolves to ledger statistics or null if no wallet found.
    */
-  async execute(userId: string, filters: { period?: string }): Promise<any | null> {
+  async execute(
+    userId: string,
+    filters: { period?: string; startDate?: string; endDate?: string }
+  ): Promise<any | null> {
     const wallet = await this.walletRepository.findByUserId(userId)
     if (!wallet) {
       return null

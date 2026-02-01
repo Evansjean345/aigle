@@ -35,6 +35,8 @@ export default class GetAllLedgersUseCase {
       operationType?: LedgerOperationType | string
       startDate?: string
       endDate?: string
+      search?: string
+      userId?: string
     }
   ): Promise<{ meta: any; data: LedgerDto[] }> {
     const paginatedLedgers = await this.ledgerRepository.findAll(page, perPage, filters)

@@ -1,7 +1,7 @@
 import router from '@adonisjs/core/services/router'
 
 const UsersController = () =>
-  import('#features/users/presentation/admin/controllers/users_controller')
+  import('#features/user/presentation/admin/controllers/users_controller')
 
 const AdminTransactionController = () =>
   import('#features/transactions/presentation/admin/controllers/transactions_controller')
@@ -17,6 +17,7 @@ export default function adminUsersRoute() {
     .group(() => {
       router.group(() => {
         router.get('/', [UsersController, 'index'])
+        router.get('/stats', [UsersController, 'stats'])
         router.get('/:id', [UsersController, 'show'])
         router.get('/:id/wallet-stats', [UsersController, 'walletStats'])
         router.get('/:id/transactions', [AdminTransactionController, 'getUserTransactions'])

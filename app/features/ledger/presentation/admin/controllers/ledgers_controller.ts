@@ -40,9 +40,13 @@ export default class LedgersController {
     const perPage = request.input('limit', request.input('perPage', 20))
     const walletId = request.input('wallet_id')
     const direction = request.input('direction')
-    const operationType = request.input('operation_type') as LedgerOperationType
-    const startDate = request.input('start_date')
-    const endDate = request.input('end_date')
+    const operationType = request.input('operationType', request.input('operation_type')) as
+      | LedgerOperationType
+      | string
+    const startDate = request.input('startDate', request.input('start_date'))
+    const endDate = request.input('endDate', request.input('end_date'))
+    const search = request.input('search')
+    const userId = request.input('userId', request.input('user_id'))
 
     const ledgers = await this.getAllLedgersUseCase.execute(page, perPage, {
       walletId,
@@ -50,6 +54,8 @@ export default class LedgersController {
       operationType,
       startDate,
       endDate,
+      search,
+      userId,
     })
     return response.ok(ledgers)
   }
@@ -65,8 +71,10 @@ export default class LedgersController {
   async stats({ request, response }: HttpContext): Promise<void> {
     const walletId = request.input('wallet_id')
     const period = request.input('period', '30d')
+    const startDate = request.input('startDate', request.input('start_date'))
+    const endDate = request.input('endDate', request.input('end_date'))
 
-    const stats = await this.getLedgerStatsUseCase.execute({ walletId, period })
+    const stats = await this.getLedgerStatsUseCase.execute({ walletId, period, startDate, endDate })
     return response.ok(stats)
   }
 
@@ -109,20 +117,21 @@ export default class LedgersController {
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 20)
     const direction = request.input('direction')
-    const operationType = request.input('operation_type') as LedgerOperationType
-    const startDate = request.input('start_date')
-    const endDate = request.input('end_date')
+    const operationType = request.input('operationType', request.input('operation_type')) as
+      | LedgerOperationType
+      | string
+    const startDate = request.input('startDate', request.input('start_date'))
+    const endDate = request.input('endDate', request.input('end_date'))
+    const search = request.input('search')
 
-    const result = await this.getUserLedgersUseCase.execute(id, page, perPage, {
+    const result = await this.getAllLedgersUseCase.execute(page, perPage, {
       direction,
       operationType,
       startDate,
       endDate,
+      search,
+      userId: id,
     })
-
-    if (!result) {
-      return response.notFound({ message: 'User or wallet not found' })
-    }
 
     return response.ok(result)
   }
@@ -139,8 +148,10 @@ export default class LedgersController {
   async getUserLedgerStats({ params, request, response }: HttpContext): Promise<void> {
     const { id } = params // userId
     const period = request.input('period', '30d')
+    const startDate = request.input('startDate', request.input('start_date'))
+    const endDate = request.input('endDate', request.input('end_date'))
 
-    const stats = await this.getUserLedgerStatsUseCase.execute(id, { period })
+    const stats = await this.getUserLedgerStatsUseCase.execute(id, { period, startDate, endDate })
 
     if (!stats) {
       return response.notFound({ message: 'User or wallet not found' })
@@ -156,8 +167,8 @@ export default class LedgersController {
    * @param {object} context.params - The route parameters.
    * @param {string} context.params.id - The user ID.
    * @param {object} context.request - The HTTP request object.
-   * @param {string} [context.request.input('period', '30d')] - The time period for the ledger data, defaults to 30 days.
-   * @param {('day'|'week'|'month')} [context.request.input('group_by', 'day')] - The grouping factor for data aggregation, defaults to 'day'.
+   * @param {string} [context.request.input.period] - The time period for the ledger data, defaults to 30 days.
+   * @param {string} [context.request.input.group_by] - The grouping factor for data aggregation, defaults to 'day'.
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} Resolves with a response containing chart data or an error message if not found.
    */

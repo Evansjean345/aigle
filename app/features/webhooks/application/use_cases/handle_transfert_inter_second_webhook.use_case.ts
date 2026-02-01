@@ -14,6 +14,7 @@ import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_re
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
 import LedgerService from '#features/ledger/application/services/ledger_service'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import TransfertInterTransactionFailed from '#features/webhooks/application/events/transfert_inter/transfert_inter_transaction_failed'
 
 /**
  * Use case for handling the second webhook for inter-transfer payments.
@@ -253,6 +254,24 @@ export default class HandleTransfertInterSecondWebhookUseCase {
         trx
       )
       await this.transactionService.markFailed(transaction.id, trx)
+
+      // Dispatch failure event for transaction failure tracking
+      const paymentDetails = (() => {
+        try {
+          const raw = (secondPayment as any)?.paymentDetails
+          return typeof raw === 'string' ? JSON.parse(raw) : (raw ?? {})
+        } catch {
+          return {}
+        }
+      })()
+
+      await TransfertInterTransactionFailed.dispatch({
+        reference: transaction.reference,
+        amount: transaction.amount,
+        userId: transaction.usersUid,
+        beneficiaryPhone: paymentDetails?.phone || 'unknown',
+      })
+
       return this.createSuccessResponse()
     }
   }

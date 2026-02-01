@@ -46,6 +46,8 @@ export default abstract class LedgerRepository {
       operationType?: LedgerOperationType | string
       startDate?: string
       endDate?: string
+      search?: string
+      userId?: string
     }
   ): Promise<ModelPaginatorContract<Ledger>>
 
@@ -55,7 +57,12 @@ export default abstract class LedgerRepository {
    * @param {object} filters - Filtering criteria for statistics.
    * @return {Promise<any>} A promise that resolves to ledger statistics.
    */
-  abstract getStats(filters: { walletId?: number; period?: string }): Promise<any>
+  abstract getStats(filters: {
+    walletId?: number
+    period?: string
+    startDate?: string
+    endDate?: string
+  }): Promise<any>
 
   /**
    * Retrieves chart data for ledger evolution.

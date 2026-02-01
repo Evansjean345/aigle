@@ -3,6 +3,7 @@ import { inject } from '@adonisjs/core'
 import { AdminUsersListResponseDto } from '#features/user/application/dtos/admin/users.response.dto'
 import { mapUserToAdminListItemDto } from '#features/user/application/mappers/admin/users.mapper'
 import TransactionVolumeCache from '#features/transactions/domain/interfaces/transaction_volume_cache'
+import { DateTime } from 'luxon'
 
 @inject()
 export default class GetAllUsersUseCase {
@@ -22,19 +23,35 @@ export default class GetAllUsersUseCase {
    *
    * @param {number} page - The page number to retrieve.
    * @param {number} perPage - The number of users per page.
+   * @param {string} [search] - Optional search term.
+   * @param {string} [startDate] - Optional start date filter.
+   * @param {string} [endDate] - Optional end date filter.
    * @return {Promise<AdminUsersListResponseDto>} A promise that resolves with the result of the execution.
    */
-  async execute(page: number = 1, perPage: number = 16): Promise<AdminUsersListResponseDto> {
-    const paginatedUsers = await this.userRepository.paginate(page, perPage, [
-      'wallet',
-      'keyLevel',
-      'kycDocument',
-      'country',
-    ])
+  async execute(
+    page: number = 1,
+    perPage: number = 16,
+    search?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<AdminUsersListResponseDto> {
+    const paginatedUsers = await this.userRepository.paginate(
+      page,
+      perPage,
+      ['wallet', 'keyLevel', 'kycDocument', 'country'],
+      search,
+      startDate,
+      endDate
+    )
 
     const items = paginatedUsers.all()
     const userIds = items.map((user) => user.usersUid)
-    const volumes = await this.transactionVolumeCache.getMonthlyVolumesForUsers(userIds)
+
+    // Si une date spécifique est fournie (startDate), on pourrait vouloir les volumes pour cette période.
+    // Mais le cache est optimisé pour le mois en cours.
+    // Pour l'instant, on garde le volume mensuel actuel ou celui du mois de startDate.
+    const dt = startDate ? DateTime.fromISO(startDate) : undefined
+    const volumes = await this.transactionVolumeCache.getMonthlyVolumesForUsers(userIds, dt)
 
     const data = items.map((user) => {
       user['transactionVolumes'] = {

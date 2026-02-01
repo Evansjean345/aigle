@@ -52,7 +52,7 @@ export default class Ledger extends BaseModel {
 
   static filterByWallet = scope((query, walletId?: number) => {
     if (walletId) {
-      query.where('walletId', walletId)
+      query.where('wallet_id', walletId)
     }
   })
 
@@ -64,19 +64,49 @@ export default class Ledger extends BaseModel {
 
   static filterByOperationType = scope((query, operationType?: string) => {
     if (operationType) {
-      query.where('operationType', operationType)
+      query.where('operation_type', operationType)
     }
   })
 
-  static filterByStartDate = scope((query, startDate?: string) => {
-    if (startDate) {
-      query.where('createdAt', '>=', startDate)
+  static filterByUser = scope((query, userId?: string) => {
+    if (userId) {
+      query.whereHas('wallet', (walletQuery) => {
+        walletQuery.where('userId', userId)
+      })
     }
   })
 
-  static filterByEndDate = scope((query, endDate?: string) => {
-    if (endDate) {
-      query.where('createdAt', '<=', endDate)
+  static filterByDateRange = scope((query, startDate?: string, endDate?: string) => {
+    if (startDate && endDate) {
+      query
+        .where('created_at', '>=', `${startDate} 00:00:00`)
+        .andWhere('created_at', '<=', `${endDate} 23:59:59`)
+    } else if (startDate) {
+      query
+        .where('created_at', '>=', `${startDate} 00:00:00`)
+        .andWhere('created_at', '<=', `${startDate} 23:59:59`)
     }
+  })
+
+  static search = scope((query, searchTerm: string) => {
+    query.where((subQuery) => {
+      subQuery
+        .orWhereHas("transaction", (transactionQuery) => {
+          transactionQuery.where('reference', 'like', `%${searchTerm}%`)
+        })
+        .orWhereHas('wallet', (walletQuery) => {
+          walletQuery.whereHas('user', (userQuery) => {
+            userQuery
+              .where('firstname', 'like', `%${searchTerm}%`)
+              .orWhere('lastname', 'like', `%${searchTerm}%`)
+          })
+        })
+
+      const amount = Number.parseFloat(searchTerm)
+
+      if (!Number.isNaN(amount)) {
+        subQuery.orWhere('total_amount', amount)
+      }
+    })
   })
 }

@@ -35,6 +35,7 @@ export default class GetUserLedgersUseCase {
       operationType?: LedgerOperationType | string
       startDate?: string
       endDate?: string
+      search?: string
     }
   ): Promise<{ meta: any; data: LedgerDto[] } | null> {
     const wallet = await this.walletRepository.findByUserId(userId)
