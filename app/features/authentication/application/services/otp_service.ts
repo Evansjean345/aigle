@@ -8,6 +8,7 @@ import InvalidOtpException from '#features/authentication/infrastructure/excepti
 import ExpiredOtpException from '#features/authentication/infrastructure/exceptions/expired_otp_exception'
 import OtpLockedException from '#features/authentication/infrastructure/exceptions/otp_locked_exception'
 import appLog from '#shared/infrastructure/logging/app_log'
+import NotificationService from '#features/notifications/application/services/notificaton_service'
 
 // Simple constants to make OTP behavior easy to tune
 const OTP_EXPIRY_SECONDS = 600 // 10 minutes
@@ -28,8 +29,12 @@ export default class OtpService {
    * Constructor for the class that initializes with a specific OtpRepository instance.
    *
    * @param {OtpRepository} otpRepository - The repository instance used for managing OTP-related data.
+   * @param {NotificationService} notificationService - The service used for sending notifications (SMS, push, etc.).
    */
-  constructor(private otpRepository: OtpRepository) {}
+  constructor(
+    private otpRepository: OtpRepository,
+    private notificationService: NotificationService
+  ) {}
 
   /**
    * Generates and saves a new one-time password (OTP) for a given user and phone number.
@@ -83,7 +88,7 @@ export default class OtpService {
       const { code } = await this.createOtp(userId, phone)
       const message = `Votre code OTP est ${code}. Il est valide pendant ${OTP_EXPIRY_MINUTES} minutes.`
       console.log(message)
-      //await sendSms(message, phone)
+      await this.notificationService.sendSms(message, phone)
 
       return { sent: true }
     } catch (err) {

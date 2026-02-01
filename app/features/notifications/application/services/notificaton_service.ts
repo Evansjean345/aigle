@@ -3,6 +3,7 @@ import { Notification } from '#features/notifications/domain/notification'
 import { NotificationChannelType } from '#features/notifications/domain/notification_channel_type'
 import { inject } from '@adonisjs/core'
 import ExpoPushNotificationChannel from '#features/notifications/infrastructure/channels/expoPushNotificationChannel'
+import SmsNotificationChannel from '#features/notifications/infrastructure/channels/smsNotificationChannel'
 
 @inject()
 export default class NotificationService {
@@ -16,12 +17,22 @@ export default class NotificationService {
   private readonly channels: NotificationChannel[]
 
   /**
-   * Initializes a new instance of the class with the specified Expo Push Notification channel.
+   * The SMS notification channel instance.
+   */
+  private readonly smsChannel: SmsNotificationChannel
+
+  /**
+   * Initializes a new instance of the class with the specified notification channels.
    *
    * @param {ExpoPushNotificationChannel} expoPushChannel - The Expo Push Notification channel to be used.
+   * @param {SmsNotificationChannel} smsChannel - The SMS notification channel to be used.
    */
-  constructor(private expoPushChannel: ExpoPushNotificationChannel) {
-    this.channels = [this.expoPushChannel]
+  constructor(
+    private expoPushChannel: ExpoPushNotificationChannel,
+    smsChannel: SmsNotificationChannel
+  ) {
+    this.smsChannel = smsChannel
+    this.channels = [this.expoPushChannel, this.smsChannel]
   }
 
   /**
@@ -58,5 +69,16 @@ export default class NotificationService {
    */
   async sendPushToTokens(tokens: string[], notification: Notification): Promise<void> {
     return this.expoPushChannel.sendToTokens(tokens, notification)
+  }
+
+  /**
+   * Sends an SMS message to a specific phone number.
+   *
+   * @param {string} message - The message content to send.
+   * @param {string} phone - The recipient's phone number.
+   * @return {Promise<void>} Returns a promise that resolves when the SMS is sent.
+   */
+  async sendSms(message: string, phone: string): Promise<void> {
+    return this.smsChannel.sendSms(message, phone)
   }
 }

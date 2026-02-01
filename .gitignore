@@ -15,6 +15,8 @@ public/assets
 # Build tools specific
 npm-debug.log
 yarn-error.log
+logs
+database_updates
 
 *.md
 

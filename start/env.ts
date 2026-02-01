@@ -54,4 +54,14 @@ export default await Env.create(new URL('../', import.meta.url), {
   |----------------------------------------------------------
   */
   LIMITER_STORE: Env.schema.enum(['redis', 'memory'] as const),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring MTarget SMS service
+  |----------------------------------------------------------
+  */
+  MTARGET_URL: Env.schema.string(),
+  MTARGET_USERNAME: Env.schema.string(),
+  MTARGET_PASSWORD: Env.schema.string(),
+  MTARGET_SENDER: Env.schema.string(),
 })
