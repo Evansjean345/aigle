@@ -1,0 +1,17 @@
+import { inject } from '@adonisjs/core'
+import AppVersionRepository from '#features/device/domain/interfaces/app_version_repository'
+import AppVersion from '#features/device/domain/models/app_version'
+import AppVersionNotFoundException from '#features/device/infrastructure/exceptions/app_version_not_found_exception'
+
+@inject()
+export default class GetAppVersionDetailsUseCase {
+  constructor(private appVersionRepository: AppVersionRepository) {}
+
+  async execute(id: number): Promise<AppVersion> {
+    const version = await this.appVersionRepository.findById(id)
+    if (!version) {
+      throw new AppVersionNotFoundException()
+    }
+    return version
+  }
+}

@@ -6,6 +6,7 @@ import {
   checkPhoneValidator,
   verifyUserAccountValidator,
   checkPinValidator,
+  forgotPasswordResetValidator,
 } from '#features/authentication/presentation/mobile/validators/auth_validator'
 import RegisterUseCase from '#features/authentication/application/use_cases/register_use_case'
 import LoginUseCase from '#features/authentication/application/use_cases/login_use_case'
@@ -14,8 +15,10 @@ import CheckPinUseCase from '#features/authentication/application/use_cases/chec
 import GetUserProfileUseCase from '#features/authentication/application/use_cases/get_user_profile_use_case'
 import LogoutUseCase from '#features/authentication/application/use_cases/logout_use_case'
 import CheckPhoneUseCase from '#features/authentication/application/use_cases/check_phone_use_case'
+import ResetPasswordUseCase from '#features/authentication/application/use_cases/reset_password_use_case'
 import { toAuthenticatedUserProfileResponse } from '#features/authentication/application/mappers/authenticated_user.mapper'
 import VerifyAndAuthenticateUserAccountUseCase from '#features/authentication/application/use_cases/verify_and_authenticate_user_account_use_case'
+import VerifyForgotPasswordOtpUseCase from '#features/authentication/application/use_cases/verify_forgot_password_otp_use_case'
 
 /**
  * AuthController is responsible for managing user authentication-related operations such as
@@ -29,21 +32,25 @@ export default class AuthController {
    * @param loginUseCase - Use case handling user login logic.
    * @param registerUseCase - Use case handling user registration logic.
    * @param verifyAndAuthenticateUseCase - Use case for verifying and authenticating user accounts.
+   * @param verifyForgotPasswordOtpUseCase - Use case for verifying OTP during password reset.
    * @param sendOtpUseCase - Use case for sending OTP for user authentication or verification.
    * @param checkPinUseCase - Use case for validating and checking user PIN codes.
    * @param getUserProfileUseCase - Use case to retrieve the profile of authenticated users.
    * @param logoutUseCase - Use case for logging out authenticated users.
    * @param checkPhoneUseCase - Use case for checking phone details during verification.
+   * @param resetPasswordUseCase - Use case for resetting user passwords.
    */
   constructor(
     private loginUseCase: LoginUseCase,
     private registerUseCase: RegisterUseCase,
     private verifyAndAuthenticateUseCase: VerifyAndAuthenticateUserAccountUseCase,
+    private verifyForgotPasswordOtpUseCase: VerifyForgotPasswordOtpUseCase,
     private sendOtpUseCase: SendOtpUseCase,
     private checkPinUseCase: CheckPinUseCase,
     private getUserProfileUseCase: GetUserProfileUseCase,
     private logoutUseCase: LogoutUseCase,
-    private checkPhoneUseCase: CheckPhoneUseCase
+    private checkPhoneUseCase: CheckPhoneUseCase,
+    private resetPasswordUseCase: ResetPasswordUseCase
   ) {}
 
   /**
@@ -68,9 +75,18 @@ export default class AuthController {
    * @param {Object} context.request - The HTTP request object containing the login details.
    * @return {void} The response containing the result of the login operation.
    */
-  async login({ response, request }: HttpContext): Promise<void> {
+  async login({ response, request, deviceInfo }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(verifyUserAccountValidator)
-    const authenticatedUser = await this.verifyAndAuthenticateUseCase.execute(payload, 'login')
+    const clientIp = request.ip()
+
+    const authenticatedUser = await this.verifyAndAuthenticateUseCase.execute(payload, 'login', {
+      fingerprintHash: deviceInfo?.fingerprintHash ?? null,
+      deviceUid: deviceInfo?.deviceUid ?? null,
+      platform: deviceInfo?.platform ?? null,
+      appVersion: deviceInfo?.appVersion ?? null,
+      osVersion: deviceInfo?.osVersion ?? null,
+      clientIp,
+    })
     return response.created(authenticatedUser)
   }
 
@@ -84,11 +100,25 @@ export default class AuthController {
    */
   async verifyUserCredentials({ response, request }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(loginValidator)
+    const clientIp = request.ip()
 
     const result = await this.loginUseCase.execute({
       phone: payload.phone,
       pincode: payload.codepin,
       country_id: payload.country_id,
+      device: {
+        fingerprint_hash: payload.devicePayload.fingerprint_hash,
+        device_uid: payload.devicePayload.device_uid,
+        platform: payload.devicePayload.platform,
+        brand: payload.devicePayload.brand,
+        model: payload.devicePayload.model,
+        os_version: payload.devicePayload.os_version,
+        app_version: payload.devicePayload.app_version,
+        is_emulator: payload.devicePayload.is_emulator,
+        is_rooted: payload.devicePayload.is_rooted,
+        ip_first_seen: clientIp,
+        ip_last_seen: clientIp,
+      },
     })
 
     return response.created(result)
@@ -150,9 +180,18 @@ export default class AuthController {
    * @param {Object} HttpContext.request - The HTTP request object containing the user's input and data.
    * @return {Promise<void>} A promise resolving with the authenticated user data as a confirmation of successful account verification.
    */
-  async verifyUserAccount({ response, request }: HttpContext): Promise<void> {
+  async verifyUserAccount({ response, request, deviceInfo }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(verifyUserAccountValidator)
-    const authenticatedUser = await this.verifyAndAuthenticateUseCase.execute(payload, 'register')
+    const clientIp = request.ip()
+
+    const authenticatedUser = await this.verifyAndAuthenticateUseCase.execute(payload, 'register', {
+      fingerprintHash: deviceInfo?.fingerprintHash ?? null,
+      deviceUid: deviceInfo?.deviceUid ?? null,
+      platform: deviceInfo?.platform ?? null,
+      appVersion: deviceInfo?.appVersion ?? null,
+      osVersion: deviceInfo?.osVersion ?? null,
+      clientIp,
+    })
     return response.created(authenticatedUser)
   }
 
@@ -171,17 +210,6 @@ export default class AuthController {
     return response.created(responseDto)
   }
 
-  // /**
-  //  * Handles the reset password process by validating the request payload and executing the use case.
-  //  *
-  //  * @param response
-  //  * @param request
-  //  */
-  // async resetPassword({ response, request }: HttpContext) {
-  //   const user = await this.resetPasswordUseCase.execute(request.body())
-  //   return response.status(user.code).send(user)
-  // }
-
   /**
    * Sends an OTP (One-Time Password) to the provided phone number after validating the request payload.
    *
@@ -194,6 +222,52 @@ export default class AuthController {
     const payload = await request.validateUsing(checkPhoneValidator)
     const result = await this.sendOtpUseCase.execute(payload)
 
+    return response.created(result)
+  }
+
+  /**
+   * Handles the forgot password request by validating the phone number,
+   * generating an OTP, and sending it to the user.
+   *
+   * @param {Object} HttpContext - The HTTP context of the request.
+   * @param {Object} HttpContext.response - The response object.
+   * @param {Object} HttpContext.request - The request object.
+   * @return {Promise<void>} Resolves when the OTP is successfully sent and the response is created.
+   */
+  async forgotPasswordRequest({ response, request }: HttpContext): Promise<void> {
+    const payload = await request.validateUsing(checkPhoneValidator)
+    const result = await this.sendOtpUseCase.execute(payload)
+    return response.created(result)
+  }
+
+  /**
+   * Handles the verification process for resetting a user's password.
+   * Validates the payload, retrieves device information, and executes verification
+   * and authentication logic specific to password reset requests.
+   *
+   * @param {Object} HttpContext - The context object for the HTTP request and response.
+   * @param {Object} HttpContext.response - The HTTP response object used to send the response.
+   * @param {Object} HttpContext.request - The HTTP request object containing request data.
+   * @return {Promise<void>} A Promise that resolves when the verification and response creation processes are complete.
+   */
+  async forgotPasswordVerify({ response, request }: HttpContext): Promise<void> {
+    const payload = await request.validateUsing(verifyUserAccountValidator)
+    const result = await this.verifyForgotPasswordOtpUseCase.execute(payload)
+    return response.created(result)
+  }
+
+  /**
+   * Handles the forgotten password reset process by validating the user input, performing the reset operation,
+   * and returning the corresponding response.
+   *
+   * @param {Object} context - The HTTP context containing the request and response objects.
+   * @param {Object} context.request - The incoming request object containing the user input.
+   * @param {Object} context.response - The outgoing response object used to send the reset result.
+   * @return {Promise<void>} Resolves when the reset operation is successfully completed and a response is sent.
+   */
+  async forgotPasswordReset({ response, request }: HttpContext): Promise<void> {
+    const payload = await request.validateUsing(forgotPasswordResetValidator)
+    const result = await this.resetPasswordUseCase.execute(payload)
     return response.created(result)
   }
 }

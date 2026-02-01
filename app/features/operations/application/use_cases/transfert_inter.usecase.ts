@@ -13,44 +13,54 @@ import env from '#start/env'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import Payment from '#features/transactions/domain/models/payment'
 import config from '@adonisjs/core/services/config'
-import ServiceTypesService from '#features/catalogs/application/services/service_types.service'
 import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
 import Transaction from '#features/transactions/domain/models/transaction'
+import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
+import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
-import { Exception } from '@adonisjs/core/exceptions'
+import OrangeMoneyCodeRequiredException from '#features/operations/infrastructure/exceptions/orange_money_code_required_exception'
+import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import HttpClient from '#shared/infrastructure/http_client_service'
+import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
+import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
 
 /**
  * Class responsible for handling inter-transfer operations, including fees calculation,
- * transactions, payment initiation, and external API communication.
  */
 @inject()
 export default class InterTransfertUseCase {
   /**
-   * Constructs an instance of the class with the provided dependencies.
+   * Constructs an instance of the class with the provided services and utilities.
    *
-   * @param {TransactionService} transactionService - Service for handling transactions.
-   * @param {PaymentService} paymentService - Service for managing payment operations.
-   * @param {WalletService} walletService - Service for handling wallet functionalities.
-   * @param {ServiceTypesService} serviceTypeService - Service for retrieving service types.
-   * @param {FeeCalculatorService} feeCalculatorService - Service for calculating fees.
-   * @param accountValidationService
-   * @param transactionLimitValidationService
-   * @param httpClient
+   * @param {TransactionService} transactionService A service for handling transaction-related operations.
+   * @param {PaymentService} paymentService A service for processing payments.
+   * @param {WalletService} walletService A service for managing wallet-related functionality.
+   * @param {ServiceTypeRepository} serviceTypeRepository A repository for retrieving service types. {code: 'orange_money'}
+   * @param {FeeCalculatorService} feeCalculatorService A service for calculating transaction fees.
+   * @param {AccountValidationService} accountValidationService A service for validating account details.
+   * @param {TransactionLimitValidationService} transactionLimitValidationService A service for validating transaction limits.
+   * @param {TransactionThrottleCache} throttleCache A cache for managing transaction throttling.
+   * @param {TransactionFailureCache} failureCache A cache for storing transaction failures.
+   * @param {IdempotencyProvider} idempotency A provider for handling idempotent operations.
+   * @param {HttpClient} httpClient A utility for making HTTP requests.
    */
   constructor(
     private readonly transactionService: TransactionService,
     private readonly paymentService: PaymentService,
     private readonly walletService: WalletService,
-    private readonly serviceTypeService: ServiceTypesService,
+    private readonly serviceTypeRepository: ServiceTypeRepository,
     private readonly feeCalculatorService: FeeCalculatorService,
     private readonly accountValidationService: AccountValidationService,
     private readonly transactionLimitValidationService: TransactionLimitValidationService,
+    private readonly throttleCache: TransactionThrottleCache,
+    private readonly failureCache: TransactionFailureCache,
+    private readonly idempotency: IdempotencyProvider,
     private readonly httpClient: HttpClient
   ) {}
 
@@ -59,13 +69,30 @@ export default class InterTransfertUseCase {
    *
    * @param {InterTransfertRequestDto} payload - The data transfer object containing request details for the transaction.
    * @param {User} user - The user initiating the transaction, including necessary user details.
+   * @param deviceInfo - The device information associated with the transfer request.
+   * @param idempotencyKey - Optional idempotency key to ensure the transaction is processed only once in case of retries.
    * @return {Promise<InterTransfertResponseDto>} A promise that resolves with the response data transfer object containing the transaction outcome.
    */
-  async execute(payload: InterTransfertRequestDto, user: User): Promise<InterTransfertResponseDto> {
+  async execute(
+    payload: InterTransfertRequestDto,
+    user: User,
+    deviceInfo?: DeviceHeadersInfo,
+    idempotencyKey?: string
+  ): Promise<InterTransfertResponseDto> {
+    transactionLog.info(
+      'INTER_TRANSFER_START',
+      {
+        user: { id: user.id, uid: user.usersUid },
+        payload: { ...payload, pinCode: payload.pinCode ? '****' : undefined },
+      },
+      'Starting inter-network transfer process'
+    )
     this.validateOrangeMoneyRequirements(payload)
+    await this.failureCache.verifyNotBlocked(user.usersUid)
+    await this.throttleCache.verifyThrottle(user.usersUid)
 
     const [serviceType, wallet] = await Promise.all([
-      this.serviceTypeService.findByCode(payload.serviceType),
+      this.serviceTypeRepository.findByCode(payload.serviceType),
       this.walletService.getByUserId(user.usersUid),
     ])
 
@@ -84,26 +111,79 @@ export default class InterTransfertUseCase {
     )
 
     // Validations: compte + limites (inter transfer = debit)
-    await this.accountValidationService.validateAccount(user)
-    await this.transactionLimitValidationService.validateTransactionLimit({
-      user,
-      amount,
-      transactionType: TransactionTypeEnum.TRANSFERT_INTER,
-    })
+    await Promise.all([
+      this.accountValidationService.validateAccount(user),
+      this.accountValidationService.validateDevice(user, deviceInfo),
+      this.transactionLimitValidationService.validateTransactionLimit({
+        user,
+        amount,
+        transactionType: TransactionTypeEnum.TRANSFERT_INTER,
+      }),
+    ])
 
     const trx = await db.transaction()
 
     try {
       const transaction = await this.createTransactionWithPayments(
-        { serviceType, wallet, amount, total, fees, user, payload },
+        {
+          serviceType,
+          wallet,
+          amount,
+          total,
+          fees,
+          user,
+          payload,
+          idempotency: idempotencyKey || undefined,
+        },
         trx
       )
       await trx.commit()
+
+      transactionLog.info(
+        'INTER_TRANSFER_TRANSACTION_CREATED',
+        {
+          transaction: { id: transaction.id, reference: transaction.reference },
+          amount,
+        },
+        'Inter-network transfer transaction and payments created in DB'
+      )
+
       const checkoutResponse = await this.initiateCheckout(payload, amount, transaction.reference)
 
-      return this.buildResponse(transaction, payload.providerFromCode, checkoutResponse)
+      if (checkoutResponse.success) {
+        transactionLog.info(
+          'INTER_TRANSFER_CHECKOUT_SUCCESS',
+          { transaction: { reference: transaction.reference } },
+          'Checkout API call successful for inter-network transfer'
+        )
+      } else {
+        transactionLog.error(
+          'INTER_TRANSFER_CHECKOUT_FAILED',
+          {
+            transaction: { reference: transaction.reference },
+            error: checkoutResponse.error,
+          },
+          'Checkout API call failed for inter-network transfer'
+        )
+      }
+
+      const result = this.buildResponse(transaction, payload.providerFromCode, checkoutResponse)
+
+      if (idempotencyKey) {
+        await this.idempotency.update(idempotencyKey, JSON.stringify(result))
+      }
+
+      return result
     } catch (error) {
       await trx.rollback()
+      transactionLog.error(
+        'INTER_TRANSFER_ERROR',
+        {
+          user: { id: user.id },
+          error: { message: error.message, stack: error.stack },
+        },
+        'Error during inter-network transfer process'
+      )
       throw error
     }
   }
@@ -116,10 +196,7 @@ export default class InterTransfertUseCase {
    */
   private validateOrangeMoneyRequirements(payload: InterTransfertRequestDto): void {
     if (payload.providerFromCode === 'orange' && !payload.pinCode) {
-      throw new Exception('Le code temporaire orange money est requis', {
-        status: 400,
-        code: 'ORANGE_OTP_REQUIRED',
-      })
+      throw new OrangeMoneyCodeRequiredException()
     }
   }
 
@@ -146,10 +223,11 @@ export default class InterTransfertUseCase {
       fees: number
       user: User
       payload: InterTransfertRequestDto
+      idempotency?: string
     },
     trx: any
   ): Promise<Transaction> {
-    const { serviceType, wallet, amount, total, fees, user, payload } = params
+    const { serviceType, wallet, amount, total, fees, user, payload, idempotency } = params
 
     const transaction = await this.transactionService.createTransaction(
       {
@@ -159,6 +237,7 @@ export default class InterTransfertUseCase {
         total_amount: total,
         fees,
         operation_type: serviceType.code as TransactionTypeEnum,
+        idempotency,
       },
       wallet.id,
       user,
@@ -200,7 +279,7 @@ export default class InterTransfertUseCase {
     return this.paymentService.createPayment(
       {
         payment_method: payload.paymentMethodDepositCode,
-        operation_type: TransactionTypeEnum.DEPOSIT_INTER,
+        operation_type: TransactionTypeEnum.DEPOSIT,
         payment_details: paymentDetails,
         status: PaymentStatus.PENDING,
         step: PaymentStep.DEPOSIT_INIT,
@@ -234,7 +313,7 @@ export default class InterTransfertUseCase {
     return this.paymentService.createPayment(
       {
         payment_method: payload.paymentMethodTransfertCode,
-        operation_type: TransactionTypeEnum.TRANSFERT_INTER_STEP,
+        operation_type: TransactionTypeEnum.TRANSFERT,
         payment_details: paymentDetails,
         status: PaymentStatus.DRAFT,
         step: PaymentStep.TRANSFERT_INIT,

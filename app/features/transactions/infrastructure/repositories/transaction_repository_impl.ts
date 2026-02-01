@@ -3,6 +3,9 @@ import Transaction from '#features/transactions/domain/models/transaction'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
 import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import db from '@adonisjs/lucid/services/db'
+import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
+import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 
 /**
  * Handles operations related to transactions within the transaction repository.
@@ -36,6 +39,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
   ): Promise<ModelPaginatorContract<Transaction>> {
     return await Transaction.query()
       .preload('payment')
+      .preload('ledger')
       .where('usersUid', userId)
       .orderBy('createdAt', 'desc')
       .paginate(page, perPage)
@@ -112,11 +116,21 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
   async all(page = 1, perPage = 50): Promise<ModelPaginatorContract<Transaction>> {
     return Transaction.query()
       .preload('user')
+      .preload('ledger', (query) => {
+        query.preload('wallet')
+      })
       .preload('payment')
       .orderBy('created_at', 'desc')
       .paginate(page, perPage)
   }
 
+  /**
+   * Counts the number of successful transactions for a given user on a specified date.
+   *
+   * @param {string} userId - The unique identifier of the user.
+   * @param {string} date - The date to filter transactions, in 'YYYY-MM-DD' format.
+   * @return {Promise<number>} The total count of successful transactions for the user on the given date.
+   */
   async countSuccessByDate(userId: string, date: string): Promise<number> {
     const result = await Transaction.query()
       .where('usersUid', userId)
@@ -124,14 +138,122 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       .whereRaw('DATE(created_at) = ?', [date])
       .count('* as total')
 
-    return Number(result[0].$extras.total || 0)
+    return result[0]?.$extras?.total ? Number(result[0].$extras.total) : 0
   }
 
+  /**
+   * Finds the most recent successful transaction for a given user ID.
+   *
+   * @param {string} userId - The unique identifier of the user whose transaction is being queried.
+   * @return {Promise<Transaction | null>} A promise resolving to the latest successful transaction for the user,
+   * or null if no such transaction exists.
+   */
   async findLastSuccessByUserId(userId: string): Promise<Transaction | null> {
     return await Transaction.query()
       .where('usersUid', userId)
       .where('status', TransactionStatus.SUCCESS)
       .orderBy('created_at', 'desc')
       .first()
+  }
+
+  /**
+   * Retrieves transaction statistics based on the specified options.
+   *
+   * @param {Object} [options] - Optional parameters to filter the statistics.
+   * @param {string} [options.userId] - The ID of the user for whom the statistics are to be retrieved. If not provided, statistics will be aggregated for all users.
+   * @return {Promise<Record<string, number>>} A promise that resolves to an object containing the following transaction statistics:
+   * - `totalIn`: The total volume of successful credit transactions.
+   * - `totalOut`: The total volume of successful outgoing transactions, including transfers, inter-network transfers, and wallet transfers.
+   * - `transferVolume`: The total volume of successful transfer transactions.
+   * - `interNetworkVolume`: The total volume of successful inter-network transfer transactions.
+   * - `walletTransferVolume`: The total volume of successful wallet transfer transactions.
+   * - `totalFees`: The total fees collected from successful transactions.
+   * - `count`: The total count of all transactions.
+   * - `successCount`: The count of successful transactions.
+   * - `failedCount`: The count of failed transactions.
+   * - `pendingCount`: The count of pending transactions.
+   */
+  async getStats(options?: { userId?: string }): Promise<Record<string, number>> {
+    const query = Transaction.query()
+    const isGlobal = !options?.userId
+
+    if (options?.userId) {
+      query.where('usersUid', options.userId)
+    }
+
+    const result = await query
+      .select(
+        db.raw('COUNT(*) as totalCount'),
+        db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as successCount', [
+          TransactionStatus.SUCCESS,
+        ]),
+        db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as failedCount', [
+          TransactionStatus.FAILED,
+        ]),
+        db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pendingCount', [
+          TransactionStatus.PENDING,
+        ]),
+        db.raw(
+          `COALESCE(SUM(CASE
+                WHEN status = ? AND direction = ? THEN amount
+                ELSE 0
+          END), 0) as totalIn`,
+          [TransactionStatus.SUCCESS, TransactionDirection.CREDIT]
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE
+                 WHEN status = ? AND operation_type = ? THEN amount
+                 ELSE 0
+          END), 0) as transferVolume`,
+          [TransactionStatus.SUCCESS, TransactionType.TRANSFERT]
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE
+                 WHEN status = ? AND operation_type = ? ${isGlobal ? 'AND direction = ?' : ''} THEN amount
+                 ELSE 0
+          END), 0) as walletTransferVolume`,
+          isGlobal
+            ? [
+                TransactionStatus.SUCCESS,
+                TransactionType.WALLET_TRANSFERT,
+                TransactionDirection.DEBIT,
+              ]
+            : [TransactionStatus.SUCCESS, TransactionType.WALLET_TRANSFERT]
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE
+                 WHEN status = ? AND operation_type = ? AND direction = ? THEN amount
+                 ELSE 0
+          END), 0) as walletTransferVolume`,
+          [TransactionStatus.SUCCESS, TransactionType.WALLET_TRANSFERT, TransactionDirection.DEBIT]
+        ),
+        db.raw(
+          `COALESCE(SUM(CASE
+                WHEN status = ? THEN fees
+                ELSE 0
+          END), 0) as totalFees`,
+          [TransactionStatus.SUCCESS]
+        )
+      )
+      .first()
+
+    const stats = result?.$extras || {}
+
+    const transferVolume = Number(stats.transferVolume || 0)
+    const interNetworkVolume = Number(stats.interNetworkVolume || 0)
+    const walletTransferVolume = Number(stats.walletTransferVolume || 0)
+
+    return {
+      totalIn: Number(stats.totalIn || 0),
+      totalOut: transferVolume + interNetworkVolume + walletTransferVolume,
+      transferVolume: transferVolume,
+      interNetworkVolume: interNetworkVolume,
+      walletTransferVolume: walletTransferVolume,
+      totalFees: Number(stats.totalFees || 0),
+      count: Number(stats.totalCount || 0),
+      successCount: Number(stats.successCount || 0),
+      failedCount: Number(stats.failedCount || 0),
+      pendingCount: Number(stats.pendingCount || 0),
+    }
   }
 }

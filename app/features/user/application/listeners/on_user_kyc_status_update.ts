@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import KycDocumentSubmitted from '#features/kyc/application/events/kyc_document_submitted'
-import { KycDocumentStatus } from '#features/kyc/domain/enum/kyc_enum'
+import KycDocumentProcessed from '#features/kyc/application/events/kyc_document_processed'
+import { KycDocumentStatus, KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
 import { UserKycStatus } from '#features/user/domain/enum'
 import UpdateUserKycStatus from '#features/user/application/use_cases/update_user_kyc_status'
 
@@ -21,9 +22,23 @@ export default class OnUserKycStatusUpdate {
    * Updates the user's KYC status to PENDING_IN_REVIEW if the document status is PENDING.'
    * @param event
    */
-  async handle(event: KycDocumentSubmitted) {
-    if (event.status === KycDocumentStatus.PENDING) {
-      await this.updateUserKycStatus.execute(event.userId, UserKycStatus.PENDING_IN_REVIEW)
+  async handle(event: KycDocumentSubmitted | KycDocumentProcessed) {
+    if (event instanceof KycDocumentSubmitted) {
+      if (event.status === KycDocumentStatus.PENDING) {
+        await this.updateUserKycStatus.execute(event.userId, UserKycStatus.PENDING_IN_REVIEW)
+      }
+    }
+
+    if (event instanceof KycDocumentProcessed) {
+      const newUserStatus =
+        event.status === KycDocumentStatus.APPROVED
+          ? UserKycStatus.VERIFIED
+          : UserKycStatus.REJECTED
+
+      const kycLevel =
+        event.status === KycDocumentStatus.APPROVED ? KycLevelState.KYC_VERIFIED : undefined
+
+      await this.updateUserKycStatus.execute(event.userId, newUserStatus, kycLevel, event.comment)
     }
   }
 }

@@ -1,4 +1,4 @@
-﻿import { TransactionStatus } from '#features/transactions/domain/models/transaction'
+﻿import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 
 export interface TransfertRequestDto {
   amount: number
@@ -8,7 +8,7 @@ export interface TransfertRequestDto {
   serviceType: string
   paymentMethodCode: string
   paymentMethodId: number
-  pinCode?: string
+  pinCode: string
   include_fees?: boolean
 }
 

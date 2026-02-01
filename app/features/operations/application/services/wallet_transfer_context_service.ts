@@ -4,7 +4,14 @@ import Wallet from '#features/wallet/domain/models/wallet'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { WalletToWalletRequestDto } from '#features/operations/application/dto/wallet_to_wallet.dto'
-import { Exception } from '@adonisjs/core/exceptions'
+import ModeUnsupportedException from '#features/operations/infrastructure/exceptions/mode_unsupported_exception'
+import InvalidAmountException from '#features/operations/infrastructure/exceptions/invalid_amount_exception'
+import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
+import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
+import PaymentMethodRepository from '#features/catalogs/domain/interfaces/payment_method_repository'
+import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
+import { PaymentMethod } from '#features/transactions/domain/enums/payment_method'
+import ProviderRepository from '#features/catalogs/domain/interfaces/provider_repository'
 
 export enum TransferMode {
   BY_QRCODE = 'by_qrcode',
@@ -30,10 +37,18 @@ export default class WalletTransferContextService {
    *
    * @param {WalletService} walletService - The service responsible for wallet-related operations.
    * @param {CountryRepository} countryRepository - The repository for accessing country data.
+   * @param feeCalculatorService - The service responsible for calculating transaction fees.
+   * @param serviceTypeRepository - The repository responsible for retrieving and managing service types.
+   * @param paymentMethodRepository - The repository responsible for retrieving and managing payment methods.
+   * @param providerRepository - The repository responsible for retrieving and managing providers.
    */
   constructor(
     private readonly walletService: WalletService,
-    private readonly countryRepository: CountryRepository
+    private readonly countryRepository: CountryRepository,
+    private readonly feeCalculatorService: FeeCalculatorService,
+    private readonly serviceTypeRepository: ServiceTypeRepository,
+    private readonly paymentMethodRepository: PaymentMethodRepository,
+    private readonly providerRepository: ProviderRepository
   ) {}
 
   /**
@@ -49,12 +64,17 @@ export default class WalletTransferContextService {
     currentUser: User,
     mode: TransferMode
   ): Promise<TransferContext> {
-    const [senderWallet, senderCountry] = await Promise.all([
-      this.walletService.getByUserId(currentUser.usersUid!),
+    const [senderWallet, senderCountry, serviceType, paymentMethod, provider] = await Promise.all([
+      this.walletService.getByUserId(currentUser.usersUid!).then(async (w) => {
+        await w.load('user')
+        return w
+      }),
       this.countryRepository.findCountryBy('id', currentUser.countryId),
+      this.serviceTypeRepository.findByCode(TransactionType.TRANSFERT),
+      this.paymentMethodRepository.findByCode(PaymentMethod.WALLET),
+      this.providerRepository.findByCode('aigle'),
     ])
 
-    // Get recipient wallet based on the specified transfer mode
     const recipientWallet = await this.resolveRecipient(
       mode,
       payload,
@@ -62,14 +82,29 @@ export default class WalletTransferContextService {
       senderCountry.phoneCode
     )
 
-    const amount = this.parseAndValidateAmount(payload.amount)
+    await recipientWallet.load('user')
+
+    const amountRaw = this.parseAndValidateAmount(payload.amount)
+
+    const { amount, fees, total } = await this.feeCalculatorService.calculateForService(
+      {
+        serviceTypeId: serviceType.id,
+        paymentMethodId: paymentMethod.id,
+        providerFromId: provider.id, // No specific provider for wallet to wallet
+      },
+      {
+        amount: amountRaw,
+        operation: 'subtract',
+        include_fees: payload.include_fees,
+      }
+    )
 
     return {
       senderWallet,
       recipientWallet,
       amount,
-      fees: 0,
-      total: amount,
+      fees,
+      total,
       currentUser,
     }
   }
@@ -101,7 +136,7 @@ export default class WalletTransferContextService {
           phoneCode
         )
       default:
-        throw new Exception('Mode non supporté', { status: 400, code: 'MODE_UNSUPPORTED' })
+        throw new ModeUnsupportedException()
     }
   }
 
@@ -115,7 +150,7 @@ export default class WalletTransferContextService {
   private parseAndValidateAmount(amountRaw: unknown): number {
     const amount = Number(amountRaw)
     if (!Number.isFinite(amount) || amount <= 0) {
-      throw new Exception('Montant invalide', { status: 400, code: 'INVALID_AMOUNT' })
+      throw new InvalidAmountException()
     }
     return amount
   }

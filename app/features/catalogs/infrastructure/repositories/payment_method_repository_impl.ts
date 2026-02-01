@@ -3,6 +3,7 @@ import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import PaymentMethodRepository, {
   ListPaymentMethodsParams,
 } from '#features/catalogs/domain/interfaces/payment_method_repository'
+import { Exception } from '@adonisjs/core/exceptions'
 
 /**
  * The `PaymentMethodRepository` class provides methods for managing
@@ -50,6 +51,25 @@ export default class PaymentMethodRepositoryImpl implements PaymentMethodReposit
    */
   async create(data: { code: string; label: string }): Promise<PaymentMethod> {
     return PaymentMethod.create(data)
+  }
+
+  /**
+   * Retrieves a payment method by its unique code.
+   *
+   * @param {string} code - The unique code of the payment method to retrieve.
+   * @return {Promise<PaymentMethod>} A promise that resolves to the payment method if found, or null if no matching payment method exists.
+   */
+  async findByCode(code: string): Promise<PaymentMethod> {
+    const paymentMethod = await PaymentMethod.query().where('code', code).first()
+
+    if (!paymentMethod) {
+      throw new Exception("Ce type de paiement n'existe pas.", {
+        status: 404,
+        code: 'E_PAYMENT_METHOD_NOT_FOUND',
+      })
+    }
+
+    return paymentMethod
   }
 
   /**

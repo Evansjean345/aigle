@@ -23,15 +23,18 @@ export default class ProfileController {
    *
    * @return {Promise<void>} Resolves when the password change is successfully completed.
    */
-  async changePinCode({ request, response, auth }: HttpContext): Promise<void> {
+  async changePinCode({ request, response, auth, deviceInfo }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(changePasswordValidator)
     const user = auth.user!!
 
-    await this.changePasswordUseCase.execute({
-      user: user,
-      oldPincode: payload.old_pincode,
-      newPincode: payload.new_pincode,
-    })
+    await this.changePasswordUseCase.execute(
+      {
+        user: user,
+        oldPincode: payload.old_pincode,
+        newPincode: payload.new_pincode,
+      },
+      deviceInfo
+    )
 
     return response.ok({ message: 'Code PIN modifié avec succès' })
   }

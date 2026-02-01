@@ -246,7 +246,7 @@ export default class HandleTransfertWebhookUseCase {
     await this.ledgerService.recordTransfer(
       transaction,
       wallet.id,
-      Number(wallet.balance) + Number(transaction.totalAmount),
+      Number(wallet.balance) + Number(transaction.amount),
       wallet.balance,
       trx
     )

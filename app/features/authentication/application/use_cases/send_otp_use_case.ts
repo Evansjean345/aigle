@@ -1,10 +1,10 @@
 ﻿import { inject } from '@adonisjs/core'
 import OtpService from '#features/authentication/application/services/otp_service'
 import UserRepository from '#features/users/domain/interfaces/user_repository'
-import { Exception } from '@adonisjs/core/exceptions'
 import { OtpRequestDto, OtpResponseDto } from '#features/authentication/application/dtos/otp.dto'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber } from '#shared/utils/utiles'
+import PhoneNotFoundException from '#features/authentication/infrastructure/exceptions/phone_not_found_exception'
 
 /**
  * This class is responsible for handling the use case of sending an OTP (One-Time Password) to a user's phone number.
@@ -38,10 +38,7 @@ export default class SendOtpUseCase {
     const user = await this.userRepository.findByPhone(formattedPhone)
 
     if (!user) {
-      throw new Exception('Numéro de téléphone introuvable', {
-        status: 400,
-        code: 'PHONE_NOT_FOUND',
-      })
+      throw new PhoneNotFoundException('Numéro de téléphone introuvable')
     }
 
     try {

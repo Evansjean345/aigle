@@ -9,6 +9,13 @@ import { randomUUID } from 'node:crypto'
 import QrJwtService, { TOKEN_ERRORS } from '#features/qr/application/services/qr_jwt_service'
 import { normalizePhone } from '#shared/utils/utiles'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
+import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
+import WalletNotFoundException from '#features/wallet/infrastructure/exceptions/wallet_not_found_exception'
+import InvalidAmountException from '#features/wallet/infrastructure/exceptions/invalid_amount_exception'
+import InsufficientFundsException from '#features/wallet/infrastructure/exceptions/insufficient_funds_exception'
+import SelfTransferException from '#features/wallet/infrastructure/exceptions/self_transfer_exception'
+import UnregisteredAccountException from '#features/user/infrastructure/exceptions/unregistered_account_exception'
+import WalletStatusChanged from '#features/wallet/application/events/wallet_status_changed'
 
 /**
  * Service for managing wallets, including creation, retrieval, and balance adjustments.
@@ -66,7 +73,7 @@ export default class WalletService {
     const wallet = await this.walletRepository.findByUserId(userId)
 
     if (!wallet) {
-      throw new Exception('Wallet not found', { status: 404, code: 'WALLET_NOT_FOUND' })
+      throw new WalletNotFoundException()
     }
 
     return wallet
@@ -85,7 +92,7 @@ export default class WalletService {
     amount: number,
     trx?: TransactionClientContract
   ): Promise<{ id: number; balance: number } | null> {
-    if (amount <= 0) throw new Exception('Invalid amount', { status: 422, code: 'INVALID_AMOUNT' })
+    if (amount <= 0) throw new InvalidAmountException()
     const updated = await this.walletRepository.creditGuarded(walletId, amount, trx)
 
     if (!updated) return null
@@ -107,12 +114,11 @@ export default class WalletService {
     amount: number,
     trx?: TransactionClientContract
   ): Promise<{ id: number; balance: number } | null> {
-    if (amount <= 0)
-      throw new Exception('Montant invalide', { status: 400, code: 'INVALID_AMOUNT' })
+    if (amount <= 0) throw new InvalidAmountException()
     const updated = await this.walletRepository.debitGuarded(walletId, amount, trx)
 
     if (!updated) {
-      throw new Exception('Solde insuffisant', { status: 400, code: 'INSUFFICIENT_FUNDS' })
+      throw new InsufficientFundsException()
     }
 
     return { id: updated.id, balance: updated.balance ?? 0 }
@@ -173,19 +179,41 @@ export default class WalletService {
     const recipientUser = await this.userRepository.findByPhone(normalizedPhone)
 
     if (!recipientUser) {
-      throw new Exception("Ce numéro n'est pas un compte Aigle send", {
-        status: 400,
-        code: 'UNREGISTERED_ACCOUNT',
-      })
+      throw new UnregisteredAccountException()
     }
 
     if (recipientUser.usersUid === senderUserId) {
-      throw new Exception('Transfert vers soi-même interdit', {
-        status: 400,
-        code: 'SELF_TRANSFER',
-      })
+      throw new SelfTransferException()
     }
 
     return this.getByUserId(recipientUser.usersUid)
+  }
+
+  /**
+   * Updates the status of a user's wallet.
+   *
+   * @param {string} userId - The unique identifier of the user whose wallet status is to be updated.
+   * @param {WalletStatus} status - The new status to be assigned to the user's wallet.
+   * @param {TransactionClientContract} [trx] - Optional transaction client for database operations.
+   * @return {Promise<Wallet>} A promise that resolves to the updated wallet instance.
+   * @throws {Exception} If no wallet is found for the given user ID, an exception is thrown with status 404 and code 'WALLET_NOT_FOUND'.
+   */
+  async updateWalletStatus(
+    userId: string,
+    status: WalletStatus,
+    trx?: TransactionClientContract
+  ): Promise<Wallet> {
+    const wallet = await this.getByUserId(userId)
+    const updated = await this.walletRepository.updateStatus(wallet.id, status, trx)
+
+    if (!updated) {
+      throw new Exception('La mise à jour du portefeuille a échoué', {
+        status: 500,
+        code: 'E_WALLET_UPDATE_FAILED',
+      })
+    }
+
+    await WalletStatusChanged.dispatch(userId, status)
+    return updated
   }
 }

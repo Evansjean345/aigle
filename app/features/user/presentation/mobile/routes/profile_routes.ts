@@ -11,7 +11,7 @@ export default function mobileProfileRoutes() {
         .group(() => {
           router.post('change-pincode', [PinCodeController, 'changePinCode'])
         })
-        .use(middleware.auth())
+        .use([middleware.auth(), middleware.device()])
     })
     .prefix('mobile/profile')
 }

@@ -13,6 +13,7 @@ import KycLevel from '#features/kyc/domain/models/kyc_level'
 import { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
 import { UserKycStatus, UserStatus } from '#features/user/domain/enum'
 import KycDocument from '#features/kyc/domain/models/kyc_document'
+import Device from '#features/device/domain/models/device'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['phone'],
@@ -124,4 +125,10 @@ export default class User extends compose(BaseModel, AuthFinder) {
     localKey: 'usersUid',
   })
   declare kycDocument: HasOne<typeof KycDocument>
+
+  @hasMany(() => Device, {
+    foreignKey: 'userId',
+    localKey: 'usersUid',
+  })
+  declare devices: HasMany<typeof Device>
 }

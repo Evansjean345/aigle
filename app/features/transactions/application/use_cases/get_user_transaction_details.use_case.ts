@@ -1,8 +1,8 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
-import { toMobileTransactionResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
+import { toMobileTransactionResponseDto } from '#features/transactions/application/mapper/mobile_transaction.mapper'
 import { MobileTransactionResponseDTO } from '#features/transactions/application/dto/mobile_transaction.dto'
-import { Exception } from '@adonisjs/core/exceptions'
+import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
 
 /**
  * A use case for retrieving transaction details for a specific user based on a transaction reference.
@@ -30,10 +30,7 @@ export default class GetUserTransactionDetailsUseCase {
     )
 
     if (!transaction) {
-      throw new Exception('Transaction not found', {
-        status: 404,
-        code: 'TRANSACTION_NOT_FOUND',
-      })
+      throw new TransactionNotFoundException()
     }
 
     return toMobileTransactionResponseDto(transaction)

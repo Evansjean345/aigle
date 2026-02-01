@@ -1,10 +1,14 @@
 import User from '#features/user/domain/models/user'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
-import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
 import TransactionVolumeCache from '#features/transactions/domain/interfaces/transaction_volume_cache'
 import KycLevel from '#features/kyc/domain/models/kyc_level'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
+import BalanceLimitExceededException from '#features/transactions/infrastructure/exceptions/balance_limit_exceeded_exception'
+import DailyLimitExceededException from '#features/transactions/infrastructure/exceptions/daily_limit_exceeded_exception'
+import KycLevelNotFoundException from '#features/transactions/infrastructure/exceptions/kyc_level_not_found_exception'
+import MonthlyLimitExceededException from '#features/transactions/infrastructure/exceptions/monthly_limit_exceeded_exception'
+import SingleLimitExceededException from '#features/transactions/infrastructure/exceptions/single_limit_exceeded_exception'
 
 interface TransactionLimitParams {
   user: User
@@ -13,25 +17,28 @@ interface TransactionLimitParams {
   direction?: TransactionDirection
 }
 
+/**
+ * Service responsible for validating transaction limits based on user-defined constraints and KYC levels.
+ */
 @inject()
 export default class TransactionLimitValidationService {
   /**
-   * Initializes a new instance of the class with a transaction volume cache dependency.
+   * Creates an instance of the class.
    *
-   * @param {TransactionVolumeCache} transactionVolumeCache - The cache instance used for storing and retrieving transaction volume data.
+   * @param {TransactionVolumeCache} transactionVolumeCache - The cache used for storing transaction volume data.
    */
   constructor(private readonly transactionVolumeCache: TransactionVolumeCache) {}
 
   /**
-   * Validates that a transaction amount does not exceed the user's transaction limits.
+   * Validates whether a transaction complies with the user's predefined transaction limits.
    *
-   * @param {TransactionLimitParams} params - The parameters for the transaction to validate.
-   * @param {Object} params.user - The user initiating the transaction.
-   * @param {number} params.amount - The amount of the transaction.
-   * @param {string} params.transactionType - The type of the transaction (e.g., transfer, withdrawal).
-   * @param {string} params.direction - The direction of the transaction (e.g., incoming or outgoing).
-   * @return {Promise<void>} Resolves if the transaction is within allowed limits; otherwise, throws an exception.
-   * @throws {Exception} If the transaction exceeds the allowed single transaction limit or other applicable limits.
+   * @param {TransactionLimitParams} params - An object containing information about the user, transaction, and limits to validate.
+   * @param {User} params.user - The user initiating the transaction.
+   * @param {number} params.amount - The amount to be transacted.
+   * @param {TransactionType} params.transactionType - The type of the transaction (e.g., payment, transfer).
+   * @param {TransactionDirection} [params.direction=TransactionDirection.DEBIT] - The direction of the transaction (e.g., DEBIT or CREDIT).
+   * @throws {SingleLimitExceededException} If the transaction amount exceeds the user's single transaction limit.
+   * @return {Promise<void>} A promise that resolves if the transaction is within allowed limits, or rejects with an error otherwise.
    */
   async validateTransactionLimit(params: TransactionLimitParams): Promise<void> {
     const { user, amount, transactionType, direction = TransactionDirection.DEBIT } = params
@@ -40,12 +47,7 @@ export default class TransactionLimitValidationService {
     const isIncomingTransfer = this.isIncomingTransfer(transactionType, direction)
 
     if (amount > limits.singleLimit) {
-      throw new Exception(
-        isIncomingTransfer
-          ? 'Ce transfert ne peut pas être effectué pour le moment'
-          : `Le montant dépasse la limite par transaction de ${limits.singleLimit} FCFA`,
-        { status: 403, code: 'SINGLE_LIMIT_EXCEEDED' }
-      )
+      throw new SingleLimitExceededException(limits.singleLimit, isIncomingTransfer)
     }
 
     await this.validateVolumeAndBalance({
@@ -59,13 +61,13 @@ export default class TransactionLimitValidationService {
   }
 
   /**
-   * Ensures that the key level of the provided user is loaded and valid.
-   * Loads the `keyLevel` property if it is not already preloaded.
-   * Throws an exception if the `keyLevel` is unavailable after attempting to load it.
+   * Ensures that the `keyLevel` property is loaded and present for the given user.
+   * If the `keyLevel` is not initially loaded, it attempts to load it.
+   * Throws an exception if the `keyLevel` is not found after loading.
    *
-   * @param {User} user - The user instance whose key level is to be ensured.
-   * @return {Promise<KycLevel>} - The key level of the user after successful validation.
-   * @throws {Exception} - If the key level cannot be found, an exception is thrown with details.
+   * @param {User} user - The user whose `keyLevel` needs to be ensured.
+   * @return {Promise<KycLevel>} A promise that resolves to the `keyLevel` of the user.
+   * @throws {KycLevelNotFoundException} If the `keyLevel` is not found after loading.
    */
   private async ensureKeyLevel(user: User): Promise<KycLevel> {
     if (!user.keyLevel) {
@@ -73,27 +75,26 @@ export default class TransactionLimitValidationService {
     }
 
     if (!user.keyLevel) {
-      throw new Exception('Niveau de KYC introuvable. Veuillez contacter le support', {
-        status: 500,
-        code: 'KYC_LEVEL_NOT_FOUND',
-      })
+      throw new KycLevelNotFoundException()
     }
 
     return user.keyLevel
   }
 
   /**
-   * Validates the volume and balance constraints for a user's transaction.
+   * Validates if the provided transaction parameters adhere to the user's volume, balance, and limit constraints.
    *
-   * @param {Object} params - The parameters for validation.
+   * @param {Object} params - Parameters required for validation.
    * @param {User} params.user - The user performing the transaction.
-   * @param {number} params.amount - The amount involved in the transaction.
-   * @param {TransactionType} params.transactionType - The type of the transaction.
-   * @param {TransactionDirection} params.direction - The direction of the transaction, either debit or credit.
-   * @param {keyLevel} params.limits - The user's transaction limits including daily, monthly, and balance limits.
-   * @param {boolean} params.isIncomingTransfer - Indicates whether the transaction is an incoming transfer.
-   *
-   * @return {Promise<void>} - Resolves if the transaction satisfies all constraints, otherwise throws an exception.
+   * @param {number} params.amount - The transaction amount to be validated.
+   * @param {TransactionType} params.transactionType - Type of the transaction (e.g., deposit, withdrawal).
+   * @param {TransactionDirection} params.direction - Direction of the transaction (e.g., incoming, outgoing).
+   * @param {KycLevel} params.limits - The KYC level limits on the transaction (daily, monthly, balance).
+   * @param {boolean} params.isIncomingTransfer - Indicates if the transaction is an incoming transfer.
+   * @return {Promise<void>} A Promise that resolves if the transaction is valid, or throws an exception if validation fails.
+   * @throws {DailyLimitExceededException} Thrown if the transaction exceeds the daily volume limit.
+   * @throws {MonthlyLimitExceededException} Thrown if the transaction exceeds the monthly volume limit.
+   * @throws {BalanceLimitExceededException} Thrown if the transaction exceeds the balance limit.
    */
   private async validateVolumeAndBalance(params: {
     user: User
@@ -113,53 +114,42 @@ export default class TransactionLimitValidationService {
     ])
 
     if (dailyVolume + amount > limits.dailyLimit) {
-      throw new Exception(
-        isIncomingTransfer
-          ? 'Ce transfert ne peut pas être effectué pour le moment'
-          : `Limite quotidienne dépassée. Limite: ${limits.dailyLimit} FCFA, Utilisé: ${dailyVolume} FCFA`,
-        { status: 403, code: 'DAILY_LIMIT_EXCEEDED' }
-      )
+      throw new DailyLimitExceededException(limits.dailyLimit, dailyVolume, isIncomingTransfer)
     }
 
     if (monthlyVolume + amount > limits.monthlyLimit) {
-      throw new Exception(
+      throw new MonthlyLimitExceededException(
+        limits.monthlyLimit,
+        monthlyVolume,
         isIncomingTransfer
-          ? 'Ce transfert ne peut pas être effectué pour le moment'
-          : `Limite mensuelle dépassée. Limite: ${limits.monthlyLimit} FCFA, Utilisé: ${monthlyVolume} FCFA`,
-        { status: 403, code: 'MONTHLY_LIMIT_EXCEEDED' }
       )
     }
 
     if (shouldCheckBalance) {
       const newBalance = Number(user.wallet.balance) + amount
       if (newBalance > limits.balanceLimit) {
-        throw new Exception(
-          isIncomingTransfer
-            ? 'Ce transfert ne peut pas être effectué pour le moment'
-            : `Le solde après cette opération dépassera la limite de ${limits.balanceLimit} FCFA`,
-          { status: 403, code: 'BALANCE_LIMIT_EXCEEDED' }
-        )
+        throw new BalanceLimitExceededException(limits.balanceLimit, isIncomingTransfer)
       }
     }
   }
 
   /**
-   * Determines if the transaction is an incoming transfer based on its type and direction.
+   * Determines if the given transaction is an incoming transfer.
    *
    * @param {TransactionType} type - The type of the transaction.
-   * @param {TransactionDirection} direction - The direction of the transaction, either 'debit' or 'credit'.
-   * @return {boolean} Returns true if the transaction is an incoming transfer, otherwise false.
+   * @param {TransactionDirection} direction - The direction of the transaction.
+   * @return {boolean} True if the transaction is an incoming transfer; otherwise, false.
    */
   private isIncomingTransfer(type: TransactionType, direction: TransactionDirection): boolean {
     return type === TransactionType.WALLET_TRANSFERT && direction === TransactionDirection.CREDIT
   }
 
   /**
-   * Determines if the balance should be validated based on the transaction type and direction.
+   * Determines whether the balance should be validated based on the transaction type and direction.
    *
-   * @param {TransactionType} type - The type of transaction being processed.
-   * @param {TransactionDirection} direction - The direction of the transaction, either 'debit' or 'credit'.
-   * @return {boolean} Returns true if the balance should be validated, otherwise false.
+   * @param {TransactionType} type - The type of the transaction (e.g., DEPOSIT, WALLET_TRANSFERT).
+   * @param {TransactionDirection} direction - The direction of the transaction (e.g., CREDIT, DEBIT).
+   * @return {boolean} Returns true if the balance should be validated; otherwise, false.
    */
   private shouldValidateBalance(type: TransactionType, direction: TransactionDirection): boolean {
     return (

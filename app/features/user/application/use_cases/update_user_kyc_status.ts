@@ -1,10 +1,11 @@
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import { inject } from '@adonisjs/core'
 import { UserKycStatus } from '#features/user/domain/enum'
-import { Exception } from '@adonisjs/core/exceptions'
-import { Logger } from '@adonisjs/core/logger'
 import { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
 import TransactionVolumeCache from '#features/transactions/domain/interfaces/transaction_volume_cache'
+import UserKycStatusUpdated from '#features/user/application/events/user_kyc_status_updated'
+import UserAccountNotFoundException from '#features/authentication/infrastructure/exceptions/user_account_not_found_exception'
+import appLog from '#shared/infrastructure/logging/app_log'
 
 @inject()
 export default class UpdateUserKycStatus {
@@ -12,12 +13,10 @@ export default class UpdateUserKycStatus {
    * Constructs an instance of the class with a dependency on UserRepository.
    *
    * @param {UserRepository} userRepository - The repository used to manage user data.
-   * @param logger
    * @param transactionVolumeCache
    */
   constructor(
     private userRepository: UserRepository,
-    private readonly logger: Logger,
     private readonly transactionVolumeCache: TransactionVolumeCache
   ) {}
 
@@ -28,14 +27,21 @@ export default class UpdateUserKycStatus {
    * @param {string} userId - The unique identifier of the user to be retrieved.
    * @param {UserKycStatus} status - The KYC (Know Your Customer) status associated with the user.
    * @param {KycLevelState} kycLevel - The KYC level associated with the user.
+   * @param {string} comment - An optional comment.
    * @return {Promise<void>} A promise that resolves when the operation is completed.
-   * @throws {Exception} If the user does not exist, it throws an Exception with status 404 and code 'USER_NOT_FOUND'.
+   * @throws {UserAccountNotFoundException} If the user does not exist, it throws a UserAccountNotFoundException.
    */
-  async execute(userId: string, status: UserKycStatus, kycLevel?: KycLevelState): Promise<void> {
+  async execute(
+    userId: string,
+    status: UserKycStatus,
+    kycLevel?: KycLevelState,
+    comment?: string
+  ): Promise<void> {
     const user = await this.userRepository.findById(userId)
 
     if (!user) {
-      this.logger.warn(
+      appLog.warn(
+        'USER_ACCOUNT_NOT_FOUND',
         {
           userId: userId,
           status: status,
@@ -43,14 +49,12 @@ export default class UpdateUserKycStatus {
         `user with id ${userId} does not exist`
       )
 
-      throw new Exception('User does not exist', {
-        status: 404,
-        code: 'USER_NOT_FOUND',
-      })
+      throw new UserAccountNotFoundException('Aucun utilisateur trouvé')
     }
 
     try {
       user.kycStatus = status
+
       if (kycLevel) {
         user.kycLevel = kycLevel
       }
@@ -61,8 +65,10 @@ export default class UpdateUserKycStatus {
       }
 
       await this.userRepository.save(user)
+      await UserKycStatusUpdated.dispatch(userId, status, kycLevel, comment)
     } catch (error) {
-      this.logger.error(
+      appLog.error(
+        'ERROR_UPDATING_USER_KYC_STATUS',
         {
           message: error.message,
           status: status,

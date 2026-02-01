@@ -33,29 +33,35 @@ export default class TransfertController {
    * @param {Object} HttpContext.auth - The authentication object containing the authenticated user.
    * @return {Promise<void>} The HTTP response containing the result of the transfer operation.
    */
-  async handle({ request, response, auth }: HttpContext): Promise<void> {
+  async handle({ request, response, auth, deviceInfo }: HttpContext): Promise<void> {
     const user = auth.user!
+    const idempotencyKey = request.header('X-Idempotency-Key')
     const payload = await request.validateUsing(transfertValidator)
-
-    const headers = request.headers()
-    console.log('debugging headers')
-    console.log({
-      ...headers,
-      ip: request.ip(),
-    })
 
     const paymentMethod = payload.payment_method_code
 
     switch (paymentMethod) {
       case PaymentMethod.MOBILE_MONEY:
-        const result = await this.transfertUseCase.execute(toTransfertDto(payload), user)
+        const result = await this.transfertUseCase.execute(
+          toTransfertDto(payload),
+          user,
+          deviceInfo,
+          idempotencyKey
+        )
         return response.ok(result)
       case PaymentMethod.WALLET:
-        const data = { amount: payload.amount, recipient_phone: payload.phone }
+        const data = {
+          amount: payload.amount,
+          recipient_phone: payload.phone,
+          pincode: payload.pincode,
+          include_fees: payload.include_fees,
+        }
         const walletTOWalletResult = await this.walletTowalletUseCase.execute(
           data,
           user,
-          TransferMode.BY_PHONE
+          TransferMode.BY_PHONE,
+          deviceInfo,
+          idempotencyKey
         )
         return response.ok(walletTOWalletResult)
 

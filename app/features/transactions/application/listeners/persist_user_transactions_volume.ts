@@ -1,5 +1,7 @@
 import TransactionVolumeCache from '#features/transactions/domain/interfaces/transaction_volume_cache'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
+import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
+import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
 import { inject } from '@adonisjs/core'
 import DepositTransactionCompleted from '#features/webhooks/application/events/deposit/deposit_transaction_completed'
 import TransfertTransactionCompleted from '#features/webhooks/application/events/transfert/transfert_transaction_completed'
@@ -12,10 +14,14 @@ export default class PersistUserTransactionsVolume {
    *
    * @param {TransactionVolumeCache} transactionVolumeCache - A cache instance for managing transaction volumes.
    * @param {IdempotencyProvider} idempotency - A provider for handling idempotency.
+   * @param throttleCache
+   * @param failureCache
    */
   constructor(
     private readonly transactionVolumeCache: TransactionVolumeCache,
-    private readonly idempotency: IdempotencyProvider
+    private readonly idempotency: IdempotencyProvider,
+    private readonly throttleCache: TransactionThrottleCache,
+    private readonly failureCache: TransactionFailureCache
   ) {}
 
   /**
@@ -46,17 +52,9 @@ export default class PersistUserTransactionsVolume {
       return
     }
 
-    if (event instanceof DepositTransactionCompleted) {
-      const { userId, amount, reference } = event.data
-      await this.persist(reference, userId, amount)
-      return
-    }
-
-    if (event instanceof TransfertTransactionCompleted) {
-      const { userId, amount, reference } = event.data
-      await this.persist(reference, userId, amount)
-      return
-    }
+    const { userId, amount, reference } = event.data
+    await this.persist(reference, userId, amount)
+    return
   }
 
   /**
@@ -77,7 +75,11 @@ export default class PersistUserTransactionsVolume {
     const ok = await this.idempotency.checkAndMark(reference)
     if (!ok) return
 
-    await this.transactionVolumeCache.incrementOnSuccess({ userId, amount, timestamp })
+    await Promise.all([
+      this.transactionVolumeCache.incrementOnSuccess({ userId, amount, timestamp }),
+      this.throttleCache.setLastSuccessTime(userId, timestamp),
+      this.failureCache.resetFailures(userId),
+    ])
   }
 
   /**

@@ -1,7 +1,6 @@
 ﻿import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { Exception } from '@adonisjs/core/exceptions'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
@@ -18,15 +17,22 @@ import {
   WalletToWalletResponseDto,
 } from '#features/operations/application/dto/wallet_to_wallet.dto'
 import Wallet from '#features/wallet/domain/models/wallet'
+import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
+import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
 import WalletToWalletTransactionCompleted from '#features/operations/application/events/wallet_to_wallet_transaction_completed'
+import WalletToWalletTransactionFailed from '#features/operations/application/events/wallet_to_wallet_transaction_failed'
 import { LedgerDirection } from '#features/ledger/domain/ledger_enums'
 import LedgerService from '#features/ledger/application/services/ledger_service'
+import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import WalletTransferContextService, {
   TransferContext,
   TransferMode,
 } from '#features/operations/application/services/wallet_transfer_context_service'
 import WalletTransferValidationService from '#features/operations/application/services/wallet_transfer_validation_service'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import AccountValidationService from '#features/user/application/services/account_validation_service'
+import WalletUpdateFailedException from '#features/operations/infrastructure/exceptions/wallet_update_failed_exception'
+import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 
 interface BalanceSnapshot {
   senderBefore: number
@@ -43,16 +49,19 @@ interface TransferResult {
 
 @inject()
 export default class WalletToWalletUseCase {
-
   /**
-   * Creates a new wallet-to-wallet transfer use case instance.
+   * Constructs an instance of the class with the specified services and dependencies.
    *
-   * @param walletService
-   * @param transactionService
-   * @param paymentService
-   * @param ledgerService
-   * @param contextFactory
-   * @param validator
+   * @param {WalletService} walletService - The service for managing wallet-related operations.
+   * @param {TransactionService} transactionService - The service for processing transactions.
+   * @param {PaymentService} paymentService - The service for handling payment-related functionalities.
+   * @param {LedgerService} ledgerService - The service for managing ledger operations.
+   * @param {WalletTransferContextService} contextFactory - The factory for creating wallet transfer contexts.
+   * @param {WalletTransferValidationService} walletTransferValidationService - The service for validating wallet transfer requests.
+   * @param {AccountValidationService} accountValidationService - The service for validating account-related information.
+   * @param {TransactionThrottleCache} throttleCache - The cache for throttling transaction requests.
+   * @param {TransactionFailureCache} failureCache - The cache for tracking failed transactions.
+   * @param {IdempotencyProvider} idempotency - The provider for managing idempotency of transactions.
    */
   constructor(
     private readonly walletService: WalletService,
@@ -60,7 +69,11 @@ export default class WalletToWalletUseCase {
     private readonly paymentService: PaymentService,
     private readonly ledgerService: LedgerService,
     private readonly contextFactory: WalletTransferContextService,
-    private readonly validator: WalletTransferValidationService
+    private readonly walletTransferValidationService: WalletTransferValidationService,
+    private readonly accountValidationService: AccountValidationService,
+    private readonly throttleCache: TransactionThrottleCache,
+    private readonly failureCache: TransactionFailureCache,
+    private readonly idempotency: IdempotencyProvider
   ) {}
 
   /**
@@ -70,18 +83,30 @@ export default class WalletToWalletUseCase {
    * @param payload - The transfer request payload containing sender and recipient details.
    * @param currentUser - The user initiating the transfer.
    * @param mode - The transfer mode (e.g., instant, scheduled).
+   * @param deviceInfo - The device information associated with the transfer request.
+   * @param idempotencyKey - The idempotency key for the transaction.
    */
   async execute(
     payload: WalletToWalletRequestDto,
     currentUser: User,
-    mode: TransferMode
+    mode: TransferMode,
+    deviceInfo?: DeviceHeadersInfo,
+    idempotencyKey?: string
   ): Promise<WalletToWalletResponseDto> {
     this.logTransferStart(currentUser, mode, payload)
 
-    const context = await this.contextFactory.create(payload, currentUser, mode)
-    await this.validator.validate(context, mode, payload.recipient_phone)
+    await this.failureCache.verifyNotBlocked(currentUser.usersUid)
+    await this.throttleCache.verifyThrottle(currentUser.usersUid)
 
-    return this.executeTransfer(context)
+    await Promise.all([
+      this.accountValidationService.validateDevice(currentUser, deviceInfo),
+      this.accountValidationService.verifyPinForUser(currentUser, payload.pincode),
+    ])
+
+    const context = await this.contextFactory.create(payload, currentUser, mode)
+    await this.walletTransferValidationService.validate(context, mode, payload.recipient_phone)
+
+    return this.executeTransfer(context, idempotencyKey)
   }
 
   /**
@@ -89,9 +114,13 @@ export default class WalletToWalletUseCase {
    * Rolls back the transaction in case of an error and logs the failure.
    *
    * @param {TransferContext} context - The transfer context containing details about the sender and recipient wallets.
+   * @param idempotencyKey
    * @return {Promise<WalletToWalletResponseDto>} A promise that resolves to an object containing the transfer status and reference on success.
    */
-  private async executeTransfer(context: TransferContext): Promise<WalletToWalletResponseDto> {
+  private async executeTransfer(
+    context: TransferContext,
+    idempotencyKey?: string
+  ): Promise<WalletToWalletResponseDto> {
     const { senderWallet, recipientWallet } = context
 
     const balances: BalanceSnapshot = {
@@ -104,20 +133,26 @@ export default class WalletToWalletUseCase {
     const trx = await db.transaction()
 
     try {
-      const result = await this.processTransfer(context, balances, trx)
+      const transferResult = await this.processTransfer(context, balances, trx, idempotencyKey)
       await trx.commit()
 
+      const responseResult = {
+        message: 'Transfert wallet-to-wallet effectué avec succès',
+        data: { reference: transferResult.senderTx.reference, status: TransactionStatus.SUCCESS },
+      }
+
+      if (idempotencyKey) {
+        await this.idempotency.update(idempotencyKey, JSON.stringify(responseResult))
+      }
+
       this.dispatchCompletionEvent(
-        result.senderTx,
-        result.recipientTx,
+        transferResult.senderTx,
+        transferResult.recipientTx,
         senderWallet,
         recipientWallet
       )
 
-      return {
-        message: 'Transfert wallet-to-wallet effectué avec succès',
-        data: { reference: result.senderTx.reference, status: TransactionStatus.SUCCESS },
-      }
+      return responseResult
     } catch (error) {
       await trx.rollback()
       transactionLog.error(
@@ -125,6 +160,13 @@ export default class WalletToWalletUseCase {
         { error: error instanceof Error ? error.message : 'Unknown error' },
         'Wallet-to-wallet transfer failed'
       )
+
+      await WalletToWalletTransactionFailed.dispatch({
+        userId: context.currentUser.usersUid,
+        amount: context.amount,
+        recipientPhone: context.recipientWallet.user.phone,
+      })
+
       throw error
     }
   }
@@ -133,24 +175,26 @@ export default class WalletToWalletUseCase {
    * Processes a wallet-to-wallet transfer by updating balances and creating transactions.
    * Returns a promise that resolves to an object containing the sender and recipient transactions.
    *
-   * @param context - The transfer context containing sender, recipient, and transfer details.
+   * @param {TransferContext} context - The transfer context containing sender, recipient, and transfer details.
    * @param balances - The balance snapshot before the transfer.
    * @param trx - The database transaction client for atomic operations.
+   * @param idempotencyKey
    * @private
    */
   private async processTransfer(
     context: TransferContext,
     balances: BalanceSnapshot,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    idempotencyKey?: string
   ): Promise<TransferResult> {
     const { senderWallet, recipientWallet, amount, fees, total } = context
 
     // Step 1: Update balances
     const [senderAfter, recipientAfter] = await Promise.all([
       // Debit the sender wallet
-      this.walletService.debitBalance(senderWallet.id, total, trx),
+      this.walletService.debitBalance(senderWallet.id, amount, trx),
       // Credit the recipient wallet
-      this.walletService.creditBalance(recipientWallet.id, amount, trx),
+      this.walletService.creditBalance(recipientWallet.id, total, trx),
     ])
 
     if (!senderAfter || !recipientAfter) {
@@ -162,7 +206,7 @@ export default class WalletToWalletUseCase {
         },
         'Failed to update balances'
       )
-      throw new Exception('Échec de la mise à jour des soldes', { status: 500 })
+      throw new WalletUpdateFailedException('Échec de la mise à jour des soldes')
     }
 
     // Getting sender and recipient balances after updated balances
@@ -172,15 +216,20 @@ export default class WalletToWalletUseCase {
     this.logBalancesUpdated(context, balances)
 
     // Step 2: Create transactions
-    const [senderTx, recipientTx] = await this.createTransactions(context, balances, trx)
+    const [senderTx, recipientTx] = await this.createTransactions(
+      context,
+      balances,
+      trx,
+      idempotencyKey
+    )
 
     // Step 3: Create payments and ledger entries in parallel
     await Promise.all([
       // create the sender's transaction payment record
-      this.createPaymentRecord(senderTx, recipientWallet.user.phone, context.currentUser, trx),
+      this.createPaymentRecord(senderTx, recipientWallet.user, trx),
 
       // create the beneficiary's transaction payment record
-      this.createPaymentRecord(recipientTx, senderWallet.user.phone, context.currentUser, trx),
+      this.createPaymentRecord(recipientTx, senderWallet.user, trx),
 
       // Create the sender's ledger entry
       this.ledgerService.recordWalletTransfer(
@@ -188,7 +237,7 @@ export default class WalletToWalletUseCase {
           transaction: senderTx,
           walletId: senderWallet.id,
           direction: LedgerDirection.DEBIT,
-          amount: amount,
+          amount: total,
           fees,
           balanceBefore: balances.senderBefore,
           balanceAfter: balances.senderAfter,
@@ -202,7 +251,7 @@ export default class WalletToWalletUseCase {
           transaction: recipientTx,
           walletId: recipientWallet.id,
           direction: LedgerDirection.CREDIT,
-          amount: amount,
+          amount: total,
           fees: 0,
           balanceBefore: balances.recipientBefore,
           balanceAfter: balances.recipientAfter,
@@ -226,18 +275,19 @@ export default class WalletToWalletUseCase {
   }
 
   /**
-   * Creates two transactions for the sender and recipient wallets, one for the transfer and one for the received amount.
-   * Returns a promise that resolves to an array containing the sender and recipient transactions.
+   * Creates transactions for a transfer operation between a sender and a recipient.
    *
-   * @param context - The transfer context containing sender, recipient, and transfer details.
-   * @param balances - The balance snapshot before the transfer.
-   * @param trx - The database transaction client for atomic operations.
-   * @private
+   * @param {TransferContext} context - The transfer context containing sender and recipient wallet details, amount, fees, total, and the current user information.
+   * @param {BalanceSnapshot} balances - The balance snapshot object containing updated balances for the sender and recipient after the transaction.
+   * @param {TransactionClientContract} trx - The database transaction client used for creating transactions in a transactional context.
+   * @param {string} [idempotencyKey] - Optional idempotency key to ensure the transaction is processed only once in case of retries.
+   * @return {Promise<[Transaction, Transaction]>} A promise that resolves to a tuple of transactions: the sender's debit transaction and the recipient's credit transaction.
    */
   private async createTransactions(
     context: TransferContext,
     balances: BalanceSnapshot,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    idempotencyKey?: string
   ): Promise<[Transaction, Transaction]> {
     const { senderWallet, recipientWallet, amount, fees, total, currentUser } = context
 
@@ -255,7 +305,8 @@ export default class WalletToWalletUseCase {
           fees,
           balanceAfter: balances.senderAfter,
           operation_type: TransactionType.WALLET_TRANSFERT,
-          description: `Transfert to ${recipientName}`,
+          description: `Transfert à ${recipientName}`,
+          idempotency: idempotencyKey,
         },
         senderWallet.id,
         currentUser,
@@ -266,13 +317,13 @@ export default class WalletToWalletUseCase {
       this.transactionService.createTransaction(
         {
           status: TransactionStatus.SUCCESS,
-          amount,
+          amount: total,
           direction: TransactionDirection.CREDIT,
-          total_amount: amount,
+          total_amount: total,
           fees: 0,
           balanceAfter: balances.recipientAfter,
           operation_type: TransactionType.WALLET_TRANSFERT,
-          description: `Received from ${senderName}`,
+          description: `Transfert reçu de ${senderName}`,
         },
         recipientWallet.id,
         recipientWallet.user,
@@ -286,14 +337,12 @@ export default class WalletToWalletUseCase {
    * Returns a promise that resolves to the created payment record.
    *
    * @param transaction - The transaction associated with the payment.
-   * @param phone - The recipient's phone number.
    * @param user - The user initiating the payment.
    * @param trx - The database transaction client for atomic operations.
    * @private
    */
   private createPaymentRecord(
     transaction: Transaction,
-    phone: string,
     user: User,
     trx: TransactionClientContract
   ) {
@@ -301,7 +350,11 @@ export default class WalletToWalletUseCase {
       {
         payment_method: PaymentMethod.INTERNAL,
         operation_type: TransactionType.WALLET_TRANSFERT,
-        payment_details: { operator: PaymentMethod.WALLET, phone },
+        payment_details: {
+          operator: PaymentMethod.WALLET,
+          phone: user.phone,
+          user: `${user.firstname} ${user.lastname}`,
+        },
         status: PaymentStatus.SUCCESS,
         step: PaymentStep.WALLET_TO_WALLET,
       },

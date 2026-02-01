@@ -1,5 +1,6 @@
 import Ledger from '#features/ledger/domain/models/ledger'
 import { LedgerDto } from '#features/ledger/application/dto/ledger.dto'
+import { UserKycStatus } from '#features/user/domain/enum'
 
 export default class LedgerMapper {
   /**
@@ -20,7 +21,7 @@ export default class LedgerMapper {
       totalAmount: Number(ledger.totalAmount).toFixed(4),
       balanceBefore: Number(ledger.balanceBefore).toFixed(4),
       balanceAfter: Number(ledger.balanceAfter).toFixed(4),
-      createdAt: ledger.createdAt.toISO()!,
+      createdAt: ledger.createdAt?.toISO() || '',
       transaction: {
         id: transaction?.id,
         reference: transaction?.reference,
@@ -33,7 +34,7 @@ export default class LedgerMapper {
         user: {
           firstname: user?.firstname,
           lastname: user?.lastname,
-          pictureUrl: user?.pictureUrl || null,
+          pictureUrl: user?.kycStatus === UserKycStatus.VERIFIED ? user?.pictureUrl || null : null,
           userUid: wallet?.userId,
         },
       },

@@ -1,32 +1,34 @@
 ﻿import { inject } from '@adonisjs/core'
-import ServiceTypesService from '#features/catalogs/application/services/service_types.service'
+import { Exception } from '@adonisjs/core/exceptions'
 import {
   ServiceTypeCreateDto,
   ServiceTypeUpdateDto,
 } from '#features/catalogs/application/dtos/service_types.dto'
-import { ListServiceTypesParams } from '#features/catalogs/domain/interfaces/service_type_repository'
+import ServiceTypeRepository, {
+  ListServiceTypesParams,
+} from '#features/catalogs/domain/interfaces/service_type_repository'
 
 /**
  * Represents the use case for managing Service Types.
- * This class acts as a mediator between the input (like controllers) and the actual service layer.
+ * This class acts as a mediator between the input (like controllers) and the actual repository layer.
  */
 @inject()
 export default class ServiceTypesUseCase {
   /**
-   * Initializes a new instance of the class with the provided service dependency.
+   * Initializes a new instance of the class with the provided repository dependency.
    *
-   * @param {ServiceTypesService} service - The service instance to be used within the class.
+   * @param {ServiceTypeRepository} repository - The repository instance to be used within the class.
    */
-  constructor(private readonly service: ServiceTypesService) {}
+  constructor(private readonly repository: ServiceTypeRepository) {}
 
   /**
    * Retrieves a list of items based on the provided parameters.
    *
    * @param {ListServiceTypesParams} params - The parameters to query the list of items.
-   * @return {any} - The result of the list operation from the service.
+   * @return {any} - The result of the list operation from the repository.
    */
   list(params: ListServiceTypesParams): any {
-    return this.service.list(params)
+    return this.repository.paginate(params)
   }
 
   /**
@@ -36,7 +38,7 @@ export default class ServiceTypesUseCase {
    * @return {*} Returns the resource corresponding to the specified ID.
    */
   get(id: number) {
-    return this.service.get(id)
+    return this.repository.findByIdOrFail(id)
   }
 
   /**
@@ -45,15 +47,26 @@ export default class ServiceTypesUseCase {
    * @param {ServiceTypeCreateDto} payload - The data transfer object containing information required to create the service.
    * @return {Promise<any>} A Promise that resolves with the result of the service creation process.
    */
-  create(payload: ServiceTypeCreateDto) {
-    return this.service.create(payload)
+  async create(payload: ServiceTypeCreateDto) {
+    if (!payload.code || !payload.label) {
+      throw new Exception('code and label are required', {
+        status: 400,
+        code: 'E_VALIDATION_ERROR',
+      })
+    }
+
+    return this.repository.create({
+      code: payload.code,
+      label: payload.label,
+      description: payload.description,
+    })
   }
 
   update(id: number, payload: ServiceTypeUpdateDto) {
-    return this.service.update(id, payload)
+    return this.repository.update(id, payload)
   }
 
   delete(id: number) {
-    return this.service.delete(id)
+    return this.repository.delete(id)
   }
 }

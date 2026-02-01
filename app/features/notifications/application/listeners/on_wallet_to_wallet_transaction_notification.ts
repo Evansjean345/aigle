@@ -14,14 +14,18 @@ export default class WalletToWalletTransactionNotification {
   constructor(private readonly notificationService: NotificationService) {}
 
   /**
-   * Handle the event when a wallet to wallet transaction is completed
-   * @param event
+   * Handles the completion of a wallet-to-wallet transaction by sending notifications
+   * to both the sender and the receiver.
+   *
+   * @param {WalletToWalletTransactionCompleted} event - The event object containing details
+   *    about the completed wallet-to-wallet transaction, including sender and receiver data.
+   * @return {Promise<void>} A promise that resolves when the notifications have been sent.
    */
-  async handle(event: WalletToWalletTransactionCompleted) {
+  async handle(event: WalletToWalletTransactionCompleted): Promise<void> {
     await Promise.all([
       this.sendWalletToWalletTransfertNotification(
         event.senderTransaction,
-        event.payload.recipienPhone
+        event.payload.recipientPhone
       ),
       this.sendWalletToWalletDepositNotification(
         event.receiverTransaction,

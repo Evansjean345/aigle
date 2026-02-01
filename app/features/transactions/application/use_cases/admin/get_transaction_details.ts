@@ -1,8 +1,8 @@
 import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
-import { toAdminTransactionResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
+import { toAdminTransactionResponseDto } from '#features/transactions/application/mapper/admin_transaction.mapper'
 import { AdminTransactionResponseDTO } from '#features/transactions/application/dto/admin_transaction.dto'
-import { Exception } from '@adonisjs/core/exceptions'
+import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
 
 /**
  * A use case for retrieving transaction details for admin.
@@ -26,10 +26,7 @@ export default class GetTransactionDetailsUseCase {
     let transaction = await this.transactionRepository.findByReference(reference)
 
     if (!transaction) {
-      throw new Exception("Cette transactio n'existe pas", {
-        status: 404,
-        code: 'TRANSACTION_NOT_FOUND',
-      })
+      throw new TransactionNotFoundException("Cette transaction n'existe pas")
     }
 
     return toAdminTransactionResponseDto(transaction)

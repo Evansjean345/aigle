@@ -11,6 +11,7 @@ export default class GetUserProfileUseCase {
    */
   async execute(authenticated: User): Promise<User> {
     await authenticated.load('country')
+    await authenticated.load('kycDocument')
     return authenticated
   }
 }

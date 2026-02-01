@@ -3,6 +3,9 @@ import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import { ExtractModelRelations } from '@adonisjs/lucid/types/relations'
 import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import db from '@adonisjs/lucid/services/db'
+import { UserKycStatus, UserStatus } from '#features/user/domain/enum'
+import { DateTime } from 'luxon'
 
 export default class UserRepositoryIml implements UserRepository {
   /**
@@ -101,5 +104,41 @@ export default class UserRepositoryIml implements UserRepository {
       await user.save()
     }
     return user
+  }
+
+  /**
+   * Retrieves user statistics.
+   *
+   * @return {Promise<Record<string, number>>} A promise that resolves to a record of user statistics.
+   */
+  async getStats(): Promise<Record<string, number>> {
+    const today = DateTime.now().toISODate()
+
+    const result = await db
+      .from(User.table)
+      .select(
+        db.raw('COUNT(*) as totalUsers'),
+        db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as activeAccounts', [UserStatus.ACTIVE]),
+        db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactiveAccounts', [
+          UserStatus.INACTIVE,
+        ]),
+        db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as blockedAccounts', [
+          UserStatus.BLOCKED,
+        ]),
+        db.raw('SUM(CASE WHEN kyc_status = ? THEN 1 ELSE 0 END) as kycVerified', [
+          UserKycStatus.VERIFIED,
+        ]),
+        db.raw('SUM(CASE WHEN DATE(created_at) = ? THEN 1 ELSE 0 END) as registeredToday', [today])
+      )
+      .first()
+
+    return {
+      totalUsers: Number(result.totalUsers || 0),
+      activeAccounts: Number(result.activeAccounts || 0),
+      inactiveAccounts: Number(result.inactiveAccounts || 0),
+      blockedAccounts: Number(result.blockedAccounts || 0),
+      kycVerified: Number(result.kycVerified || 0),
+      registeredToday: Number(result.registeredToday || 0),
+    }
   }
 }

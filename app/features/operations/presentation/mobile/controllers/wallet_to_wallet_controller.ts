@@ -22,15 +22,20 @@ export default class WalletToWalletController {
    * @param {Request} HttpContext.request - The HTTP request object for processing payload and input.
    * @param {Response} HttpContext.response - The HTTP response object for sending back responses.
    */
-  async handle({ request, response, auth }: HttpContext): Promise<void> {
+  async handle({ request, response, auth, deviceInfo }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(walletToWalletValidator)
     const user = auth.user!
+    const idempotencyKey = request.header('X-Idempotency-Key')
 
-    const headers = request.headers()
-    console.log('debugging headers')
-    console.log(headers)
+    const mode = payload.token ? TransferMode.BY_QRCODE : TransferMode.BY_PHONE
 
-    const result = await this.walletToWalletUseCase.execute(payload, user, TransferMode.BY_QRCODE)
+    const result = await this.walletToWalletUseCase.execute(
+      payload,
+      user,
+      mode,
+      deviceInfo,
+      idempotencyKey
+    )
     return response.ok(result)
   }
 }

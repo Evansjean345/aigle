@@ -7,6 +7,7 @@ export default function adminTransactionRoutes() {
   return router
     .group(() => {
       router.get('/', [AdminTransactionController, 'all'])
+      router.get('/stats', [AdminTransactionController, 'stats'])
       router.get('/:reference', [AdminTransactionController, 'show'])
     })
     .prefix('transactions')

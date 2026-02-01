@@ -1,10 +1,11 @@
 import NotificationChannel from '#features/notifications/domain/interfaces/notification_channel'
 import { NotificationChannelType } from '#features/notifications/domain/notification_channel_type'
 import { Expo } from 'expo-server-sdk'
-import DeviceRepository from '#features/device/domain/interfaces/device_repository'
-import { Exception } from '@adonisjs/core/exceptions'
 import { Notification } from '#features/notifications/domain/notification'
 import { inject } from '@adonisjs/core'
+import { Exception } from '@adonisjs/core/exceptions'
+import DeviceService from '#features/device/application/services/device_service'
+import appLog from '#shared/infrastructure/logging/app_log'
 
 @inject()
 export default class ExpoPushNotificationChannel implements NotificationChannel {
@@ -14,9 +15,9 @@ export default class ExpoPushNotificationChannel implements NotificationChannel 
   /**
    * Creates an instance of the class and initializes necessary dependencies and properties.
    *
-   * @param {DeviceRepository} deviceRepository - The repository instance for managing device data.
+   * @param deviceService
    */
-  constructor(private deviceRepository: DeviceRepository) {
+  constructor(private readonly deviceService: DeviceService) {
     this.#expoInstance = new Expo()
   }
 
@@ -25,12 +26,18 @@ export default class ExpoPushNotificationChannel implements NotificationChannel 
    * @param notification
    */
   async send(notification: Notification): Promise<void> {
-    const devices = await this.deviceRepository.getDevicesByUserId(notification.recipientId)
+    const devices = await this.deviceService.getTrustedDevices(notification.recipientId)
 
     if (devices.length === 0) return
-    const tokens = devices.map((d) => d.token)
+    const tokens = devices.map((d) => d.pushToken)
 
     if (!tokens || tokens.length === 0) {
+      appLog.error(
+        'NO_PUSH_TOKENS_FOUND',
+        {},
+        'No push tokens found for user: ' + notification.recipientId + ''
+      )
+
       throw new Exception('No push tokens found', {
         status: 400,
         code: 'NO_PUSH_TOKENS_FOUND',

@@ -1,6 +1,8 @@
 ﻿import { inject } from '@adonisjs/core'
-import MobileServicesService from '#features/catalogs/application/services/mobile_services_service'
 import { PaymentOptionsByServiceTypeResult } from '#features/catalogs/application/dtos/payment_options_by_service_type.result'
+import ServiceType from '#features/catalogs/domain/models/service_type'
+import { Exception } from '@adonisjs/core/exceptions'
+import ServiceProviderMethod from '#features/catalogs/domain/models/service_provider_method'
 
 @inject()
 /**
@@ -8,19 +10,91 @@ import { PaymentOptionsByServiceTypeResult } from '#features/catalogs/applicatio
  */
 export default class GetPaymentOptionsByServiceTypeUseCase {
   /**
-   * Creates an instance of the class.
-   *
-   * @param {MobileServicesService} service - An instance of MobileServicesService to be used for mobile service operations.
-   */
-  constructor(private readonly service: MobileServicesService) {}
-
-  /**
    * Executes a request to retrieve payment options for the given service type code.
    *
    * @param {string} serviceTypeCode - The code representing the service type for which payment options are requested.
    * @return {Promise<PaymentOptionsByServiceTypeResult>} A promise that resolves to the result containing payment options for the specified service type.
    */
   async execute(serviceTypeCode: string): Promise<PaymentOptionsByServiceTypeResult> {
-    return this.service.getPaymentOptionsByServiceType(serviceTypeCode)
+    const st = await ServiceType.query().where('code', serviceTypeCode).first()
+
+    if (!st) {
+      throw new Exception('service type not found', {
+        status: 404,
+        code: 'SERVICE_TYPE_NOT_FOUND',
+      })
+    }
+
+    const spms = await ServiceProviderMethod.query()
+      .where('service_type_id', st.id)
+      .andWhere('is_active', true)
+      .preload('paymentMethod')
+      .preload('providerFrom')
+
+    const grouped: Record<
+      string,
+      {
+        id: number
+        code: string
+        name: string
+        order: number
+        providers: {
+          id: number
+          code: string
+          name: string
+          logo?: string
+          feeFixed: number
+          feePercent: number
+          currency?: string
+          minAmount?: number
+          applyFees?: boolean
+          toProviderCode?: string
+          toProviderName?: string
+          isInterNetwork?: boolean
+        }[]
+      }
+    > = {}
+
+    for (const spm of spms) {
+      const pm = spm.paymentMethod
+      const providerFrom = spm.providerFrom
+      if (!pm || !providerFrom) continue
+
+      const key = pm.code
+
+      if (!grouped[key]) {
+        grouped[key] = {
+          code: pm.code,
+          name: (pm as any).label ?? pm.code,
+          id: pm.id,
+          order: pm.order,
+          providers: [],
+        }
+      }
+
+      const fromCode = (providerFrom as any).code
+      const fromName = (providerFrom as any).name ?? fromCode
+
+      const exists = grouped[key].providers.find((p: any) => p.code === fromCode)
+
+      if (!exists) {
+        grouped[key].providers.push({
+          id: providerFrom.id,
+          code: fromCode,
+          name: fromName,
+          logo: (providerFrom as any).logo ?? undefined,
+          feeFixed: Number(spm.feeFixed ?? 0),
+          feePercent: Number(spm.feePercent ?? 0),
+          currency: spm.currency ?? undefined,
+          minAmount: spm.minAmount ?? undefined,
+          applyFees: spm.applyFeeds,
+        })
+      }
+    }
+
+    return {
+      serviceType: st.code,
+      methods: Object.values(grouped).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    }
   }
 }

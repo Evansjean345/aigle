@@ -2,12 +2,14 @@
 import TransactionRepository from '#features/transactions/infrastructure/repositories/transaction_repository_impl'
 import User from '#features/users/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { Exception } from '@adonisjs/core/exceptions'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import Transaction from '#features/transactions/domain/models/transaction'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import TransactionAlreadyFailedException from '#features/transactions/infrastructure/exceptions/transaction_already_failed_exception'
+import TransactionAlreadySuccessfulException from '#features/transactions/infrastructure/exceptions/transaction_already_successful_exception'
+import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
 
 /**
  * Shared TransactionService: creates and manages transaction records.
@@ -49,6 +51,7 @@ export default class TransactionService {
       balanceAfter?: number
       fees?: number
       reference?: string
+      idempotency?: string
       description?: string
       metadata?: Record<string, any>
     },
@@ -79,7 +82,12 @@ export default class TransactionService {
     transaction.usersUid = user.usersUid!
 
     if (payload.fees !== undefined) transaction.fees = Number(payload.fees)
-    if (payload.reference) transaction.reference = payload.reference
+    if (payload.reference) {
+      transaction.reference = payload.reference
+    }
+    if (payload.idempotency) {
+      transaction.idempotency = payload.idempotency
+    }
     if (payload.description) transaction.description = payload.description
     if (payload.metadata) transaction.dateTransaction = JSON.stringify(payload.metadata)
 
@@ -88,12 +96,13 @@ export default class TransactionService {
   }
 
   /**
-   * Marks a transaction as successful and updates its balance_after field.
+   * Marks a transaction as successful and updates its status.
    *
-   * @param {number} id - The unique identifier of the transaction to be marked as successful.
-   * @param {number} walletAfterBalance - The updated wallet balance after the transaction is marked as successful.
-   * @param {TransactionClientContract} [trx] - Optional transaction client used for database operations.
-   * @return {Promise<Transaction>} The updated transaction object after marking it as successful and saving.
+   * @param {number} id - The unique identifier for the transaction to be marked as successful.
+   * @param {number} walletAfterBalance - The balance of the user's wallet after the transaction.
+   * @param {TransactionClientContract} [trx] - An optional transaction client instance for database operations.
+   * @return {Promise<Transaction>} Returns the updated transaction object after marking it as successful.
+   * @throws {TransactionAlreadySuccessfulException} Throws an exception if the transaction is already marked as successful.
    */
   async markSuccess(
     id: number,
@@ -108,10 +117,7 @@ export default class TransactionService {
         { transaction: { id: transaction.id } },
         'Transaction already successful'
       )
-      throw new Exception('Transaction already successful', {
-        status: 400,
-        code: 'TRANSACTION_ALREADY_SUCCESSFUL',
-      })
+      throw new TransactionAlreadySuccessfulException()
     }
 
     transaction.status = TransactionStatus.SUCCESS
@@ -128,20 +134,17 @@ export default class TransactionService {
   }
 
   /**
-   * Marks a transaction as failed by updating its status to 'failed'.
+   * Marks a transaction as failed if it hasn't already been marked as such.
    *
-   * @param {number} id - The unique identifier of the transaction to mark as failed.
-   * @param {TransactionClientContract} [trx] - Optional transaction client for database operations.
-   * @return {Promise<Transaction>} Returns a promise resolving to the updated transaction object.
+   * @param {number} id - The unique identifier of the transaction to be marked as failed.
+   * @param {TransactionClientContract} [trx] - An optional transaction client for database operations.
+   * @return {Promise<Transaction>} A promise resolving to the updated transaction with its status marked as failed.
+   * @throws {TransactionAlreadyFailedException} If the transaction is already marked as failed.
    */
   async markFailed(id: number, trx?: TransactionClientContract): Promise<Transaction> {
     const transaction = await this.getByUidOrId(id)
 
-    if (transaction.status === TransactionStatus.FAILED)
-      throw new Exception('Transaction already failed', {
-        status: 400,
-        code: 'TRANSACTION_ALREADY_FAILED',
-      })
+    if (transaction.status === TransactionStatus.FAILED) throw new TransactionAlreadyFailedException()
 
     transaction.status = TransactionStatus.FAILED
     await this.transactionRepository.save(transaction, trx)
@@ -154,11 +157,11 @@ export default class TransactionService {
   }
 
   /**
-   * Retrieves a transaction by its unique identifier (UID) or numeric ID.
+   * Retrieves a transaction by its UID or ID.
    *
-   * @param {string | number} id - The unique identifier (UID) or numeric ID of the transaction.
-   * @return {Promise<Transaction>} A promise that resolves with the transaction object if found.
-   * @throws {Exception} Throws an exception if the transaction is not found, including status and error code details.
+   * @param {string|number} id - The unique identifier (UID) or ID of the transaction to retrieve.
+   * @return {Promise<Transaction>} A promise that resolves to the retrieved transaction.
+   * @throws {TransactionNotFoundException} If no transaction is found with the provided UID or ID.
    */
   async getByUidOrId(id: string | number): Promise<Transaction> {
     transactionLog.debug(
@@ -168,11 +171,7 @@ export default class TransactionService {
     )
     const transaction = await this.transactionRepository.findByUidOrId(id)
 
-    if (!transaction)
-      throw new Exception('Transaction not found', {
-        status: 404,
-        code: 'TRANSACTION_NOT_FOUND',
-      })
+    if (!transaction) throw new TransactionNotFoundException()
 
     transactionLog.info(
       'TRANSACTION_RETRIEVED',
@@ -183,11 +182,11 @@ export default class TransactionService {
   }
 
   /**
-   * Fetches a transaction by its reference.
+   * Retrieves a transaction based on the provided reference.
    *
-   * @param {string} reference - The unique identifier for the transaction.
-   * @return {Promise<Transaction>} A promise that resolves to the transaction object if found.
-   * @throws {Exception} If the transaction is not found, an exception is thrown with status 404 and code 'TRANSACTION_NOT_FOUND'.
+   * @param {string} reference - The unique reference used to look up the transaction.
+   * @return {Promise<Transaction>} A promise that resolves to the transaction object corresponding to the given reference.
+   * @throws {TransactionNotFoundException} If no transaction is found with the provided reference.
    */
   async findByReference(reference: string): Promise<Transaction> {
     transactionLog.debug(
@@ -198,10 +197,7 @@ export default class TransactionService {
     const transaction = await this.transactionRepository.findByReference(reference)
 
     if (!transaction) {
-      throw new Exception('Transaction not found', {
-        status: 404,
-        code: 'TRANSACTION_NOT_FOUND',
-      })
+      throw new TransactionNotFoundException()
     }
 
     transactionLog.info(

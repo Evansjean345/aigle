@@ -14,13 +14,11 @@ const adminKycRoutes = () => {
           router.delete('/:id', [KycLevelController, 'destroy'])
         })
         .prefix('/levels')
-      
+
       router.get('/', [KycController, 'index'])
       router.get('/stats', [KycController, 'stats'])
       router.get('/:id', [KycController, 'kycDetails'])
       router.post('/:id/process', [KycController, 'process'])
-
-
     })
     .prefix('/kyc')
 }

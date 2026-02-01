@@ -13,7 +13,7 @@ import { TransactionDirection } from '#features/transactions/domain/enums/transa
 export default class Transaction extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
-  
+
   @column()
   declare transactionsUid: string
 
@@ -37,6 +37,9 @@ export default class Transaction extends BaseModel {
 
   @column()
   declare reference: string
+
+  @column()
+  declare idempotency: string | null
 
   @column()
   declare fees: number
@@ -78,7 +81,11 @@ export default class Transaction extends BaseModel {
   static async BaseModel(transaction: Transaction) {
     if (transaction.$isNew) {
       transaction.transactionsUid = uuidv4()
-      transaction.reference = 'aigle' + string.random(8)
+
+      if (!transaction.reference) {
+        transaction.reference = 'aigle_' + string.random(8)
+      }
+
       transaction.dateTransaction = DateTime.now().toFormat('yyyy-MM-dd')
     }
   }

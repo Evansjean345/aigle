@@ -2,18 +2,13 @@ import { inject } from '@adonisjs/core'
 import { HttpContext } from '@adonisjs/core/http'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import HandleTransfertWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_webhook.use_case'
-import { Logger, LoggerService } from '@adonisjs/core/logger'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import logger from '@adonisjs/core/services/logger'
 
 @inject()
 export default class TransferWebhookController {
-  private readonly logger: LoggerService
-  constructor(
-    private readonly handleTransfertWebhook: HandleTransfertWebhookUseCase,
-    private readonly baseLogger: Logger
-  ) {
-    this.logger = this.baseLogger.use('transaction')
-  }
+  private readonly logger = logger.use('transaction')
+  constructor(private readonly handleTransfertWebhook: HandleTransfertWebhookUseCase) {}
 
   async transferSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto

@@ -4,6 +4,9 @@ import adminTransactionRoutes from '#features/transactions/presentation/admin/ro
 import adminUsersRoute from '#features/user/presentation/admin/routes/users_route'
 import adminLedgerRoutes from '#features/ledger/presentation/admin/routes/ledger_routes'
 import adminKycRoutes from '#features/kyc/presentation/admin/routes/kyc_routes'
+import adminAppVersionRoutes from '#features/device/presentation/admin/routes/app_version_routes'
+import adminDeviceRoutes from '#features/device/presentation/admin/routes/admin_device_routes'
+import adminWalletRoutes from '#features/wallet/presentation/admin/routes/admin_wallet_routes'
 
 router
   .group(() => {
@@ -12,5 +15,8 @@ router
     router.group(adminUsersRoute)
     router.group(adminLedgerRoutes)
     router.group(adminKycRoutes)
+    router.group(adminDeviceRoutes)
+    router.group(adminAppVersionRoutes)
+    router.group(adminWalletRoutes)
   })
   .prefix('/api/admin')

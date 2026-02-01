@@ -21,11 +21,17 @@ export default class DepositController {
    * @param {Object} context.response - The HTTP response object for sending responses.
    * @return {Promise<Object>} A promise that resolves to the HTTP response object with a success message.
    */
-  async handle({ request, response, auth }: HttpContext) {
+  async handle({ request, response, auth, deviceInfo }: HttpContext) {
     const user = auth.user!
+    const idempotencyKey = request.header('X-Idempotency-Key')
 
     const payload = await request.validateUsing(depositValidator)
-    const result = await this.depositUseCase.execute(toDepositDto(payload), user)
+    const result = await this.depositUseCase.execute(
+      toDepositDto(payload),
+      user,
+      deviceInfo,
+      idempotencyKey
+    )
 
     return response.ok(result)
   }

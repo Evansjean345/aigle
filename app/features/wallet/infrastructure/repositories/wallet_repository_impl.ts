@@ -3,6 +3,7 @@ import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import WalletRepository, {
   AdjustedBalance,
 } from '#features/wallet/domain/interfaces/wallet_repository'
+import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
 
 /**
  * Implementation of the `WalletRepository` interface, providing
@@ -127,5 +128,30 @@ export default class WalletRepositoryImpl implements WalletRepository {
     trx?: TransactionClientContract
   ): Promise<AdjustedBalance | null> {
     return this.adjustBalance(id, -Math.abs(Number(amount)), trx)
+  }
+
+  /**
+   * Updates the status of a wallet.
+   *
+   * @param {number} id - The unique identifier of the wallet to be updated.
+   * @param {WalletStatus} status - The new status to be assigned to the wallet.
+   * @param {TransactionClientContract} [trx] - Optional transaction client to perform the operation within a transaction.
+   * @return {Promise<Wallet | null>} A promise that resolves to the updated wallet if the operation is successful, or null if the wallet is not found.
+   */
+  async updateStatus(
+    id: number,
+    status: WalletStatus,
+    trx?: TransactionClientContract
+  ): Promise<Wallet | null> {
+    const wallet = await Wallet.query({ client: trx }).where('id', id).first()
+
+    if (!wallet) {
+      return null
+    }
+
+    wallet.status = status
+    await wallet.save()
+
+    return wallet
   }
 }

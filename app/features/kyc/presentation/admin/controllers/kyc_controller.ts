@@ -1,9 +1,10 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import GetAllKycDocumentsUseCase from '#features/kyc/application/usecases/get_all_kyc_documents.usecase'
-import GetKycStatsUseCase from '#features/kyc/application/usecases/get_kyc_stats.usecase'
-import GetKycDocumentByIdUseCase from '#features/kyc/application/usecases/get_kyc_document_by_id.usecase'
-import ProcessKycDocumentUseCase from '#features/kyc/application/usecases/process_kyc_document.usecase'
+import GetAllKycDocumentsUseCase from '#features/kyc/application/usecases/admin/get_all_kyc_documents.usecase'
+import GetKycStatsUseCase from '#features/kyc/application/usecases/admin/get_kyc_stats.usecase'
+import GetKycDocumentByIdUseCase from '#features/kyc/application/usecases/admin/get_kyc_document_by_id.usecase'
+import GetUserKycDocumentUseCase from '#features/kyc/application/usecases/admin/get_user_kyc_document.usecase'
+import ProcessKycDocumentUseCase from '#features/kyc/application/usecases/admin/process_kyc_document.usecase'
 import {
   processKycErrorMessages,
   processKycValidator,
@@ -24,7 +25,8 @@ export default class KycController {
     private readonly getAllKycDocumentsUseCase: GetAllKycDocumentsUseCase,
     private readonly getKycStatsUseCase: GetKycStatsUseCase,
     private readonly getKycDocumentByIdUseCase: GetKycDocumentByIdUseCase,
-    private readonly processKycDocumentUseCase: ProcessKycDocumentUseCase
+    private readonly processKycDocumentUseCase: ProcessKycDocumentUseCase,
+    private readonly getUserKycDocumentUseCase: GetUserKycDocumentUseCase
   ) {}
 
   /**
@@ -47,6 +49,7 @@ export default class KycController {
       userId,
       search,
     })
+
     return response.ok(kycDocuments)
   }
 
@@ -90,5 +93,19 @@ export default class KycController {
 
     await this.processKycDocumentUseCase.execute(params.id, payload.status, payload.comment)
     return response.ok({ message: `Document KYC ${payload.status} avec succès ✅` })
+  }
+
+  /**
+   * Récupère le document KYC d'un utilisateur spécifique.
+   */
+  async getUserKyc({ params, response }: HttpContext): Promise<void> {
+    const { id } = params // userId
+    const kycDocument = await this.getUserKycDocumentUseCase.execute(id)
+
+    if (!kycDocument) {
+      return response.notFound({ message: 'KYC document not found for this user' })
+    }
+
+    return response.ok(kycDocument)
   }
 }

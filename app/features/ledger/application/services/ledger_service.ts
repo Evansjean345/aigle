@@ -6,6 +6,10 @@ import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { LedgerDirection, LedgerOperationType } from '#features/ledger/domain/ledger_enums'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 
+/**
+ * Service for handling ledger-related operations, such as creating ledger entries
+ * and recording different types of transactions (deposits, transfers, etc.).
+ */
 @inject()
 export default class LedgerService {
   /**
@@ -102,7 +106,7 @@ export default class LedgerService {
         walletId,
         direction: LedgerDirection.CREDIT,
         description,
-        amountBrut: transaction.amount,
+        amountBrut: transaction.totalAmount,
         fees: transaction.fees,
         balanceBefore,
         balanceAfter,
@@ -135,7 +139,7 @@ export default class LedgerService {
         walletId,
         direction: LedgerDirection.DEBIT,
         description,
-        amountBrut: transaction.amount,
+        amountBrut: transaction.totalAmount,
         fees: transaction.fees,
         balanceBefore,
         balanceAfter,

@@ -8,7 +8,7 @@ export enum KycDocumentStatus {
 export enum KycDocumentType {
   CNI = 'CNI',
   PASSPORT = 'PASSPORT',
-  PERMIT_CONDUIT = 'PERMIT_CONDUIT',
+  PERMIT_CONDUIT = 'PERMIS_CONDUIT',
 }
 
 export enum KycLevelState {

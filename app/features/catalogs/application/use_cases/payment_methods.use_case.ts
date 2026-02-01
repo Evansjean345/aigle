@@ -1,33 +1,36 @@
 ﻿import { inject } from '@adonisjs/core'
-import PaymentMethodsService from '#features/catalogs/application/services/payment_methods.service'
 import {
   PaymentMethodCreateDto,
   PaymentMethodUpdateDto,
 } from '#features/catalogs/application/dtos/payment_methods.dto'
-
-import { ListPaymentMethodsParams } from '#features/catalogs/domain/interfaces/payment_method_repository'
+import PaymentMethodRepository, {
+  ListPaymentMethodsParams,
+} from '#features/catalogs/domain/interfaces/payment_method_repository'
 
 @inject()
 export default class PaymentMethodsUseCase {
-  constructor(private readonly service: PaymentMethodsService) {}
+  constructor(private readonly repository: PaymentMethodRepository) {}
 
   list(params: ListPaymentMethodsParams) {
-    return this.service.list(params)
+    return this.repository.paginate(params)
   }
 
   get(id: number) {
-    return this.service.get(id)
+    return this.repository.findByIdOrFail(id)
   }
 
   create(payload: PaymentMethodCreateDto) {
-    return this.service.create(payload)
+    if (!payload.code || !payload.label) {
+      throw new Error('code and label are required')
+    }
+    return this.repository.create({ code: payload.code, label: payload.label })
   }
 
   update(id: number, payload: PaymentMethodUpdateDto) {
-    return this.service.update(id, payload)
+    return this.repository.update(id, payload)
   }
 
   delete(id: number) {
-    return this.service.delete(id)
+    return this.repository.delete(id)
   }
 }

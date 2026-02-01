@@ -1,6 +1,6 @@
 ﻿import { inject } from '@adonisjs/core'
 import User from '#features/users/domain/models/user'
-import { Exception } from '@adonisjs/core/exceptions'
+import LogoutException from '#features/authentication/infrastructure/exceptions/logout_exception'
 
 /**
  * Handles the use case for logging out an authenticated user.
@@ -24,10 +24,7 @@ export default class LogoutUseCase {
 
       return true
     } catch (error) {
-      throw new Exception('Failed to logout', {
-        status: 500,
-        code: 'FAILED_TO_LOGOUT',
-      })
+      throw new LogoutException()
     }
   }
 }

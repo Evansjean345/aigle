@@ -2,8 +2,8 @@ import { inject } from '@adonisjs/core'
 import HandleDepositWebhookUseCase from '#features/webhooks/application/use_cases/handle_deposit_webhook.use_case'
 import { HttpContext } from '@adonisjs/core/http'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
-import { Logger, LoggerService } from '@adonisjs/core/logger'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import transactionLog from '#shared/infrastructure/logging/transaction_log'
 
 /**
  * Controller for handling deposit webhook events.
@@ -17,15 +17,8 @@ export default class DepositWebhookController {
    * Creates an instance of the class with the provided HandleDepositWebhookUseCase.
    *
    * @param {HandleDepositWebhookUseCase} handleDepositWebhook - The use case that manages deposit webhook handling logic.
-   * @param {Logger} logger - Application logger for structured logging.
    */
-  private readonly logger: LoggerService
-  constructor(
-    private readonly handleDepositWebhook: HandleDepositWebhookUseCase,
-    private readonly baseLogger: Logger
-  ) {
-    this.logger = this.baseLogger.use('transaction')
-  }
+  constructor(private readonly handleDepositWebhook: HandleDepositWebhookUseCase) {}
 
   /**
    * Handles a successful deposit webhook event by processing the payload and returning an appropriate response.
@@ -38,7 +31,8 @@ export default class DepositWebhookController {
   async depositSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
-    this.logger.info(
+    transactionLog.info(
+      '>>> DEPOSIT_SUCCESS_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
         headers: request.headers(),
@@ -50,10 +44,15 @@ export default class DepositWebhookController {
 
     try {
       const result = await this.handleDepositWebhook.execute(payload, TransactionStatus.SUCCESS)
-      this.logger.info({ reference: payload?.data?.reference }, 'Deposit success processed')
+      transactionLog.info(
+        '>>> DEPOSIT_SUCCESS_WEBHOOK_PROCESSED',
+        { reference: payload?.data?.reference },
+        'Deposit success processed'
+      )
       return response.ok(result)
     } catch (error: any) {
-      this.logger.error(
+      transactionLog.error(
+        '>>> DEPOSIT_SUCCESS_WEBHOOK_ERROR',
         { err: error, reference: payload?.data?.reference },
         'Error while processing deposit success webhook'
       )
@@ -73,7 +72,8 @@ export default class DepositWebhookController {
   async depositFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
-    this.logger.info(
+    transactionLog.info(
+      '>>> DEPOSIT_FAILED_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
         headers: request.headers(),
@@ -85,10 +85,15 @@ export default class DepositWebhookController {
 
     try {
       const result = await this.handleDepositWebhook.execute(payload, TransactionStatus.FAILED)
-      this.logger.info({ reference: payload?.data?.reference }, 'Deposit failure processed')
+      transactionLog.info(
+        'DEPOSIT_FAILED_WEBHOOK_PROCESSED',
+        { reference: payload?.data?.reference },
+        'Deposit failure processed'
+      )
       return response.ok(result)
     } catch (error: any) {
-      this.logger.error(
+      transactionLog.error(
+        'DEPOSIT_FAILED_WEBHOOK_ERROR',
         { err: error, reference: payload?.data?.reference },
         'Error while processing deposit failure webhook'
       )

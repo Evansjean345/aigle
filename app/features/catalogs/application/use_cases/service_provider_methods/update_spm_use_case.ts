@@ -1,12 +1,12 @@
 import { inject } from '@adonisjs/core'
 import { ServiceProviderMethodUpdateDto } from '#features/catalogs/application/dtos/service_provider_methods.dto'
-import ServiceProviderMethodsService from '#features/catalogs/application/services/service_provider_methods.service'
+import ServiceProviderMethodRepository from '#features/catalogs/domain/interfaces/service_provider_method_repository'
 
 @inject()
 export default class UpdateSpmUseCase {
-  constructor(private readonly service: ServiceProviderMethodsService) {}
+  constructor(private readonly repository: ServiceProviderMethodRepository) {}
 
   execute(id: number, payload: ServiceProviderMethodUpdateDto) {
-    return this.service.update(id, payload)
+    return this.repository.update(id, payload)
   }
 }

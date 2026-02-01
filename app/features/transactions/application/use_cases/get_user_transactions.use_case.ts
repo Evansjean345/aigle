@@ -1,6 +1,6 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
-import { toPaginatedMobileTransactionsResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
+import { toPaginatedMobileTransactionsResponseDto } from '#features/transactions/application/mapper/mobile_transaction.mapper'
 import { PaginatedMobileTransactionsResponseDTO } from '#features/transactions/application/dto/mobile_transaction.dto'
 
 /**

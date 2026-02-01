@@ -26,9 +26,9 @@ export default abstract class ServiceTypeRepository {
   /**
    * Retrieves a service type by its code.
    * @param code
-   * @return {Promise<ServiceType | null> } A promise that resolves to the service type object if found, or null if not found.
+   * @return {Promise<ServiceType>} A promise that resolves to the service type object if found.
    */
-  abstract findByCode(code: string): Promise<ServiceType | null>
+  abstract findByCode(code: string): Promise<ServiceType>
 
   /**
    * Creates a new service type based on the provided data object.

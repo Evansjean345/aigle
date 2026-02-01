@@ -23,7 +23,7 @@ export interface AdminKycListDto {
   comment?: string
   createdAt: string
   attempts?: any[]
-  user: {
+  user?: {
     firstname: string
     lastname: string
     usersUid: string

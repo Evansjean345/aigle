@@ -12,9 +12,9 @@ export default class KycMapper {
       selfieUrl: kyc.selfieUrl,
       status: kyc.status,
       comment: kyc.comment,
-      createdAt: kyc.createdAt.toISO() || kyc.createdAt.toString(),
+      createdAt: kyc.createdAt?.toISO() || kyc.createdAt?.toString() || '',
       attempts: kyc.attempts?.map((attempt) => attempt.toJSON()),
-      user: {
+      user: kyc.user && {
         firstname: kyc.user.firstname,
         lastname: kyc.user.lastname,
         usersUid: kyc.user.usersUid,
@@ -22,12 +22,10 @@ export default class KycMapper {
         kycStatus: kyc.user.kycStatus,
         phone: kyc.user.phone,
         status: kyc.user.status,
-        wallet: kyc.user.wallet
-          ? {
-              id: kyc.user.wallet.id,
-              balance: kyc.user.wallet.balance,
-            }
-          : undefined,
+        wallet: kyc.user.wallet && {
+          id: kyc.user.wallet.id,
+          balance: kyc.user.wallet.balance,
+        },
       },
     }
   }

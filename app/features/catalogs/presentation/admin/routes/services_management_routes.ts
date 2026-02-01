@@ -8,37 +8,40 @@ const ProvidersController = () =>
   import('#features/catalogs/presentation/admin/controllers/providers_controller')
 const ServiceProviderMethodsController = () =>
   import('#features/catalogs/presentation/admin/controllers/service_provider_methods_controller')
+const AdminCompanyContactsController = () =>
+  import(
+    '#features/catalogs/presentation/admin/controllers/admin_company_contacts_controller'
+  )
 
 export default function adminServicesManagementRoutes() {
   return router
     .group(() => {
-      // Service Types
       router.get('service-types', [ServiceTypesController, 'index'])
       router.get('service-types/:id', [ServiceTypesController, 'show'])
       router.post('service-types', [ServiceTypesController, 'store'])
       router.put('service-types/:id', [ServiceTypesController, 'update'])
       router.delete('service-types/:id', [ServiceTypesController, 'destroy'])
 
-      // Payment Methods
       router.get('payment-methods', [PaymentMethodsController, 'index'])
       router.get('payment-methods/:id', [PaymentMethodsController, 'show'])
       router.post('payment-methods', [PaymentMethodsController, 'store'])
       router.put('payment-methods/:id', [PaymentMethodsController, 'update'])
       router.delete('payment-methods/:id', [PaymentMethodsController, 'destroy'])
 
-      // Providers
       router.get('providers', [ProvidersController, 'index'])
       router.get('providers/:id', [ProvidersController, 'show'])
       router.post('providers', [ProvidersController, 'store'])
       router.put('providers/:id', [ProvidersController, 'update'])
       router.delete('providers/:id', [ProvidersController, 'destroy'])
 
-      // Service Provider Methods
       router.get('service-provider-methods', [ServiceProviderMethodsController, 'index'])
       router.get('service-provider-methods/:id', [ServiceProviderMethodsController, 'show'])
       router.post('service-provider-methods', [ServiceProviderMethodsController, 'store'])
       router.put('service-provider-methods/:id', [ServiceProviderMethodsController, 'update'])
       router.delete('service-provider-methods/:id', [ServiceProviderMethodsController, 'destroy'])
+
+      router.get('company-contacts', [AdminCompanyContactsController, 'index'])
+      router.put('company-contacts/:id', [AdminCompanyContactsController, 'update'])
     })
     .prefix('/services-management')
 }

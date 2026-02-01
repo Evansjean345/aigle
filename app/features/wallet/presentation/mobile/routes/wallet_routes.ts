@@ -10,5 +10,5 @@ export default function mobileWalletRoutes() {
       router.get('overview', [WalletOverViewController, 'handle'])
     })
     .prefix('mobile/wallet')
-    .use(middleware.auth())
+    .use([middleware.auth(), middleware.device()])
 }

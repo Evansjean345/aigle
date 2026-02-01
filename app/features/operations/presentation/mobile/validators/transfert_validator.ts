@@ -28,6 +28,7 @@ const schema = vine.object({
     ),
   phone: vine.string().trim(),
   include_fees: vine.boolean().optional(),
+  pincode: vine.string().trim().minLength(5).maxLength(5),
 })
 
 export const transfertValidator = vine.compile(schema)

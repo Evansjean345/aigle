@@ -89,4 +89,35 @@ export default abstract class TransactionRepository {
    * @return {Promise<Transaction | null>}
    */
   abstract findLastSuccessByUserId(userId: string): Promise<Transaction | null>
+
+  /**
+   * Retrieves detailed statistics for transactions.
+   *
+   * @param {Object} options - Filtering options.
+   * @param {string} options.userId - Optional user ID to filter stats.
+   * @return {Promise<{
+   *   totalIn: number,
+   *   totalOut: number,
+   *   transferVolume: number,
+   *   interNetworkVolume: number,
+   *   walletTransferVolume: number,
+   *   totalFees: number,
+   *   count: number,
+   *   successCount: number,
+   *   failedCount: number,
+   *   pendingCount: number
+   * }>}
+   */
+  abstract getStats(options?: { userId?: string }): Promise<{
+    totalIn: number
+    totalOut: number
+    transferVolume: number
+    interNetworkVolume: number
+    walletTransferVolume: number
+    totalFees: number
+    count: number
+    successCount: number
+    failedCount: number
+    pendingCount: number
+  }>
 }

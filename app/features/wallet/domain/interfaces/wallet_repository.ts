@@ -46,7 +46,7 @@ export default abstract class WalletRepository {
    * @param {number} id - The unique identifier of the wallet.
    * @param {number} delta - The amount to adjust the wallet's balance by. Positive values increase the balance, while negative values decrease it.
    * @param {TransactionClientContract} [trx] - An optional transaction client for handling the balance adjustment within a database transaction.
-   * @return {Promise<{ id: number; balance: number  | null>} A promise that resolves to the updated Wallet object if the operation succeeds, or null if the wallet does not exist or the operation fails.
+   * @return {Promise<{ id: number; balance: number } | null>} A promise that resolves to the updated Wallet object if the operation succeeds, or null if the wallet does not exist or the operation fails.
    */
   abstract adjustBalance(
     id: number,
@@ -90,4 +90,18 @@ export default abstract class WalletRepository {
     amount: number,
     trx?: TransactionClientContract
   ): Promise<AdjustedBalance | null>
+
+  /**
+   * Updates the status of a wallet.
+   *
+   * @param {number} id - The unique identifier of the wallet to be updated.
+   * @param {WalletStatus} status - The new status to be assigned to the wallet.
+   * @param {TransactionClientContract} [trx] - Optional transaction client to perform the operation within a transaction.
+   * @return {Promise<Wallet | null>} A promise that resolves to the updated wallet if the operation is successful, or null if the wallet is not found.
+   */
+  abstract updateStatus(
+    id: number,
+    status: WalletStatus,
+    trx?: TransactionClientContract
+  ): Promise<Wallet | null>
 }

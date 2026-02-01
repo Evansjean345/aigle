@@ -13,12 +13,12 @@ const WalletToWalletController = () =>
 const mobileOperationRoutes = () =>
   router
     .group(() => {
-      router.post('deposit', [DepositController]).use(middleware.idempotency())
-      router.post('transfert', [TransfertController]).use(middleware.idempotency())
-      router.post('transfert-inter', [TransfertInterController]).use(middleware.idempotency())
-      router.post('wallet-to-wallet', [WalletToWalletController]).use(middleware.idempotency())
+      router.post('deposit', [DepositController])
+      router.post('transfert', [TransfertController])
+      router.post('transfert-inter', [TransfertInterController])
+      router.post('wallet-to-wallet', [WalletToWalletController])
     })
     .prefix('mobile/operations')
-    .use(middleware.auth())
+    .use([middleware.auth(), middleware.device(), middleware.idempotency()])
 
 export default mobileOperationRoutes

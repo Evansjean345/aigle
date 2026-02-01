@@ -1,9 +1,9 @@
 ﻿import { inject } from '@adonisjs/core'
-import AuthentificationService from '#features/authentication/application/services/mobile_auth_service'
-import { Exception } from '@adonisjs/core/exceptions'
-import CheckPhoneResponseDto from '#features/authentication/application/dtos/check_phone.response.dto'
+import { CheckPhoneResponseDto } from '#features/authentication/application/dtos/check_phone.dto'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber } from '#shared/utils/utiles'
+import PhoneNotFoundException from '#features/authentication/infrastructure/exceptions/phone_not_found_exception'
+import UserRepository from '#features/user/domain/interfaces/user_repository'
 
 /**
  * Use case class to handle the logic for checking the validity of a phone number
@@ -15,11 +15,11 @@ export default class CheckPhoneUseCase {
   /**
    * Constructs an instance of the class with dependencies for authentication and country data management.
    *
-   * @param {AuthentificationService} authenticationService - The service used for handling authentication operations.
+   * @param {UserRepository} userRepository - The repository used for user data management.
    * @param {CountryRepository} countryRepository - The repository used for accessing and managing country data.
    */
   constructor(
-    private authenticationService: AuthentificationService,
+    private userRepository: UserRepository,
     private readonly countryRepository: CountryRepository
   ) {}
 
@@ -35,13 +35,10 @@ export default class CheckPhoneUseCase {
     const country = await this.countryRepository.findCountryBy('id', countryId)
     const formattedPhone = concartPhoneNumber(country.phoneCode, phoneNumber)
 
-    const user = await this.authenticationService.checkPhoneNumber(formattedPhone)
+    const user = await this.userRepository.findByPhone(formattedPhone)
 
     if (!user) {
-      throw new Exception('Numéro de téléphone introuvable', {
-        status: 404,
-        code: 'PHONE_NOT_FOUND',
-      })
+      throw new PhoneNotFoundException('Numéro de téléphone introuvable')
     }
 
     return {

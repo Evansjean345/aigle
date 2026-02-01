@@ -6,6 +6,11 @@ import { LedgerOperationType } from '#features/ledger/domain/ledger_enums'
 
 @inject()
 export default class GetAllLedgersUseCase {
+  /**
+   * Constructs an instance of the class with the specified LedgerRepository.
+   *
+   * @param {LedgerRepository} ledgerRepository - The repository used to manage ledger data.
+   */
   constructor(private readonly ledgerRepository: LedgerRepository) {}
 
   /**

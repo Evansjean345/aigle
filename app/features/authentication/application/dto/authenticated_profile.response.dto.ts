@@ -7,7 +7,7 @@ export interface AuthenticatedProfileResponseDto {
   phone: string
   accountType: string
   picture_url: string | null
-  status: 'active' | 'inactive' | 'pending' | 'suspended'
+  status: 'active' | 'inactive' | 'pending' | 'blocked'
   country: Country
 }
 

@@ -3,6 +3,8 @@
 // Feature-based imports
 import DeviceRepository from '#features/device/domain/interfaces/device_repository'
 import DeviceRepositoryImpl from '#features/device/infrastructure/repositories/device_repository_impl'
+import AppVersionRepository from '#features/device/domain/interfaces/app_version_repository'
+import AppVersionRepositoryImpl from '#features/device/infrastructure/repositories/app_version_repository_impl'
 
 import UserRepository from '#features/users/domain/interfaces/user_repository'
 import UserRepositoryImpl from '#features/users/infrastructure/repositories/user_repository_impl'
@@ -26,10 +28,14 @@ import ProviderRepository from '#features/catalogs/domain/interfaces/provider_re
 import ProviderRepositoryImpl from '#features/catalogs/infrastructure/repositories/provider_repository_impl'
 import ServiceProviderMethodRepository from '#features/catalogs/domain/interfaces/service_provider_method_repository'
 import ServiceProviderMethodRepositoryImpl from '#features/catalogs/infrastructure/repositories/service_provider_method_repository_impl'
+import CompanyContactRepository from '#features/catalogs/domain/interfaces/company_contact_repository'
+import CompanyContactRepositoryImpl from '#features/catalogs/infrastructure/repositories/company_contact_repository_impl'
 import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
-import KycDocumentRepositoryImpl from '#features/kyc/infrastructures/repositories/kyc_document_repository_impl'
+import KycDocumentRepositoryImpl from '#features/kyc/infrastructure/repositories/kyc_document_repository_impl'
 import KycLevelRepository from '#features/kyc/domain/imterfaces/kyc_level_repository'
-import KycLevelRepositoryImpl from '#features/kyc/infrastructures/repositories/kyc_level_repository_impl'
+import KycLevelRepositoryImpl from '#features/kyc/infrastructure/repositories/kyc_level_repository_impl'
+import ResetPasswordTokenProvider from '#features/authentication/domain/interfaces/reset_password_token_provider'
+import RedisResetPasswordTokenProvider from '#features/authentication/infrastructure/redis_reset_password_token_provider'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -48,10 +54,13 @@ export default class RepositoryProvider {
       [PaymentMethodRepository, PaymentMethodRepositoryImpl],
       [ProviderRepository, ProviderRepositoryImpl],
       [ServiceProviderMethodRepository, ServiceProviderMethodRepositoryImpl],
+      [CompanyContactRepository, CompanyContactRepositoryImpl],
       [ServiceProviderFeesRepository, ServiceProviderFeesRepositoryImpl],
       [DeviceRepository, DeviceRepositoryImpl],
+      [AppVersionRepository, AppVersionRepositoryImpl],
       [KycDocumentRepository, KycDocumentRepositoryImpl],
       [KycLevelRepository, KycLevelRepositoryImpl],
+      [ResetPasswordTokenProvider, RedisResetPasswordTokenProvider],
     ])
 
     for (const [contract, implementation] of providers) {

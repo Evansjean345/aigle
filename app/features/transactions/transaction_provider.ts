@@ -6,6 +6,10 @@ import PaymentRepository from '#features/transactions/domain/interfaces/payment_
 import PaymentRepositoryImpl from '#features/transactions/infrastructure/repositories/payment_repository_impl'
 import TransactionVolumeCache from '#features/transactions/domain/interfaces/transaction_volume_cache'
 import RedisTransactionVolumeCache from '#features/transactions/infrastructure/redis_transaction_volume_cache'
+import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
+import RedisTransactionThrottleCache from '#features/transactions/infrastructure/redis_transaction_throttle_cache'
+import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
+import RedisTransactionFailureCache from '#features/transactions/infrastructure/redis_transaction_failure_cache'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import RedisIdempotencyProvider from '#features/transactions/infrastructure/redis_idempotency_provider'
 
@@ -17,6 +21,8 @@ export default class TransactionProvider {
       [TransactionRepository, TransactionRepositoryImpl],
       [PaymentRepository, PaymentRepositoryImpl],
       [TransactionVolumeCache, RedisTransactionVolumeCache],
+      [TransactionThrottleCache, RedisTransactionThrottleCache],
+      [TransactionFailureCache, RedisTransactionFailureCache],
       [IdempotencyProvider, RedisIdempotencyProvider],
     ])
 

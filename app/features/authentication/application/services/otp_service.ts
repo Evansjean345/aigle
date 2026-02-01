@@ -3,13 +3,17 @@ import hash from '@adonisjs/core/services/hash'
 import { DateTime } from 'luxon'
 import OtpRepository from '#features/authentication/domain/interfaces/otp_repository'
 import Otp from '#features/authentication/domain/models/otp'
-import { Exception } from '@adonisjs/core/exceptions'
+import OtpCreationException from '#features/authentication/infrastructure/exceptions/otp_creation_exception'
+import InvalidOtpException from '#features/authentication/infrastructure/exceptions/invalid_otp_exception'
+import ExpiredOtpException from '#features/authentication/infrastructure/exceptions/expired_otp_exception'
+import OtpLockedException from '#features/authentication/infrastructure/exceptions/otp_locked_exception'
+import appLog from '#shared/infrastructure/logging/app_log'
 
 // Simple constants to make OTP behavior easy to tune
-const OTP_EXPIRY_SECONDS = 600
-const OTP_EXPIRY_MINUTES = 10
-const OTP_MAX_ATTEMPTS = 5
-const OTP_LOCK_SECONDS = 60
+const OTP_EXPIRY_SECONDS = 600 // 10 minutes
+const OTP_EXPIRY_MINUTES = 10 // 10 minutes
+const OTP_MAX_ATTEMPTS = 5 // 5 attempts before locking
+const OTP_LOCK_SECONDS = 60 // 1-minute lock after 5 attempts
 
 /**
  * Service for handling OTP (One-Time Password) generation, sending, and verification.
@@ -28,7 +32,12 @@ export default class OtpService {
   constructor(private otpRepository: OtpRepository) {}
 
   /**
-   * Create and persist an OTP for a user/phone. Returns the saved OTP entity and the plaintext code.
+   * Generates and saves a new one-time password (OTP) for a given user and phone number.
+   *
+   * @param {string} userId - The unique identifier of the user requesting the OTP.
+   * @param {string} phone - The phone number to which the OTP is associated.
+   * @return {Promise<{ entity: Otp, code: string }>} A promise that resolves to an object containing the saved OTP entity and the generated OTP code.
+   * @throws {OtpCreationException} Throws an exception if there is an error during the OTP creation process.
    */
   async createOtp(userId: string, phone: string): Promise<{ entity: Otp; code: string }> {
     await this.otpRepository.delete(phone)
@@ -49,21 +58,25 @@ export default class OtpService {
       const saved = await this.otpRepository.save(otp)
       return { entity: saved, code }
     } catch (err) {
-      console.log(err)
-      throw new Exception("Erreur lors de l'enregistrement de l'OTP", {
-        status: 500,
-        code: 'OTP_CREATION_ERROR',
-      })
+      appLog.error(
+        'OTP_CREATION_ERROR',
+        {
+          userId,
+          phone,
+          error: err.message,
+        },
+        "Couldn't create OTP for user"
+      )
+      throw new OtpCreationException()
     }
   }
 
   /**
-   * Sends an OTP (One-Time Password) to the specified phone number.
+   * Sends an OTP (one-time password) to the specified phone number.
    *
-   * @param {string} phone - The phone number to which the OTP will be sent.
+   * @param {string} phone - The phone number to which the OTP is to be sent.
    * @param {string} userId - The unique identifier of the user requesting the OTP.
-   * @return {Promise<any>} A promise that resolves to an object containing the status of the operation.
-   * @throws {Exception} If there is an error during the OTP generation or SMS sending process.
+   * @return {Promise<{ sent: boolean }>} A promise that resolves to an object indicating whether the OTP was sent successfully.
    */
   async sendOtp(phone: string, userId: string): Promise<{ sent: boolean }> {
     try {
@@ -74,10 +87,7 @@ export default class OtpService {
 
       return { sent: true }
     } catch (err) {
-      throw new Exception(err.message, {
-        status: err.status,
-        code: err.code,
-      })
+      throw err
     }
   }
 
@@ -94,26 +104,17 @@ export default class OtpService {
     const otp = await this.otpRepository.check(data.phone)
 
     if (!otp) {
-      throw new Exception('Code Otp incorrect', {
-        status: 400,
-        code: 'OTP_INVALID',
-      })
+      throw new InvalidOtpException()
     }
 
     const now = DateTime.now()
 
     if (DateTime.fromJSDate(<Date>otp.expiresAt) < now) {
-      throw new Exception('Code OTP a expiré', {
-        status: 400,
-        code: 'OTP_EXPIRED',
-      })
+      throw new ExpiredOtpException()
     }
 
     if (otp.lockedUntil && DateTime.fromJSDate(otp.lockedUntil) > now) {
-      throw new Exception('Vous êtes temporairement bloqué. Veuillez réessayer plus tard.', {
-        status: 400,
-        code: 'OTP_LOCKED',
-      })
+      throw new OtpLockedException()
     }
 
     if (otp.lockedUntil && DateTime.fromJSDate(<Date>otp.lockedUntil) < now) {
@@ -128,10 +129,7 @@ export default class OtpService {
       otp.lockedUntil = new Date(Date.now() + OTP_LOCK_SECONDS * 1000)
       await this.otpRepository.save(otp)
 
-      throw new Exception('Vous êtes temporairement bloqué. Veuillez réessayer plus tard.', {
-        status: 400,
-        code: 'OTP_LOCKED',
-      })
+      throw new OtpLockedException()
     }
 
     const isOtpValid = await hash.verify(otp.otpCode, data.enteredOtp)
@@ -140,10 +138,7 @@ export default class OtpService {
       otp.attempts = (otp.attempts ?? 0) + 1
       await this.otpRepository.save(otp)
 
-      throw new Exception('Code Otp incorrect', {
-        status: 400,
-        code: 'OTP_INVALID',
-      })
+      throw new InvalidOtpException()
     }
 
     // Optional: Invalidate OTP after a successful verification to prevent reuse

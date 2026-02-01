@@ -1,11 +1,11 @@
 import { inject } from '@adonisjs/core'
-import ServiceProviderMethodsService from '#features/catalogs/application/services/service_provider_methods.service'
+import ServiceProviderMethodRepository from '#features/catalogs/domain/interfaces/service_provider_method_repository'
 
 @inject()
 export default class DeleteSpmUseCase {
-  constructor(private readonly service: ServiceProviderMethodsService) {}
+  constructor(private readonly repository: ServiceProviderMethodRepository) {}
 
   execute(id: number) {
-    return this.service.delete(id)
+    return this.repository.delete(id)
   }
 }

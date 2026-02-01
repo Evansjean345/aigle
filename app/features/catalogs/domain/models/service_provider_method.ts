@@ -33,7 +33,7 @@ export default class ServiceProviderMethod extends BaseModel {
   declare minAmount: number
 
   @column()
-  declare applyFees: boolean
+  declare applyFeeds: boolean
 
   @column()
   declare currency: string

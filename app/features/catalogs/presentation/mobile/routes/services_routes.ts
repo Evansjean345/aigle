@@ -1,7 +1,10 @@
 import router from '@adonisjs/core/services/router'
+import { middleware } from '#start/kernel'
 
 const ServicesController = () =>
   import('#features/catalogs/presentation/mobile/controllers/services_controller')
+const CompanyContactsController = () =>
+  import('#features/catalogs/presentation/mobile/controllers/company_contacts_controller')
 
 export default function mobileServicesRoutes() {
   router
@@ -14,6 +17,8 @@ export default function mobileServicesRoutes() {
         ServicesController,
         'paymentOptionsByServiceTypeTo',
       ])
+      router.get('company-contacts', [CompanyContactsController, 'index'])
     })
     .prefix('mobile/services')
+    .use(middleware.device())
 }

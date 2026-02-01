@@ -1,6 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import type { Authenticators } from '@adonisjs/auth/types'
+import { UserStatus } from '#features/user/domain/enum'
+import AccountBlockedException from '#features/authentication/infrastructure/exceptions/account_blocked_exception'
 
 /**
  * Auth middleware is used authenticate HTTP requests and deny
@@ -20,6 +22,12 @@ export default class AuthMiddleware {
     } = {}
   ) {
     await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
+
+    const user = ctx.auth.user
+    if (user && user.status === UserStatus.BLOCKED) {
+      throw new AccountBlockedException()
+    }
+
     return next()
   }
 }

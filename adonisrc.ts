@@ -10,7 +10,7 @@ export default defineConfig({
   | will be scanned automatically from the "./commands" directory.
   |
   */
-  commands: [() => import('@adonisjs/core/commands'), () => import('@adonisjs/lucid/commands')],
+  commands: [() => import('@adonisjs/core/commands'), () => import('@adonisjs/lucid/commands'), () => import('@adonisjs/cache/commands')],
 
   /*
   |--------------------------------------------------------------------------
@@ -39,6 +39,8 @@ export default defineConfig({
     () => import('#providers/notification_service_provider'),
     () => import('#features/transactions/transaction_provider'),
     () => import('#features/ledger/ledger_provider'),
+    () => import('@adonisjs/cache/cache_provider'),
+    () => import('@adonisjs/limiter/limiter_provider')
   ],
 
   /*

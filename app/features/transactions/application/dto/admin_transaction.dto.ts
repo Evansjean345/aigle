@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { TransactionDirection } from '#features/transactions/domain/models/transaction'
+import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { PaymentResponseDTO } from '#features/transactions/application/dto/payment.dto'
 
 export interface AdminTransactionResponseDTO {
@@ -9,8 +9,6 @@ export interface AdminTransactionResponseDTO {
   amount: number
   fees: number
   totalAmount: number
-  balanceBefore: number
-  balanceAfter: number
   operationType: string
   direction: TransactionDirection
   status: string
@@ -18,7 +16,7 @@ export interface AdminTransactionResponseDTO {
   createdAt: DateTime
   updatedAt: DateTime
   payment: PaymentResponseDTO[]
-  user: {
+  user?: {
     id: string
     firstname: string
     lastname: string
@@ -33,18 +31,36 @@ export interface AdminTransactionResponseDTO {
     fees: number
     totalAmount: number
     balanceAfter: number
+    balanceBefore: number
     createdAt: DateTime
-  }[]
+  }
 }
 
-export interface Meta {
+export interface PaginationMeta {
   total: number
   currentPage: number
   lastPage: number
   firstPage: number
+  perPage: number
 }
 
 export interface PaginatedAdminTransactionsResponseDTO {
   data: AdminTransactionResponseDTO[]
-  meta: Meta
+  meta: PaginationMeta
+}
+
+export interface UserTransactionsStatsDTO {
+  totalInVolume: number
+  totalOutVolume: number
+  transferVolume: number
+  interNetworkVolume: number
+  walletTransferVolume: number
+  totalFees: number
+  avgTransactionValue: number
+  successRate: number
+  failureRate: number
+  successCount: number
+  failedCount: number
+  pendingCount: number
+  totalCount: number
 }

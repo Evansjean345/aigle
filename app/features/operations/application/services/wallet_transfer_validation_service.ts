@@ -1,6 +1,4 @@
 import { inject } from '@adonisjs/core'
-import { Exception } from '@adonisjs/core/exceptions'
-import { Logger } from '@adonisjs/core/logger'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
@@ -13,10 +11,12 @@ import {
 } from '#features/operations/application/services/wallet_transfer_context_service'
 import { normalizePhone } from '#shared/utils/utiles'
 import logger from '@adonisjs/core/services/logger'
+import WalletNotFoundException from '#features/operations/infrastructure/exceptions/wallet_not_found_exception'
+import SameWalletTransferException from '#features/operations/infrastructure/exceptions/same_wallet_transfer_exception'
 
 @inject()
 export default class WalletTransferValidationService {
-  private readonly logger: Logger = logger.use('transaction')
+  private readonly logger = logger.use('transaction')
 
   /**
    * Creates a new instance of the class.
@@ -42,15 +42,20 @@ export default class WalletTransferValidationService {
     mode: TransferMode,
     providedPhone?: string
   ): Promise<void> {
-    const { senderWallet, recipientWallet, amount, currentUser } = context
+    const { senderWallet, recipientWallet, amount, total, currentUser } = context
 
     this.validateWallets(senderWallet, recipientWallet)
     await this.ensureWalletsUsersLoaded(senderWallet, recipientWallet)
 
     this.logRecipientPhoneMismatch(mode, providedPhone, recipientWallet)
 
-    await this.validateUserForTransfer(currentUser, amount, TransactionDirection.DEBIT)
-    await this.validateUserForTransfer(recipientWallet.user, amount, TransactionDirection.CREDIT)
+    await this.validateUserForTransfer(currentUser, total, TransactionDirection.DEBIT)
+    await this.validateUserForTransfer(
+      recipientWallet.user,
+      amount,
+      TransactionDirection.CREDIT,
+      true
+    )
   }
 
   /**
@@ -64,10 +69,9 @@ export default class WalletTransferValidationService {
    */
   private validateWallets(senderWallet: Wallet, recipientWallet: Wallet): void {
     if (!senderWallet || !recipientWallet) {
-      throw new Exception("Portefeuille de l'expéditeur ou du destinataire introuvable", {
-        status: 404,
-        code: 'WALLET_NOT_FOUND',
-      })
+      throw new WalletNotFoundException(
+        "Portefeuille de l'expéditeur ou du destinataire introuvable"
+      )
     }
 
     if (senderWallet.id === recipientWallet.id) {
@@ -80,10 +84,7 @@ export default class WalletTransferValidationService {
         },
         'Impossible de transférer vers le même portefeuille'
       )
-      throw new Exception('Impossible de transférer vers le même portefeuille', {
-        status: 400,
-        code: 'SAME_WALLET',
-      })
+      throw new SameWalletTransferException()
     }
   }
 
@@ -108,19 +109,22 @@ export default class WalletTransferValidationService {
    * @param {User} user - The user initiating the transfer.
    * @param {number} amount - The amount to be transferred.
    * @param {TransactionDirection} direction - The direction of the transfer (e.g., incoming or outgoing).
+   * @param {boolean} isRecipient - Whether the user being validated is the recipient.
    * @return {Promise<void>} - A promise that resolves when validation is complete.
    */
   private async validateUserForTransfer(
     user: User,
     amount: number,
-    direction: TransactionDirection
+    direction: TransactionDirection,
+    isRecipient: boolean = false
   ): Promise<void> {
-    await this.accountValidationService.validateAccount(user)
+    await this.accountValidationService.validateAccount(user, isRecipient)
     await this.transactionLimitValidationService.validateTransactionLimit({
       user,
       amount,
       transactionType: TransactionType.WALLET_TRANSFERT,
       direction,
+      operationType: TransactionType.WALLET_TRANSFERT,
     })
   }
 

@@ -69,4 +69,11 @@ export default abstract class UserRepository {
    * @return {Promise<User>} A promise that resolves to the saved user object.
    */
   abstract save(user: User, trx?: TransactionClientContract): Promise<User>
+
+  /**
+   * Retrieves user statistics.
+   *
+   * @return {Promise<Record<string, number>>} A promise that resolves to a record of user statistics.
+   */
+  abstract getStats(): Promise<Record<string, number>>
 }

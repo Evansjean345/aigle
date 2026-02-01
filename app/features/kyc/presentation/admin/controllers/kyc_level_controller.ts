@@ -1,9 +1,9 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import GetAllKycLevelsUseCase from '#features/kyc/application/usecases/get_all_kyc_levels.usecase'
-import CreateKycLevelUseCase from '#features/kyc/application/usecases/create_kyc_level.usecase'
-import UpdateKycLevelUseCase from '#features/kyc/application/usecases/update_kyc_level.usecase'
-import DeleteKycLevelUseCase from '#features/kyc/application/usecases/delete_kyc_level.usecase'
+import GetAllKycLevelsUseCase from '#features/kyc/application/usecases/admin/get_all_kyc_levels.usecase'
+import CreateKycLevelUseCase from '#features/kyc/application/usecases/admin/create_kyc_level.usecase'
+import UpdateKycLevelUseCase from '#features/kyc/application/usecases/admin/update_kyc_level.usecase'
+import DeleteKycLevelUseCase from '#features/kyc/application/usecases/admin/delete_kyc_level.usecase'
 import {
   createKycLevelValidator,
   updateKycLevelValidator,

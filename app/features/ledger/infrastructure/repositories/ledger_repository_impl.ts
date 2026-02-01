@@ -94,7 +94,7 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
       })
       .preload('wallet', (walletQuery) => {
         walletQuery.select(['id', 'user_id']).preload('user', (userQuery) => {
-          userQuery.select(['firstname', 'lastname', 'picture_url'])
+          userQuery.select(['firstname', 'lastname', 'picture_url', 'kyc_status'])
         })
       })
       .orderBy('createdAt', 'desc')
@@ -103,42 +103,52 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
   }
 
   /**
-   * Retrieves global statistics for the ledger.
+   * Retrieves statistics and metrics based on wallet transactions within a specified period.
    *
-   * @param {object} filters - Filtering criteria for statistics.
-   * @return {Promise<any>} A promise that resolves to ledger statistics.
+   * @param {Object} filters - The filters to apply for calculating statistics.
+   * @param {number} [filters.walletId] - The ID of the wallet to filter transactions. If not specified, statistics will consider all wallets.
+   * @param {string} [filters.period='30d'] - The time period for filtering transactions (e.g., '30d' for the last 30 days). Defaults to the last 30 days if not provided.
+   * @return {Promise<Object>} An object containing the calculated metrics:
+   * - `total_in`: The total incoming amount for the specified wallet and period.
+   * - `total_out`: The total outgoing amount for the specified wallet and period.
+   * - `total_fees`: The total transaction fees within the specified wallet and period.
+   * - `transaction_count`: The total count of transactions within the specified wallet and period.
+   * - `total_external`: Thee total external transactions within the specified wallet and period.
+   * - `period`: The period used for calculations.
    */
-  async getStats(filters: { walletId?: number; period?: string }): Promise<any> {
+  async getStats(filters: { walletId?: number; period?: string }): Promise<Record<string, any>> {
     const dateFilter = this.getDateFilter(filters.period || '30d')
+    const baseQuery = Ledger.query().withScopes((scopes) => {
+      scopes.filterByWallet(filters.walletId)
+      if (dateFilter) {
+        scopes.filterByStartDate(dateFilter.toSQL()!)
+      }
+    })
 
-    const baseQuery = () =>
-      Ledger.query().withScopes((scopes) => {
-        scopes.filterByWallet(filters.walletId)
-        if (dateFilter) {
-          scopes.filterByStartDate(dateFilter.toSQL()!)
-        }
-      })
-
-    const totalIn = await baseQuery()
-      .where('direction', LedgerDirection.CREDIT)
-      .sum('total_amount as total')
+    const result = await baseQuery
+      .select(
+        db.raw('COUNT(*) as total'),
+        db.raw('SUM(CASE WHEN direction = ? THEN total_amount ELSE 0 END) as total_in', [
+          LedgerDirection.CREDIT,
+        ]),
+        db.raw('SUM(CASE WHEN direction = ? THEN total_amount ELSE 0 END) as total_out', [
+          LedgerDirection.DEBIT,
+        ]),
+        db.raw('SUM(CASE WHEN direction = ? THEN total_amount ELSE 0 END) as total_external', [
+          LedgerDirection.EXTERNAL,
+        ]),
+        db.raw('SUM(fees) as total_fees')
+      )
       .first()
-    const totalOut = await baseQuery()
-      .where('direction', LedgerDirection.DEBIT)
-      .sum('total_amount as total')
-      .first()
-    const totalFees = await baseQuery().sum('fees as total').first()
-    const transactionCount = await baseQuery().count('* as total').first()
 
-    const inAmount = Number(totalIn?.$extras.total || 0)
-    const outAmount = Number(totalOut?.$extras.total || 0)
+    const stats = result?.$extras || {}
 
     return {
-      total_in: inAmount,
-      total_out: outAmount,
-      total_fees: Number(totalFees?.$extras.total || 0),
-      transaction_count: Number(transactionCount?.$extras.total || 0),
-      net_flow: inAmount - outAmount,
+      total_in: Number(stats.total_in || 0),
+      total_out: Number(stats.total_out || 0),
+      total_external: Number(stats.total_external || 0),
+      total_fees: Number(stats.total_fees || 0),
+      transaction_count: Number(stats.total || 0),
       period: filters.period || '30d',
     }
   }
@@ -163,8 +173,15 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
     return Ledger.query()
       .select(
         db.raw(`TO_CHAR(created_at, '${dateFormat}') as date`),
-        db.raw(`SUM(CASE WHEN direction = 'CREDIT' THEN total_amount ELSE 0 END) as total_in`),
-        db.raw(`SUM(CASE WHEN direction = 'DEBIT' THEN total_amount ELSE 0 END) as total_out`),
+        db.raw(`SUM(CASE WHEN direction = ? THEN total_amount ELSE 0 END) as total_in`, [
+          LedgerDirection.CREDIT,
+        ]),
+        db.raw(`SUM(CASE WHEN direction = ? THEN total_amount ELSE 0 END) as total_out`, [
+          LedgerDirection.DEBIT,
+        ]),
+        db.raw(`SUM(CASE WHEN direction = ? THEN total_amount ELSE 0 END) as total_out`, [
+          LedgerDirection.EXTERNAL,
+        ]),
         db.raw(`SUM(fees) as fees`),
         db.raw(`COUNT(*) as count`)
       )

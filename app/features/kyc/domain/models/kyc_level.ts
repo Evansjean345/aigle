@@ -39,9 +39,4 @@ export default class KycLevel extends BaseModel {
     localKey: 'level',
   })
   declare users: HasMany<typeof User>
-
-  async hasUsers() {
-    const user = await this.users.query().first()
-    return !!user
-  }
 }

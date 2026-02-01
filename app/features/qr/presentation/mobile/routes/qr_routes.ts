@@ -11,4 +11,5 @@ export default function mobileQrRoutes() {
       router.post('verify', [QrController, 'verify'])
     })
     .prefix('mobile/qr')
+    .use(middleware.device())
 }

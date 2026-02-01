@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { TransactionDirection } from '#features/transactions/domain/models/transaction'
+import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { PaymentResponseDTO } from '#features/transactions/application/dto/payment.dto'
 
 export interface MobileTransactionResponseDTO {
@@ -16,14 +16,15 @@ export interface MobileTransactionResponseDTO {
   payment: PaymentResponseDTO[]
 }
 
-export interface Meta {
+export interface PaginationMeta {
   total: number
   currentPage: number
   lastPage: number
   firstPage: number
+  perPage: number
 }
 
 export interface PaginatedMobileTransactionsResponseDTO {
   data: MobileTransactionResponseDTO[]
-  meta: Meta
+  meta: PaginationMeta
 }

@@ -4,6 +4,8 @@ export interface WalletToWalletRequestDto {
   token?: string
   recipient_phone: string
   amount: number
+  pincode: string
+  include_fees?: boolean
 }
 
 export interface WalletToWalletResponseDto {

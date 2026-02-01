@@ -3,6 +3,7 @@ import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import ServiceTypeRepository, {
   ListServiceTypesParams,
 } from '#features/catalogs/domain/interfaces/service_type_repository'
+import { Exception } from '@adonisjs/core/exceptions'
 
 /**
  * Implementation of the ServiceTypeRepository interface, providing methods to interact
@@ -46,8 +47,16 @@ export default class ServiceTypeRepositoryImpl implements ServiceTypeRepository 
    * @param code
    * @return {Promise<ServiceType | null>} A promise that resolves to the service type record if found, or null if not found.
    */
-  findByCode(code: string): Promise<ServiceType | null> {
-    return ServiceType.query().where('code', code).first()
+  async findByCode(code: string): Promise<ServiceType> {
+    const serviceType = await ServiceType.query().where('code', code).first()
+
+    if (!serviceType) {
+      throw new Exception("Ce type de service n'existe pas.", {
+        code: 'E_SERVICE_TYPE_NOT_FOUND',
+        status: 404,
+      })
+    }
+    return serviceType
   }
 
   /**

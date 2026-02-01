@@ -3,13 +3,24 @@ import { middleware } from '#start/kernel'
 
 const DeviceController = () =>
   import('#features/device/presentation/mobile/controllers/device_controller')
+const AppVersionController = () =>
+  import('#features/device/presentation/mobile/controllers/app_version_controller')
 
-const mobileDeviceRoutes = () =>
-  router
+// Mobile Device Routes
+export default function mobileDeviceRoutes() {
+  return router
     .group(() => {
-      router.post('/', [DeviceController, 'registerDevice'])
-    })
-    .prefix('/mobile/devices')
-    .use(middleware.auth())
+      // Public routes
+      router.get('check-updates', [AppVersionController, 'check'])
 
-export default mobileDeviceRoutes
+      // Protected routes (authentication + device middleware required)
+      router
+        .group(() => {
+          router.get('/', [DeviceController, 'getUserDevices'])
+          router.put('push-token', [DeviceController, 'updatePushToken'])
+          router.delete('/:id/revoke', [DeviceController, 'revokeDevice'])
+        })
+        .use([middleware.auth(), middleware.device()])
+    })
+    .prefix('mobile/devices')
+}

@@ -3,6 +3,7 @@ import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import ProviderRepository, {
   ListProvidersParams,
 } from '#features/catalogs/domain/interfaces/provider_repository'
+import { Exception } from '@adonisjs/core/exceptions'
 
 /**
  * Repository class for managing providers, implementing the `Provider_repository_impl` interface.
@@ -41,6 +42,26 @@ export default class ProviderRepositoryImpl implements ProviderRepository {
    */
   findByIdOrFail(id: number): Promise<Provider> {
     return Provider.findOrFail(id)
+  }
+
+  /**
+   * Finds a provider by its unique code.
+   *
+   * @param {string} code - The unique code of the provider to search for.
+   * @return {Promise<Provider>} A promise that resolves to the provider object if found.
+   * @throws {Exception} Throws an exception if no provider with the given code is found.
+   */
+  async findByCode(code: string): Promise<Provider> {
+    const provider = await Provider.query().where('code', code).first()
+
+    if (!provider) {
+      throw new Exception(`Aucun provider avec le code ${code} trouvé`, {
+        status: 404,
+        code: 'E_PROVIDER_NOT_FOUND',
+      })
+    }
+
+    return provider
   }
 
   /**

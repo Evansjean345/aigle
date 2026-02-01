@@ -1,10 +1,10 @@
 ﻿import UserRepository from '#features/users/domain/interfaces/user_repository'
-import { Exception } from '@adonisjs/core/exceptions'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import { toWalletOverviewResult } from '#features/wallet/application/mappers/wallet.mapper'
 import { WalletOverviewResult } from '#features/wallet/application/dtos/wallet_overview.result'
 import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
+import UserAccountNotFoundException from '#features/authentication/infrastructure/exceptions/user_account_not_found_exception'
 
 @inject()
 export default class GetUserWalletOverviewUseCase {
@@ -26,16 +26,13 @@ export default class GetUserWalletOverviewUseCase {
    *
    * @param {string} userId - The unique identifier of the user.
    * @return {Promise<WalletOverviewResult>} A promise that resolves to the wallet overview result.
-   * @throws {Exception} If the user is not found or the corresponding wallet does not exist.
+   * @throws {UserAccountNotFoundException} If the user is not found or the corresponding wallet does not exist.
    */
   async execute(userId: string): Promise<WalletOverviewResult> {
     const user = await this.userRepository.findById(userId)
 
     if (!user) {
-      throw new Exception('User not found', {
-        status: 404,
-        code: 'USER_NOT_FOUND',
-      })
+      throw new UserAccountNotFoundException()
     }
 
     const wallet = await this.walletService.getByUserId(user.usersUid)

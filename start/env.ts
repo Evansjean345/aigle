@@ -29,8 +29,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   CLOUDINARY_API_KEY: Env.schema.string(),
   CLOUDINARY_API_SECRET: Env.schema.string(),
 
-  APPLE_BYPASS_ENABLED: Env.schema.boolean(),
-  APPLE_REVIEW_PHONE: Env.schema.string.optional(),
+  BYPASS_OTP_VERIFICATION: Env.schema.boolean(),
+  APP_REVIEW_PHONE_NUMBER: Env.schema.string.optional(),
+
+  MAX_DEVICE_CONNECTIONS: Env.schema.number(),
 
   MOBILE_DEVICE_DEEP_LINK_URL: Env.schema.string(),
 
@@ -40,8 +42,16 @@ export default await Env.create(new URL('../', import.meta.url), {
   |----------------------------------------------------------
   */
   DRIVE_DISK: Env.schema.enum(['fs', 's3'] as const),
+
   AWS_ACCESS_KEY_ID: Env.schema.string(),
   AWS_SECRET_ACCESS_KEY: Env.schema.string(),
   AWS_REGION: Env.schema.string(),
-  S3_BUCKET: Env.schema.string()
+  S3_BUCKET: Env.schema.string(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring the limiter package
+  |----------------------------------------------------------
+  */
+  LIMITER_STORE: Env.schema.enum(['redis', 'memory'] as const),
 })

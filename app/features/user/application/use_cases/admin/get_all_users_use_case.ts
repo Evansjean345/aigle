@@ -24,7 +24,7 @@ export default class GetAllUsersUseCase {
    * @param {number} perPage - The number of users per page.
    * @return {Promise<AdminUsersListResponseDto>} A promise that resolves with the result of the execution.
    */
-  async execute(page: number = 1, perPage: number = 10): Promise<AdminUsersListResponseDto> {
+  async execute(page: number = 1, perPage: number = 16): Promise<AdminUsersListResponseDto> {
     const paginatedUsers = await this.userRepository.paginate(page, perPage, [
       'wallet',
       'keyLevel',

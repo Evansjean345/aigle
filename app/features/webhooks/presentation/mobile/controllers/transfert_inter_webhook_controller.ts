@@ -1,21 +1,18 @@
 import { inject } from '@adonisjs/core'
 import { HttpContext } from '@adonisjs/core/http'
-import { Logger, LoggerService } from '@adonisjs/core/logger'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import HandleTransfertInterFirstWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_first_webhook.use_case'
 import HandleTransfertInterSecondWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_second_webhook.use_case'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import logger from '@adonisjs/core/services/logger'
 
 @inject()
 export default class TransfertInterWebhookController {
-  private readonly logger: LoggerService
+  private readonly logger = logger.use('transaction')
   constructor(
     private readonly handleTransfertInterFirstWebhook: HandleTransfertInterFirstWebhookUseCase,
-    private readonly handleTransfertInterSecondWebhook: HandleTransfertInterSecondWebhookUseCase,
-    private readonly baseLogger: Logger
-  ) {
-    this.logger = this.baseLogger.use('transaction')
-  }
+    private readonly handleTransfertInterSecondWebhook: HandleTransfertInterSecondWebhookUseCase
+  ) {}
 
   /**
    * Handle inter-network first operation success webhook

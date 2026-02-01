@@ -1,37 +1,67 @@
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
+import { DeviceStatus } from '#features/device/domain/enums'
+import { cuid } from '@adonisjs/core/helpers'
 
 export default class Device extends BaseModel {
   @column({ isPrimary: true })
-  declare id: number
+  declare id: string
 
   @column()
-  declare token: string
+  declare userId: string
 
   @column()
-  declare userId?: string
+  declare fingerprintHash: string
 
   @column()
-  declare appVersion?: string
-
-  @column()
-  declare iosAppVersion?: string
-
-  @column()
-  declare androidAppVersion?: string
+  declare deviceUid: string
 
   @column()
   declare platform?: string
 
   @column()
-  declare platformVersion?: string
+  declare brand?: string
 
   @column()
-  declare userAgent?: string
+  declare model?: string
+
+  @column()
+  declare osVersion?: string
+
+  @column()
+  declare appVersion?: string
+
+  @column()
+  declare isEmulator: boolean
+
+  @column()
+  declare isRooted: boolean
+
+  @column()
+  declare ipFirstSeen?: string
+
+  @column()
+  declare ipLastSeen?: string
+
+  @column()
+  declare status: DeviceStatus
+
+  @column()
+  declare isPrimary: boolean
+
+  @column()
+  declare pushToken?: string | null
+
+  @column.dateTime()
+  declare lastSeenAt?: DateTime
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  @beforeCreate()
+  static async generateId(device: Device) {
+    if (!device.id) {
+      device.id = cuid()
+    }
+  }
 }

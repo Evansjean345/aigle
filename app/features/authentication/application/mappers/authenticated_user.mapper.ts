@@ -1,8 +1,9 @@
 ﻿import {
   AuthenticatedProfileAndTokenResponseDto,
   AuthenticatedProfileResponseDto,
-} from '#features/authentication/application/dtos/authenticated_profile.response.dto'
+} from '#features/authentication/application/dtos/profile.dto'
 import User from '#features/users/domain/models/user'
+import { UserKycStatus } from '#features/user/domain/enum'
 
 /**
  * Converts a `User` entity to an `AuthenticatedProfileResponseDto`.
@@ -19,7 +20,10 @@ export const toAuthenticatedUserProfileResponse = (
   phone: user.phone,
   accountNumber: user.accountNumber,
   accountType: user.accountType,
-  pictureUrl: user.kycDocument?.selfieUrl || '',
+  pictureUrl:
+    user.kycStatus === UserKycStatus.VERIFIED
+      ? user.kycDocument?.selfieUrl || user.pictureUrl || ''
+      : '',
   status: user.status,
   kycStatus: user.kycStatus,
   kycLevel: user.kycLevel,

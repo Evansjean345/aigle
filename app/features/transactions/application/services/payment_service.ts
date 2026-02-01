@@ -4,10 +4,12 @@ import Payment from '#features/transactions/domain/models/payment'
 import Transaction from '#features/transactions/domain/models/transaction'
 import User from '#features/users/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { Exception } from '@adonisjs/core/exceptions'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import PaymentAlreadyFailedException from '#features/transactions/infrastructure/exceptions/payment_already_failed_exception'
+import PaymentAlreadySuccessfulException from '#features/transactions/infrastructure/exceptions/payment_already_successful_exception'
+import PaymentNotFoundException from '#features/transactions/infrastructure/exceptions/payment_not_found_exception'
 
 /**
  * Service class for handling payment-related operations.
@@ -74,30 +76,29 @@ export default class PaymentService {
   }
 
   /**
-   * Retrieves a payment record based on the provided UID or ID.
+   * Retrieves a payment record from the repository using a unique identifier (UID) or numerical ID.
    *
-   * @param {string | number} id - The unique identifier (UID) or numeric ID of the payment.
-   * @return {Promise<Payment>} Returns a promise that resolves to the payment record.
-   * @throws {Exception} Throws an exception if no payment is found with the provided UID or ID.
+   * @param {string|number} id - The unique identifier (UID) or numerical ID of the payment to retrieve.
+   * @return {Promise<Payment>} A promise that resolves to the payment record if found, or throws an exception if not found.
+   * @throws {PaymentNotFoundException} If no payment is found for the given identifier.
    */
   async getByUidOrId(id: string | number): Promise<Payment> {
     const payment = await this.paymentRepository.findByUidOrId(id)
-    if (!payment)
-      throw new Exception('Payment not found', { status: 404, code: 'PAYMENT_NOT_FOUND' })
+    if (!payment) throw new PaymentNotFoundException()
     return payment
   }
 
   /**
-   * Marks the payment as successful by updating its status and additional properties if provided.
+   * Marks a payment as successful by updating its status and optionally saving additional information.
    *
-   * @param {string | number} id - The identifier of the payment, which can be either a string or a number.
-   * @param {Object} [extra] - Optional additional fields to update during the status change.
-   * @param {string} [extra.operator_response] - The response received from the operator.
-   * @param {string} [extra.url_operator] - The URL associated with the operator.
-   * @param {string} [extra.status] - The new status of the payment (should match 'success' validation).
-   * @param {TransactionClientContract} [trx] - Optional database transaction object to perform the update within a transaction.
-   * @return {Promise<Payment>} A promise that resolves to the updated Payment object after marking it as successful.
-   * @throws {Exception} Throws an exception if the payment is already marked as successful.
+   * @param {string | number} id - The unique identifier of the payment to be marked as successful.
+   *                                This can be a string or a numeric ID.
+   * @param {Partial<Pick<Payment, 'status' | 'operatorResponse'>>} [extra] - Optional payload providing additional data
+   *                                                                          such as operator response to be stored.
+   * @param {TransactionClientContract} [trx] - Optional database transaction context for ensuring
+   *                                             atomicity during the operation.
+   * @return {Promise<Payment>} A promise that resolves to the updated Payment instance.
+   * @throws {PaymentAlreadySuccessfulException} If the payment is already marked as successful.
    */
   async markSuccess(
     id: string | number,
@@ -112,10 +113,7 @@ export default class PaymentService {
         { payment_id: payment.id, status: payment.status },
         'Payment already successful'
       )
-      throw new Exception('Payment already successful', {
-        status: 400,
-        code: 'PAYMENT_ALREADY_SUCCESSFUL',
-      })
+      throw new PaymentAlreadySuccessfulException()
     }
 
     payment.status = PaymentStatus.SUCCESS
@@ -133,17 +131,16 @@ export default class PaymentService {
   }
 
   /**
-   * Marks a payment as failed.
+   * Marks a payment as failed by updating its status to `FAILED`.
+   * Optionally updates the operator response and saves the changes in the payment repository.
    *
-   * Updates the status of a payment to 'failed'. Optionally, the operator response and other
-   * additional details may be provided. Throws an exception if the payment is already
-   * marked as failed.
+   * @param {string | number} id - The unique identifier of the payment. Can be a string or numeric ID.
+   * @param {Partial<Pick<Payment, 'operatorResponse' | 'status'>>} [extra] - Optional additional data to associate with the update.
+   * @param {TransactionClientContract} [trx] - Optional database transaction for persisting the changes.
    *
-   * @param {string | number} id - The unique identifier of the payment (can be either a UID or an ID).
-   * @param {Partial<Pick<Payment, 'operator_response' | 'status'>>} [extra] - Optional additional data, including operator response or status changes.
-   * @param {TransactionClientContract} [trx] - Optional transaction client for database operations.
-   * @return {Promise<Payment>} A promise that resolves with the updated payment object.
-   * @throws {Exception} If the payment is already marked as failed.
+   * @return {Promise<Payment>} A promise that resolves to the updated payment object.
+   *
+   * @throws {PaymentAlreadyFailedException} If the payment is already marked as `FAILED`.
    */
   async markFailed(
     id: string | number,
@@ -158,7 +155,7 @@ export default class PaymentService {
         { payment_id: payment.id },
         'Payment already failed'
       )
-      throw new Exception('Payment already failed', { status: 400, code: 'PAYMENT_ALREADY_FAILED' })
+      throw new PaymentAlreadyFailedException()
     }
 
     payment.status = PaymentStatus.FAILED
@@ -176,10 +173,10 @@ export default class PaymentService {
   }
 
   /**
-   * Finds and retrieves a transaction record based on the provided transaction ID or UID.
+   * Finds payments associated with a given transaction ID or UID.
    *
-   * @param {number|string} transactionIdOrUid - The transaction ID (number) or UID (string) to search for in the payment repository.
-   * @return {Promise<Payment | null>} A promise that resolves to the transaction record if found, or null if no record matches the provided identifier.
+   * @param {number|string} transactionIdOrUid - The ID or UID of the transaction to find associated payments for.
+   * @return {Promise<Payment[]>} A promise that resolves to an array of payments related to the given transaction.
    */
   async findByTransaction(transactionIdOrUid: number | string): Promise<Payment[]> {
     transactionLog.debug(

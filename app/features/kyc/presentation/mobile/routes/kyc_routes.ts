@@ -10,6 +10,6 @@ const mobileKycRoutes = () =>
       router.post('submit-documents', [KycSubmittionController, 'submitKycDocuments'])
     })
     .prefix('mobile/kyc')
-    .use(middleware.auth())
+    .use([middleware.auth(), middleware.device()])
 
 export default mobileKycRoutes

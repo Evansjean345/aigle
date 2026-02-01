@@ -3,6 +3,11 @@ import LedgerRepository from '#features/ledger/domain/interfaces/ledger_reposito
 
 @inject()
 export default class GetLedgerChartUseCase {
+  /**
+   * Constructs an instance of the class with the specified LedgerRepository.
+   *
+   * @param {LedgerRepository} ledgerRepository - The repository used to manage ledger data.
+   */
   constructor(private readonly ledgerRepository: LedgerRepository) {}
 
   /**

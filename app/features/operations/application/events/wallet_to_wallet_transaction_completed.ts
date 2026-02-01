@@ -9,7 +9,7 @@ export default class WalletToWalletTransactionCompleted extends BaseEvent {
     public senderTransaction: Transaction,
     public receiverTransaction: Transaction,
     public payload: {
-      recipienPhone: string
+      recipientPhone: string
       senderPhone: string
     }
   ) {

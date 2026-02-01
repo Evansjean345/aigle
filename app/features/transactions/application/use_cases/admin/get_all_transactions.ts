@@ -1,7 +1,7 @@
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
 import { inject } from '@adonisjs/core'
 import { PaginatedAdminTransactionsResponseDTO } from '#features/transactions/application/dto/admin_transaction.dto'
-import { toPaginatedAdminTransactionsResponseDto } from '#features/transactions/application/mapper/transaction.mapper'
+import { toPaginatedAdminTransactionsResponseDto } from '#features/transactions/application/mapper/admin_transaction.mapper'
 
 @inject()
 export default class GetAllTransactionsUseCase {

@@ -4,7 +4,7 @@ import {
   kycDocumentValidator,
 } from '#features/kyc/presentation/mobile/validators/kyc_document_validator'
 import { SimpleMessagesProvider } from '@vinejs/vine'
-import SubmitKycDocumentUsecase from '#features/kyc/application/usecases/submit_kyc_document.usecase'
+import SubmitKycDocumentUsecase from '#features/kyc/application/usecases/mobile/submit_kyc_document.usecase'
 import { inject } from '@adonisjs/core'
 
 /**
@@ -29,6 +29,9 @@ export default class KycSubmitionController {
    */
   async submitKycDocuments({ request, response, auth }: HttpContext): Promise<void> {
     if (!(await auth.check())) return response.unauthorized()
+
+    console.log('debugging document')
+    console.log(request.all())
 
     const payload = await request.validateUsing(kycDocumentValidator, {
       messagesProvider: new SimpleMessagesProvider(errorMessages),
