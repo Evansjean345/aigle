@@ -145,7 +145,7 @@ export default class WalletTransferContextService {
    *
    * @param {unknown} amountRaw - The raw input representing the amount to be parsed and validated.
    * @return {number} The validated amount as a finite, positive number.
-   * @throws {Exception} If the input is not a finite, positive number.
+   * @throws {InvalidAmountException} If the input is not a finite, positive number.
    */
   private parseAndValidateAmount(amountRaw: unknown): number {
     const amount = Number(amountRaw)

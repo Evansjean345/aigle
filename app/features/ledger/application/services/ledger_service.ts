@@ -4,7 +4,8 @@ import Transaction from '#features/transactions/domain/models/transaction'
 import Ledger from '#features/ledger/domain/models/ledger'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { LedgerDirection, LedgerOperationType } from '#features/ledger/domain/ledger_enums'
-import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import ledgerLog from '#shared/infrastructure/logging/ledger_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
 
 /**
  * Service for handling ledger-related operations, such as creating ledger entries
@@ -50,36 +51,53 @@ export default class LedgerService {
   ): Promise<Ledger> {
     const totalAmount = Number(params.amountBrut) + Number(params.fees)
 
-    transactionLog.info(
-      'LEDGER_ENTRY_CREATING',
-      {
-        transaction: { id: params.transaction.id },
-        wallet: { id: params.walletId },
-        ledger: {
-          amount: totalAmount,
+    try {
+      const entry = await this.ledgerRepository.create(
+        {
+          transactionId: params.transaction.id,
+          walletId: params.walletId,
           direction: params.direction,
+          operationType:
+            (params.operationType as LedgerOperationType) ||
+            (params.transaction.operationType as unknown as LedgerOperationType),
+          description: params.description || params.transaction.description,
+          amountBrut: params.amountBrut,
+          fees: params.fees,
+          totalAmount: totalAmount,
+          balanceBefore: params.balanceBefore,
+          balanceAfter: params.balanceAfter,
         },
-      },
-      'Creating ledger entry'
-    )
+        trx
+      )
 
-    return await this.ledgerRepository.create(
-      {
-        transactionId: params.transaction.id,
-        walletId: params.walletId,
-        direction: params.direction,
-        operationType:
-          (params.operationType as LedgerOperationType) ||
-          (params.transaction.operationType as unknown as LedgerOperationType),
-        description: params.description || params.transaction.description,
-        amountBrut: params.amountBrut,
-        fees: params.fees,
-        totalAmount: totalAmount,
-        balanceBefore: params.balanceBefore,
-        balanceAfter: params.balanceAfter,
-      },
-      trx
-    )
+      ledgerLog.info(
+        'LEDGER_ENTRY_CREATED',
+        {
+          transaction: { id: params.transaction.id },
+          wallet: { id: params.walletId },
+          ledger: {
+            id: entry.id,
+            amount: totalAmount,
+            direction: params.direction,
+            balanceAfter: params.balanceAfter,
+          },
+        },
+        'Ledger entry created successfully'
+      )
+
+      return entry
+    } catch (error) {
+      errorLog.error(
+        'LEDGER_ENTRY_CREATION_FAILED',
+        {
+          transaction: { id: params.transaction.id },
+          wallet: { id: params.walletId },
+          error: error.message,
+        },
+        'Failed to create ledger entry'
+      )
+      throw error
+    }
   }
 
   /**
@@ -172,7 +190,7 @@ export default class LedgerService {
         walletId,
         direction: LedgerDirection.EXTERNAL,
         description,
-        amountBrut: transaction.amount,
+        amountBrut: transaction.totalAmount,
         fees: transaction.fees,
         balanceBefore,
         balanceAfter,

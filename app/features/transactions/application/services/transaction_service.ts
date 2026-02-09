@@ -144,7 +144,8 @@ export default class TransactionService {
   async markFailed(id: number, trx?: TransactionClientContract): Promise<Transaction> {
     const transaction = await this.getByUidOrId(id)
 
-    if (transaction.status === TransactionStatus.FAILED) throw new TransactionAlreadyFailedException()
+    if (transaction.status === TransactionStatus.FAILED)
+      throw new TransactionAlreadyFailedException()
 
     transaction.status = TransactionStatus.FAILED
     await this.transactionRepository.save(transaction, trx)

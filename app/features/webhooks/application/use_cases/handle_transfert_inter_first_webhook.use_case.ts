@@ -12,7 +12,10 @@ import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_re
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
 import env from '#start/env'
 import HttpClient from '#shared/infrastructure/http_client_service'
-import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import paymentLog from '#shared/infrastructure/logging/payment_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
+import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
+import { maskPhone } from '#shared/utils/utiles'
 
 /**
  * Use the case responsible for handling the first webhook of an inter-transfer transaction.
@@ -43,7 +46,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
     payload: WebhookRequestDto,
     status: TransactionStatus
   ): Promise<WebhookResponseDto> {
-    transactionLog.info(
+    paymentLog.info(
       'INTER_TRANSFER_FIRST_WEBHOOK_RECEIVED',
       { webhook: { status, reference: payload.data?.reference } },
       'Inter-transfer first webhook received'
@@ -52,7 +55,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
 
     const reference = payload.data.reference
     const operatorResponse = payload.data
-    transactionLog.debug(
+    paymentLog.debug(
       'INTER_TRANSFER_FIRST_VALIDATED',
       { webhook: { reference, status } },
       'Inter-transfer first webhook validated'
@@ -61,8 +64,8 @@ export default class HandleTransfertInterFirstWebhookUseCase {
     const trx = await db.transaction()
 
     try {
-      const { transaction, payments } = await this.loadEntities(reference)
-      transactionLog.debug(
+      const { transaction, payments } = await this.loadEntities(reference, trx)
+      paymentLog.debug(
         'INTER_TRANSFER_FIRST_ENTITIES_LOADED',
         {
           webhook: { reference },
@@ -84,7 +87,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
 
       const idempotent = this.isIdempotentRequest(transaction, firstPayment, status)
 
-      transactionLog.debug(
+      paymentLog.debug(
         'INTER_TRANSFER_FIRST_IDEMPOTENCY_CHECK',
         {
           webhook: { reference, incomingStatus: status },
@@ -96,7 +99,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
 
       if (idempotent) {
         await trx.commit()
-        transactionLog.info(
+        paymentLog.info(
           'INTER_TRANSFER_FIRST_IDEMPOTENT',
           { webhook: { reference } },
           'Inter-transfer first step is idempotent, acknowledging'
@@ -104,7 +107,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
         return this.createSuccessResponse()
       }
 
-      transactionLog.info(
+      paymentLog.info(
         'INTER_TRANSFER_FIRST_PROCESSING',
         {
           webhook: { reference, status },
@@ -123,7 +126,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
       )
 
       await trx.commit()
-      transactionLog.info(
+      paymentLog.info(
         'INTER_TRANSFER_FIRST_SUCCESS',
         { webhook: { reference, status } },
         'Inter-transfer first step processed'
@@ -131,14 +134,6 @@ export default class HandleTransfertInterFirstWebhookUseCase {
       return result
     } catch (error) {
       await trx.rollback()
-      transactionLog.error(
-        'INTER_TRANSFER_FIRST_ERROR',
-        {
-          webhook: { reference: payload.data?.reference },
-          error: { message: (error as any)?.message || 'Unknown error' },
-        },
-        'Inter-transfer first step webhook failed'
-      )
       throw error
     }
   }
@@ -152,7 +147,31 @@ export default class HandleTransfertInterFirstWebhookUseCase {
    */
   private validatePayload(payload: WebhookRequestDto): void {
     if (!payload?.data?.reference) {
-      throw new Exception('Invalid payload', { status: 422, code: 'INVALID_WEBHOOK_PAYLOAD' })
+      paymentLog.warn(
+        'WEBHOOK_REFERENCE_REQUIRED',
+        {
+          webhook: payload?.data,
+        },
+        'Missing reference in inter-transfer first webhook'
+      )
+      throw new Exception('Invalid payload: Missing reference', {
+        status: 422,
+        code: 'INVALID_WEBHOOK_PAYLOAD',
+      })
+    }
+
+    if (!payload?.data?.status) {
+      paymentLog.warn(
+        'WEBHOOK_STATUS_REQUIRED',
+        {
+          webhook: payload?.data,
+        },
+        'Missing status in inter-transfer first webhook'
+      )
+      throw new Exception('Invalid payload: Missing status', {
+        status: 422,
+        code: 'INVALID_WEBHOOK_PAYLOAD',
+      })
     }
   }
 
@@ -160,13 +179,27 @@ export default class HandleTransfertInterFirstWebhookUseCase {
    * Loads and returns a transaction and its associated payments based on the provided reference.
    *
    * @param {string} reference - The unique reference identifier for the transaction.
+   * @param {TransactionClientContract} trx - The transaction client contract.
    * @return {Promise<{transaction: Transaction, payments: Payment[]}>} An object containing the transaction and an array of associated payments.
    */
-  private async loadEntities(reference: string): Promise<{
+  private async loadEntities(
+    reference: string,
+    trx: TransactionClientContract
+  ): Promise<{
     transaction: Transaction
     payments: Payment[]
   }> {
-    const transaction = await this.transactionService.findByReference(reference)
+    const transaction = await Transaction.query({
+      client: trx,
+    })
+      .where('reference', reference)
+      .forUpdate()
+      .first()
+
+    if (!transaction) {
+      throw new TransactionNotFoundException()
+    }
+
     const payments = await this.paymentService.findByTransaction(transaction.transactionsUid)
     return { transaction, payments }
   }
@@ -184,11 +217,15 @@ export default class HandleTransfertInterFirstWebhookUseCase {
     payment: Payment,
     incomingStatus: TransactionStatus
   ): boolean {
-    if (payment.status === PaymentStatus.SUCCESS && incomingStatus === TransactionStatus.SUCCESS)
-      return true
-    if (payment.status === PaymentStatus.FAILED && incomingStatus === TransactionStatus.FAILED)
-      return true
-    return transaction.status !== TransactionStatus.PENDING
+    const isIncomingSuccess = incomingStatus === TransactionStatus.SUCCESS
+
+    if (isIncomingSuccess) {
+      return payment.status === PaymentStatus.SUCCESS
+    } else {
+      return (
+        transaction.status === TransactionStatus.FAILED && payment.status === PaymentStatus.FAILED
+      )
+    }
   }
 
   /**
@@ -212,7 +249,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
     trx: TransactionClientContract
   ): Promise<WebhookResponseDto> {
     if (status === TransactionStatus.SUCCESS) {
-      transactionLog.debug(
+      paymentLog.debug(
         'INTER_TRANSFER_FIRST_MARKING_SUCCESS',
         { transaction: { reference: transaction.reference }, payment: { id: firstPayment.id } },
         'Marking first payment as success'
@@ -230,7 +267,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
             const raw = (secondPayment as any)?.paymentDetails
             return typeof raw === 'string' ? JSON.parse(raw) : (raw ?? {})
           } catch {
-            transactionLog.error(
+            paymentLog.error(
               'INTER_TRANSFER_FIRST_PARSE_ERROR',
               {
                 transaction: { reference: transaction.reference },
@@ -255,23 +292,23 @@ export default class HandleTransfertInterFirstWebhookUseCase {
         }
 
         await this.httpClient.post(env.get('API_TRANSFERT_URL')!!, dataSend)
-        transactionLog.info(
+
+        paymentLog.info(
           'INTER_TRANSFER_SECOND_INITIATED',
           {
             transaction: { reference: transaction.reference },
             payment: { id: secondPayment.id },
             transfer: {
               provider: dataSend.provider,
-              numberMasked:
-                typeof dataSend.number === 'string'
-                  ? dataSend.number.replace(/\d(?=\d{2})/g, '*')
-                  : dataSend.number,
+              numberMasked: maskPhone(dataSend.number),
             },
           },
           'Second inter-transfer step initiated'
         )
       } catch (err) {
-        transactionLog.error(
+        // TODO: Notify the admin about the payment failed //
+
+        errorLog.error(
           'INTER_TRANSFER_SECOND_INIT_FAILED',
           {
             transaction: { reference: transaction.reference },
@@ -282,8 +319,10 @@ export default class HandleTransfertInterFirstWebhookUseCase {
       }
 
       return this.createSuccessResponse()
-    } else {
-      transactionLog.debug(
+    }
+
+    if (status === TransactionStatus.FAILED) {
+      paymentLog.debug(
         'INTER_TRANSFER_FIRST_MARKING_FAILED',
         {
           transaction: { reference: transaction.reference },
@@ -291,6 +330,9 @@ export default class HandleTransfertInterFirstWebhookUseCase {
         },
         'Marking first and second payments/transaction as failed'
       )
+
+      await this.transactionService.markFailed(transaction.id, trx)
+
       await Promise.all([
         this.paymentService.markFailed(
           firstPayment.id,
@@ -298,11 +340,12 @@ export default class HandleTransfertInterFirstWebhookUseCase {
           trx
         ),
         this.paymentService.markFailed(secondPayment.id, {}, trx),
-        await this.transactionService.markFailed(transaction.id, trx),
       ])
 
       return this.createSuccessResponse()
     }
+
+    return this.createSuccessResponse()
   }
   /**
    * Creates and returns a success response indicating the request has been received.

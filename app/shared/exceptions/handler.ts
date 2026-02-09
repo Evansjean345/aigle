@@ -1,6 +1,7 @@
 import app from '@adonisjs/core/services/app'
 import { HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 import { errors } from '@vinejs/vine'
+import errorLog from '#shared/infrastructure/logging/error_log'
 
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
@@ -20,6 +21,19 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     }
 
     if (error.code === 'INTERNAL_ERROR' || error.status >= 500) {
+      errorLog.error(
+        'SERVER_INTERNAL_ERROR',
+        {
+          path: ctx.request.url(),
+          method: ctx.request.method(),
+          error: {
+            message: error.message,
+            code: error.code,
+            stack: error.stack,
+          },
+        },
+        'An unhandled internal server error occurred'
+      )
       ctx.response.status(500).send({
         message: app.inProduction ? "Une erreur interne s'est produite" : error.message,
         status: 500,
@@ -27,9 +41,9 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       return
     }
 
-    ctx.response.status(error.status).send({
+    ctx.response.status(error.status || 500).send({
       message: error.message,
-      status: error.status,
+      status: error.status || 500,
       code: error.code,
     })
 

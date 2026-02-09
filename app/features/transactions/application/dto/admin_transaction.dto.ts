@@ -20,6 +20,9 @@ export interface AdminTransactionResponseDTO {
     id: string
     firstname: string
     lastname: string
+    wallet: {
+      balance: number
+    }
   }
   ledgers?: {
     id: number

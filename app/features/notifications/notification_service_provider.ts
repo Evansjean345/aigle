@@ -1,6 +1,7 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import NotificationChannel from '#features/notifications/domain/interfaces/notification_channel'
-import ExpoPushNotificationChannel from '#features/notifications/infrastructure/channels/expoPushNotificationChannel'
+import ExpoPushNotificationChannel from '#features/notifications/infrastructure/channels/expo_push_notification_channel'
+import SmsNotificationChannel from '#features/notifications/infrastructure/channels/sms_notification_channel'
 
 export default class NotificationServiceProvider {
   constructor(protected app: ApplicationService) {}
@@ -9,7 +10,10 @@ export default class NotificationServiceProvider {
    * Register bindings to the container
    */
   register() {
-    const providers = new Map<any, any>([[NotificationChannel, ExpoPushNotificationChannel]])
+    const providers = new Map<any, any>([
+      [NotificationChannel, ExpoPushNotificationChannel],
+      [NotificationChannel, SmsNotificationChannel],
+    ])
 
     for (const [contract, implementation] of providers) {
       this.app.container.singleton(contract, () => {

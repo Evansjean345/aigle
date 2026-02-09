@@ -12,6 +12,10 @@ import { KycAttemp } from '#features/kyc/domain/models/kyc_attemp'
 import KycAlreadySubmittedException from '#features/kyc/infrastructure/exceptions/kyc_already_submitted_exception'
 import MissingKycDocumentsException from '#features/kyc/infrastructure/exceptions/missing_kyc_documents_exception'
 
+import KycDocumentNotFoundException from '#features/kyc/infrastructure/exceptions/kyc_document_not_found_exception'
+import kycLog from '#shared/infrastructure/logging/kyc_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
+
 /**
  *
  * Use case class for submitting KYC documents for a user.
@@ -50,62 +54,87 @@ export default class SubmitKycDocumentUsecase {
       throw new KycAlreadySubmittedException()
     }
 
-    const { rectoUrl, versoUrl, selfiUrl } = await this.uploadDocumentFiles(
-      kycDocument.documentRectoUrl,
-      kycDocument.documentVersoUrl,
-      kycDocument.documentsSelfieUrl,
-      userId,
-      kycDocument.documentType
-    )
+    try {
+      const { rectoUrl, versoUrl, selfiUrl } = await this.uploadDocumentFiles(
+        kycDocument.documentRectoUrl,
+        kycDocument.documentVersoUrl,
+        kycDocument.documentsSelfieUrl,
+        userId,
+        kycDocument.documentType
+      )
 
-    if (existingKyc) {
-      existingKyc.documentType = kycDocument.documentType
-      existingKyc.documentRectoUrl = rectoUrl
-      existingKyc.documentVersoUrl = versoUrl
-      existingKyc.selfieUrl = selfiUrl
-      existingKyc.status = KycDocumentStatus.PENDING
+      if (existingKyc) {
+        existingKyc.documentType = kycDocument.documentType
+        existingKyc.documentRectoUrl = rectoUrl
+        existingKyc.documentVersoUrl = versoUrl
+        existingKyc.selfieUrl = selfiUrl
+        existingKyc.status = KycDocumentStatus.PENDING
 
-      await this.kycDocumentRepository.saveKycDocument(existingKyc)
-    } else {
-      const newKycDocument = new KycDocument()
+        await this.kycDocumentRepository.saveKycDocument(existingKyc)
+      } else {
+        const newKycDocument = new KycDocument()
 
-      newKycDocument.userId = userId
-      newKycDocument.documentType = kycDocument.documentType
-      newKycDocument.documentRectoUrl = rectoUrl
-      newKycDocument.documentVersoUrl = versoUrl
-      newKycDocument.selfieUrl = selfiUrl
-      newKycDocument.status = KycDocumentStatus.PENDING
+        newKycDocument.userId = userId
+        newKycDocument.documentType = kycDocument.documentType
+        newKycDocument.documentRectoUrl = rectoUrl
+        newKycDocument.documentVersoUrl = versoUrl
+        newKycDocument.selfieUrl = selfiUrl
+        newKycDocument.status = KycDocumentStatus.PENDING
 
-      await this.kycDocumentRepository.saveKycDocument(newKycDocument)
-    }
+        await this.kycDocumentRepository.saveKycDocument(newKycDocument)
+      }
 
-    // Enregistrement de la tentative dans l'historique
-    const lastAttempt = await this.kycDocumentRepository.findLastAttempt(
-      userId,
-      kycDocument.documentType
-    )
+      // Enregistrement de la tentative dans l'historique
+      const lastAttempt = await this.kycDocumentRepository.findLastAttempt(
+        userId,
+        kycDocument.documentType
+      )
 
-    const attemptNumber = (lastAttempt?.attemptNumber || 0) + 1
+      const attemptNumber = (lastAttempt?.attemptNumber || 0) + 1
 
-    const newAttempt = new KycAttemp()
-    newAttempt.userId = userId
-    newAttempt.kycDocumentId = existingKyc
-      ? existingKyc.id
-      : (await this.kycDocumentRepository.findUserKycDocument(userId))!.id
-    newAttempt.documentType = kycDocument.documentType
-    newAttempt.documentRectoUrl = rectoUrl
-    newAttempt.documentVersoUrl = versoUrl
-    newAttempt.selfieUrl = selfiUrl
-    newAttempt.attemptNumber = attemptNumber
-    newAttempt.status = KycDocumentStatus.PENDING
+      const newAttempt = new KycAttemp()
+      newAttempt.userId = userId
+      const currentKyc =
+        existingKyc || (await this.kycDocumentRepository.findUserKycDocument(userId))
+      if (!currentKyc) throw new KycDocumentNotFoundException()
 
-    await this.kycDocumentRepository.saveAttempt(newAttempt)
+      newAttempt.kycDocumentId = currentKyc.id
+      newAttempt.documentType = kycDocument.documentType
+      newAttempt.documentRectoUrl = rectoUrl
+      newAttempt.documentVersoUrl = versoUrl
+      newAttempt.selfieUrl = selfiUrl
+      newAttempt.attemptNumber = attemptNumber
+      newAttempt.status = KycDocumentStatus.PENDING
 
-    await KycDocumentSubmitted.dispatch(userId, KycDocumentStatus.PENDING)
+      await this.kycDocumentRepository.saveAttempt(newAttempt)
 
-    return {
-      message: 'Documents Kyc soumis avec succès 📄',
-      nextAction: KycDocumentNextAction.SELFIE,
+      kycLog.info(
+        'KYC_DOCUMENT_SUBMITTED',
+        {
+          user_id: userId,
+          document_type: kycDocument.documentType,
+          attempt_number: attemptNumber,
+        },
+        'KYC documents submitted successfully'
+      )
+
+      await KycDocumentSubmitted.dispatch(userId, KycDocumentStatus.PENDING)
+
+      return {
+        message: 'Documents Kyc soumis avec succès 📄',
+        nextAction: KycDocumentNextAction.SELFIE,
+      }
+    } catch (error) {
+      errorLog.error(
+        'KYC_SUBMISSION_ERROR',
+        {
+          user_id: userId,
+          document_type: kycDocument.documentType,
+          error: error.message,
+        },
+        'Failed to submit KYC documents'
+      )
+      throw error
     }
   }
 

@@ -20,6 +20,7 @@ export default class KycController {
    * @param {GetKycStatsUseCase} getKycStatsUseCase - Use case for retrieving KYC statistics.
    * @param {GetKycDocumentByIdUseCase} getKycDocumentByIdUseCase - Use case for retrieving a KYC document by ID.
    * @param processKycDocumentUseCase
+   * @param getUserKycDocumentUseCase
    */
   constructor(
     private readonly getAllKycDocumentsUseCase: GetAllKycDocumentsUseCase,

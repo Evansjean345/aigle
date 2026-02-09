@@ -1,4 +1,5 @@
 import router from '@adonisjs/core/services/router'
+import { middleware } from '#start/kernel'
 
 const UsersController = () =>
   import('#features/user/presentation/admin/controllers/users_controller')
@@ -34,4 +35,12 @@ export default function adminUsersRoute() {
       })
     })
     .prefix('users')
+    .use(
+      middleware.auth({
+        guards: ['admin'],
+      })
+    )
+    .use(
+      middleware.permission(['users.manage', 'support.access'])
+    )
 }

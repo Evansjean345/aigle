@@ -53,13 +53,7 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
       endDate?: string
     }
   ): Promise<any> {
-    const query = KycDocument.query()
-      .preload('user', (userQuery) => {
-        userQuery.preload('wallet')
-      })
-      .preload('attempts', (attemptQuery) => {
-        attemptQuery.orderBy('createdAt', 'desc')
-      })
+    const query = KycDocument.query().preload('user')
 
     if (filters?.status) {
       query.where('status', filters.status)

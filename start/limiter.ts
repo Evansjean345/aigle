@@ -27,3 +27,29 @@ export const pinCodeCheckThrottle = limiter.define('pincode_attempts', (ctx) => 
         )
     })
 })
+
+/**
+ * Configures the rate limit for OTP sending attempts (login and send-otp endpoints).
+ * Limits users to a maximum of 3 OTP requests every 5 minutes per phone number,
+ * and temporarily blocks them for 5 minutes if the threshold is exceeded.
+ *
+ * This helps prevent abuse of the SMS sending system and reduces costs.
+ */
+export const otpThrottle = limiter.define('otp_attempts', (ctx) => {
+  const phone = ctx.request.input('phone') || ''
+  const countryId = ctx.request.input('country_id') || ''
+  const key = phone ? `otp_${countryId}_${phone}` : `otp_ip_${ctx.request.ip()}`
+
+  return limiter
+    .allowRequests(3)
+    .every('5 minutes')
+    .usingKey(key)
+    .blockFor('5 minutes')
+    .limitExceeded((error) => {
+      error
+        .setStatus(429)
+        .setMessage(
+          'Trop de demandes OTP. Veuillez réessayer dans 5 minutes.'
+        )
+    })
+})

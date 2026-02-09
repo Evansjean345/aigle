@@ -14,6 +14,10 @@ import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_re
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
 import LedgerService from '#features/ledger/application/services/ledger_service'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import paymentLog from '#shared/infrastructure/logging/payment_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
+import WalletNotFoundException from '#features/wallet/infrastructure/exceptions/wallet_not_found_exception'
+import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
 import TransfertInterTransactionFailed from '#features/webhooks/application/events/transfert_inter/transfert_inter_transaction_failed'
 
 /**
@@ -49,7 +53,7 @@ export default class HandleTransfertInterSecondWebhookUseCase {
     payload: WebhookRequestDto,
     status: TransactionStatus
   ): Promise<WebhookResponseDto> {
-    transactionLog.info(
+    paymentLog.info(
       'INTER_TRANSFER_SECOND_WEBHOOK_RECEIVED',
       { webhook: { status, reference: payload.data?.reference } },
       'Inter-transfer second webhook received'
@@ -58,7 +62,7 @@ export default class HandleTransfertInterSecondWebhookUseCase {
 
     const reference = payload.data.reference
     const operatorResponse = payload.data
-    transactionLog.debug(
+    paymentLog.debug(
       'INTER_TRANSFER_SECOND_VALIDATED',
       { webhook: { reference, status } },
       'Inter-transfer second webhook validated'
@@ -66,8 +70,8 @@ export default class HandleTransfertInterSecondWebhookUseCase {
     const trx = await db.transaction()
 
     try {
-      const { transaction, payments, wallet } = await this.loadEntities(reference)
-      transactionLog.debug(
+      const { transaction, payments, wallet } = await this.loadEntities(reference, trx)
+      paymentLog.debug(
         'INTER_TRANSFER_SECOND_ENTITIES_LOADED',
         {
           webhook: { reference },
@@ -87,7 +91,7 @@ export default class HandleTransfertInterSecondWebhookUseCase {
       }
 
       const idempotent = this.isIdempotentRequest(transaction, secondPayment, status)
-      transactionLog.debug(
+      paymentLog.debug(
         'INTER_TRANSFER_SECOND_IDEMPOTENCY_CHECK',
         {
           webhook: { reference, incomingStatus: status },
@@ -99,7 +103,7 @@ export default class HandleTransfertInterSecondWebhookUseCase {
 
       if (idempotent) {
         await trx.commit()
-        transactionLog.info(
+        paymentLog.info(
           'INTER_TRANSFER_SECOND_IDEMPOTENT',
           { webhook: { reference } },
           'Inter-transfer second step is idempotent, acknowledging'
@@ -107,7 +111,7 @@ export default class HandleTransfertInterSecondWebhookUseCase {
         return this.createSuccessResponse()
       }
 
-      transactionLog.info(
+      paymentLog.info(
         'INTER_TRANSFER_SECOND_PROCESSING',
         { webhook: { reference, status }, payment: { id: secondPayment.id } },
         'Processing inter-transfer second step'
@@ -123,22 +127,14 @@ export default class HandleTransfertInterSecondWebhookUseCase {
       )
 
       await trx.commit()
-      transactionLog.info(
+      paymentLog.info(
         'INTER_TRANSFER_SECOND_SUCCESS',
         { webhook: { reference, status } },
-        'Inter-transfer second step processed'
+        'Inter-transfer second step processed successfully'
       )
       return result
     } catch (error) {
       await trx.rollback()
-      transactionLog.error(
-        'INTER_TRANSFER_SECOND_ERROR',
-        {
-          webhook: { reference: payload.data?.reference },
-          error: { message: (error as any)?.message || 'Unknown error' },
-        },
-        'Inter-transfer second step webhook failed'
-      )
       throw error
     }
   }
@@ -151,7 +147,31 @@ export default class HandleTransfertInterSecondWebhookUseCase {
    */
   private validatePayload(payload: WebhookRequestDto): void {
     if (!payload?.data?.reference) {
-      throw new Exception('Invalid payload', { status: 422, code: 'INVALID_WEBHOOK_PAYLOAD' })
+      paymentLog.warn(
+        'WEBHOOK_REFERENCE_REQUIRED',
+        {
+          webhook: payload?.data,
+        },
+        'Missing reference in inter-transfer second webhook'
+      )
+      throw new Exception('Invalid payload: Missing reference', {
+        status: 422,
+        code: 'INVALID_WEBHOOK_PAYLOAD',
+      })
+    }
+
+    if (!payload?.data?.status) {
+      paymentLog.warn(
+        'WEBHOOK_STATUS_REQUIRED',
+        {
+          webhook: payload?.data,
+        },
+        'Missing status in inter-transfer second webhook'
+      )
+      throw new Exception('Invalid payload: Missing status', {
+        status: 422,
+        code: 'INVALID_WEBHOOK_PAYLOAD',
+      })
     }
   }
 
@@ -159,18 +179,47 @@ export default class HandleTransfertInterSecondWebhookUseCase {
    * Loads entities related to a specific reference, including transaction, payments, and wallet.
    *
    * @param {string} reference - The reference identifier for which entities will be fetched.
+   * @param {TransactionClientContract} trx - The transaction client contract.
    * @return {Promise<{transaction: Transaction, payments: Payment[], wallet: Wallet}>}
    *         A promise resolving to an object containing the transaction, an array of associated payments, and the user's wallet.
    */
-  private async loadEntities(reference: string): Promise<{
+  private async loadEntities(
+    reference: string,
+    trx: TransactionClientContract
+  ): Promise<{
     transaction: Transaction
     payments: Payment[]
     wallet: Wallet
   }> {
-    const transaction = await this.transactionService.findByReference(reference)
-    const payments = await this.paymentService.findByTransaction(transaction.transactionsUid)
-    const wallet = await this.walletService.getByUserId(transaction.usersUid)
-    return { transaction, payments, wallet }
+    const transaction = await Transaction.query({ client: trx })
+      .where('reference', reference)
+      .forUpdate()
+      .first()
+
+    if (!transaction) {
+      throw new TransactionNotFoundException()
+    }
+
+    try {
+      const [payments, wallet] = await Promise.all([
+        this.paymentService.findByTransaction(transaction.transactionsUid),
+        this.walletService.getByUserId(transaction.usersUid),
+      ])
+      return { transaction, payments, wallet }
+    } catch (error) {
+      if (error instanceof WalletNotFoundException) {
+        errorLog.error(
+          'WEBHOOK_WALLET_NOT_FOUND',
+          {
+            transaction_id: transaction.id,
+            user_uid: transaction.usersUid,
+            reference: transaction.reference,
+          },
+          'Critical: Wallet not found for user associated with transaction'
+        )
+      }
+      throw error
+    }
   }
 
   /**
@@ -187,11 +236,17 @@ export default class HandleTransfertInterSecondWebhookUseCase {
     payment: Payment,
     incomingStatus: TransactionStatus
   ): boolean {
-    if (payment.status === PaymentStatus.SUCCESS && incomingStatus === TransactionStatus.SUCCESS)
-      return true
-    if (payment.status === PaymentStatus.FAILED && incomingStatus === TransactionStatus.FAILED)
-      return true
-    return transaction.status !== TransactionStatus.PENDING
+    const isIncomingSuccess = incomingStatus === TransactionStatus.SUCCESS
+
+    if (isIncomingSuccess) {
+      return (
+        transaction.status === TransactionStatus.SUCCESS && payment.status === PaymentStatus.SUCCESS
+      )
+    } else {
+      return (
+        transaction.status === TransactionStatus.FAILED && payment.status === PaymentStatus.FAILED
+      )
+    }
   }
 
   /**
@@ -242,18 +297,21 @@ export default class HandleTransfertInterSecondWebhookUseCase {
         trx
       )
       return this.createSuccessResponse()
-    } else {
+    }
+
+    if (status === TransactionStatus.FAILED) {
       transactionLog.debug(
         'INTER_TRANSFER_SECOND_MARKING_FAILED',
         { transaction: { reference: transaction.reference }, payment: { id: secondPayment.id } },
         'Marking second payment and transaction as failed'
       )
+      // Séquentiel pour éviter les race conditions
+      await this.transactionService.markFailed(transaction.id, trx)
       await this.paymentService.markFailed(
         secondPayment.id,
         { operatorResponse: operatorResponse },
         trx
       )
-      await this.transactionService.markFailed(transaction.id, trx)
 
       // Dispatch failure event for transaction failure tracking
       const paymentDetails = (() => {
@@ -274,6 +332,8 @@ export default class HandleTransfertInterSecondWebhookUseCase {
 
       return this.createSuccessResponse()
     }
+
+    return this.createSuccessResponse()
   }
 
   /**

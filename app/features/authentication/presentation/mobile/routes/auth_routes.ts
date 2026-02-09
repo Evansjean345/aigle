@@ -1,6 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
-import { pinCodeCheckThrottle } from '#start/limiter'
+import { pinCodeCheckThrottle, otpThrottle } from '#start/limiter'
 
 const AuthController = () =>
   import('#features/authentication/presentation/mobile/controllers/auth_controller')
@@ -17,10 +17,10 @@ export default function mobileAuthRoutes() {
       // Public routes with device middleware
       router
         .group(() => {
-          router.post('login', [AuthController, 'login'])
+          router.post('login', [AuthController, 'login']).use(otpThrottle)
           router.post('verify-account', [AuthController, 'verifyUserAccount'])
           // router.post('reset-password', [AuthController, 'resetPassword'])
-          router.post('send-otp', [AuthController, 'sendOtp'])
+          router.post('send-otp', [AuthController, 'sendOtp']).use(otpThrottle)
 
           // Forgot password routes
           router.post('forgot-password/request', [AuthController, 'forgotPasswordRequest'])

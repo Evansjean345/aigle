@@ -36,6 +36,12 @@ import KycLevelRepository from '#features/kyc/domain/imterfaces/kyc_level_reposi
 import KycLevelRepositoryImpl from '#features/kyc/infrastructure/repositories/kyc_level_repository_impl'
 import ResetPasswordTokenProvider from '#features/authentication/domain/interfaces/reset_password_token_provider'
 import RedisResetPasswordTokenProvider from '#features/authentication/infrastructure/redis_reset_password_token_provider'
+import AdminRepository from '#features/team/domain/interfaces/admin_repository'
+import AdminRepositoryImpl from '#features/team/infrastructure/repositories/admin_repository_impl'
+import RoleRepository from '#features/team/domain/interfaces/role_repository'
+import RoleRepositoryImpl from '#features/team/infrastructure/repositories/role_repository_impl'
+import PermissionRepository from '#features/team/domain/interfaces/permission_repository'
+import PermissionRepositoryImpl from '#features/team/infrastructure/repositories/permission_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -61,6 +67,9 @@ export default class RepositoryProvider {
       [KycDocumentRepository, KycDocumentRepositoryImpl],
       [KycLevelRepository, KycLevelRepositoryImpl],
       [ResetPasswordTokenProvider, RedisResetPasswordTokenProvider],
+      [AdminRepository, AdminRepositoryImpl],
+      [RoleRepository, RoleRepositoryImpl],
+      [PermissionRepository, PermissionRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {

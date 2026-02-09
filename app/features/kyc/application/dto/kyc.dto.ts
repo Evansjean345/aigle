@@ -31,10 +31,6 @@ export interface AdminKycListDto {
     kycStatus: string
     status: string
     phone: string
-    wallet?: {
-      id: number
-      balance: number
-    }
   }
 }
 

@@ -64,7 +64,7 @@ export default class WalletTransferValidationService {
    * @param {Wallet} senderWallet - The wallet associated with the sender of the transaction.
    * @param {Wallet} recipientWallet - The wallet associated with the recipient of the transaction.
    * @return {void}
-   * @throws {Exception} If either wallet is not found (HTTP 404, code: WALLET_NOT_FOUND)
+   * @throws {WalletNotFoundException} If either wallet is not found (HTTP 404, code: WALLET_NOT_FOUND)
    *                     or if the sender and recipient wallets are the same (HTTP 400, code: SAME_WALLET).
    */
   private validateWallets(senderWallet: Wallet, recipientWallet: Wallet): void {
@@ -124,7 +124,6 @@ export default class WalletTransferValidationService {
       amount,
       transactionType: TransactionType.WALLET_TRANSFERT,
       direction,
-      operationType: TransactionType.WALLET_TRANSFERT,
     })
   }
 

@@ -30,6 +30,7 @@ import WalletTransferContextService, {
 } from '#features/operations/application/services/wallet_transfer_context_service'
 import WalletTransferValidationService from '#features/operations/application/services/wallet_transfer_validation_service'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import transferLog from '#shared/infrastructure/logging/transfer_log'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import WalletUpdateFailedException from '#features/operations/infrastructure/exceptions/wallet_update_failed_exception'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
@@ -152,12 +153,25 @@ export default class WalletToWalletUseCase {
         recipientWallet
       )
 
+      transferLog.info(
+        'WALLET_TRANSFER_COMPLETED',
+        {
+          reference: idempotencyKey,
+          sender: { transactionId: transferResult.senderTx.id },
+          recipient: { transactionId: transferResult.recipientTx.id },
+        },
+        'Wallet-to-wallet transfer completed'
+      )
+
       return responseResult
     } catch (error) {
       await trx.rollback()
-      transactionLog.error(
+      transferLog.error(
         'WALLET_TRANSFER_FAILED',
-        { error: error instanceof Error ? error.message : 'Unknown error' },
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          user: { id: context.senderWallet.id },
+        },
         'Wallet-to-wallet transfer failed'
       )
 
@@ -187,78 +201,13 @@ export default class WalletToWalletUseCase {
     trx: TransactionClientContract,
     idempotencyKey?: string
   ): Promise<TransferResult> {
-    const { senderWallet, recipientWallet, amount, fees, total } = context
+    // Step 1: Create Sender entries (Debit balance, Transaction, Payment, Ledger)
+    const senderTx = await this.createSenderEntries(context, balances, trx, idempotencyKey)
 
-    // Step 1: Update balances
-    const [senderAfter, recipientAfter] = await Promise.all([
-      // Debit the sender wallet
-      this.walletService.debitBalance(senderWallet.id, amount, trx),
-      // Credit the recipient wallet
-      this.walletService.creditBalance(recipientWallet.id, total, trx),
-    ])
-
-    if (!senderAfter || !recipientAfter) {
-      transactionLog.error(
-        'BALANCE_UPDATE_FAILED',
-        {
-          sender: { walletId: senderWallet.id },
-          recipient: { walletId: recipientWallet.id },
-        },
-        'Failed to update balances'
-      )
-      throw new WalletUpdateFailedException('Échec de la mise à jour des soldes')
-    }
-
-    // Getting sender and recipient balances after updated balances
-    balances.senderAfter = senderAfter.balance
-    balances.recipientAfter = recipientAfter.balance
+    // Step 2: Create Recipient entries (Credit balance, Transaction, Payment, Ledger)
+    const recipientTx = await this.createRecipientEntries(context, balances, trx)
 
     this.logBalancesUpdated(context, balances)
-
-    // Step 2: Create transactions
-    const [senderTx, recipientTx] = await this.createTransactions(
-      context,
-      balances,
-      trx,
-      idempotencyKey
-    )
-
-    // Step 3: Create payments and ledger entries in parallel
-    await Promise.all([
-      // create the sender's transaction payment record
-      this.createPaymentRecord(senderTx, recipientWallet.user, trx),
-
-      // create the beneficiary's transaction payment record
-      this.createPaymentRecord(recipientTx, senderWallet.user, trx),
-
-      // Create the sender's ledger entry
-      this.ledgerService.recordWalletTransfer(
-        {
-          transaction: senderTx,
-          walletId: senderWallet.id,
-          direction: LedgerDirection.DEBIT,
-          amount: total,
-          fees,
-          balanceBefore: balances.senderBefore,
-          balanceAfter: balances.senderAfter,
-        },
-        trx
-      ),
-
-      // Create the recipient's ledger entry
-      this.ledgerService.recordWalletTransfer(
-        {
-          transaction: recipientTx,
-          walletId: recipientWallet.id,
-          direction: LedgerDirection.CREDIT,
-          amount: total,
-          fees: 0,
-          balanceBefore: balances.recipientBefore,
-          balanceAfter: balances.recipientAfter,
-        },
-        trx
-      ),
-    ])
 
     // Logging the transaction IDs for debugging purposes
     transactionLog.info(
@@ -275,61 +224,124 @@ export default class WalletToWalletUseCase {
   }
 
   /**
-   * Creates transactions for a transfer operation between a sender and a recipient.
+   * Creates all entries for the sender (Debit Balance, Transaction, Payment, Ledger).
    *
-   * @param {TransferContext} context - The transfer context containing sender and recipient wallet details, amount, fees, total, and the current user information.
-   * @param {BalanceSnapshot} balances - The balance snapshot object containing updated balances for the sender and recipient after the transaction.
-   * @param {TransactionClientContract} trx - The database transaction client used for creating transactions in a transactional context.
-   * @param {string} [idempotencyKey] - Optional idempotency key to ensure the transaction is processed only once in case of retries.
-   * @return {Promise<[Transaction, Transaction]>} A promise that resolves to a tuple of transactions: the sender's debit transaction and the recipient's credit transaction.
+   * @private
    */
-  private async createTransactions(
+  private async createSenderEntries(
     context: TransferContext,
     balances: BalanceSnapshot,
     trx: TransactionClientContract,
     idempotencyKey?: string
-  ): Promise<[Transaction, Transaction]> {
+  ): Promise<Transaction> {
     const { senderWallet, recipientWallet, amount, fees, total, currentUser } = context
+    const senderAfter = await this.walletService.debitBalance(senderWallet.id, amount, trx)
 
-    const senderName = `${senderWallet.user.firstname} ${senderWallet.user.lastname}`
-    const recipientName = `${recipientWallet.user.firstname} ${recipientWallet.user.lastname}`
-
-    return Promise.all([
-      // create the sender transaction
-      this.transactionService.createTransaction(
+    if (!senderAfter) {
+      transactionLog.error(
+        'SENDER_BALANCE_UPDATE_FAILED',
         {
-          status: TransactionStatus.SUCCESS,
-          amount,
-          direction: TransactionDirection.DEBIT,
-          total_amount: total,
-          fees,
-          balanceAfter: balances.senderAfter,
-          operation_type: TransactionType.WALLET_TRANSFERT,
-          description: `Transfert à ${recipientName}`,
-          idempotency: idempotencyKey,
+          sender: { walletId: senderWallet.id },
         },
-        senderWallet.id,
-        currentUser,
-        trx
-      ),
+        'Failed to update sender balance'
+      )
+      throw new WalletUpdateFailedException('Échec du débit du compte expéditeur')
+    }
 
-      // create the beneficiary transaction
-      this.transactionService.createTransaction(
+    balances.senderAfter = senderAfter.balance
+
+    const senderTx = await this.transactionService.createTransaction(
+      {
+        status: TransactionStatus.SUCCESS,
+        amount,
+        direction: TransactionDirection.DEBIT,
+        total_amount: total,
+        fees,
+        balanceAfter: balances.senderAfter,
+        operation_type: TransactionType.WALLET_TRANSFERT,
+        description: `Transfert à ${recipientWallet.user.firstname} ${recipientWallet.user.lastname}`,
+        idempotency: idempotencyKey,
+      },
+      senderWallet.id,
+      currentUser,
+      trx
+    )
+
+    await this.createPaymentRecord(senderTx, recipientWallet.user, trx)
+    await this.ledgerService.recordWalletTransfer(
+      {
+        transaction: senderTx,
+        walletId: senderWallet.id,
+        direction: LedgerDirection.DEBIT,
+        amount: total,
+        fees,
+        balanceBefore: balances.senderBefore,
+        balanceAfter: balances.senderAfter,
+      },
+      trx
+    )
+
+    return senderTx
+  }
+
+  /**
+   * Creates all entries for the recipient (Credit Balance, Transaction, Payment, Ledger).
+   *
+   * @private
+   */
+  private async createRecipientEntries(
+    context: TransferContext,
+    balances: BalanceSnapshot,
+    trx: TransactionClientContract
+  ): Promise<Transaction> {
+    const { senderWallet, recipientWallet, total } = context
+
+    const recipientAfter = await this.walletService.creditBalance(recipientWallet.id, total, trx)
+
+    if (!recipientAfter) {
+      transactionLog.error(
+        'RECIPIENT_BALANCE_UPDATE_FAILED',
         {
-          status: TransactionStatus.SUCCESS,
-          amount: total,
-          direction: TransactionDirection.CREDIT,
-          total_amount: total,
-          fees: 0,
-          balanceAfter: balances.recipientAfter,
-          operation_type: TransactionType.WALLET_TRANSFERT,
-          description: `Transfert reçu de ${senderName}`,
+          recipient: { walletId: recipientWallet.id },
         },
-        recipientWallet.id,
-        recipientWallet.user,
-        trx
-      ),
-    ])
+        'Failed to update recipient balance'
+      )
+      throw new WalletUpdateFailedException('Échec du crédit du compte destinataire')
+    }
+
+    balances.recipientAfter = recipientAfter.balance
+
+    const recipientTx = await this.transactionService.createTransaction(
+      {
+        status: TransactionStatus.SUCCESS,
+        amount: total,
+        direction: TransactionDirection.CREDIT,
+        total_amount: total,
+        fees: 0,
+        balanceAfter: balances.recipientAfter,
+        operation_type: TransactionType.WALLET_TRANSFERT,
+        description: `Transfert reçu de ${senderWallet.user.firstname} ${senderWallet.user.lastname}`,
+      },
+      recipientWallet.id,
+      recipientWallet.user,
+      trx
+    )
+
+    await this.createPaymentRecord(recipientTx, senderWallet.user, trx)
+    await this.ledgerService.recordWalletTransfer(
+      {
+        transaction: recipientTx,
+        walletId: recipientWallet.id,
+        direction: LedgerDirection.CREDIT,
+        amount: total,
+        fees: 0,
+        balanceBefore: balances.recipientBefore,
+        balanceAfter: balances.recipientAfter,
+      },
+      trx
+    )
+
+    return recipientTx
   }
 
   /**
@@ -382,10 +394,10 @@ export default class WalletToWalletUseCase {
     recipientWallet: Wallet
   ): void {
     WalletToWalletTransactionCompleted.dispatch(senderTx, recipientTx, {
-      recipienPhone: recipientWallet.user.phone,
+      recipientPhone: recipientWallet.user.phone,
       senderPhone: senderWallet.user.phone,
     }).catch((err) =>
-      transactionLog.error(
+      transferLog.error(
         'EVENT_DISPATCH_FAILED',
         { error: err instanceof Error ? err.message : 'Unknown error' },
         'Failed to dispatch completion event'
@@ -407,7 +419,7 @@ export default class WalletToWalletUseCase {
     mode: TransferMode,
     payload: WalletToWalletRequestDto
   ): void {
-    transactionLog.info(
+    transferLog.info(
       'WALLET_TRANSFER_STARTED',
       {
         user: { id: user.id },
@@ -431,7 +443,7 @@ export default class WalletToWalletUseCase {
    * @private
    */
   private logBalancesUpdated(context: TransferContext, balances: BalanceSnapshot): void {
-    transactionLog.info(
+    transferLog.info(
       'BALANCES_UPDATED',
       {
         sender: {

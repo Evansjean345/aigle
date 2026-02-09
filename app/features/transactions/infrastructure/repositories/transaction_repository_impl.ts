@@ -71,7 +71,11 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    */
   async findByReference(reference: string): Promise<Transaction | null> {
     return await Transaction.query()
-      .preload('user')
+      .preload('user', (userQuery) => {
+        userQuery.preload('wallet', (walletQuery) => {
+          walletQuery.select('balance')
+        })
+      })
       .preload('payment')
       .preload('ledger')
       .where('reference', reference)
@@ -128,12 +132,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       userId?: string
     }
   ): Promise<ModelPaginatorContract<Transaction>> {
-    const query = Transaction.query()
-      .preload('user')
-      .preload('ledger', (q) => {
-        q.preload('wallet')
-      })
-      .preload('payment')
+    const query = Transaction.query().preload('user')
 
     if (filters?.userId) {
       query.where('usersUid', filters.userId)

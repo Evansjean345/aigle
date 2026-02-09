@@ -7,9 +7,13 @@ import adminKycRoutes from '#features/kyc/presentation/admin/routes/kyc_routes'
 import adminAppVersionRoutes from '#features/device/presentation/admin/routes/app_version_routes'
 import adminDeviceRoutes from '#features/device/presentation/admin/routes/admin_device_routes'
 import adminWalletRoutes from '#features/wallet/presentation/admin/routes/admin_wallet_routes'
+import adminAuthRoutes from '#features/authentication/presentation/admin/routes/admin_auth_routes'
+import teamRoutes from '#features/team/presentation/routes/team_routes'
 
 router
   .group(() => {
+    router.group(adminAuthRoutes)
+    router.group(teamRoutes)
     router.group(adminServicesManagementRoutes)
     router.group(adminTransactionRoutes)
     router.group(adminUsersRoute)

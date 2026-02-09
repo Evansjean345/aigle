@@ -5,7 +5,8 @@ import { Notification } from '#features/notifications/domain/notification'
 import { inject } from '@adonisjs/core'
 import { Exception } from '@adonisjs/core/exceptions'
 import DeviceService from '#features/device/application/services/device_service'
-import appLog from '#shared/infrastructure/logging/app_log'
+import notificationLog from '#shared/infrastructure/logging/notification_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
 
 @inject()
 export default class ExpoPushNotificationChannel implements NotificationChannel {
@@ -22,8 +23,11 @@ export default class ExpoPushNotificationChannel implements NotificationChannel 
   }
 
   /**
-   * Send notification to expo push notification channel
-   * @param notification
+   * Sends a notification to the recipient's trusted devices using Expo push notifications.
+   *
+   * @param {Notification} notification - The notification object containing details such as recipient ID, title, message, and optional data.
+   * @return {Promise<void>} A promise that resolves when the notification sending operation completes.
+   * @throws {Exception} If no push tokens are found for the recipient.
    */
   async send(notification: Notification): Promise<void> {
     const devices = await this.deviceService.getTrustedDevices(notification.recipientId)
@@ -32,10 +36,10 @@ export default class ExpoPushNotificationChannel implements NotificationChannel 
     const tokens = devices.map((d) => d.pushToken)
 
     if (!tokens || tokens.length === 0) {
-      appLog.error(
+      notificationLog.warn(
         'NO_PUSH_TOKENS_FOUND',
-        {},
-        'No push tokens found for user: ' + notification.recipientId + ''
+        { recipientId: notification.recipientId },
+        'No push tokens found for user'
       )
 
       throw new Exception('No push tokens found', {
@@ -56,23 +60,39 @@ export default class ExpoPushNotificationChannel implements NotificationChannel 
           data: notification.data ?? {},
         })
       }
-
-      console.log(JSON.stringify(messages, null, 2))
     }
 
     if (messages.length === 0) return
 
     try {
       await this.#expoInstance.sendPushNotificationsAsync(messages)
+      notificationLog.info(
+        'PUSH_SENT',
+        {
+          recipientId: notification.recipientId,
+          tokensCount: tokens.length,
+          validTokensCount: messages.length,
+        },
+        'Push notifications sent via Expo'
+      )
     } catch (error) {
-      console.error('Error sending Expo push:', error)
+      errorLog.error(
+        'PUSH_SEND_ERROR',
+        {
+          recipientId: notification.recipientId,
+          error: (error as Error)?.message || 'Unknown error',
+        },
+        'Error sending Expo push notification'
+      )
     }
   }
 
   /**
-   * Send notification to specific push tokens
-   * @param tokens - Array of push tokens to send the notification to
-   * @param notification - The notification to send
+   * Sends push notifications to the specified Expo push tokens.
+   *
+   * @param {string[]} tokens - An array of Expo push tokens to which the notification should be sent.
+   * @param {Notification} notification - The notification object containing the title, message, and optional additional data.
+   * @return {Promise<void>} A promise that resolves when the notifications have been sent or rejects if an error occurs.
    */
   async sendToTokens(tokens: string[], notification: Notification): Promise<void> {
     if (!tokens || tokens.length === 0) {
@@ -98,7 +118,11 @@ export default class ExpoPushNotificationChannel implements NotificationChannel 
     try {
       await this.#expoInstance.sendPushNotificationsAsync(messages)
     } catch (error) {
-      console.error('Error sending Expo push to specific tokens:', error)
+      notificationLog.error(
+        'PUSH_SEND_ERROR',
+        { recipientId: notification.recipientId },
+        'Error sending Expo push to specific tokens'
+      )
     }
   }
 }

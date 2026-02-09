@@ -5,10 +5,11 @@ import DeviceService from '#features/device/application/services/device_service'
 import { toDeviceCommand } from '#features/device/application/mappers/device.mapper'
 import { bypassEnabled, appPhoneNumberReview } from '#config/app'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
-import { concartPhoneNumber } from '#shared/utils/utiles'
+import { concartPhoneNumber, maskPhone } from '#shared/utils/utiles'
 import User from '#features/user/domain/models/user'
 import { UserStatus } from '#features/user/domain/enum'
 import AccountBlockedException from '#features/authentication/infrastructure/exceptions/account_blocked_exception'
+import securityLog from '#shared/infrastructure/logging/security_log'
 
 @inject()
 export default class LoginUseCase {
@@ -32,30 +33,36 @@ export default class LoginUseCase {
    * @return {Promise<LoginResult>} A promise that resolves to the result of the login operation.
    */
   async execute(data: LoginRequestDto): Promise<LoginResult> {
-    try {
-      const country = await this.countryRepository.findCountryBy('id', data.country_id)
-      const formattedPhone = concartPhoneNumber(country.phoneCode, data.phone)
+    const country = await this.countryRepository.findCountryBy('id', data.country_id)
+    const formattedPhone = concartPhoneNumber(country.phoneCode, data.phone)
 
-      const user = await User.verifyCredentials(formattedPhone, data.pincode)
+    const user = await User.verifyCredentials(formattedPhone, data.pincode)
 
-      if (user.status === UserStatus.BLOCKED) {
-        throw new AccountBlockedException()
-      }
-
-      if (data.device) {
-        const deviceCommand = await toDeviceCommand(data.device)
-        await this.deviceService.saveDevice(deviceCommand, user.usersUid)
-      }
-
-      if (bypassEnabled && appPhoneNumberReview && user.phone === appPhoneNumberReview) {
-        return { message: 'Bypass OTP activé pour ce numéro' }
-      }
-
-      await this.otpService.sendOtp(user.phone, user.usersUid)
-      return { message: 'OTP sent successfully' }
-    } catch (error) {
-      console.log(error)
-      throw error
+    if (user.status === UserStatus.BLOCKED) {
+      securityLog.warn(
+        'ACCOUNT_BLOCKED_LOGIN_ATTEMPT',
+        { userId: user.id, phone: formattedPhone },
+        'Blocked account login attempt'
+      )
+      throw new AccountBlockedException()
     }
+
+    if (data.device) {
+      const deviceCommand = await toDeviceCommand(data.device)
+      await this.deviceService.saveDevice(deviceCommand, user.usersUid)
+    }
+
+    securityLog.info(
+      'USER_CREDENTIALS_VERIFIED',
+      { userId: user.id, phone: maskPhone(formattedPhone) },
+      'User credentials verified, proceeding to OTP'
+    )
+
+    if (bypassEnabled && appPhoneNumberReview && user.phone === appPhoneNumberReview) {
+      return { message: 'Bypass OTP activé pour ce numéro' }
+    }
+
+    await this.otpService.sendOtp(user.phone, user.usersUid)
+    return { message: 'OTP sent successfully' }
   }
 }

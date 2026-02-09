@@ -49,7 +49,6 @@ export const toMobileTransactionResponseDto = (
     direction: transaction.direction,
     balanceAfter: transaction.balanceAfter || 0,
     reference: transaction.reference,
-    idempotency: transaction.idempotency,
     status: transaction.status,
     dateTransaction: transaction.createdAt,
     payment: paymentResponse,
@@ -64,5 +63,6 @@ export const toTransactionPayment = (payment: Payment): PaymentResponseDTO => ({
   paymentDetails: {
     operator: payment.paymentDetails.operator,
     phone: payment.paymentDetails.phone || '',
+    user: payment.paymentDetails.user,
   },
 })

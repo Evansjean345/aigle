@@ -22,10 +22,6 @@ export default class KycMapper {
         kycStatus: kyc.user.kycStatus,
         phone: kyc.user.phone,
         status: kyc.user.status,
-        wallet: kyc.user.wallet && {
-          id: kyc.user.wallet.id,
-          balance: kyc.user.wallet.balance,
-        },
       },
     }
   }

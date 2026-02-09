@@ -4,8 +4,8 @@ export default class PaymentNotFoundException extends Exception {
   static status = 404
   static code = 'PAYMENT_NOT_FOUND'
 
-  constructor() {
-    super('Payment not found', {
+  constructor(message: string = 'Payment not found') {
+    super(message, {
       status: PaymentNotFoundException.status,
       code: PaymentNotFoundException.code,
     })

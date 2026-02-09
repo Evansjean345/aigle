@@ -1,5 +1,6 @@
 ﻿import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Wallet from '#features/wallet/domain/models/wallet'
+import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
 
 export interface AdjustedBalance {
   id: number

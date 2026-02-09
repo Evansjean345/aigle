@@ -93,3 +93,19 @@ export const normalizePhone = (rawPhone: string, defaultCountryCode: string = '2
 
   return phone
 }
+
+/**
+ * Masks a phone number or string by replacing all digits except the last two with asterisks.
+ * Example: "2250768357397" -> "***********97"
+ *
+ * @param {string | number | undefined | null} value - The value to be masked.
+ * @returns {string} - The masked string.
+ */
+export const maskPhone = (value: string | number | undefined | null): string => {
+  if (value === undefined || value === null) {
+    return ''
+  }
+
+  const str = typeof value === 'string' ? value : String(value)
+  return str.replace(/\d(?=\d{2})/g, '*')
+}

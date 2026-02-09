@@ -10,7 +10,11 @@ export default defineConfig({
   | will be scanned automatically from the "./commands" directory.
   |
   */
-  commands: [() => import('@adonisjs/core/commands'), () => import('@adonisjs/lucid/commands'), () => import('@adonisjs/cache/commands')],
+  commands: [
+    () => import('@adonisjs/core/commands'),
+    () => import('@adonisjs/lucid/commands'),
+    () => import('@adonisjs/cache/commands'),
+  ],
 
   /*
   |--------------------------------------------------------------------------
@@ -36,11 +40,11 @@ export default defineConfig({
     () => import('@adonisjs/drive/drive_provider'),
     () => import('#providers/repository_provider'),
     () => import('@adonisjs/redis/redis_provider'),
-    () => import('#providers/notification_service_provider'),
+    () => import('#features/notifications/notification_service_provider'),
     () => import('#features/transactions/transaction_provider'),
     () => import('#features/ledger/ledger_provider'),
     () => import('@adonisjs/cache/cache_provider'),
-    () => import('@adonisjs/limiter/limiter_provider')
+    () => import('@adonisjs/limiter/limiter_provider'),
   ],
 
   /*
@@ -70,12 +74,12 @@ export default defineConfig({
   tests: {
     suites: [
       {
-        files: ['tests/unit/**/*.spec(.ts|.js)'],
+        files: ['tests/unit/**/*.spec(.ExpoPushNotificationChannel|.js)'],
         name: 'unit',
         timeout: 2000,
       },
       {
-        files: ['tests/functional/**/*.spec(.ts|.js)'],
+        files: ['tests/functional/**/*.spec(.ExpoPushNotificationChannel|.js)'],
         name: 'functional',
         timeout: 30000,
       },

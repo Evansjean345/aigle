@@ -2,8 +2,8 @@ import NotificationChannel from '#features/notifications/domain/interfaces/notif
 import { Notification } from '#features/notifications/domain/notification'
 import { NotificationChannelType } from '#features/notifications/domain/notification_channel_type'
 import { inject } from '@adonisjs/core'
-import ExpoPushNotificationChannel from '#features/notifications/infrastructure/channels/expoPushNotificationChannel'
-import SmsNotificationChannel from '#features/notifications/infrastructure/channels/smsNotificationChannel'
+import ExpoPushNotificationChannel from '#features/notifications/infrastructure/channels/expo_push_notification_channel'
+import Sms_notification_channel from '#features/notifications/infrastructure/channels/sms_notification_channel'
 
 @inject()
 export default class NotificationService {
@@ -17,21 +17,15 @@ export default class NotificationService {
   private readonly channels: NotificationChannel[]
 
   /**
-   * The SMS notification channel instance.
-   */
-  private readonly smsChannel: SmsNotificationChannel
-
-  /**
    * Initializes a new instance of the class with the specified notification channels.
    *
    * @param {ExpoPushNotificationChannel} expoPushChannel - The Expo Push Notification channel to be used.
-   * @param {SmsNotificationChannel} smsChannel - The SMS notification channel to be used.
+   * @param {Sms_notification_channel} smsChannel - The SMS notification channel to be used.
    */
   constructor(
     private expoPushChannel: ExpoPushNotificationChannel,
-    smsChannel: SmsNotificationChannel
+    private smsChannel: Sms_notification_channel
   ) {
-    this.smsChannel = smsChannel
     this.channels = [this.expoPushChannel, this.smsChannel]
   }
 

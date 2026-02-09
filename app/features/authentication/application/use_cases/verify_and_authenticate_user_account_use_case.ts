@@ -4,7 +4,7 @@ import { AuthenticatedProfileAndTokenResponseDto } from '#features/authenticatio
 import { toAuthenticatedUserProfileAndTokenResponse } from '#features/authentication/application/mappers/authenticated_user.mapper'
 import { inject } from '@adonisjs/core'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
-import { concartPhoneNumber } from '#shared/utils/utiles'
+import { concartPhoneNumber, maskPhone } from '#shared/utils/utiles'
 import { UserStatus } from '#features/user/domain/enum'
 import { VerifyAccountRequestDto } from '#features/authentication/application/dtos/verify_account.dto'
 import DeviceService from '#features/device/application/services/device_service'
@@ -12,6 +12,8 @@ import { bypassEnabled, appPhoneNumberReview } from '#config/app'
 import PhoneNotFoundException from '#features/authentication/infrastructure/exceptions/phone_not_found_exception'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import AccountBlockedException from '#features/authentication/infrastructure/exceptions/account_blocked_exception'
+import securityLog from '#shared/infrastructure/logging/security_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
 
 /**
  * Interface pour les informations device passées au use case
@@ -64,6 +66,11 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
     }
 
     if (user.status === UserStatus.BLOCKED) {
+      securityLog.warn(
+        'ACCOUNT_BLOCKED_AUTH_ATTEMPT',
+        { userId: user.id, phone: formattedPhone },
+        'Blocked account authentication attempt'
+      )
       throw new AccountBlockedException()
     }
 
@@ -92,12 +99,32 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
         name: device ? `device:${device.id}` : 'unknown_device',
       })
 
+      securityLog.info(
+        'USER_AUTHENTICATED',
+        {
+          userId: user.id,
+          phone: maskPhone(user.phone),
+          type,
+          deviceId: device?.id,
+        },
+        'User successfully authenticated'
+      )
+
       await user.load('country')
       await user.load('wallet')
       await user.load('kycDocument')
 
       return toAuthenticatedUserProfileAndTokenResponse(user, token.value!.release())
     } catch (error) {
+      errorLog.error(
+        'AUTH_EXECUTE_ERROR',
+        {
+          userId: user.id,
+          type,
+          error: error.message,
+        },
+        'Error during authentication execution'
+      )
       throw error
     }
   }

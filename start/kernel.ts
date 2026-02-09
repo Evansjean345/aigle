@@ -35,4 +35,5 @@ export const middleware = router.named({
   auth: () => import('#shared/middleware/auth_middleware'),
   idempotency: () => import('#shared/middleware/idempotency_middleware'),
   device: () => import('#shared/middleware/device_middleware'),
+  permission: () => import('#shared/middleware/permission_middleware'),
 })

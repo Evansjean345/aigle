@@ -2,7 +2,9 @@ import NotificationChannel from '#features/notifications/domain/interfaces/notif
 import { NotificationChannelType } from '#features/notifications/domain/notification_channel_type'
 import { Notification } from '#features/notifications/domain/notification'
 import env from '#start/env'
-import appLog from '#shared/infrastructure/logging/app_log'
+import notificationLog from '#shared/infrastructure/logging/notification_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
+import { maskPhone } from '#shared/utils/utiles'
 
 /**
  * SMS Notification Channel using MTarget API.
@@ -32,7 +34,7 @@ export default class SmsNotificationChannel implements NotificationChannel {
   async send(notification: Notification): Promise<void> {
     const phone = notification.data?.phone
     if (!phone) {
-      appLog.error(
+      notificationLog.error(
         'SMS_NO_PHONE_NUMBER',
         { recipientId: notification.recipientId },
         'No phone number provided for SMS notification'
@@ -51,7 +53,7 @@ export default class SmsNotificationChannel implements NotificationChannel {
    */
   async sendSms(message: string, phone: string): Promise<any> {
     if (!phone || !message) {
-      appLog.warn(
+      notificationLog.warn(
         'SMS_INVALID_PARAMS',
         { phone: phone ? '***' : 'missing', messageLength: message?.length || 0 },
         'Invalid parameters for SMS sending'
@@ -71,8 +73,6 @@ export default class SmsNotificationChannel implements NotificationChannel {
 
       const encodedData = new URLSearchParams(data).toString()
 
-      console.log(encodedData)
-
       const response = await fetch(this.apiUrl, {
         method: 'POST',
         headers: {
@@ -83,10 +83,10 @@ export default class SmsNotificationChannel implements NotificationChannel {
 
       const result = await response.text()
 
-      appLog.info(
+      notificationLog.info(
         'SMS_SENT',
         {
-          phone: phone.replace(/\d(?=\d{2})/g, '*'),
+          phone: maskPhone(phone),
           status: response.status,
           response: result,
         },
@@ -95,10 +95,10 @@ export default class SmsNotificationChannel implements NotificationChannel {
 
       return result
     } catch (error) {
-      appLog.error(
+      errorLog.error(
         'SMS_SEND_ERROR',
         {
-          phone: phone.replace(/\d(?=\d{2})/g, '*'),
+          phone: maskPhone(phone),
           error: (error as Error)?.message || 'Unknown error',
         },
         'Error sending SMS via MTarget'

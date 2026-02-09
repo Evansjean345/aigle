@@ -7,7 +7,7 @@ RUN npm ci
 
 COPY . .
 
-RUN node ace build --ignore-ts-errors
+RUN node ace build --ignore-ExpoPushNotificationChannel-errors
 
 FROM node:22-slim as production
 

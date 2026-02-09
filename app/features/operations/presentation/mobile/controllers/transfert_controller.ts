@@ -6,6 +6,7 @@ import { toTransfertDto } from '#features/operations/application/mappers/transfe
 import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
 import { TransferMode } from '#features/operations/application/services/wallet_transfer_context_service'
 import { PaymentMethod } from '#features/transactions/domain/enums/payment_method'
+import User from '#features/user/domain/models/user'
 
 /**
  * Controller responsible for handling user transactions.
@@ -34,7 +35,7 @@ export default class TransfertController {
    * @return {Promise<void>} The HTTP response containing the result of the transfer operation.
    */
   async handle({ request, response, auth, deviceInfo }: HttpContext): Promise<void> {
-    const user = auth.user!
+    const user = auth.user! as User
     const idempotencyKey = request.header('X-Idempotency-Key')
     const payload = await request.validateUsing(transfertValidator)
 

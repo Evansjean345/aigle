@@ -7,14 +7,16 @@ import OtpCreationException from '#features/authentication/infrastructure/except
 import InvalidOtpException from '#features/authentication/infrastructure/exceptions/invalid_otp_exception'
 import ExpiredOtpException from '#features/authentication/infrastructure/exceptions/expired_otp_exception'
 import OtpLockedException from '#features/authentication/infrastructure/exceptions/otp_locked_exception'
-import appLog from '#shared/infrastructure/logging/app_log'
+import securityLog from '#shared/infrastructure/logging/security_log'
 import NotificationService from '#features/notifications/application/services/notificaton_service'
+import { maskPhone } from '#shared/utils/utiles'
 
 // Simple constants to make OTP behavior easy to tune
 const OTP_EXPIRY_SECONDS = 600 // 10 minutes
 const OTP_EXPIRY_MINUTES = 10 // 10 minutes
 const OTP_MAX_ATTEMPTS = 5 // 5 attempts before locking
 const OTP_LOCK_SECONDS = 60 // 1-minute lock after 5 attempts
+const OTP_RESEND_DELAY_SECONDS = 60 // Minimum 60 seconds between OTP resends
 
 /**
  * Service for handling OTP (One-Time Password) generation, sending, and verification.
@@ -61,9 +63,17 @@ export default class OtpService {
 
     try {
       const saved = await this.otpRepository.save(otp)
+      securityLog.info(
+        'OTP_CREATED',
+        {
+          userId,
+          phone: maskPhone(phone),
+        },
+        'OTP created successfully'
+      )
       return { entity: saved, code }
     } catch (err) {
-      appLog.error(
+      securityLog.error(
         'OTP_CREATION_ERROR',
         {
           userId,
@@ -78,20 +88,52 @@ export default class OtpService {
 
   /**
    * Sends an OTP (one-time password) to the specified phone number.
+   * Checks if a valid OTP already exists and enforces a minimum delay between resends.
    *
    * @param {string} phone - The phone number to which the OTP is to be sent.
    * @param {string} userId - The unique identifier of the user requesting the OTP.
-   * @return {Promise<{ sent: boolean }>} A promise that resolves to an object indicating whether the OTP was sent successfully.
+   * @return {Promise<{ sent: boolean, waitTime?: number }>} A promise that resolves to an object indicating whether the OTP was sent successfully.
    */
-  async sendOtp(phone: string, userId: string): Promise<{ sent: boolean }> {
+  async sendOtp(phone: string, userId: string): Promise<{ sent: boolean; waitTime?: number }> {
     try {
+      // Check if a valid OTP already exists for this phone
+      const existingOtp = await this.otpRepository.check(phone)
+
+      if (existingOtp) {
+        const now = DateTime.now()
+        const expiresAt = DateTime.fromJSDate(existingOtp.expiresAt as Date)
+        const createdAt = existingOtp.createdAt
+
+        // Check if OTP is still valid (not expired)
+        if (expiresAt > now) {
+          // Calculate time since OTP was created
+          const secondsSinceCreation = now.diff(createdAt, 'seconds').seconds
+
+          // If less than OTP_RESEND_DELAY_SECONDS have passed, don't send a new OTP
+          if (secondsSinceCreation < OTP_RESEND_DELAY_SECONDS) {
+            const waitTime = Math.ceil(OTP_RESEND_DELAY_SECONDS - secondsSinceCreation)
+            securityLog.info(
+              'OTP_RESEND_BLOCKED',
+              {
+                phone: maskPhone(phone),
+                waitTime,
+              },
+              'OTP resend blocked - must wait before requesting new OTP'
+            )
+            // Return success but indicate waiting time (OTP already sent recently)
+            return { sent: true, waitTime }
+          }
+        }
+      }
+
       const { code } = await this.createOtp(userId, phone)
       const message = `Votre code OTP est ${code}. Il est valide pendant ${OTP_EXPIRY_MINUTES} minutes.`
       console.log(message)
-      await this.notificationService.sendSms(message, phone)
+      // await this.notificationService.sendSms(message, phone)
 
       return { sent: true }
     } catch (err) {
+      securityLog.error('OTP_SEND_ERROR', { phone: maskPhone(phone) }, 'Failed to send OTP')
       throw err
     }
   }
@@ -109,16 +151,23 @@ export default class OtpService {
     const otp = await this.otpRepository.check(data.phone)
 
     if (!otp) {
+      securityLog.warn(
+        'OTP_VERIFY_NOT_FOUND',
+        { phone: maskPhone(data.phone) },
+        'OTP not found for verification'
+      )
       throw new InvalidOtpException()
     }
 
     const now = DateTime.now()
 
     if (DateTime.fromJSDate(<Date>otp.expiresAt) < now) {
+      securityLog.warn('OTP_EXPIRED', { phone: maskPhone(data.phone) }, 'OTP expired')
       throw new ExpiredOtpException()
     }
 
     if (otp.lockedUntil && DateTime.fromJSDate(otp.lockedUntil) > now) {
+      securityLog.warn('OTP_LOCKED', { phone: maskPhone(data.phone) }, 'OTP is currently locked')
       throw new OtpLockedException()
     }
 
@@ -133,7 +182,11 @@ export default class OtpService {
     if (attempts >= OTP_MAX_ATTEMPTS) {
       otp.lockedUntil = new Date(Date.now() + OTP_LOCK_SECONDS * 1000)
       await this.otpRepository.save(otp)
-
+      securityLog.warn(
+        'OTP_LOCKING',
+        { phone: maskPhone(data.phone) },
+        'OTP locked due to too many attempts'
+      )
       throw new OtpLockedException()
     }
 
@@ -142,11 +195,19 @@ export default class OtpService {
     if (!isOtpValid) {
       otp.attempts = (otp.attempts ?? 0) + 1
       await this.otpRepository.save(otp)
-
+      securityLog.warn(
+        'OTP_INVALID',
+        {
+          phone: maskPhone(data.phone),
+          attempts: otp.attempts,
+        },
+        'Invalid OTP entered'
+      )
       throw new InvalidOtpException()
     }
 
     // Optional: Invalidate OTP after a successful verification to prevent reuse
     await this.otpRepository.delete(data.phone)
+    securityLog.info('OTP_VERIFIED', { phone: maskPhone(data.phone) }, 'OTP verified successfully')
   }
 }

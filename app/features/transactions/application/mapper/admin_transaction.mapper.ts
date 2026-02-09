@@ -29,7 +29,7 @@ export const toPaginatedAdminTransactionsResponseDto = async (
 }
 
 /**
- * Converts a Transaction object into a AdminTransactionResponseDTO object.
+ * Converts a Transaction object into an AdminTransactionResponseDTO object.
  */
 export const toAdminTransactionResponseDto = (
   transaction: Transaction
@@ -58,6 +58,9 @@ export const toAdminTransactionResponseDto = (
       id: transaction.user.usersUid,
       firstname: transaction.user.firstname,
       lastname: transaction.user.lastname,
+      wallet: {
+        balance: Number(transaction.user?.wallet?.balance),
+      },
     },
     ledgers: transaction.ledger && {
       id: transaction.ledger.id,
@@ -75,7 +78,10 @@ export const toAdminTransactionResponseDto = (
 }
 
 /**
- * Converts a given `Payment` object to a `PaymentResponseDTO` object.
+ * Transforms a Payment object into a PaymentResponseDTO object.
+ *
+ * @param {Payment} payment - The payment object to be transformed. It contains details about the payment method and payment-specific details like operator, phone, and user.
+ * @returns {PaymentResponseDTO} A DTO object containing the transformed payment method and payment details.
  */
 export const toTransactionPayment = (payment: Payment): PaymentResponseDTO => ({
   paymentMethod: payment.paymentMethod,

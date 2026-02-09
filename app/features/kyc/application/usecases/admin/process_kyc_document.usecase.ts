@@ -4,6 +4,8 @@ import { KycDocumentStatus } from '#features/kyc/domain/enum/kyc_enum'
 import KycDocumentProcessed from '#features/kyc/application/events/kyc_document_processed'
 import { KycAttemp } from '#features/kyc/domain/models/kyc_attemp'
 import KycDocumentNotFoundException from '#features/kyc/infrastructure/exceptions/kyc_document_not_found_exception'
+import kycLog from '#shared/infrastructure/logging/kyc_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
 
 @inject()
 export default class ProcessKycDocumentUseCase {
@@ -28,36 +30,62 @@ export default class ProcessKycDocumentUseCase {
     const kycDocument = await this.kycDocumentRepository.findById(id)
 
     if (!kycDocument) {
+      errorLog.error('KYC_DOC_NOT_FOUND', { kyc_id: id }, 'KYC document not found for processing')
       throw new KycDocumentNotFoundException()
     }
 
-    // Mise à jour du document principal
-    kycDocument.status = status
-    kycDocument.comment = comment
-    await this.kycDocumentRepository.saveKycDocument(kycDocument)
+    try {
+      // Mise à jour du document principal
+      kycDocument.status = status
+      kycDocument.comment = comment
+      await this.kycDocumentRepository.saveKycDocument(kycDocument)
 
-    // Création d'une tentative pour l'historique
-    const lastAttempt = await this.kycDocumentRepository.findLastAttempt(
-      kycDocument.userId,
-      kycDocument.documentType
-    )
+      // Création d'une tentative pour l'historique
+      const lastAttempt = await this.kycDocumentRepository.findLastAttempt(
+        kycDocument.userId,
+        kycDocument.documentType
+      )
 
-    const attemptNumber = (lastAttempt?.attemptNumber || 0) + 1
+      const attemptNumber = (lastAttempt?.attemptNumber || 0) + 1
 
-    const decisionAttempt = new KycAttemp()
-    decisionAttempt.userId = kycDocument.userId
-    decisionAttempt.kycDocumentId = kycDocument.id
-    decisionAttempt.documentType = kycDocument.documentType
-    decisionAttempt.documentRectoUrl = kycDocument.documentRectoUrl
-    decisionAttempt.documentVersoUrl = kycDocument.documentVersoUrl
-    decisionAttempt.selfieUrl = kycDocument.selfieUrl
-    decisionAttempt.attemptNumber = attemptNumber
-    decisionAttempt.status = status
-    decisionAttempt.comment = comment
+      const decisionAttempt = new KycAttemp()
+      decisionAttempt.userId = kycDocument.userId
+      decisionAttempt.kycDocumentId = kycDocument.id
+      decisionAttempt.documentType = kycDocument.documentType
+      decisionAttempt.documentRectoUrl = kycDocument.documentRectoUrl
+      decisionAttempt.documentVersoUrl = kycDocument.documentVersoUrl
+      decisionAttempt.selfieUrl = kycDocument.selfieUrl
+      decisionAttempt.attemptNumber = attemptNumber
+      decisionAttempt.status = status
+      decisionAttempt.comment = comment
 
-    await this.kycDocumentRepository.saveAttempt(decisionAttempt)
+      await this.kycDocumentRepository.saveAttempt(decisionAttempt)
 
-    // Déclenchement de l'événement pour les notifications et les mises à jour de statut utilisateur
-    await KycDocumentProcessed.dispatch(kycDocument.userId, status, comment)
+      kycLog.info(
+        'KYC_DOCUMENT_PROCESSED',
+        {
+          kyc_id: kycDocument.id,
+          user_id: kycDocument.userId,
+          status,
+          attempt_number: attemptNumber,
+        },
+        `KYC document ${status} successfully`
+      )
+
+      // Déclenchement de l'événement pour les notifications et les mises à jour de statut utilisateur
+      await KycDocumentProcessed.dispatch(kycDocument.userId, status, comment)
+    } catch (error) {
+      errorLog.error(
+        'KYC_PROCESS_ERROR',
+        {
+          kyc_id: id,
+          user_id: kycDocument.userId,
+          status,
+          error: error.message,
+        },
+        'Failed to process KYC document'
+      )
+      throw error
+    }
   }
 }
