@@ -19,23 +19,37 @@ export default class OtpRepositoryImpl implements OtpRepository {
   }
 
   /**
-   * Checks and retrieves the most recent OTP record for the given phone number.
+   * Checks and retrieves the most recent OTP record for the given identifier and target.
    *
-   * @param {string} phone - The phone number to query the OTP record for.
+   * @param {string} identifier - The phone number or email to query the OTP record for.
+   * @param {'mobile' | 'email'} target - The target of the OTP (mobile or admin email).
    * @return {Promise<Otp | null>} - A promise that resolves to the most recent OTP record
-   * for the given phone number, or null if no record is found.
+   * for the given identifier and target, or null if no record is found.
    */
-  async check(phone: string): Promise<Otp | null> {
-    return await Otp.query().where('phone', phone).orderBy('created_at', 'desc').first()
+  async check(identifier: string, target: 'mobile' | 'email'): Promise<Otp | null> {
+    const query = Otp.query().where('target', target)
+    if (target === 'email') {
+      query.where('email', identifier)
+    } else {
+      query.where('phone', identifier)
+    }
+    return await query.orderBy('created_at', 'desc').first()
   }
 
   /**
-   * Deletes Otp records associated with the given phone number.
+   * Deletes Otp records associated with the given identifier and target.
    *
-   * @param {string} phone - The phone number whose associated Otp records will be deleted.
+   * @param {string} identifier - The phone number or email whose associated Otp records will be deleted.
+   * @param {'mobile' | 'email'} target - The target of the OTP.
    * @return {Promise<void>} A promise that resolves when the deletion is complete.
    */
-  async delete(phone: string): Promise<void> {
-    await Otp.query().where('phone', phone).delete()
+  async delete(identifier: string, target: 'mobile' | 'email'): Promise<void> {
+    const query = Otp.query().where('target', target)
+    if (target === 'email') {
+      query.where('email', identifier)
+    } else {
+      query.where('phone', identifier)
+    }
+    await query.delete()
   }
 }

@@ -76,7 +76,7 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
 
     try {
       if (!this.shouldBypassOtpVerification(user)) {
-        await this.otpService.verifyOtp({ phone: user.phone, enteredOtp: payload.otp })
+        await this.otpService.verifyOtp({ identifier: user.phone, enteredOtp: payload.otp })
       }
 
       if (type === 'register' && user.status === UserStatus.INACTIVE) {

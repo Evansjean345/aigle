@@ -47,7 +47,7 @@ export default class VerifyForgotPasswordOtpUseCase {
     }
 
     if (!this.shouldBypassOtpVerification(user)) {
-      await this.otpService.verifyOtp({ phone: user.phone, enteredOtp: payload.otp })
+      await this.otpService.verifyOtp({ identifier: user.phone, enteredOtp: payload.otp })
     }
 
     const resetToken = randomUUID()

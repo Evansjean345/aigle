@@ -2,9 +2,13 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import AdminLoginUseCase from '#features/authentication/application/use_cases/admin/admin_login_use_case'
 import AdminRefreshTokenUseCase from '#features/authentication/application/use_cases/admin/admin_refresh_token_use_case'
+import SetupAdminPasswordUseCase from '#features/authentication/application/use_cases/admin/setup_admin_password_use_case'
+import VerifyAdminOtpUseCase from '#features/authentication/application/use_cases/admin/verify_admin_otp_use_case'
 import {
   adminLoginValidator,
   adminRefreshTokenValidator,
+  setupAdminPasswordValidator,
+  verifyAdminOtpValidator,
 } from '#features/authentication/presentation/admin/validators/admin_validator'
 
 @inject()
@@ -14,10 +18,14 @@ export default class AdminManagementController {
    *
    * @param {AdminLoginUseCase} adminLoginUseCase - The use case responsible for the admin login process.
    * @param {AdminRefreshTokenUseCase} adminRefreshTokenUseCase
+   * @param {SetupAdminPasswordUseCase} setupAdminPasswordUseCase
+   * @param {VerifyAdminOtpUseCase} verifyAdminOtpUseCase
    */
   constructor(
     private adminLoginUseCase: AdminLoginUseCase,
-    private adminRefreshTokenUseCase: AdminRefreshTokenUseCase
+    private adminRefreshTokenUseCase: AdminRefreshTokenUseCase,
+    private setupAdminPasswordUseCase: SetupAdminPasswordUseCase,
+    private verifyAdminOtpUseCase: VerifyAdminOtpUseCase
   ) {}
 
   /**
@@ -46,6 +54,36 @@ export default class AdminManagementController {
     const ip = request.ip()
 
     const result = await this.adminRefreshTokenUseCase.execute(data, ip)
+    return response.ok(result)
+  }
+
+  /**
+   * Sets up the administrator password based on the provided request payload.
+   *
+   * @param {Object} HttpContext - The HTTP context containing the request and response objects.
+   * @param {Object} HttpContext.request - The request object containing the input payload.
+   * @param {Object} HttpContext.response - The response object used to send the output.
+   * @return {Promise<void>} A promise that resolves when the password setup process is completed.
+   */
+  async setupPassword({ request, response }: HttpContext): Promise<void> {
+    const payload = await request.validateUsing(setupAdminPasswordValidator)
+    const data = await this.setupAdminPasswordUseCase.execute(payload)
+    return response.ok(data)
+  }
+
+  /**
+   * Verifies the OTP provided in the request using the specified validator and use case logic,
+   * then sends an appropriate response with the result.
+   *
+   * @param {Object} context - The HTTP context object containing the request and response.
+   * @param {Object} context.request - The HTTP request object, which should include the OTP to be verified.
+   * @param {Object} context.response - The HTTP response object used to send the result back to the client.
+   *
+   * @return {Promise<void>} A promise that resolves when the response has been sent.
+   */
+  async verifyOtp({ request, response }: HttpContext): Promise<void> {
+    const data = await request.validateUsing(verifyAdminOtpValidator)
+    const result = await this.verifyAdminOtpUseCase.execute(data)
     return response.ok(result)
   }
 }

@@ -23,7 +23,6 @@ export default class CreateSuperAdmin extends BaseCommand {
     const firstname = await this.prompt.ask('Enter firstname')
     const lastname = await this.prompt.ask('Enter lastname')
     const email = await this.prompt.ask('Enter email')
-    const password = await this.prompt.secure('Enter password')
 
     try {
       let superAdminRole = await Role.findBy('slug', 'super_admin')
@@ -42,7 +41,6 @@ export default class CreateSuperAdmin extends BaseCommand {
         firstname,
         lastname,
         email,
-        password,
         roleId: superAdminRole.id,
       })
 

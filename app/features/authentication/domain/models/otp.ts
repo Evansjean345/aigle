@@ -24,6 +24,12 @@ export default class Otp extends BaseModel {
   @column()
   declare lockedUntil: Date | null
 
+  @column()
+  declare email: string | null
+
+  @column()
+  declare target: 'mobile' | 'email'
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

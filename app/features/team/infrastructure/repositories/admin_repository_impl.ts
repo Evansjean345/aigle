@@ -52,6 +52,16 @@ export default class AdminRepositoryImpl implements AdminRepository {
   }
 
   /**
+   * Finds an admin by their invitation token.
+   *
+   * @param {string} token - The invitation token to search for.
+   * @return {Promise<Admin | null>}
+   */
+  async findByInvitationToken(token: string): Promise<Admin | null> {
+    return await Admin.query().where('invitationToken', token).preload('role').first()
+  }
+
+  /**
    * Persists the provided admin instance to the database.
    *
    * @param {Admin} admin - The instance of the Admin model to be saved.

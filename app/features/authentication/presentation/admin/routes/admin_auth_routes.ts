@@ -8,6 +8,8 @@ export default function adminAuthRoutes() {
     .group(() => {
       router.post('/login', [AdminManagementController, 'login'])
       router.post('/refresh', [AdminManagementController, 'refresh'])
+      router.post('/setup-password', [AdminManagementController, 'setupPassword'])
+      router.post('/verify-otp', [AdminManagementController, 'verifyOtp'])
     })
     .prefix('auth')
 }

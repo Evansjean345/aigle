@@ -12,3 +12,17 @@ export const adminRefreshTokenValidator = vine.compile(
     refresh_token: vine.string().trim(),
   })
 )
+
+export const setupAdminPasswordValidator = vine.compile(
+  vine.object({
+    token: vine.string().trim(),
+    password: vine.string().trim().minLength(8),
+  })
+)
+
+export const verifyAdminOtpValidator = vine.compile(
+  vine.object({
+    email: vine.string().trim().email(),
+    otp: vine.string().trim(),
+  })
+)

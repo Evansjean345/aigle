@@ -14,6 +14,8 @@ export default defineConfig({
     () => import('@adonisjs/core/commands'),
     () => import('@adonisjs/lucid/commands'),
     () => import('@adonisjs/cache/commands'),
+    () => import('@adonisjs/mail/commands'),
+    () => import('@rlanz/bull-queue/commands'),
   ],
 
   /*
@@ -45,6 +47,9 @@ export default defineConfig({
     () => import('#features/ledger/ledger_provider'),
     () => import('@adonisjs/cache/cache_provider'),
     () => import('@adonisjs/limiter/limiter_provider'),
+    () => import('@adonisjs/mail/mail_provider'),
+    () => import('@adonisjs/core/providers/edge_provider'),
+    () => import('@rlanz/bull-queue/queue_provider'),
   ],
 
   /*
@@ -86,4 +91,10 @@ export default defineConfig({
     ],
     forceExit: false,
   },
+  metaFiles: [
+    {
+      pattern: 'resources/views/**/*.edge',
+      reloadServer: false,
+    },
+  ],
 })

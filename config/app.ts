@@ -51,6 +51,8 @@ export const bypassEnabled: boolean = env.get('BYPASS_OTP_VERIFICATION', false)
  */
 export const appPhoneNumberReview: string = env.get('APP_REVIEW_PHONE_NUMBER', '0768357397')
 
+export const adminDashboardUrl: string = env.get('ADMIN_DASHBOARD_URL', 'http://localhost:3000')
+
 /**
  * The configuration settings used by the HTTP server
  */

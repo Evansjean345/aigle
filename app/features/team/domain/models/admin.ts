@@ -26,7 +26,7 @@ export default class Admin extends compose(BaseModel, AuthFinder) {
   declare email: string
 
   @column({ serializeAs: null })
-  declare password: string
+  declare password: string | null
 
   @column()
   declare roleId: number
@@ -48,6 +48,12 @@ export default class Admin extends compose(BaseModel, AuthFinder) {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+  @column()
+  declare invitationToken: string | null
+
+  @column.dateTime({ serializeAs: null })
+  declare invitationExpiresAt: DateTime | null
 
   static accessTokens = DbAccessTokensProvider.forModel(Admin, {
     expiresIn: '5 hours',

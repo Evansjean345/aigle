@@ -25,6 +25,11 @@ export default abstract class AdminRepository {
   abstract findByEmail(email: string): Promise<Admin | null>
 
   /**
+   * Trouve un administrateur par son jeton d'invitation.
+   */
+  abstract findByInvitationToken(token: string): Promise<Admin | null>
+
+  /**
    * Sauvegarde ou met à jour un administrateur.
    */
   abstract save(admin: Admin): Promise<Admin>
