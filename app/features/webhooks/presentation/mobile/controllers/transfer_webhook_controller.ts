@@ -8,8 +8,21 @@ import errorLog from '#shared/infrastructure/logging/error_log'
 
 @inject()
 export default class TransferWebhookController {
+  /**
+   * Creates an instance of the class with a dependency on HandleTransfertWebhookUseCase.
+   *
+   * @param {HandleTransfertWebhookUseCase} handleTransfertWebhook - An instance of the HandleTransfertWebhookUseCase, responsible for handling transfer webhook logic.
+   */
   constructor(private readonly handleTransfertWebhook: HandleTransfertWebhookUseCase) {}
 
+  /**
+   * Handles the transfer success webhook.
+   *
+   * @param {HttpContext} params - The HTTP context object containing the request and response.
+   * @param {Object} params.request - The HTTP request object.
+   * @param {Object} params.response - The HTTP response object.
+   * @return {Promise<void>} A promise that resolves when the webhook has been processed.
+   */
   async transferSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
@@ -42,6 +55,16 @@ export default class TransferWebhookController {
     }
   }
 
+  /**
+   * Handles the transfer failure webhook event by processing the provided payload
+   * and updating the corresponding transaction status. Logs relevant information
+   * about the request and any errors that occur during processing.
+   *
+   * @param {Object} context - The HTTP context object containing request and response.
+   * @param {RequestContract} context.request - The HTTP request object.
+   * @param {ResponseContract} context.response - The HTTP response object.
+   * @return {Promise<void>} Resolves when the webhook processing is complete.
+   */
   async transferFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
