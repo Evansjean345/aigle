@@ -23,6 +23,8 @@ import IdempotencyProvider from '#features/transactions/domain/interfaces/idempo
 import HttpClient from '#shared/infrastructure/http_client_service'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import paymentLog from '#shared/infrastructure/logging/payment_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
 
 /**
@@ -178,7 +180,7 @@ export default class DepositUseCase {
       const response = await this.httpClient.post(env.get('API_CHECKOUT_URL')!!, dataSend)
 
       if (!response.success) {
-        transactionLog.error(
+        paymentLog.error(
           'DEPOSIT_CHECKOUT_FAILED',
           {
             transaction: { reference: transaction.reference },
@@ -186,10 +188,11 @@ export default class DepositUseCase {
           },
           'Checkout API call failed for deposit'
         )
+
         throw new Error(response.error.message)
       }
 
-      transactionLog.info(
+      paymentLog.info(
         'DEPOSIT_CHECKOUT_SUCCESS',
         { transaction: { reference: transaction.reference } },
         'Checkout API call successful for deposit'
@@ -213,7 +216,7 @@ export default class DepositUseCase {
       return result
     } catch (error) {
       await trx.rollback()
-      transactionLog.error(
+      errorLog.error(
         'DEPOSIT_ERROR',
         {
           user: { id: user.id },

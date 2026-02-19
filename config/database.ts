@@ -25,6 +25,24 @@ const dbConfig = defineConfig({
         paths: ['./database/seeders'],
       },
     },
+    audit: {
+      client: 'pg',
+      connection: {
+        host: env.get('AUDIT_DB_HOST'),
+        port: env.get('AUDIT_DB_PORT'),
+        user: env.get('AUDIT_DB_USER'),
+        password: env.get('AUDIT_DB_PASSWORD'),
+        database: env.get('AUDIT_DB_DATABASE'),
+      },
+      pool: {
+        min: 1,
+        max: 5,
+      },
+      migrations: {
+        naturalSort: true,
+        paths: ['database/audit_migrations'],
+      },
+    },
   },
 })
 

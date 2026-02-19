@@ -10,6 +10,9 @@ import {
   processKycValidator,
 } from '#features/kyc/presentation/admin/validators/process_kyc_validator'
 import { SimpleMessagesProvider } from '@vinejs/vine'
+import { AuditResult } from '#features/audit/domain/enums'
+import KycPolicy from '#features/kyc/presentation/admin/policies/kyc_policy'
+import emitter from '@adonisjs/core/services/emitter'
 
 @inject()
 export default class KycController {
@@ -36,7 +39,7 @@ export default class KycController {
    * @param {HttpContext} context - The context object containing the HTTP request and response.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async index({ request, response }: HttpContext): Promise<void> {
+  async index({ request, response, bouncer, auth }: HttpContext): Promise<void> {
     const page = request.input('page', 1)
     const perPage = request.input('perPage', request.input('limit', 20))
     const status = request.input('status')
@@ -46,6 +49,8 @@ export default class KycController {
     const startDate = request.input('start_date')
     const endDate = request.input('end_date')
 
+    await bouncer.with(KycPolicy).authorize('viewAny')
+
     const kycDocuments = await this.getAllKycDocumentsUseCase.execute(page, perPage, {
       status,
       documentType,
@@ -53,6 +58,20 @@ export default class KycController {
       search,
       startDate,
       endDate,
+    })
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'KYC',
+      targetType: 'kyc_document',
+      eventAction: 'READ_KYC_DOCUMENTS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { page, perPage, status, documentType, userId, search, startDate, endDate },
+      result: AuditResult.SUCCESS,
     })
 
     return response.ok(kycDocuments)
@@ -65,8 +84,22 @@ export default class KycController {
    * @param {Object} HttpContext.response - The HTTP response object used to send the stats.
    * @return {Promise<void>} A promise that resolves when the stats are successfully sent in the response.
    */
-  async stats({ response }: HttpContext): Promise<void> {
+  async stats({ response, bouncer, auth, request }: HttpContext): Promise<void> {
+    await bouncer.with(KycPolicy).authorize('viewAny')
     const stats = await this.getKycStatsUseCase.execute()
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'kyc',
+      eventAction: 'stats',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(stats)
   }
 
@@ -76,17 +109,45 @@ export default class KycController {
    * @param {HttpContext} context - The context object containing the HTTP request and response.
    * @return {Promise<void>} A promise that resolves when the document is successfully sent in the response.
    */
-  async kycDetails({ params, response }: HttpContext): Promise<void> {
+  async kycDetails({ params, response, bouncer, auth, request }: HttpContext): Promise<void> {
     try {
+      await bouncer.with(KycPolicy).authorize('view')
       const kycDocument = await this.getKycDocumentByIdUseCase.execute(params.id)
 
       if (!kycDocument) {
         return response.notFound({ message: 'KYC document not found' })
       }
 
+      await emitter.emit('activity:audit', {
+        eventCategory: 'kyc',
+        eventAction: 'view',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'kyc_document',
+        targetId: String(params.id),
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.SUCCESS,
+      })
+
       return response.ok(kycDocument)
     } catch (error) {
-      console.error(error)
+      await emitter.emit('activity:audit', {
+        eventCategory: 'kyc',
+        eventAction: 'view',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'kyc_document',
+        targetId: String(params.id),
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message ?? 'KYC document not found',
+      })
       return response.notFound({ message: 'KYC document not found' })
     }
   }
@@ -96,19 +157,49 @@ export default class KycController {
    *
    * @param {HttpContext} context - The context object containing the HTTP request and response.
    */
-  async process({ request, response, params }: HttpContext): Promise<void> {
+  async process({ request, response, params, bouncer, auth }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(processKycValidator, {
       messagesProvider: new SimpleMessagesProvider(processKycErrorMessages),
     })
 
+    if (payload.status === 'approved') {
+      await bouncer.with(KycPolicy).authorize('approve')
+    }
+
+    if (payload.status === 'rejected') {
+      await bouncer.with(KycPolicy).authorize('reject')
+    }
+
     await this.processKycDocumentUseCase.execute(params.id, payload.status, payload.comment)
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'kyc',
+      eventAction: payload.status === 'approved' ? 'process.approve' : 'process.reject',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      targetType: 'kyc_document',
+      targetId: String(params.id),
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      newValues: { status: payload.status, comment: payload.comment },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok({ message: `Document KYC ${payload.status} avec succès ✅` })
   }
 
   /**
-   * Récupère le document KYC d'un utilisateur spécifique.
+   * Retrieves the KYC (Know Your Customer) document for a specified user.
+   *
+   * @param {Object} context - The HTTP context object containing request and response details.
+   * @param {Object} context.params - The parameters object from the request, typically containing the user ID.
+   * @param {Object} context.response - The response object used to send the result back to the client.
+   * @return {Promise<void>} A promise that resolves when the KYC document retrieval and response handling are complete.
    */
-  async getUserKyc({ params, response }: HttpContext): Promise<void> {
+  async getUserKyc({ params, response, bouncer }: HttpContext): Promise<void> {
+    await bouncer.with(KycPolicy).authorize('view')
     const { id } = params
     const kycDocument = await this.getUserKycDocumentUseCase.execute(id)
 

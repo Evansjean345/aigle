@@ -4,6 +4,8 @@ import { Exception } from '@adonisjs/core/exceptions'
 import { Token } from '#features/authentication/application/use_cases/admin/admin_login_use_case'
 import AdminNotFoundException from '#features/team/infrastructure/exceptions/admin_not_found_exception'
 import { DateTime } from 'luxon'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 /**
  * Provides authentication services for admin users, including token generation
@@ -24,14 +26,46 @@ export default class AdminAuthService {
     password: string,
     requestIp: string
   ): Promise<{ admin: Admin; tokens: { access: AccessToken; refresh: AccessToken } }> {
-    const admin = await this.verifyCredentials(email, password)
-    const tokens = await this.generateTokens(admin)
+    try {
+      const admin = await this.verifyCredentials(email, password)
+      const tokens = await this.generateTokens(admin)
 
-    admin.lastLoginAt = DateTime.now()
-    admin.lastLoginIp = requestIp
+      admin.lastLoginAt = DateTime.now()
+      admin.lastLoginIp = requestIp
 
-    await admin.save()
-    return { admin, tokens }
+      await admin.save()
+      await emitter.emit('activity:audit', {
+        eventCategory: 'AUTH',
+        eventAction: 'LOGIN_SUCCESS',
+        actorId: String(admin.id),
+        actorType: 'Admin',
+        actorRole: admin.role.name,
+        targetType: 'Member',
+        targetId: String(admin.id),
+        result: AuditResult.SUCCESS,
+        metadata: { ip: requestIp },
+      })
+
+      return { admin, tokens }
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'AUTH',
+        eventAction: 'LOGIN_FAILED',
+        actorId: null,
+        actorType: 'Admin',
+        actorRole: null,
+        initiatedByType: 'Admin',
+        initiatedById: null,
+        targetType: 'Member',
+        targetId: null,
+        result: AuditResult.FAILURE,
+        ipAddress: requestIp,
+        metadata: { email },
+        errorCode: 'INVALID_CREDENTIALS',
+        errorMessage: (error as Error)?.message ?? 'Login failed',
+      })
+      throw error
+    }
   }
 
   /**

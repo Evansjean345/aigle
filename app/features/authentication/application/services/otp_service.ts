@@ -13,6 +13,7 @@ import { maskPhone } from '#shared/utils/utiles'
 import { mailFromEmail } from '#config/mail'
 import queue from '@rlanz/bull-queue/services/main'
 import SendMailJob from '#features/notifications/application/jobs/send_mail_job'
+import emitter from '@adonisjs/core/services/emitter'
 
 const OTP_EXPIRY_SECONDS = 600
 const OTP_EXPIRY_MINUTES = OTP_EXPIRY_SECONDS / 60
@@ -134,6 +135,14 @@ export default class OtpService {
 
       if (target === 'email') {
         await this.sendOtpViaEmail(identifier, code)
+        await emitter.emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'OTP_SENT',
+          actorType: 'SYSTEM',
+          targetType: 'Member',
+          targetId: userId,
+          metadata: { identifier: maskedId, target },
+        })
       } else {
         await this.sendOtpViaSms(identifier, code)
       }

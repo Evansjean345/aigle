@@ -5,6 +5,7 @@ import CreateRoleUseCase from '#features/team/application/use_cases/roles/create
 import UpdateRoleUseCase from '#features/team/application/use_cases/roles/update_role_use_case'
 import DeleteRoleUseCase from '#features/team/application/use_cases/roles/delete_role_use_case'
 import GetRoleUseCase from '#features/team/application/use_cases/roles/get_role_use_case'
+import Admin from '#features/team/domain/models/admin'
 import {
   createRoleValidator,
   updateRoleValidator,
@@ -66,9 +67,10 @@ export default class RoleManagementController {
    * @param {Object} context.response - The HTTP response object, used to return the result.
    * @return {Promise<void>} A promise that resolves when the process is complete and a response is sent.
    */
-  async store({ request, response }: HttpContext): Promise<void> {
+  async store({ request, response, auth }: HttpContext): Promise<void> {
     const data = await request.validateUsing(createRoleValidator)
-    const role = await this.createRoleUseCase.execute(data)
+    const authUser = auth.user as Admin
+    const role = await this.createRoleUseCase.execute(data, authUser)
     return response.created(role)
   }
 
@@ -81,9 +83,10 @@ export default class RoleManagementController {
    * @param {object} context.response - The outgoing HTTP response object.
    * @return {Promise<void>} The response containing the updated role details.
    */
-  async update({ params, request, response }: HttpContext): Promise<void> {
+  async update({ params, request, response, auth }: HttpContext): Promise<void> {
     const data = await request.validateUsing(updateRoleValidator)
-    const role = await this.updateRoleUseCase.execute(params.id, data)
+    const authUser = auth.user as Admin
+    const role = await this.updateRoleUseCase.execute(params.id, data, authUser)
     return response.ok(role)
   }
 
@@ -95,8 +98,9 @@ export default class RoleManagementController {
    * @param {Object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the operation is completed.
    */
-  async destroy({ params, response }: HttpContext): Promise<void> {
-    await this.deleteRoleUseCase.execute(params.id)
+  async destroy({ params, response, auth }: HttpContext): Promise<void> {
+    const authUser = auth.user as Admin
+    await this.deleteRoleUseCase.execute(params.id, authUser)
     return response.noContent()
   }
 }

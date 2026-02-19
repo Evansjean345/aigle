@@ -20,21 +20,15 @@ import WalletNotFoundException from '#features/wallet/infrastructure/exceptions/
 import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
 import TransfertInterTransactionFailed from '#features/webhooks/application/events/transfert_inter/transfert_inter_transaction_failed'
 
+const SUCCESS_RESPONSE: WebhookResponseDto = { status: 200, message: 'received' } as const
+
 /**
- * Use case for handling the second webhook for inter-transfer payments.
- * It manages the state and processing logic for the second step of a
- * payment transfer operation, ensuring proper handling of success or failure states.
+ * Handles the second webhook for inter-transfer payments.
+ * Manages state and processing logic for the second step of a
+ * payment transfer operation (success or failure).
  */
 @inject()
 export default class HandleTransfertInterSecondWebhookUseCase {
-  /**
-   * Creates an instance of the class with the necessary services.
-   *
-   * @param {PaymentService} paymentService - Service to handle payment-related operations.
-   * @param {TransactionService} transactionService - Service to manage transaction-related functionalities.
-   * @param {WalletService} walletService - Service for wallet operations and management.
-   * @param ledgerService
-   */
   constructor(
     private readonly paymentService: PaymentService,
     private readonly transactionService: TransactionService,
@@ -43,11 +37,11 @@ export default class HandleTransfertInterSecondWebhookUseCase {
   ) {}
 
   /**
-   * Executes the second step of an inter-transfer operation based on the given payload and status.
+   * Executes the processing of a webhook for the second step of an inter-transfer.
    *
-   * @param {WebhookRequestDto} payload - The request payload containing necessary information for processing.
-   * @param {'success' | 'failed'} status - The status of the operation indicating success or failure.
-   * @return {Promise<WebhookResponseDto>} The response generated after processing the webhook request.
+   * @param {WebhookRequestDto} payload - The payload containing the webhook data.
+   * @param {TransactionStatus} status - The current status of the transaction.
+   * @return {Promise<WebhookResponseDto>} A promise that resolves with the webhook response after processing.
    */
   async execute(
     payload: WebhookRequestDto,
@@ -58,57 +52,22 @@ export default class HandleTransfertInterSecondWebhookUseCase {
       { webhook: { status, reference: payload.data?.reference } },
       'Inter-transfer second webhook received'
     )
-    this.validatePayload(payload)
 
-    const reference = payload.data.reference
-    const operatorResponse = payload.data
-    paymentLog.debug(
-      'INTER_TRANSFER_SECOND_VALIDATED',
-      { webhook: { reference, status } },
-      'Inter-transfer second webhook validated'
-    )
+    const { reference, operatorResponse } = this.validateAndExtract(payload)
+
     const trx = await db.transaction()
 
     try {
-      const { transaction, payments, wallet } = await this.loadEntities(reference, trx)
-      paymentLog.debug(
-        'INTER_TRANSFER_SECOND_ENTITIES_LOADED',
-        {
-          webhook: { reference },
-          transaction: { id: transaction.id },
-          payments: { count: payments.length },
-          wallet: { id: wallet.id },
-        },
-        'Loaded transaction, payments and wallet for inter-transfer second step'
-      )
-      const secondPayment = payments[1]
+      const { transaction, secondPayment, wallet } = await this.loadEntities(reference, trx)
 
-      if (!secondPayment) {
-        throw new Exception('Invalid inter-transfer payments structure (missing second step)', {
-          status: 400,
-          code: 'INTER_TRANSFER_INVALID_PAYMENTS',
-        })
-      }
-
-      const idempotent = this.isIdempotentRequest(transaction, secondPayment, status)
-      paymentLog.debug(
-        'INTER_TRANSFER_SECOND_IDEMPOTENCY_CHECK',
-        {
-          webhook: { reference, incomingStatus: status },
-          payment: { id: secondPayment?.id, status: secondPayment?.status },
-          idempotent,
-        },
-        'Inter-transfer second step idempotency check'
-      )
-
-      if (idempotent) {
+      if (this.isIdempotent(transaction, secondPayment, status)) {
         await trx.commit()
-        paymentLog.info(
+        paymentLog.warn(
           'INTER_TRANSFER_SECOND_IDEMPOTENT',
           { webhook: { reference } },
           'Inter-transfer second step is idempotent, acknowledging'
         )
-        return this.createSuccessResponse()
+        return SUCCESS_RESPONSE
       }
 
       paymentLog.info(
@@ -117,7 +76,7 @@ export default class HandleTransfertInterSecondWebhookUseCase {
         'Processing inter-transfer second step'
       )
 
-      const result = await this.processSecondStep(
+      await this.processSecondStep(
         transaction,
         secondPayment,
         wallet,
@@ -125,14 +84,14 @@ export default class HandleTransfertInterSecondWebhookUseCase {
         status,
         trx
       )
-
       await trx.commit()
+
       paymentLog.info(
         'INTER_TRANSFER_SECOND_SUCCESS',
         { webhook: { reference, status } },
         'Inter-transfer second step processed successfully'
       )
-      return result
+      return SUCCESS_RESPONSE
     } catch (error) {
       await trx.rollback()
       throw error
@@ -140,20 +99,24 @@ export default class HandleTransfertInterSecondWebhookUseCase {
   }
 
   /**
-   * Validates the payload of a webhook request to ensure it contains the required data.
+   * Validates the payload of a webhook request and extracts relevant data.
+   * Throws an exception if required fields are missing.
    *
-   * @param {WebhookRequestDto} payload - The webhook request data transfer object to be validated.
-   * @return {void} Throws an exception if the payload is invalid.
+   * @param {WebhookRequestDto} payload - The webhook request payload containing the data to validate and extract.
+   * @return {{reference: string, operatorResponse: any}} An object containing the reference and operator response extracted from the payload.
+   * @throws {Exception} If the payload is invalid due to a missing reference or status field.
    */
-  private validatePayload(payload: WebhookRequestDto): void {
+  private validateAndExtract(payload: WebhookRequestDto): {
+    reference: string
+    operatorResponse: any
+  } {
     if (!payload?.data?.reference) {
       paymentLog.warn(
         'WEBHOOK_REFERENCE_REQUIRED',
-        {
-          webhook: payload?.data,
-        },
+        { webhook: payload?.data },
         'Missing reference in inter-transfer second webhook'
       )
+
       throw new Exception('Invalid payload: Missing reference', {
         status: 422,
         code: 'INVALID_WEBHOOK_PAYLOAD',
@@ -163,9 +126,7 @@ export default class HandleTransfertInterSecondWebhookUseCase {
     if (!payload?.data?.status) {
       paymentLog.warn(
         'WEBHOOK_STATUS_REQUIRED',
-        {
-          webhook: payload?.data,
-        },
+        { webhook: payload?.data },
         'Missing status in inter-transfer second webhook'
       )
       throw new Exception('Invalid payload: Missing status', {
@@ -173,22 +134,31 @@ export default class HandleTransfertInterSecondWebhookUseCase {
         code: 'INVALID_WEBHOOK_PAYLOAD',
       })
     }
+
+    return {
+      reference: payload.data.reference,
+      operatorResponse: payload.data,
+    }
   }
 
   /**
-   * Loads entities related to a specific reference, including transaction, payments, and wallet.
+   * Loads and fetches the required entities associated with a given transaction reference.
+   * This method retrieves the transaction, associated payments, and wallet data, ensuring
+   * all necessary entities are present and valid. Throws an error if any of the entities
+   * are missing or invalid.
    *
-   * @param {string} reference - The reference identifier for which entities will be fetched.
-   * @param {TransactionClientContract} trx - The transaction client contract.
-   * @return {Promise<{transaction: Transaction, payments: Payment[], wallet: Wallet}>}
-   *         A promise resolving to an object containing the transaction, an array of associated payments, and the user's wallet.
+   * @param {string} reference - The unique reference for the transaction to be fetched.
+   * @param {TransactionClientContract} trx - The transactional database client to execute queries.
+   * @return {Promise<{transaction: Transaction, secondPayment: Payment, wallet: Wallet}>}
+   * The fetched entities, including the transaction, the second payment from a sequence of payments,
+   * and the associated wallet.
    */
   private async loadEntities(
     reference: string,
     trx: TransactionClientContract
   ): Promise<{
     transaction: Transaction
-    payments: Payment[]
+    secondPayment: Payment
     wallet: Wallet
   }> {
     const transaction = await Transaction.query({ client: trx })
@@ -205,9 +175,31 @@ export default class HandleTransfertInterSecondWebhookUseCase {
         this.paymentService.findByTransaction(transaction.transactionsUid),
         this.walletService.getByUserId(transaction.usersUid),
       ])
-      return { transaction, payments, wallet }
+
+      const secondPayment = payments[1]
+
+      if (!secondPayment) {
+        throw new Exception('Invalid inter-transfer payments structure (missing second step)', {
+          status: 400,
+          code: 'INTER_TRANSFER_INVALID_PAYMENTS',
+        })
+      }
+
+      paymentLog.debug(
+        'INTER_TRANSFER_SECOND_ENTITIES_LOADED',
+        {
+          webhook: { reference },
+          transaction: { id: transaction.id },
+          payments: { count: payments.length },
+          wallet: { id: wallet.id },
+        },
+        'Loaded entities for inter-transfer second step'
+      )
+
+      return { transaction, secondPayment, wallet }
     } catch (error) {
       if (error instanceof WalletNotFoundException) {
+        //TODO: send error notification
         errorLog.error(
           'WEBHOOK_WALLET_NOT_FOUND',
           {
@@ -223,43 +215,40 @@ export default class HandleTransfertInterSecondWebhookUseCase {
   }
 
   /**
-   * Determines if a request is idempotent by comparing the current state of the transaction
-   * and payment with the incoming status.
+   * Determines whether the operation is idempotent based on the status of the transaction and payment.
    *
-   * @param {Transaction} transaction - The transaction object containing its current state.
-   * @param {Payment} payment - The payment object containing its current status.
-   * @param {'success' | 'failed'} incomingStatus - The incoming status of the request.
-   * @return {boolean} Returns true if the request is idempotent, otherwise false.
+   * @param {Transaction} transaction - The transaction object whose status will be evaluated.
+   * @param {Payment} payment - The payment object whose status will be evaluated.
+   * @param {TransactionStatus} incomingStatus - The incoming status to compare against the current statuses.
+   * @return {boolean} Returns true if the operation is idempotent, otherwise false.
    */
-  private isIdempotentRequest(
+  private isIdempotent(
     transaction: Transaction,
     payment: Payment,
     incomingStatus: TransactionStatus
   ): boolean {
-    const isIncomingSuccess = incomingStatus === TransactionStatus.SUCCESS
-
-    if (isIncomingSuccess) {
+    if (incomingStatus === TransactionStatus.SUCCESS) {
       return (
         transaction.status === TransactionStatus.SUCCESS && payment.status === PaymentStatus.SUCCESS
       )
-    } else {
-      return (
-        transaction.status === TransactionStatus.FAILED && payment.status === PaymentStatus.FAILED
-      )
     }
+
+    return (
+      transaction.status === TransactionStatus.FAILED && payment.status === PaymentStatus.FAILED
+    )
   }
 
   /**
-   * Processes the second step of a transaction, updating the status of payments and transactions
-   * according to the provided status.
+   * Processes the second step of a transaction, handling success or failure cases, marking
+   * payments and transactions accordingly, and performing ledger updates or dispatching events.
    *
-   * @param {Transaction} transaction - The main transaction that needs to be updated.
-   * @param {Payment} secondPayment - The secondary payment object associated with the transaction.
-   * @param {Wallet} wallet - The wallet associated with the transaction, holding the balance to update.
-   * @param {any} operatorResponse - The response received from the operator after processing the transaction.
-   * @param {'success' | 'failed'} status - The status of the transaction indicating success or failure.
-   * @param {TransactionClientContract} trx - The transaction client used to handle database operations.
-   * @return {Promise<WebhookResponseDto>} A promise that resolves to a webhook response DTO indicating the result of the operation.
+   * @param {Transaction} transaction - The transaction to be processed.
+   * @param {Payment} secondPayment - The second payment associated with the transaction.
+   * @param {Wallet} wallet - The wallet involved in the transaction.
+   * @param {any} operatorResponse - The response received from the operator.
+   * @param {TransactionStatus} status - The status of the transaction (e.g., SUCCESS or FAILED).
+   * @param {TransactionClientContract} trx - The database transaction client.
+   * @return {Promise<void>} A promise that resolves when the processing is completed.
    */
   private async processSecondStep(
     transaction: Transaction,
@@ -268,27 +257,25 @@ export default class HandleTransfertInterSecondWebhookUseCase {
     operatorResponse: any,
     status: TransactionStatus,
     trx: TransactionClientContract
-  ): Promise<WebhookResponseDto> {
+  ): Promise<void> {
+    const logCtx = {
+      transaction: {
+        reference: transaction.reference,
+        id: transaction.id,
+        payment: { id: secondPayment.id },
+      },
+    }
+
     if (status === TransactionStatus.SUCCESS) {
       transactionLog.debug(
-        'INTER_TRANSFER_SECOND_MARKING_PAYMENT_SUCCESS',
-        { transaction: { reference: transaction.reference }, payment: { id: secondPayment.id } },
-        'Marking second payment as success'
+        'INTER_TRANSFER_SECOND_MARKING_SUCCESS',
+        logCtx,
+        'Marking second payment and transaction as success'
       )
-      await this.paymentService.markSuccess(
-        secondPayment.id,
-        { operatorResponse: operatorResponse },
-        trx
-      )
-      transactionLog.debug(
-        'INTER_TRANSFER_SECOND_MARKING_TX_SUCCESS',
-        {
-          transaction: { reference: transaction.reference, id: transaction.id },
-          wallet: { balanceAfter: wallet.balance },
-        },
-        'Marking transaction as success'
-      )
+
+      await this.paymentService.markSuccess(secondPayment.id, { operatorResponse }, trx)
       await this.transactionService.markSuccess(transaction.id, wallet.balance, trx)
+
       await this.ledgerService.recordExternalTransfer(
         transaction,
         wallet.id,
@@ -296,52 +283,58 @@ export default class HandleTransfertInterSecondWebhookUseCase {
         wallet.balance,
         trx
       )
-      return this.createSuccessResponse()
+      return
     }
 
     if (status === TransactionStatus.FAILED) {
       transactionLog.debug(
         'INTER_TRANSFER_SECOND_MARKING_FAILED',
-        { transaction: { reference: transaction.reference }, payment: { id: secondPayment.id } },
+        logCtx,
         'Marking second payment and transaction as failed'
       )
-      // Séquentiel pour éviter les race conditions
+
+      await this.paymentService.markFailed(secondPayment.id, { operatorResponse }, trx)
       await this.transactionService.markFailed(transaction.id, trx)
-      await this.paymentService.markFailed(
-        secondPayment.id,
-        { operatorResponse: operatorResponse },
-        trx
-      )
 
-      // Dispatch failure event for transaction failure tracking
-      const paymentDetails = (() => {
-        try {
-          const raw = (secondPayment as any)?.paymentDetails
-          return typeof raw === 'string' ? JSON.parse(raw) : (raw ?? {})
-        } catch {
-          return {}
-        }
-      })()
+      const beneficiaryPhone = this.extractBeneficiaryPhone(secondPayment)
 
-      await TransfertInterTransactionFailed.dispatch({
+      // Fire-and-forget: dispatch doesn't need to block the webhook response
+      TransfertInterTransactionFailed.dispatch({
         reference: transaction.reference,
         amount: transaction.amount,
         userId: transaction.usersUid,
-        beneficiaryPhone: paymentDetails?.phone || 'unknown',
+        beneficiaryPhone,
+      }).catch((err) => {
+        errorLog.error(
+          'INTER_TRANSFER_FAILED_EVENT_DISPATCH_ERROR',
+          { reference: transaction.reference, error: err.message },
+          'Failed to dispatch inter-transfer failure event'
+        )
       })
-
-      return this.createSuccessResponse()
+      return
     }
 
-    return this.createSuccessResponse()
+    // Unexpected status — log warning instead of silently succeeding
+    paymentLog.warn(
+      'INTER_TRANSFER_SECOND_UNEXPECTED_STATUS',
+      { webhook: { reference: transaction.reference, status } },
+      `Unexpected status received: ${status}`
+    )
   }
 
   /**
-   * Creates and returns a successful response object.
+   * Extracts the phone number of the beneficiary from the payment details.
    *
-   * @return {WebhookResponseDto} The response object containing a status code of 200 and a success message.
+   * @param {Payment} payment - The payment object containing beneficiary details.
+   * @return {string} The extracted phone number if available; otherwise, returns 'unknown'.
    */
-  private createSuccessResponse(): WebhookResponseDto {
-    return { status: 200, message: 'received' }
+  private extractBeneficiaryPhone(payment: Payment): string {
+    try {
+      const raw = (payment as any)?.paymentDetails
+      const details = typeof raw === 'string' ? JSON.parse(raw) : (raw ?? {})
+      return details?.phone || 'unknown'
+    } catch {
+      return 'unknown'
+    }
   }
 }

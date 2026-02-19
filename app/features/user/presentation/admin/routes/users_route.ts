@@ -10,8 +10,7 @@ const AdminTransactionController = () =>
 const LedgersController = () =>
   import('#features/ledger/presentation/admin/controllers/ledgers_controller')
 
-const KycController = () =>
-  import('#features/kyc/presentation/admin/controllers/kyc_controller')
+const KycController = () => import('#features/kyc/presentation/admin/controllers/kyc_controller')
 
 export default function adminUsersRoute() {
   return router
@@ -40,7 +39,5 @@ export default function adminUsersRoute() {
         guards: ['admin'],
       })
     )
-    .use(
-      middleware.permission(['users.manage', 'support.access'])
-    )
+    .use(middleware.permission(['user.read', 'users_support.read']))
 }

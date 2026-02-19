@@ -93,8 +93,8 @@ export default class WalletService {
     trx?: TransactionClientContract
   ): Promise<{ id: number; balance: number } | null> {
     if (amount <= 0) throw new InvalidAmountException()
-    const updated = await this.walletRepository.creditGuarded(walletId, amount, trx)
 
+    const updated = await this.walletRepository.creditGuarded(walletId, amount, trx)
     if (!updated) return null
 
     return { id: updated.id, balance: updated.balance ?? 0 }
@@ -106,14 +106,14 @@ export default class WalletService {
    * @param {number} walletId - The unique identifier of the wallet to be debited.
    * @param {number} amount - The amount to debit from the wallet. Must be greater than zero.
    * @param {TransactionClientContract} [trx] - Optional transaction context for database operations.
-   * @return {Promise<{ id: number, balance: number } | null>} An object containing the updated wallet id and balance if the operation is successful. Returns null if the transaction fails.
+   * @return {Promise<{ id: number, balance: number }>} An object containing the updated wallet id and balance if the operation is successful. Returns null if the transaction fails.
    * @throws {Exception} Throws an exception if the amount is invalid or if there are insufficient funds.
    */
   async debitBalance(
     walletId: number,
     amount: number,
     trx?: TransactionClientContract
-  ): Promise<{ id: number; balance: number } | null> {
+  ): Promise<{ id: number; balance: number }> {
     if (amount <= 0) throw new InvalidAmountException()
     const updated = await this.walletRepository.debitGuarded(walletId, amount, trx)
 

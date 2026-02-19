@@ -77,10 +77,21 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   /*
   |----------------------------------------------------------
+  | Variables for configuring audit database connection (PostgreSQL)
+  |----------------------------------------------------------
+  */
+  AUDIT_DB_HOST: Env.schema.string({ format: 'host' }),
+  AUDIT_DB_PORT: Env.schema.number(),
+  AUDIT_DB_USER: Env.schema.string(),
+  AUDIT_DB_PASSWORD: Env.schema.string(),
+  AUDIT_DB_DATABASE: Env.schema.string(),
+
+  /*
+  |----------------------------------------------------------
   | Variables for @rlanz/bull-queue
   |----------------------------------------------------------
   */
   QUEUE_REDIS_HOST: Env.schema.string({ format: 'host' }),
   QUEUE_REDIS_PORT: Env.schema.number(),
-  QUEUE_REDIS_PASSWORD: Env.schema.string.optional()
+  QUEUE_REDIS_PASSWORD: Env.schema.string.optional(),
 })

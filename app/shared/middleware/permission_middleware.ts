@@ -19,7 +19,7 @@ export default class PermissionMiddleware {
     const userPermissions = user.role.permissions.map((p) => p.slug)
 
     // Le super_admin a tous les droits
-    if (user.role.slug === 'super_admin') {
+    if (user.role.slug === 'root') {
       return next()
     }
 

@@ -24,20 +24,15 @@ import PaymentNotFoundException from '#features/transactions/infrastructure/exce
 import WalletNotFoundException from '#features/wallet/infrastructure/exceptions/wallet_not_found_exception'
 import WalletAdjustException from '#features/wallet/infrastructure/exceptions/wallet_adjust_exception'
 
-/**
- * Class responsible for handling and processing transfer-related webhook events.
- * It validates incoming webhook payloads, ensures idempotency, and performs updates
- * on transactions, payments, and wallets accordingly.
- */
 @inject()
 export default class HandleTransfertWebhookUseCase {
   /**
-   * Initializes a new instance of the class.
+   * Constructs an instance of the class with the required service dependencies.
    *
-   * @param {PaymentService} paymentService - The service used for handling payment operations.
-   * @param {TransactionService} transactionService - The service used for managing transactions.
-   * @param {WalletService} walletService - The service used for wallet-related operations.
-   * @param ledgerService
+   * @param {PaymentService} paymentService - A service responsible for handling payment operations.
+   * @param {TransactionService} transactionService - A service responsible for managing transactions.
+   * @param {WalletService} walletService - A service for handling wallet-related operations.
+   * @param {LedgerService} ledgerService - A service to interact with the ledger for financial records.
    */
   constructor(
     private readonly paymentService: PaymentService,
@@ -47,12 +42,11 @@ export default class HandleTransfertWebhookUseCase {
   ) {}
 
   /**
-   * Processes a webhook request for a transfer event, validates payloads, ensures idempotency,
-   * and performs the necessary updates to transactions, payments, and wallets.
+   * Handles the execution of a webhook request and processes the associated transaction based on the provided status.
    *
-   * @param {WebhookRequestDto} payload - The incoming webhook request data containing transaction reference and other details.
-   * @param {'success' | 'failed'} status - The status of the transfer, either 'success' or 'failed'.
-   * @return {Promise<WebhookResponseDto>} A promise that resolves with a WebhookResponseDto representing the response of the webhook processing.
+   * @param {WebhookRequestDto} payload - The incoming webhook request data, including transaction details.
+   * @param {TransactionStatus} status - The status of the transaction (e.g., SUCCESS, FAILED).
+   * @return {Promise<WebhookResponseDto>} A promise that resolves to a webhook response DTO representing the result of the operation.
    */
   async execute(
     payload: WebhookRequestDto,
@@ -72,17 +66,6 @@ export default class HandleTransfertWebhookUseCase {
     try {
       const { transaction, payment, wallet } = await this.loadRequiredEntities(reference, trx)
 
-      paymentLog.debug(
-        'TRANSFER_WEBHOOK_ENTITIES_LOADED',
-        {
-          webhook: { reference },
-          transaction: { id: transaction.id, status: transaction.status },
-          payment: { id: payment.id, status: payment.status },
-          wallet: { id: wallet.id },
-        },
-        'Loaded entities for transfer webhook'
-      )
-
       if (this.isIdempotentRequest(transaction, payment, status)) {
         paymentLog.warn(
           'TRANSFER_WEBHOOK_IDEMPOTENT',
@@ -97,7 +80,22 @@ export default class HandleTransfertWebhookUseCase {
         return this.createSuccessResponse()
       }
 
-      await this.processWebhook(transaction, payment, wallet, payload, status, trx)
+      const operatorResponse = { operator_response: payload as any }
+
+      if (status === TransactionStatus.SUCCESS) {
+        await this.processSuccessfulTransfer(transaction, payment, wallet, operatorResponse, trx)
+      } else if (status === TransactionStatus.FAILED) {
+        await this.processFailedTransfer(transaction, payment, wallet, operatorResponse, trx)
+      } else {
+        paymentLog.warn(
+          'TRANSFER_WEBHOOK_UNKNOWN_STATUS',
+          { webhook: { reference, status } },
+          'Webhook received with unhandled status'
+        )
+        await trx.rollback()
+        return this.createSuccessResponse()
+      }
+
       await trx.commit()
 
       paymentLog.info(
@@ -113,21 +111,20 @@ export default class HandleTransfertWebhookUseCase {
   }
 
   /**
-   * Validates the provided webhook request payload to ensure all required properties are present.
+   * Validates the payload of a webhook request by checking the presence
+   * of required fields such as `reference` and `status`. Throws an exception
+   * if any required field is missing.
    *
-   * @param {WebhookRequestDto} payload - The webhook request payload to be validated.
-   * @return {void} This method does not return a value but throws an exception if validation fails.
+   * @param {WebhookRequestDto} payload - The data transfer object containing webhook data to be validated.
+   * @return {void} This method does not return anything. It throws an exception if validation fails.
    */
   private validatePayload(payload: WebhookRequestDto): void {
     if (!payload.data.reference) {
       paymentLog.warn(
         'WEBHOOK_REFERENCE_REQUIRED',
-        {
-          webhook: payload.data,
-        },
+        { webhook: payload.data },
         'Missing reference in transfer webhook'
       )
-
       throw new Exception('Reference manquante dans le webhook', {
         status: 422,
         code: 'WEBHOOK_REFERENCE_REQUIRED',
@@ -137,12 +134,9 @@ export default class HandleTransfertWebhookUseCase {
     if (!payload.data.status) {
       paymentLog.warn(
         'WEBHOOK_STATUS_REQUIRED',
-        {
-          webhook: payload.data,
-        },
+        { webhook: payload.data },
         'Missing status in transfer webhook'
       )
-
       throw new Exception('Status manquant dans le webhook', {
         status: 422,
         code: 'WEBHOOK_STATUS_REQUIRED',
@@ -151,20 +145,20 @@ export default class HandleTransfertWebhookUseCase {
   }
 
   /**
-   * Loads the required entities based on the provided reference.
+   * Loads and retrieves the required entities (transaction, payment, and wallet) for a given reference.
    *
-   * @param {string} reference - The reference used to identify the transaction and related entities.
-   * @param {TransactionClientContract} trx - The transaction client contract.
-   * @return {Promise<{transaction: Transaction, payment: Payment, wallet: Wallet}>} A promise that resolves with an object containing the transaction, payment, and wallet entities.
-   * @throws {Exception} If no payment is found for the transaction, an exception is thrown with a status of 404 and code 'PAYMENT_NOT_FOUND'.
+   * @param {string} reference - The unique identifier of the transaction to be retrieved.
+   * @param {TransactionClientContract} trx - The database transaction client to be used for the query.
+   * @return {Promise<{transaction: Transaction, payment: Payment, wallet: Wallet}>} An object containing the transaction, payment, and wallet entities.
+   * @throws {TransactionNotFoundException} If the transaction with the provided reference is not found.
+   * @throws {PaymentNotFoundException} If no payments are associated with the identified transaction.
+   * @throws {WalletNotFoundException} If the wallet for the user associated with the transaction is not found.
    */
   private async loadRequiredEntities(
     reference: string,
     trx: TransactionClientContract
   ): Promise<{ transaction: Transaction; payment: Payment; wallet: Wallet }> {
-    const transaction = await Transaction.query({
-      client: trx,
-    })
+    const transaction = await Transaction.query({ client: trx })
       .where('reference', reference)
       .forUpdate()
       .first()
@@ -183,8 +177,7 @@ export default class HandleTransfertWebhookUseCase {
         throw new PaymentNotFoundException('Aucun paiement trouvé pour cette transaction')
       }
 
-      const payment = payments[0]
-      return { transaction, payment, wallet }
+      return { transaction, payment: payments[0], wallet }
     } catch (error) {
       if (error instanceof WalletNotFoundException) {
         errorLog.error(
@@ -202,11 +195,11 @@ export default class HandleTransfertWebhookUseCase {
   }
 
   /**
-   * Determines if a request is idempotent based on the current transaction, payment, and incoming transaction status.
+   * Determines if a request is idempotent based on the current transaction, payment, and incoming status.
    *
-   * @param {Transaction} transaction - The current transaction object containing the status.
-   * @param {Payment} payment - The payment object containing the status.
-   * @param {TransactionStatus} incomingStatus - The status of the incoming transaction.
+   * @param {Transaction} transaction - The transaction object to evaluate.
+   * @param {Payment} payment - The associated payment object to evaluate.
+   * @param {TransactionStatus} incomingStatus - The incoming status of the transaction.
    * @return {boolean} Returns true if the request is idempotent, otherwise false.
    */
   private isIdempotentRequest(
@@ -214,70 +207,27 @@ export default class HandleTransfertWebhookUseCase {
     payment: Payment,
     incomingStatus: TransactionStatus
   ): boolean {
-    const isIncomingSuccess = incomingStatus === TransactionStatus.SUCCESS
-
-    if (isIncomingSuccess) {
+    if (incomingStatus === TransactionStatus.SUCCESS) {
       return (
         transaction.status === TransactionStatus.SUCCESS && payment.status === PaymentStatus.SUCCESS
       )
-    } else {
-      return (
-        transaction.status === TransactionStatus.FAILED && payment.status === PaymentStatus.FAILED
-      )
     }
-  }
 
-  /**
-   * Processes a webhook for a transaction, determining success or failure
-   * and delegating to appropriate transfer handling methods.
-   *
-   * @param {Transaction} transaction - The transaction associated with the webhook.
-   * @param {Payment} payment - The payment object related to the transaction.
-   * @param {Wallet} wallet - The wallet involved in the transaction.
-   * @param {WebhookRequestDto} payload - The data payload received from the webhook.
-   * @param {string} status - The status of the transaction, indicating success or failure.
-   * @param {TransactionClientContract} trx - The transaction client instance for database operations.
-   * @return {Promise<void>} Resolves when the webhook processing is complete.
-   */
-  private async processWebhook(
-    transaction: Transaction,
-    payment: Payment,
-    wallet: Wallet,
-    payload: WebhookRequestDto,
-    status: TransactionStatus,
-    trx: TransactionClientContract
-  ): Promise<void> {
-    const operatorResponse = { operator_response: payload as any }
-
-    transactionLog.debug(
-      'TRANSFER_WEBHOOK_BODY_PROCESSING',
-      {
-        webhook: { reference: payload.data.reference, status },
-        transaction: { id: transaction.id },
-        payment: { id: payment.id },
-        wallet: { id: wallet.id },
-      },
-      'Processing transfer webhook body'
+    return (
+      transaction.status === TransactionStatus.FAILED && payment.status === PaymentStatus.FAILED
     )
-
-    if (status === TransactionStatus.SUCCESS) {
-      await this.processSuccessfulTransfer(transaction, payment, wallet, operatorResponse, trx)
-    }
-
-    if (status === TransactionStatus.FAILED) {
-      await this.processFailedTransfer(transaction, payment, wallet, operatorResponse, trx)
-    }
   }
 
   /**
-   * Handles the processing of a successful transfer by marking the payment and transaction as successful.
+   * Processes a successful transfer by marking transactions and payments as successful,
+   * recording ledger entries, and dispatching a transfer completion event.
    *
-   * @param {Transaction} transaction - The transaction object related to the transfer.
-   * @param {Payment} payment - The payment object associated with the transfer.
-   * @param {Wallet} wallet - The wallet object containing the current balance.
-   * @param {any} operatorResponse - The response from the operator regarding the transfer.
-   * @param {TransactionClientContract} trx - The database transaction client for ensuring atomic operations.
-   * @return {Promise<void>} A promise that resolves when the operation is complete.
+   * @param {Transaction} transaction - The transaction object representing the transfer.
+   * @param {Payment} payment - The payment object associated with the transaction.
+   * @param {Wallet} wallet - The wallet object representing the user's wallet.
+   * @param {any} operatorResponse - The response received from the payment operator.
+   * @param {TransactionClientContract} trx - The transaction client used for database operations.
+   * @return {Promise<void>} A promise that resolves when the process is completed.
    */
   private async processSuccessfulTransfer(
     transaction: Transaction,
@@ -286,38 +236,51 @@ export default class HandleTransfertWebhookUseCase {
     operatorResponse: any,
     trx: TransactionClientContract
   ): Promise<void> {
-    // Séquentiel pour éviter les race conditions
-    await this.safeMarkPaymentSuccess(payment.id, operatorResponse, trx)
-    await this.safeMarkTransactionSuccess(transaction.id, Number(wallet.balance), trx)
+    const currentBalance = Number(wallet.balance)
 
+    // persister les transactions et les paiements
+    await this.safeMarkPaymentSuccess(payment.id, operatorResponse, trx)
+    await this.safeMarkTransactionSuccess(transaction.id, currentBalance, trx)
+
+    // persister ecritures comptables
+    const balanceBefore = currentBalance + Number(transaction.amount)
     await this.ledgerService.recordTransfer(
       transaction,
       wallet.id,
-      Number(wallet.balance) + Number(transaction.amount),
-      wallet.balance,
+      balanceBefore,
+      currentBalance,
       trx
     )
 
-    await TransfertTransactionCompleted.dispatch(<TransfertTransactionCompletedPayload>{
+    // Dispatcher l'événement lorsque la transaction été traitée avec succès
+    TransfertTransactionCompleted.dispatch(<TransfertTransactionCompletedPayload>{
       reference: transaction.reference,
       amount: transaction.amount,
       userId: transaction.usersUid,
-      balanceAfter: wallet.balance || 0,
-      beneficiaryPhone: payment.paymentDetails.phone || 'unknown',
+      balanceAfter: currentBalance,
+      beneficiaryPhone: payment.paymentDetails?.phone || 'unknown',
+    }).catch((err) => {
+      errorLog.error(
+        'TRANSFER_EVENT_DISPATCH_FAILED',
+        {
+          reference: transaction.reference,
+          error: err instanceof Error ? err.message : 'Unknown',
+        },
+        'Non-critical: Failed to dispatch transfer completed event'
+      )
     })
   }
 
   /**
-   * Processes a failed transfer by marking the transaction and payment as failed
-   * and refunding the wallet with the credited amount from the failed transaction.
+   * Handles the processing of a failed transfer operation, ensuring the associated transaction and payment
+   * are marked as failed, and the debited amount is refunded to the wallet. It also records the reversal transaction.
    *
-   * @param {Transaction} transaction - The transaction to be marked as failed.
-   * @param {Payment} payment - The payment to be marked as failed.
-   * @param {Wallet} wallet - The wallet to be refunded with the credited amount.
-   * @param {any} operatorResponse - The response from the operator, detailing the failure.
-   * @param {TransactionClientContract} trx - The database transaction client used for transactional operations.
-   *
-   * @return {Promise<void>} A Promise that resolves when the failed transfer has been processed.
+   * @param {Transaction} transaction - The transaction object associated with the failed transfer.
+   * @param {Payment} payment - The payment object linked to the failed transaction.
+   * @param {Wallet} wallet - The wallet object to which the refund will be credited.
+   * @param {any} operatorResponse - The operator's response or error information related to the failure.
+   * @param {TransactionClientContract} trx - The database transaction object for ensuring atomicity.
+   * @return {Promise<void>} A promise resolving when the process is completed, or an error is thrown in case of failure.
    */
   private async processFailedTransfer(
     transaction: Transaction,
@@ -336,58 +299,53 @@ export default class HandleTransfertWebhookUseCase {
       'Starting to process failed transfer and refund'
     )
 
-    // mark both failed sequentially to avoid race conditions
+    // Mark failed: transaction first (source of truth), then payment
     await this.safeMarkTransactionFailed(transaction.id, trx)
     await this.safeMarkPaymentFailed(payment.id, operatorResponse, trx)
 
-    // refund wallet (credit back the debited total amount including fees)
-    const refunded = await this.walletService.creditBalance(
-      wallet.id,
-      Number(transaction.amount || 0),
-      trx
-    )
+    // Refund the debited amount
+    const refundAmount = Number(transaction.amount || 0)
+    const refunded = await this.walletService.creditBalance(wallet.id, refundAmount, trx)
 
-    if (refunded) {
-      await this.ledgerService.recordReversal(
-        transaction,
-        wallet.id,
-        wallet.balance,
-        refunded.balance,
-        trx
-      )
-
-      paymentLog.info(
-        'WALLET_REFUND_SUCCESS',
-        {
-          wallet_id: wallet.id,
-          amount: transaction.amount,
-          new_balance: refunded.balance,
-          transaction_id: transaction.id,
-        },
-        'Wallet refunded successfully after failed transfer'
-      )
-    } else {
-      // TODO: send critical email to admin in order to investigate //
+    if (!refunded) {
       errorLog.error(
         'WALLET_REFUND_FAILED',
         {
-          wallet: { id: wallet.id, amount: transaction.amount, balance: wallet.balance },
+          wallet: { id: wallet.id, amount: refundAmount, balance: wallet.balance },
           transaction_id: transaction.id,
         },
         'CRITICAL: Wallet refund failed during failure processing'
       )
       throw new WalletAdjustException('Remboursement du portefeuille échoué')
     }
+
+    await this.ledgerService.recordReversal(
+      transaction,
+      wallet.id,
+      wallet.balance,
+      refunded.balance,
+      trx
+    )
+
+    transactionLog.info(
+      'WALLET_REFUND_SUCCESS',
+      {
+        wallet_id: wallet.id,
+        amount: refundAmount,
+        new_balance: refunded.balance,
+        transaction_id: transaction.id,
+      },
+      'Wallet refunded successfully after failed transfer'
+    )
   }
 
   /**
-   * Safely marks a payment as successful by invoking the payment service.
-   * Logs and skips the operation if the payment is already marked as successful.
+   * Marks the payment as successful in a safe manner. Handles duplicate success marking gracefully.
    *
-   * @param {number} paymentId - The unique identifier of the payment to mark as successful.
-   * @param {any} operatorResponse - The response object received from an external operator containing details about the payment.
-   * @param {TransactionClientContract} trx - The transaction client used for handling database transactions.
-   * @return {Promise<void>} A promise that resolves once the operation is complete.
+   * @param {number} paymentId - The unique identifier of the payment to be marked as successful.
+   * @param {any} operatorResponse - The response data from the payment operator.
+   * @param {TransactionClientContract} trx - The database transaction object to be used for the operation.
+   * @return {Promise<void>} Resolves when the payment is marked as successful or if the payment is already marked as successful.
    */
   private async safeMarkPaymentSuccess(
     paymentId: number,
@@ -396,21 +354,10 @@ export default class HandleTransfertWebhookUseCase {
   ): Promise<void> {
     try {
       await this.paymentService.markSuccess(paymentId, operatorResponse, trx)
-      paymentLog.info(
-        'PAYMENT_MARKED_AS_SUCCESS',
-        { payment_id: paymentId },
-        'Payment marked as success'
-      )
     } catch (error: any) {
-      if (error?.code !== 'PAYMENT_ALREADY_SUCCESSFUL') {
-        errorLog.error(
-          'PAYMENT_MARK_SUCCESS_ERROR',
-          { payment_id: paymentId, error: error.message },
-          "Failed to mark payment as success, it's already marked as success"
-        )
-        throw error
-      }
-      paymentLog.info(
+      if (error?.code !== 'PAYMENT_ALREADY_SUCCESSFUL') throw error
+
+      transactionLog.info(
         'TRANSFER_PAYMENT_ALREADY_SUCCESS',
         { payment: { id: paymentId } },
         'Payment already successful, skipping'
@@ -419,12 +366,14 @@ export default class HandleTransfertWebhookUseCase {
   }
 
   /**
-   * Safely marks a transaction as successful while handling potential errors for already successful transactions.
+   * Marks a transaction as successful in a safe manner by handling potential errors.
+   * If the transaction is already marked as successful, the method will log the event
+   * and avoid re-executing the success marking process.
    *
    * @param {number} transactionId - The unique identifier of the transaction to be marked as successful.
    * @param {number} balance - The balance associated with the transaction.
-   * @param {TransactionClientContract} trx - The transaction client context for database operations.
-   * @return {Promise<void>} Resolves when the operation completes successfully or skips if already successful.
+   * @param {TransactionClientContract} trx - The transaction client contract to execute database operations.
+   * @return {Promise<void>} Resolves when the operation completes successfully, or handles specific errors if applicable.
    */
   private async safeMarkTransactionSuccess(
     transactionId: number,
@@ -433,21 +382,10 @@ export default class HandleTransfertWebhookUseCase {
   ): Promise<void> {
     try {
       await this.transactionService.markSuccess(transactionId, balance, trx)
-      paymentLog.info(
-        'TRANSACTION_MARKED_SUCCESS',
-        { transaction: { id: transactionId }, wallet: { balanceAfter: balance } },
-        'Transaction marked as success'
-      )
     } catch (error: any) {
-      if (error?.code !== 'TRANSACTION_ALREADY_SUCCESSFUL') {
-        errorLog.error(
-          'TRANSACTION_MARK_SUCCESS_ERROR',
-          { transaction_id: transactionId, error: error.message },
-          "Failed to mark payment as success, it's already marked as success"
-        )
-        throw error
-      }
-      paymentLog.info(
+      if (error?.code !== 'TRANSACTION_ALREADY_SUCCESSFUL') throw error
+
+      transactionLog.info(
         'TRANSFER_TRANSACTION_ALREADY_SUCCESS',
         { transaction: { id: transactionId } },
         'Transaction already successful, skipping'
@@ -456,11 +394,12 @@ export default class HandleTransfertWebhookUseCase {
   }
 
   /**
-   * Marks a payment as failed in a safe manner, ensuring that specific errors are handled gracefully.
+   * Safely marks a transaction as failed by attempting to update its status
+   * and gracefully handling cases where the transaction is already marked as failed.
    *
    * @param {number} transactionId - The unique identifier of the transaction to be marked as failed.
-   * @param {TransactionClientContract} trx - The transaction client used for database operations.
-   * @return {Promise<void>} A promise that resolves when the operation is completed.
+   * @param {TransactionClientContract} trx - The database transaction client to be used for the operation.
+   * @return {Promise<void>} Resolves when the operation is complete, or throws an error if it fails.
    */
   private async safeMarkTransactionFailed(
     transactionId: number,
@@ -470,6 +409,7 @@ export default class HandleTransfertWebhookUseCase {
       await this.transactionService.markFailed(transactionId, trx)
     } catch (error: any) {
       if (error?.code !== 'TRANSACTION_ALREADY_FAILED') throw error
+
       transactionLog.info(
         'TRANSFER_TRANSACTION_ALREADY_FAILED',
         { transaction: { id: transactionId } },
@@ -479,12 +419,12 @@ export default class HandleTransfertWebhookUseCase {
   }
 
   /**
-   * Attempts to mark a payment as failed safely by handling potential errors.
-   * If the payment has already been marked as failed, the error is logged and skipped.
+   * Safely marks a payment as failed by interacting with the payment service.
+   * If the payment is already marked as failed, logs the occurrence and skips further processing.
    *
    * @param {number} paymentId - The unique identifier of the payment to be marked as failed.
-   * @param {any} operatorResponse - The response or metadata from the payment operator.
-   * @param {TransactionClientContract} trx - The transaction client used to perform the database operation.
+   * @param {any} operatorResponse - The response object from the operator, containing details about the failure.
+   * @param {TransactionClientContract} trx - The transaction client used for database operations.
    * @return {Promise<void>} A promise that resolves when the operation is complete.
    */
   private async safeMarkPaymentFailed(
@@ -505,9 +445,9 @@ export default class HandleTransfertWebhookUseCase {
   }
 
   /**
-   * Creates a success response object indicating that the webhook request was received successfully.
+   * Creates a success response object for a webhook request.
    *
-   * @return {WebhookResponseDto} An object containing the status code and a success message.
+   * @return {WebhookResponseDto} An object containing a status code of 200 and a message indicating success.
    */
   private createSuccessResponse(): WebhookResponseDto {
     return { status: 200, message: 'received' }

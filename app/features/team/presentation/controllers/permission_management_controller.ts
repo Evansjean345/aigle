@@ -12,6 +12,7 @@ import {
   updatePermissionValidator,
 } from '#features/team/presentation/validators/permission_validator'
 import { SimpleMessagesProvider } from '@vinejs/vine'
+import Admin from '#features/team/domain/models/admin'
 
 @inject()
 export default class PermissionManagementController {
@@ -83,11 +84,12 @@ export default class PermissionManagementController {
    * @param {Object} context.response - The HTTP response object, used to return the result.
    * @return {Promise<void>} A promise that resolves when the process is complete and a response is sent.
    */
-  async store({ request, response }: HttpContext): Promise<void> {
+  async store({ request, response, auth }: HttpContext): Promise<void> {
     const data = await request.validateUsing(createPermissionValidator, {
       messagesProvider: new SimpleMessagesProvider(permissionValidatorErrorMessages),
     })
-    const permission = await this.createPermissionUseCase.execute(data)
+    const authUser = auth.user as Admin
+    const permission = await this.createPermissionUseCase.execute(data, authUser)
     return response.created(permission)
   }
 
@@ -100,9 +102,10 @@ export default class PermissionManagementController {
    * @param {object} context.response - The outgoing HTTP response object.
    * @return {Promise<void>} The response containing the updated permission details.
    */
-  async update({ params, request, response }: HttpContext): Promise<void> {
+  async update({ params, request, response, auth }: HttpContext): Promise<void> {
     const data = await request.validateUsing(updatePermissionValidator)
-    const permission = await this.updatePermissionUseCase.execute(params.id, data)
+    const authUser = auth.user as Admin
+    const permission = await this.updatePermissionUseCase.execute(params.id, data, authUser)
     return response.ok(permission)
   }
 
@@ -114,8 +117,9 @@ export default class PermissionManagementController {
    * @param {Object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the operation is completed.
    */
-  async destroy({ params, response }: HttpContext): Promise<void> {
-    await this.deletePermissionUseCase.execute(params.id)
+  async destroy({ params, response, auth }: HttpContext): Promise<void> {
+    const authUser = auth.user as Admin
+    await this.deletePermissionUseCase.execute(params.id, authUser)
     return response.noContent()
   }
 }

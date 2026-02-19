@@ -1,6 +1,9 @@
 import { inject } from '@adonisjs/core'
 import AdminRepository from '#features/team/domain/interfaces/admin_repository'
 import AdminNotFoundException from '#features/team/infrastructure/exceptions/admin_not_found_exception'
+import emitter from '@adonisjs/core/services/emitter'
+import Admin from '#features/team/domain/models/admin'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class DeleteAdminUseCase {
@@ -17,12 +20,24 @@ export default class DeleteAdminUseCase {
    * Throws an AdminNotFoundException if the admin is not found.
    *
    * @param {number} id - The ID of the admin to be deleted.
+   * @param {Admin} auth - The authenticated admin user performing the operation.
    * @return {Promise<void>} A promise that resolves when the operation is complete.
    * @throws {AdminNotFoundException}
    */
-  async execute(id: number): Promise<void> {
+  async execute(id: number, auth: Admin): Promise<void> {
     const admin = await this.adminRepository.findById(id)
     if (!admin) throw new AdminNotFoundException()
     await this.adminRepository.delete(admin)
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'TEAM',
+      eventAction: 'ADMIN_DELETED',
+      actorId: String(auth.id),
+      actorType: 'Admin',
+      actorRole: auth.role.name,
+      targetType: 'Member',
+      targetId: String(id),
+      result: AuditResult.SUCCESS,
+    })
   }
 }

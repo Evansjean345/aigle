@@ -16,6 +16,7 @@ export default defineConfig({
     () => import('@adonisjs/cache/commands'),
     () => import('@adonisjs/mail/commands'),
     () => import('@rlanz/bull-queue/commands'),
+    () => import('@adonisjs/bouncer/commands'),
   ],
 
   /*
@@ -50,6 +51,7 @@ export default defineConfig({
     () => import('@adonisjs/mail/mail_provider'),
     () => import('@adonisjs/core/providers/edge_provider'),
     () => import('@rlanz/bull-queue/queue_provider'),
+    () => import('@adonisjs/bouncer/bouncer_provider'),
   ],
 
   /*

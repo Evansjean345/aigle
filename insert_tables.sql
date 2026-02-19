@@ -129,7 +129,7 @@ create table app_versions
 );
 
 /**
-  ADDED ON 3 Feb 202
+  ADDED ON 3 Feb 2026
   Roles
   Permissions
   Role Permission
@@ -218,3 +218,38 @@ CREATE TABLE `admin_auth_access_tokens`
 ALTER TABLE `admins`
   ADD COLUMN `last_login_at` TIMESTAMP NULL DEFAULT NULL AFTER `updated_at`,
   ADD COLUMN `last_login_ip` VARCHAR(255) NULL DEFAULT NULL AFTER `last_login_at`;
+
+/**
+  ADDED ON 09 Feb 2026
+ */
+alter table admins
+  modify is_active tinyint(1) default 0 null;
+
+alter table admins
+  modify password varchar(255) null;
+
+alter table admins
+  add invitation_token text null;
+
+alter table admins
+  add invitation_expires_at DATETIME null comment 'invitation_expires_at';
+
+alter table otps
+  add email varchar(225) null;
+
+alter table otps
+  add target enum ('mobile', 'email') null;
+
+alter table otps
+  modify phone varchar(255) null;
+
+alter table otps
+  drop foreign key otps_users_users_uid_fk;
+
+drop index otps_user_id_foreign on otps;
+
+create index otps_email_index
+  on otps (email);
+
+create index otps_target_index
+  on otps (target);

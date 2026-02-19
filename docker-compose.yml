@@ -27,9 +27,25 @@ services:
     networks:
       - aiglesend-network
 
+  postgresql:
+    image: postgres:16-alpine
+    container_name: aiglesend-postgres
+    restart: always
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_DB=aiglesend
+      - POSTGRES_USER=aiglesendUser
+      - POSTGRES_PASSWORD=Rolanddev@1995
+    volumes:
+      - aiglesend_postgres_data:/var/lib/postgresql/data
+    networks:
+      - aiglesend-network
+
 volumes:
   aiglesend_mariadb_data:
   aiglesend_redis_data:
+  aiglesend_postgres_data:
 
 networks:
   aiglesend-network:

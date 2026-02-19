@@ -116,7 +116,8 @@ export default class HandleTransfertInterFirstWebhookUseCase {
         'Processing inter-transfer first step'
       )
 
-      const result = await this.processFirstStep(
+      // 1. Mise à jour de la base de données uniquement
+      await this.processFirstStep(
         transaction,
         firstPayment,
         secondPayment,
@@ -125,15 +126,26 @@ export default class HandleTransfertInterFirstWebhookUseCase {
         trx
       )
 
+      // 2. Validation définitive des changements en DB
       await trx.commit()
+
       paymentLog.info(
         'INTER_TRANSFER_FIRST_SUCCESS',
         { webhook: { reference, status } },
         'Inter-transfer first step processed'
       )
-      return result
+
+      // 3. Lancement de la deuxième étape SEULEMENT après le succès du commit
+      if (status === TransactionStatus.SUCCESS) {
+        await this.initiateSecondStep(transaction, secondPayment)
+      }
+
+      return this.createSuccessResponse()
     } catch (error) {
-      await trx.rollback()
+      if (!trx.isCompleted) {
+        await trx.rollback()
+      }
+
       throw error
     }
   }
@@ -247,7 +259,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
     operatorResponse: any,
     status: TransactionStatus,
     trx: TransactionClientContract
-  ): Promise<WebhookResponseDto> {
+  ): Promise<void> {
     if (status === TransactionStatus.SUCCESS) {
       paymentLog.debug(
         'INTER_TRANSFER_FIRST_MARKING_SUCCESS',
@@ -259,69 +271,7 @@ export default class HandleTransfertInterFirstWebhookUseCase {
         { operatorResponse: operatorResponse },
         trx
       )
-
-      // Initiate the second transaction immediately after first success
-      try {
-        const details = (() => {
-          try {
-            const raw = (secondPayment as any)?.paymentDetails
-            return typeof raw === 'string' ? JSON.parse(raw) : (raw ?? {})
-          } catch {
-            paymentLog.error(
-              'INTER_TRANSFER_FIRST_PARSE_ERROR',
-              {
-                transaction: { reference: transaction.reference },
-                payment: { id: secondPayment.id },
-              },
-              'Failed to get the payment details for the second payment'
-            )
-            return {}
-          }
-        })()
-
-        const dataSend: Record<string, any> = {
-          operation_type: secondPayment.paymentMethod,
-          amount: Number(transaction.totalAmount),
-          provider: details?.operator,
-          number: details?.phone,
-          country: 'ci',
-          currency: 'XOF',
-          reference: transaction.reference,
-          notify_success_url: env.get('NOTIFY_TRANSFERT_INTER_SECOND_SUCCESS_URL'),
-          notify_failure_url: env.get('NOTIFY_TRANSFERT_INTER_SECOND_FAILURE_URL'),
-        }
-
-        await this.httpClient.post(env.get('API_TRANSFERT_URL')!!, dataSend)
-
-        paymentLog.info(
-          'INTER_TRANSFER_SECOND_INITIATED',
-          {
-            transaction: { reference: transaction.reference },
-            payment: { id: secondPayment.id },
-            transfer: {
-              provider: dataSend.provider,
-              numberMasked: maskPhone(dataSend.number),
-            },
-          },
-          'Second inter-transfer step initiated'
-        )
-      } catch (err) {
-        // TODO: Notify the admin about the payment failed //
-
-        errorLog.error(
-          'INTER_TRANSFER_SECOND_INIT_FAILED',
-          {
-            transaction: { reference: transaction.reference },
-            error: { message: (err as any)?.message || 'Unknown error' },
-          },
-          'Failed to initiate second inter-transfer step'
-        )
-      }
-
-      return this.createSuccessResponse()
-    }
-
-    if (status === TransactionStatus.FAILED) {
+    } else if (status === TransactionStatus.FAILED) {
       paymentLog.debug(
         'INTER_TRANSFER_FIRST_MARKING_FAILED',
         {
@@ -341,11 +291,76 @@ export default class HandleTransfertInterFirstWebhookUseCase {
         ),
         this.paymentService.markFailed(secondPayment.id, {}, trx),
       ])
-
-      return this.createSuccessResponse()
     }
+  }
 
-    return this.createSuccessResponse()
+  /**
+   * Initiates the second step of the inter-transfer transaction by making an external API call.
+   *
+   * @param {Transaction} transaction - The transaction object.
+   * @param {Payment} secondPayment - The second payment object.
+   * @return {Promise<void>}
+   */
+  private async initiateSecondStep(
+    transaction: Transaction,
+    secondPayment: Payment
+  ): Promise<void> {
+    try {
+      const details = (() => {
+        try {
+          const raw = (secondPayment as any)?.paymentDetails
+          return typeof raw === 'string' ? JSON.parse(raw) : (raw ?? {})
+        } catch {
+          paymentLog.error(
+            'INTER_TRANSFER_FIRST_PARSE_ERROR',
+            {
+              transaction: { reference: transaction.reference },
+              payment: { id: secondPayment.id },
+            },
+            'Failed to get the payment details for the second payment'
+          )
+          return {}
+        }
+      })()
+
+      const dataSend: Record<string, any> = {
+        operation_type: secondPayment.paymentMethod,
+        amount: Number(transaction.totalAmount),
+        provider: details?.operator,
+        number: details?.phone,
+        country: 'ci',
+        currency: 'XOF',
+        reference: transaction.reference,
+        notify_success_url: env.get('NOTIFY_TRANSFERT_INTER_SECOND_SUCCESS_URL'),
+        notify_failure_url: env.get('NOTIFY_TRANSFERT_INTER_SECOND_FAILURE_URL'),
+      }
+
+      await this.httpClient.post(env.get('API_TRANSFERT_URL')!!, dataSend)
+
+      paymentLog.info(
+        'INTER_TRANSFER_SECOND_INITIATED',
+        {
+          transaction: { reference: transaction.reference },
+          payment: { id: secondPayment.id },
+          transfer: {
+            provider: dataSend.provider,
+            numberMasked: maskPhone(dataSend.number),
+          },
+        },
+        'Second inter-transfer step initiated'
+      )
+    } catch (err) {
+      // TODO: Notify the admin about the payment failed //
+
+      errorLog.error(
+        'INTER_TRANSFER_SECOND_INIT_FAILED',
+        {
+          transaction: { reference: transaction.reference },
+          error: { message: (err as any)?.message || 'Unknown error' },
+        },
+        'Failed to initiate second inter-transfer step'
+      )
+    }
   }
   /**
    * Creates and returns a success response indicating the request has been received.

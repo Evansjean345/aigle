@@ -13,8 +13,12 @@ import NewDeviceDetected from '#features/device/application/events/new_device_de
 import UserStateChanged from '#features/user/application/events/user_state_changed'
 import WalletStatusChanged from '#features/wallet/application/events/wallet_status_changed'
 
+const AuditListener = () => import('#features/audit/application/listeners/audit_listener')
+
 const WalletToWalletTransactionPushNotificationListener = () =>
-  import('#features/notifications/application/listeners/on_wallet_to_wallet_transaction_notification')
+  import(
+    '#features/notifications/application/listeners/on_wallet_to_wallet_transaction_notification'
+  )
 
 const PersistUserTransactionsVolumeListener = () =>
   import('#features/transactions/application/listeners/persist_user_transactions_volume')
@@ -44,6 +48,14 @@ const OnWalletStatusChangedNotification = () =>
 const HandleTransactionFailure = () =>
   import('#features/transactions/application/listeners/handle_transaction_failure')
 
+import { AuditRecordInput } from '#shared/infrastructure/logging/audit_service'
+
+declare module '@adonisjs/core/types' {
+  interface EventsList {
+    'activity:audit': AuditRecordInput
+  }
+}
+
 emitter.listen(DepositTransactionCompleted, [
   OnDepositSuccessNotification,
   PersistUserTransactionsVolumeListener,
@@ -67,3 +79,5 @@ emitter.listen(DepositTransactionFailed, [HandleTransactionFailure])
 emitter.listen(TransfertTransactionFailed, [HandleTransactionFailure])
 emitter.listen(WalletToWalletTransactionFailed, [HandleTransactionFailure])
 emitter.listen(TransfertInterTransactionFailed, [HandleTransactionFailure])
+
+emitter.on('activity:audit', [AuditListener])

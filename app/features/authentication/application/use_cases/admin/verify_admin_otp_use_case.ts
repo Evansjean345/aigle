@@ -5,6 +5,9 @@ import AdminAuthService from '#features/authentication/application/services/admi
 import { toAdminLoginResponse } from '#features/authentication/application/mappers/admin/admin_auth.mapper'
 import { AdminLoginResponseDto } from '#features/authentication/application/dtos/admin/admin_login.dto'
 import AdminNotFoundException from '#features/team/infrastructure/exceptions/admin_not_found_exception'
+import emitter from '@adonisjs/core/services/emitter'
+
+import { AuditResult } from '#features/audit/domain/enums'
 
 export interface VerifyAdminOtpRequestDto {
   email: string
@@ -31,6 +34,19 @@ export default class VerifyAdminOtpUseCase {
     admin.invitationToken = null
     admin.invitationExpiresAt = null
     await this.adminRepository.save(admin)
+
+    await admin.load('role')
+    await emitter.emit('activity:audit', {
+      eventCategory: 'AUTH',
+      eventAction: 'OTP_VERIFIED',
+      actorId: String(admin.id),
+      actorType: 'Admin',
+      actorRole: admin.role.name,
+      targetType: 'Member',
+      targetId: String(admin.id),
+      result: AuditResult.SUCCESS,
+      metadata: { email: admin.email },
+    })
 
     const tokens = await this.adminAuthService.generateTokens(admin)
 

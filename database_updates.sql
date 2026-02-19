@@ -117,3 +117,4 @@ alter table devices
   add constraint devices_device_uid_pk
   unique (device_uid);
 
+

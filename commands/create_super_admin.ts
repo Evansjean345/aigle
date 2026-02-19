@@ -24,18 +24,14 @@ export default class CreateSuperAdmin extends BaseCommand {
     const lastname = await this.prompt.ask('Enter lastname')
     const email = await this.prompt.ask('Enter email')
 
+    let superAdminRole = await Role.findBy('slug', 'root')
+
+    if (!superAdminRole) {
+      this.logger.error('Failed to create super admin; Super admin role not found')
+      return
+    }
+
     try {
-      let superAdminRole = await Role.findBy('slug', 'super_admin')
-
-      if (!superAdminRole) {
-        this.logger.info('Super admin role not found, creating it...')
-        superAdminRole = await Role.create({
-          slug: 'super_admin',
-          name: 'Super Administrateur',
-          description: 'Accès total au système',
-        })
-      }
-
       const createAdminUseCase = await this.app.container.make(CreateAdminUseCase)
       const admin = await createAdminUseCase.execute({
         firstname,

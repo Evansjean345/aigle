@@ -154,6 +154,9 @@ export default class DeviceService {
       try {
         // Vérifier si c'est le seul device de l'utilisateur pour mettre à jour isPrimary
         const userDeviceCount = await this.deviceRepository.countByUserId(userId)
+
+        //TODO: fixer le bug lorsqu'il s'agit du telephone princapl
+        //TODO: le telephone principal n'est pas plus marqué comme principal quand se connecte à nouveau
         const shouldBePrimary =
           userDeviceCount === 0 || (deviceBelongsToUser && userDeviceCount === 1)
 

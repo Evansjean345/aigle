@@ -3,17 +3,18 @@ import { HttpContext } from '@adonisjs/core/http'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import HandleTransfertWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_webhook.use_case'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
-import logger from '@adonisjs/core/services/logger'
+import paymentLog from '#shared/infrastructure/logging/payment_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
 
 @inject()
 export default class TransferWebhookController {
-  private readonly logger = logger.use('transaction')
   constructor(private readonly handleTransfertWebhook: HandleTransfertWebhookUseCase) {}
 
   async transferSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
-    this.logger.info(
+    paymentLog.info(
+      'TRANSFER_SUCCESS_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
         headers: request.headers(),
@@ -25,10 +26,15 @@ export default class TransferWebhookController {
 
     try {
       const result = await this.handleTransfertWebhook.execute(payload, TransactionStatus.SUCCESS)
-      this.logger.info({ reference: payload?.data?.reference }, 'Transfer success processed')
+      paymentLog.info(
+        'TRANSFER_SUCCESS_WEBHOOK_PROCESSED',
+        { reference: payload?.data?.reference },
+        'Transfer success processed'
+      )
       return response.ok(result)
     } catch (error: any) {
-      this.logger.error(
+      errorLog.error(
+        'TRANSFER_SUCCESS_WEBHOOK_ERROR',
         { err: error, reference: payload?.data?.reference },
         'Error while processing transfer success webhook'
       )
@@ -39,7 +45,8 @@ export default class TransferWebhookController {
   async transferFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
-    this.logger.info(
+    paymentLog.info(
+      'TRANSFER_FAILURE_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
         headers: request.headers(),
@@ -51,10 +58,15 @@ export default class TransferWebhookController {
 
     try {
       const result = await this.handleTransfertWebhook.execute(payload, TransactionStatus.FAILED)
-      this.logger.info({ reference: payload?.data?.reference }, 'Transfer failure processed')
+      paymentLog.info(
+        'TRANSFER_FAILURE_WEBHOOK_PROCESSED',
+        { reference: payload?.data?.reference },
+        'Transfer failure processed'
+      )
       return response.ok(result)
     } catch (error: any) {
-      this.logger.error(
+      errorLog.error(
+        'TRANSFER_FAILURE_WEBHOOK_ERROR',
         { err: error, reference: payload?.data?.reference },
         'Error while processing transfer failure webhook'
       )

@@ -9,6 +9,8 @@ import { adminDashboardUrl } from '#config/app'
 import { DateTime } from 'luxon'
 import queue from '@rlanz/bull-queue/services/main'
 import SendMailJob from '#features/notifications/application/jobs/send_mail_job'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class CreateAdminUseCase {
@@ -20,13 +22,14 @@ export default class CreateAdminUseCase {
   constructor(private adminRepository: AdminRepository) {}
 
   /**
-   * Executes the creation of a new admin user based on the provided data.
+   * Executes the creation of a new admin account, generates an invitation token, and sends an invitation email.
    *
-   * @param {CreateAdminRequestDto} data - The data required to create a new admin, including firstname, lastname, email, password, and role.
-   * @return {Promise<AdminResponseDto>} A promise that resolves with the newly created admin's details, including id, firstname, lastname, email, role, and isActive status.
-   * @throws {EmailAlreadyExistsException}
+   * @param {CreateAdminRequestDto} data - Data required to create a new admin, including email, firstname, lastname, and optional role ID.
+   * @param {Admin} [auth] - The authenticated admin initiating the operation. If not provided, the system is assumed to perform the operation.
+   * @return {Promise<AdminResponseDto>} A promise that resolves to an object representing the created admin, including details like ID, name, email, role, and active status.
+   * @throws {EmailAlreadyExistsException} Thrown if an admin with the provided email already exists.
    */
-  async execute(data: CreateAdminRequestDto): Promise<AdminResponseDto> {
+  async execute(data: CreateAdminRequestDto, auth?: Admin): Promise<AdminResponseDto> {
     const existingAdmin = await this.adminRepository.findByEmail(data.email)
     if (existingAdmin) throw new EmailAlreadyExistsException()
 
@@ -40,8 +43,22 @@ export default class CreateAdminUseCase {
     admin.invitationExpiresAt = DateTime.now().plus({ minutes: 5 })
 
     await this.adminRepository.save(admin)
-    const setupPasswordUrl = `${adminDashboardUrl}/setup-password?token=${admin.invitationToken}`
 
+    await emitter.emit('activity:audit', {
+      eventCategory: 'TEAM',
+      eventAction: 'ADMIN_CREATED',
+      actorType: auth ? 'Admin' : 'System',
+      actorId: auth ? auth.id : null,
+      actorRole: auth ? auth?.role.name : null,
+      initiatedByType: auth ? 'Admin' : 'System',
+      initiatedById: auth ? auth.id : null,
+      targetType: 'Member',
+      targetId: String(admin.id),
+      result: AuditResult.SUCCESS,
+      newValues: { email: admin.email, roleId: admin.roleId },
+    })
+
+    const setupPasswordUrl = `${adminDashboardUrl}/setup-password?token=${admin.invitationToken}`
     await admin.load('role', (roleQuery) => roleQuery.preload('permissions'))
 
     await queue.dispatch(
@@ -58,6 +75,18 @@ export default class CreateAdminUseCase {
       },
       { queueName: 'mail' }
     )
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'TEAM',
+      eventAction: 'ADMIN_PASSWORD_SETUP_INVITATION_LINK_SENT',
+      actorType: 'System',
+      actorId: 'team-manager-service',
+      initiatedByType: 'Admin',
+      initiatedById: admin.id,
+      targetType: 'Member',
+      targetId: String(admin.id),
+      metadata: { via: 'email', template: 'emails/admin_invitation', email: admin.email },
+    })
 
     return {
       id: admin.id,

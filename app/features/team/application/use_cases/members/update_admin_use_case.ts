@@ -4,6 +4,9 @@ import hash from '@adonisjs/core/services/hash'
 import AdminRepository from '#features/team/domain/interfaces/admin_repository'
 import AdminNotFoundException from '#features/team/infrastructure/exceptions/admin_not_found_exception'
 import EmailAlreadyExistsException from '#features/team/infrastructure/exceptions/email_already_exists_exception'
+import emitter from '@adonisjs/core/services/emitter'
+import Admin from '#features/team/domain/models/admin'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class UpdateAdminUseCase {
@@ -19,11 +22,12 @@ export default class UpdateAdminUseCase {
    *
    * @param {number} id - The unique identifier of the admin to be updated.
    * @param {UpdateAdminRequestDto} data - The data object containing the fields to update for the admin.
+   * @param {Admin} auth - The authenticated admin user performing the operation.
    * @return {Promise<AdminResponseDto>} A promise that resolves to the updated admin's details.
    * @throws {AdminNotFoundException} Throws an error if no admin is found with the given ID.
    * @throws {EmailAlreadyExistsException} Throws an error if the new email is already used by another admin.
    */
-  async execute(id: number, data: UpdateAdminRequestDto): Promise<AdminResponseDto> {
+  async execute(id: number, data: UpdateAdminRequestDto, auth: Admin): Promise<AdminResponseDto> {
     const admin = await this.adminRepository.findById(id)
 
     if (!admin) throw new AdminNotFoundException()
@@ -42,6 +46,24 @@ export default class UpdateAdminUseCase {
     if (data.password) admin.password = await hash.make(data.password)
 
     await this.adminRepository.save(admin)
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'TEAM',
+      eventAction: 'ADMIN_UPDATED',
+      actorId: String(auth.id),
+      actorType: 'Admin',
+      actorRole: auth.role.name,
+      targetType: 'Member',
+      targetId: String(admin.id),
+      result: AuditResult.SUCCESS,
+      newValues: {
+        email: admin.email,
+        roleId: admin.roleId,
+        isActive: admin.isActive,
+        firstname: admin.firstname,
+        lastname: admin.lastname,
+      },
+    })
 
     return {
       id: admin.id,

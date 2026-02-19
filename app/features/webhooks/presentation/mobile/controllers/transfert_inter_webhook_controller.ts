@@ -4,11 +4,11 @@ import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_re
 import HandleTransfertInterFirstWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_first_webhook.use_case'
 import HandleTransfertInterSecondWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_second_webhook.use_case'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
-import logger from '@adonisjs/core/services/logger'
+import paymentLog from '#shared/infrastructure/logging/payment_log'
+import errorLog from '#shared/infrastructure/logging/error_log'
 
 @inject()
 export default class TransfertInterWebhookController {
-  private readonly logger = logger.use('transaction')
   constructor(
     private readonly handleTransfertInterFirstWebhook: HandleTransfertInterFirstWebhookUseCase,
     private readonly handleTransfertInterSecondWebhook: HandleTransfertInterSecondWebhookUseCase
@@ -22,7 +22,8 @@ export default class TransfertInterWebhookController {
   async interSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
-    this.logger.info(
+    paymentLog.info(
+      'INTER_TRANSFER_FIRST_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
         headers: request.headers(),
@@ -37,14 +38,16 @@ export default class TransfertInterWebhookController {
         payload,
         TransactionStatus.SUCCESS
       )
-      this.logger.info(
-        { reference: payload?.data?.reference },
+      paymentLog.info(
+        'INTER_TRANSFER_FIRST_SUCCESS',
+        { webhook: { reference: payload?.data?.reference } },
         'Inter-network first success processed'
       )
       return response.ok(result)
     } catch (error: any) {
-      this.logger.error(
-        { err: error, reference: payload?.data?.reference },
+      errorLog.error(
+        'INTER_TRANSFER_FIRST_ERROR',
+        { err: error, webhook: { reference: payload?.data?.reference } },
         'Error while processing inter-network first operation success webhook'
       )
       return response.ok({ message: 'received' })
@@ -59,7 +62,8 @@ export default class TransfertInterWebhookController {
   async interFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
-    this.logger.info(
+    paymentLog.info(
+      'INTER_TRANSFER_FIRST_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
         headers: request.headers(),
@@ -74,14 +78,16 @@ export default class TransfertInterWebhookController {
         payload,
         TransactionStatus.FAILED
       )
-      this.logger.info(
-        { reference: payload?.data?.reference },
+      paymentLog.info(
+        'INTER_TRANSFER_FIRST_FAILURE',
+        { webhook: { reference: payload?.data?.reference } },
         'Inter-network first failure processed'
       )
       return response.ok(result)
     } catch (error: any) {
-      this.logger.error(
-        { err: error, reference: payload?.data?.reference },
+      errorLog.error(
+        'INTER_TRANSFER_FIRST_ERROR',
+        { err: error, webhook: { reference: payload?.data?.reference } },
         'Error while processing inter-network first operation failure webhook'
       )
       return response.ok({ message: 'received' })
@@ -96,7 +102,8 @@ export default class TransfertInterWebhookController {
   async interSecondSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
-    this.logger.info(
+    paymentLog.info(
+      'INTER_TRANSFER_SECOND_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
         headers: request.headers(),
@@ -111,14 +118,16 @@ export default class TransfertInterWebhookController {
         payload,
         TransactionStatus.SUCCESS
       )
-      this.logger.info(
-        { reference: payload?.data?.reference },
+      paymentLog.info(
+        'INTER_TRANSFER_SECOND_SUCCESS',
+        { webhook: { reference: payload?.data?.reference } },
         'Inter-network second success processed'
       )
       return response.ok(result)
     } catch (error: any) {
-      this.logger.error(
-        { err: error, reference: payload?.data?.reference },
+      errorLog.error(
+        'INTER_TRANSFER_SECOND_ERROR',
+        { err: error, webhook: { reference: payload?.data?.reference } },
         'Error while processing inter-network second operation success webhook'
       )
       return response.ok({ message: 'received' })
@@ -133,7 +142,8 @@ export default class TransfertInterWebhookController {
   async interSecondFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
-    this.logger.info(
+    paymentLog.info(
+      'INTER_TRANSFER_SECOND_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
         headers: request.headers(),
@@ -148,14 +158,16 @@ export default class TransfertInterWebhookController {
         payload,
         TransactionStatus.FAILED
       )
-      this.logger.info(
-        { reference: payload?.data?.reference },
+      paymentLog.info(
+        'INTER_TRANSFER_SECOND_FAILURE',
+        { webhook: { reference: payload?.data?.reference } },
         'Inter-network second failure processed'
       )
       return response.ok(result)
     } catch (error: any) {
-      this.logger.error(
-        { err: error, reference: payload?.data?.reference },
+      errorLog.error(
+        'INTER_TRANSFER_SECOND_ERROR',
+        { err: error, webhook: { reference: payload?.data?.reference } },
         'Error while processing inter-network second operation failure webhook'
       )
       return response.ok({ message: 'received' })

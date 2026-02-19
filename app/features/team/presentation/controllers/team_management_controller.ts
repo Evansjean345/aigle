@@ -8,6 +8,7 @@ import {
   createAdminValidator,
   updateAdminValidator,
 } from '#features/team/presentation/validators/team_validator'
+import Admin from '#features/team/domain/models/admin'
 
 @inject()
 export default class TeamManagementController {
@@ -50,9 +51,10 @@ export default class TeamManagementController {
    * @param {Object} context.response - The HTTP response object, used to return the result.
    * @return {Promise<void>} A promise that resolves when the process is complete and a response is sent.
    */
-  async store({ request, response }: HttpContext): Promise<void> {
+  async store({ request, response, auth }: HttpContext): Promise<void> {
     const data = await request.validateUsing(createAdminValidator)
-    const member = await this.createAdminUseCase.execute(data)
+    const authUser = auth.user as Admin
+    const member = await this.createAdminUseCase.execute(data, authUser)
     return response.created(member)
   }
 
@@ -65,9 +67,10 @@ export default class TeamManagementController {
    * @param {object} context.response - The outgoing HTTP response object.
    * @return {Promise<void>} The response containing the updated admin details.
    */
-  async update({ params, request, response }: HttpContext): Promise<void> {
+  async update({ params, request, response, auth }: HttpContext): Promise<void> {
     const data = await request.validateUsing(updateAdminValidator)
-    const member = await this.updateAdminUseCase.execute(params.id, data)
+    const authUser = auth.user as Admin
+    const member = await this.updateAdminUseCase.execute(params.id, data, authUser)
     return response.ok(member)
   }
 
@@ -79,8 +82,9 @@ export default class TeamManagementController {
    * @param {Object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the operation is completed.
    */
-  async destroy({ params, response }: HttpContext): Promise<void> {
-    await this.deleteAdminUseCase.execute(params.id)
+  async destroy({ params, response, auth }: HttpContext): Promise<void> {
+    const authUser = auth.user as Admin
+    await this.deleteAdminUseCase.execute(params.id, authUser)
     return response.noContent()
   }
 }
