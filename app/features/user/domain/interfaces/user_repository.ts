@@ -29,6 +29,8 @@ export default abstract class UserRepository {
    * @param {number} perPage - The number of users per page.
    * @param {ExtractModelRelations<User>[]} [relations] - Optional list of relations to preload.
    * @param {string} [search] - Optional search term.
+   * @param startDate
+   * @param endDate
    * @returns {Promise<ModelPaginatorContract<User>>}
    */
   abstract paginate(

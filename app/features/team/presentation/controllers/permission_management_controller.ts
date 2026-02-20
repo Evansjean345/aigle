@@ -45,7 +45,7 @@ export default class PermissionManagementController {
    */
   async index({ request, response }: HttpContext): Promise<void> {
     const page = request.input('page', 1)
-    const perPage = request.input('perPage', 10)
+    const perPage = request.input('perPage', 16)
     const permissions = await this.listPermissionsUseCase.execute(page, perPage)
     return response.ok(permissions)
   }

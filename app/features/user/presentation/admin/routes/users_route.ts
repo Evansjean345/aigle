@@ -17,6 +17,7 @@ export default function adminUsersRoute() {
     .group(() => {
       router.group(() => {
         router.get('/', [UsersController, 'index'])
+        router.get('/search', [UsersController, 'search'])
         router.get('/stats', [UsersController, 'stats'])
         router.get('/:id', [UsersController, 'show'])
         router.get('/:id/wallet-stats', [UsersController, 'walletStats'])

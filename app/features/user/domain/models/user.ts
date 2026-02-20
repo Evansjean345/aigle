@@ -146,6 +146,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
         .where('firstname', 'like', `%${searchTerm}%`)
         .orWhere('lastname', 'like', `%${searchTerm}%`)
         .orWhere('phone', 'like', `%${searchTerm}%`)
+        .orWhere('account_number', 'like', `%${searchTerm}%`)
     })
   })
 

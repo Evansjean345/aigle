@@ -5,6 +5,7 @@ import GetUserWalletStatsUseCase from '#features/user/application/use_cases/admi
 import GetAdminUserDetailsUseCase from '#features/user/application/use_cases/admin/get_admin_user_details_use_case'
 import ChangeUserStateUseCase from '#features/user/application/use_cases/admin/change_user_state_use_case'
 import GetUserStatsUseCase from '#features/user/application/use_cases/admin/get_user_stats_use_case'
+import SearchUserUseCase from '#features/user/application/use_cases/admin/search_user_use_case'
 
 import { UserStatus } from '#features/user/domain/enum'
 
@@ -24,7 +25,8 @@ export default class UsersController {
     private readonly getUserWalletStatsUseCase: GetUserWalletStatsUseCase,
     private readonly getAdminUserDetailsUseCase: GetAdminUserDetailsUseCase,
     private readonly changeUserStateUseCase: ChangeUserStateUseCase,
-    private readonly getUserStatsUseCase: GetUserStatsUseCase
+    private readonly getUserStatsUseCase: GetUserStatsUseCase,
+    private readonly searchUserUseCase: SearchUserUseCase
   ) {}
 
   /**
@@ -117,5 +119,25 @@ export default class UsersController {
   async activate({ params, response }: HttpContext): Promise<void> {
     await this.changeUserStateUseCase.execute(params.id, UserStatus.ACTIVE)
     return response.ok({ message: 'User activated successfully' })
+  }
+
+  /**
+   * Handles the search functionality by retrieving a search term from the request,
+   * executing a use case to perform the search, and returning the result in the response.
+   *
+   * @param {Object} context - The HTTP context object containing request and response.
+   * @param {Object} context.request - The HTTP request object.
+   * @param {Object} context.response - The HTTP response object.
+   * @return {Promise<void>} Resolves with no return value, but sends a response with the search results or an error message.
+   */
+  async search({ request, response }: HttpContext): Promise<void> {
+    const search = request.input('q')
+
+    if (!search) {
+      return response.badRequest({ message: 'le terme de recherche est requis' })
+    }
+
+    const result = await this.searchUserUseCase.execute(search)
+    return response.ok(result)
   }
 }

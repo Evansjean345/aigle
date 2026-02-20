@@ -1,6 +1,7 @@
 import User from '#features/user/domain/models/user'
 import { AdminUserListItemResponseDto } from '#features/user/application/dtos/admin/users.response.dto'
 import { AdminUserDetailsResponseDto } from '#features/user/application/dtos/admin/user_details.response.dto'
+import { UserSearchResponseDto } from '#features/user/application/dtos/admin/user_search.response.dto'
 
 export function mapUserToAdminListItemDto(user: User): AdminUserListItemResponseDto {
   return {
@@ -83,5 +84,30 @@ export function mapUserToAdminDetailsDto(user: User): AdminUserDetailsResponseDt
       lastSeenAt: device.lastSeenAt,
       createdAt: device.createdAt,
     })),
+  }
+}
+
+/**
+ * Maps a User object to a UserSearchResponseDto object.
+ *
+ * @param {User} user - The user object containing user details.
+ * @return {UserSearchResponseDto} A DTO containing mapped user search details.
+ */
+export function mapUserToSearchDto(user: User): UserSearchResponseDto {
+  return {
+    usersUid: user.usersUid,
+    fullname: [user.firstname, user.lastname].filter(Boolean).join(' ').trim(),
+    phone: user.phone,
+    profilePic: user.kycDocument?.selfieUrl || null,
+    country: {
+      name: user.country?.name || '',
+      flag: user.country?.flag || '',
+      phoneCode: user.country?.phoneCode || '',
+    },
+    kyc: {
+      level: user.keyLevel?.level || 0,
+      status: user.kycStatus,
+    },
+    status: user.status,
   }
 }
