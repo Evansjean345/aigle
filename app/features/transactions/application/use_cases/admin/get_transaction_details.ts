@@ -20,10 +20,21 @@ export default class GetTransactionDetailsUseCase {
    * Executes the process of retrieving transaction details.
    *
    * @param {string} reference - The reference of the transaction.
+   * @param {Object} options - Optional parameters to control data loading.
+   * @param {boolean} [options.loadLedger] - Whether to load transaction ledgers.
    * @return {Promise<AdminTransactionResponseDTO>} A promise resolving to a DTO containing the transaction details.
    */
-  async execute(reference: string): Promise<AdminTransactionResponseDTO> {
-    let transaction = await this.transactionRepository.findByReference(reference)
+  async execute(
+    reference: string,
+    options: { loadLedger?: boolean } = {}
+  ): Promise<AdminTransactionResponseDTO> {
+    const preloads = ['user', 'payment']
+
+    if (options.loadLedger) {
+      preloads.push('ledger')
+    }
+
+    let transaction = await this.transactionRepository.findByReference(reference, preloads)
 
     if (!transaction) {
       throw new TransactionNotFoundException("Cette transaction n'existe pas")

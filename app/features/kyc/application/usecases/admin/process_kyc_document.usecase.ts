@@ -23,14 +23,20 @@ export default class ProcessKycDocumentUseCase {
    * @param {number} id - The unique identifier of the KYC document to be processed.
    * @param {KycDocumentStatus} status - The new status to assign to the KYC document.
    * @param {string} [comment] - An optional comment providing additional context for the update.
+   * @param {number} agentId - The unique identifier of the agent who initiated the update.
    * @return {Promise<void>} Resolves once the execution process is completed successfully.
    * @throws {KycDocumentNotFoundException} Thrown if the KYC document with the specified ID is not found.
    */
-  async execute(id: number, status: KycDocumentStatus, comment?: string): Promise<void> {
+  async execute(
+    id: number,
+    status: KycDocumentStatus,
+    comment: string | undefined,
+    agentId: number
+  ): Promise<void> {
     const kycDocument = await this.kycDocumentRepository.findById(id)
 
     if (!kycDocument) {
-      errorLog.error('KYC_DOC_NOT_FOUND', { kyc_id: id }, 'KYC document not found for processing')
+      kycLog.warn('KYC_DOC_NOT_FOUND', { kyc_id: id }, 'KYC document not found for processing')
       throw new KycDocumentNotFoundException()
     }
 
@@ -38,6 +44,7 @@ export default class ProcessKycDocumentUseCase {
       // Mise à jour du document principal
       kycDocument.status = status
       kycDocument.comment = comment
+      kycDocument.agentId = agentId
       await this.kycDocumentRepository.saveKycDocument(kycDocument)
 
       // Création d'une tentative pour l'historique
@@ -58,6 +65,7 @@ export default class ProcessKycDocumentUseCase {
       decisionAttempt.attemptNumber = attemptNumber
       decisionAttempt.status = status
       decisionAttempt.comment = comment
+      decisionAttempt.agentId = agentId
 
       await this.kycDocumentRepository.saveAttempt(decisionAttempt)
 
@@ -72,7 +80,6 @@ export default class ProcessKycDocumentUseCase {
         `KYC document ${status} successfully`
       )
 
-      // Déclenchement de l'événement pour les notifications et les mises à jour de statut utilisateur
       await KycDocumentProcessed.dispatch(kycDocument.userId, status, comment)
     } catch (error) {
       errorLog.error(

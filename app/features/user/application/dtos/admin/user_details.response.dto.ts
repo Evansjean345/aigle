@@ -42,9 +42,6 @@ export interface AdminUserDetailsResponseDto {
   updatedAt: DateTime | null
   kyc: {
     level: number
-    status: UserKycStatus
-    documentType: KycDocumentType | null
-    documentStatus: KycDocumentStatus | null
   }
   devices: AdminUserDeviceResponseDto[]
 }

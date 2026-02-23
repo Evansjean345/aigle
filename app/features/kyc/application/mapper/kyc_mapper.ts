@@ -13,7 +13,21 @@ export default class KycMapper {
       status: kyc.status,
       comment: kyc.comment,
       createdAt: kyc.createdAt?.toISO() || kyc.createdAt?.toString() || '',
-      attempts: kyc.attempts?.map((attempt) => attempt.toJSON()),
+      agent: kyc.agent && {
+        id: kyc.agent.id,
+        firstname: kyc.agent.firstname,
+        lastname: kyc.agent.lastname,
+        email: kyc.agent.email,
+      },
+      attempts: kyc.attempts?.map((attempt) => ({
+        ...attempt.toJSON(),
+        agent: attempt.agent && {
+          id: attempt.agent.id,
+          firstname: attempt.agent.firstname,
+          lastname: attempt.agent.lastname,
+          email: attempt.agent.email,
+        },
+      })),
       user: kyc.user && {
         firstname: kyc.user.firstname,
         lastname: kyc.user.lastname,

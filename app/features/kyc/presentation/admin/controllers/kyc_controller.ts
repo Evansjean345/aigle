@@ -153,9 +153,15 @@ export default class KycController {
   }
 
   /**
-   * Processes a KYC document (approve or reject)
+   * Processes a KYC (Know Your Customer) document based on the submitted payload and emits an audit event.
    *
-   * @param {HttpContext} context - The context object containing the HTTP request and response.
+   * @param {Object} context - The HTTP context containing request, response, parameters, bouncer, and authentication objects.
+   * @param {Request} context.request - The HTTP request object, used to validate input and retrieve headers.
+   * @param {Response} context.response - The HTTP response object, used to send responses back to the client.
+   * @param {Object} context.params - The route parameters, containing the identifier for the KYC document.
+   * @param {Bouncer} context.bouncer - The bouncer instance for handling authorization policies.
+   * @param {Auth} context.auth - The authentication instance, containing information about the currently authenticated user.
+   * @return {Promise<void>} Resolves after successfully processing the KYC document and emitting the audit event.
    */
   async process({ request, response, params, bouncer, auth }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(processKycValidator, {
@@ -170,7 +176,12 @@ export default class KycController {
       await bouncer.with(KycPolicy).authorize('reject')
     }
 
-    await this.processKycDocumentUseCase.execute(params.id, payload.status, payload.comment)
+    await this.processKycDocumentUseCase.execute(
+      params.id,
+      payload.status,
+      payload.comment,
+      (auth.user as any)?.id as number
+    )
 
     await emitter.emit('activity:audit', {
       eventCategory: 'kyc',
@@ -198,7 +209,7 @@ export default class KycController {
    * @param {Object} context.response - The response object used to send the result back to the client.
    * @return {Promise<void>} A promise that resolves when the KYC document retrieval and response handling are complete.
    */
-  async getUserKyc({ params, response, bouncer }: HttpContext): Promise<void> {
+  async getUserKyc({ params, response, bouncer, auth, request }: HttpContext): Promise<void> {
     await bouncer.with(KycPolicy).authorize('view')
     const { id } = params
     const kycDocument = await this.getUserKycDocumentUseCase.execute(id)
@@ -206,6 +217,20 @@ export default class KycController {
     if (!kycDocument) {
       return response.ok(null)
     }
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'kyc',
+      eventAction: 'view_user_kyc',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      targetType: 'user',
+      targetId: id,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      result: AuditResult.SUCCESS,
+    })
 
     return response.ok(kycDocument)
   }

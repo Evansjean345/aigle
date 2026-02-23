@@ -9,6 +9,8 @@ import {
   createAppVersionValidator,
   updateAppVersionValidator,
 } from '#features/device/presentation/admin/validators/app_version_validator'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class AdminAppVersionController {
@@ -36,8 +38,21 @@ export default class AdminAppVersionController {
    * @param {object} context.response - The response object used to send the result back to the client.
    * @return {Promise<void>} A Promise resolving to the response containing all application versions.
    */
-  async index({ response }: HttpContext): Promise<void> {
+  async index({ response, auth, request }: HttpContext): Promise<void> {
     const versions = await this.getAllAppVersionsUseCase.execute()
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'APP_VERSION',
+      eventAction: 'READ_VERSIONS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(versions)
   }
 
@@ -49,10 +64,42 @@ export default class AdminAppVersionController {
    * @param {Object} context.response - The HTTP response object used to send the created response.
    * @return {Promise<void>} Returns a promise that resolves to the created application version.
    */
-  async store({ request, response }: HttpContext): Promise<void> {
-    const data = await request.validateUsing(createAppVersionValidator)
-    const version = await this.createAppVersionUseCase.execute(data)
-    return response.created(version)
+  async store({ request, response, auth }: HttpContext): Promise<void> {
+    try {
+      const data = await request.validateUsing(createAppVersionValidator)
+      const version = await this.createAppVersionUseCase.execute(data)
+
+      await emitter.emit('activity:audit', {
+        eventCategory: 'APP_VERSION',
+        eventAction: 'CREATE_VERSION',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'app_version',
+        targetId: String(version.id),
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        newValues: data,
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.created(version)
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'APP_VERSION',
+        eventAction: 'CREATE_VERSION',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message,
+      })
+      throw error
+    }
   }
 
   /**
@@ -63,9 +110,42 @@ export default class AdminAppVersionController {
    * @param {Object} context.response - The HTTP response object.
    * @return {Promise<void>} Resolves when the application version details are successfully retrieved and sent in the response.
    */
-  async show({ params, response }: HttpContext): Promise<void> {
-    const version = await this.getAppVersionDetailsUseCase.execute(params.id)
-    return response.ok(version)
+  async show({ params, response, auth, request }: HttpContext): Promise<void> {
+    try {
+      const version = await this.getAppVersionDetailsUseCase.execute(params.id)
+
+      await emitter.emit('activity:audit', {
+        eventCategory: 'APP_VERSION',
+        eventAction: 'VIEW_VERSION_DETAILS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'app_version',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.ok(version)
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'APP_VERSION',
+        eventAction: 'VIEW_VERSION_DETAILS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'app_version',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message,
+      })
+      throw error
+    }
   }
 
   /**
@@ -78,14 +158,45 @@ export default class AdminAppVersionController {
    * @param {Object} context.response - The HTTP response object used to send the results.
    * @return {Promise<Object>} The updated application version.
    */
-  async update({ params, request, response }: HttpContext): Promise<void> {
-    const data = await request.validateUsing(updateAppVersionValidator)
+  async update({ params, request, response, auth }: HttpContext): Promise<void> {
+    try {
+      const data = await request.validateUsing(updateAppVersionValidator)
 
-    console.log('debugging data')
-    console.log(data)
+      const version = await this.updateAppVersionUseCase.execute(params.id, data)
 
-    const version = await this.updateAppVersionUseCase.execute(params.id, data)
-    return response.ok(version)
+      await emitter.emit('activity:audit', {
+        eventCategory: 'APP_VERSION',
+        eventAction: 'UPDATE_VERSION',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'app_version',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        newValues: data,
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.ok(version)
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'APP_VERSION',
+        eventAction: 'UPDATE_VERSION',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'app_version',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message,
+      })
+      throw error
+    }
   }
 
   /**
@@ -96,8 +207,41 @@ export default class AdminAppVersionController {
    * @param {Object} context.response The response object used to send back an HTTP response.
    * @return {void} Sends a no-content HTTP response upon successful deletion.
    */
-  async destroy({ params, response }: HttpContext): Promise<void> {
-    await this.deleteAppVersionUseCase.execute(params.id)
-    return response.noContent()
+  async destroy({ params, response, auth, request }: HttpContext): Promise<void> {
+    try {
+      await this.deleteAppVersionUseCase.execute(params.id)
+
+      await emitter.emit('activity:audit', {
+        eventCategory: 'APP_VERSION',
+        eventAction: 'DELETE_VERSION',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'app_version',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.noContent()
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'APP_VERSION',
+        eventAction: 'DELETE_VERSION',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'app_version',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message,
+      })
+      throw error
+    }
   }
 }

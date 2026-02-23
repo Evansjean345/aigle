@@ -17,7 +17,6 @@ export default class GetAdminUserDetailsUseCase {
     const user = await User.query()
       .where('usersUid', userId)
       .preload('country')
-      .preload('kycDocument')
       .preload('devices')
       .preload('keyLevel')
       .first()

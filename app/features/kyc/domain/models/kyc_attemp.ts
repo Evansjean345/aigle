@@ -2,6 +2,7 @@ import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
 import KycDocument from '#features/kyc/domain/models/kyc_document'
+import Admin from '#features/team/domain/models/admin'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 
 export class KycAttemp extends BaseModel {
@@ -43,6 +44,9 @@ export class KycAttemp extends BaseModel {
   @column()
   declare nextAction?: string
 
+  @column()
+  declare agentId?: number
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -54,4 +58,9 @@ export class KycAttemp extends BaseModel {
     localKey: 'id',
   })
   declare kycDocument: BelongsTo<typeof KycDocument>
+
+  @belongsTo(() => Admin, {
+    foreignKey: 'agentId',
+  })
+  declare agent: BelongsTo<typeof Admin>
 }

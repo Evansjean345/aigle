@@ -67,19 +67,30 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    * Fetches a transaction record that matches the provided reference.
    *
    * @param {string} reference - The unique reference to search for in the transaction records.
+   * @param {string[]} preloads - Optional array of relations to preload.
    * @return {Promise<Transaction|null>} A promise resolving to the transaction object if found, or null if no matching record exists.
    */
-  async findByReference(reference: string): Promise<Transaction | null> {
-    return await Transaction.query()
-      .preload('user', (userQuery) => {
-        userQuery.preload('wallet', (walletQuery) => {
-          walletQuery.select('balance')
+  async findByReference(reference: string, preloads?: string[]): Promise<Transaction | null> {
+    const query = Transaction.query()
+
+    query
+      .if(preloads?.includes('user'), (q) => {
+        q.preload('user', (userQuery) => {
+          userQuery.preload('wallet', (walletQuery) => {
+            walletQuery.select('balance')
+          })
         })
       })
-      .preload('payment')
-      .preload('ledger')
-      .where('reference', reference)
-      .first()
+      .if(preloads?.includes('payment'), (q) => {
+        q.preload('payment')
+      })
+      .if(preloads?.includes('ledger'), (q) => {
+        q.preload('ledger', (ledgerQuery) => {
+          ledgerQuery.preload('wallet')
+        })
+      })
+
+    return await query.where('reference', reference).first()
   }
 
   /**
@@ -132,27 +143,15 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       userId?: string
     }
   ): Promise<ModelPaginatorContract<Transaction>> {
-    const query = Transaction.query().preload('user')
-
-    if (filters?.userId) {
-      query.where('usersUid', filters.userId)
-    }
-
-    if (filters?.type) {
-      query.withScopes((scope) => scope.filterByType(filters.type!))
-    }
-
-    if (filters?.status) {
-      query.withScopes((scope) => scope.filterByStatus(filters.status!))
-    }
-
-    if (filters?.search) {
-      query.withScopes((scope) => scope.search(filters.search!))
-    }
-
-    if (filters?.startDate || filters?.endDate) {
-      query.withScopes((scope) => scope.filterByDateRange(filters.startDate, filters.endDate))
-    }
+    const query = Transaction.query().preload('user').preload('payment')
+    query
+      .if(filters?.userId, (q) => q.where('usersUid', filters!.userId!))
+      .if(filters?.type, (q) => q.withScopes((scope) => scope.filterByType(filters!.type!)))
+      .if(filters?.status, (q) => q.withScopes((scope) => scope.filterByStatus(filters!.status!)))
+      .if(filters?.search, (q) => q.withScopes((scope) => scope.search(filters!.search!)))
+      .if(filters?.startDate || filters?.endDate, (q) =>
+        q.withScopes((scope) => scope.filterByDateRange(filters?.startDate, filters?.endDate))
+      )
 
     return query.orderBy('created_at', 'desc').paginate(page, perPage)
   }

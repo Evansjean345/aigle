@@ -30,9 +30,10 @@ export default abstract class TransactionRepository {
    * Finds a transaction based on the given reference identifier.
    *
    * @param {string} reference - The unique reference identifier of the transaction.
+   * @param {string[]} preloads - Optional array of relations to preload.
    * @return {Promise<Transaction | null>} A promise that resolves to the transaction object if found, or null if not found.
    */
-  abstract findByReference(reference: string): Promise<Transaction | null>
+  abstract findByReference(reference: string, preloads?: string[]): Promise<Transaction | null>
 
   /**
    * Finds a transaction by its reference and associated user ID.

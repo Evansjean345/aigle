@@ -8,6 +8,9 @@ import GetUserStatsUseCase from '#features/user/application/use_cases/admin/get_
 import SearchUserUseCase from '#features/user/application/use_cases/admin/search_user_use_case'
 
 import { UserStatus } from '#features/user/domain/enum'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
+import Admin from '#features/team/domain/models/admin'
 
 @inject()
 export default class UsersController {
@@ -19,6 +22,7 @@ export default class UsersController {
    * @param {GetAdminUserDetailsUseCase} getAdminUserDetailsUseCase
    * @param {ChangeUserStateUseCase} changeUserStateUseCase
    * @param {GetUserStatsUseCase} getUserStatsUseCase
+   * @param {SearchUserUseCase} searchUserUseCase - An instance of SearchUserUseCase used to search for users by name.
    */
   constructor(
     private readonly getAllUsersUseCase: GetAllUsersUseCase,
@@ -37,13 +41,27 @@ export default class UsersController {
    * @param {Object} HttpContext.response - The outgoing HTTP response object.
    * @return {Promise<Object>} A JSON response with a message.
    */
-  async index({ request, response }: HttpContext): Promise<void> {
+  async index({ request, response, auth }: HttpContext): Promise<void> {
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 50)
     const search = request.input('search')
     const startDate = request.input('startDate')
     const endDate = request.input('endDate')
     const users = await this.getAllUsersUseCase.execute(page, perPage, search, startDate, endDate)
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'USERS',
+      eventAction: 'READ_USERS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { page, perPage, search, startDate, endDate },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(users)
   }
 
@@ -53,10 +71,24 @@ export default class UsersController {
    * @param {HttpContext} context - The HTTP context object.
    * @return {Promise<void>}
    */
-  async stats({ request, response }: HttpContext): Promise<void> {
+  async stats({ request, response, auth }: HttpContext): Promise<void> {
     const startDate = request.input('startDate')
     const endDate = request.input('endDate')
     const stats = await this.getUserStatsUseCase.execute(startDate, endDate)
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'USERS',
+      eventAction: 'READ_USERS_STATS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as Admin)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { startDate, endDate },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(stats)
   }
 
@@ -69,8 +101,23 @@ export default class UsersController {
    * @param {Object} context.response - The HTTP response object used to send the result.
    * @return {Promise<void>} A Promise that resolves when the response is sent.
    */
-  async walletStats({ params, response }: HttpContext): Promise<void> {
+  async walletStats({ params, response, request, auth }: HttpContext): Promise<void> {
     const stats = await this.getUserWalletStatsUseCase.execute(params.id)
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'USERS',
+      eventAction: 'READ_USER_WALLET_STATS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as Admin)?.role?.slug ?? null,
+      targetType: 'user',
+      targetId: params.id,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(stats)
   }
 
@@ -83,14 +130,46 @@ export default class UsersController {
    * @param {Object} context.response - The HTTP response object used to send the result.
    * @return {Promise<void>} A Promise that resolves when the response is sent.
    */
-  async show({ params, response }: HttpContext): Promise<void> {
-    const user = await this.getAdminUserDetailsUseCase.execute(params.id)
+  async show({ params, response, request, auth }: HttpContext): Promise<void> {
+    try {
+      const user = await this.getAdminUserDetailsUseCase.execute(params.id)
 
-    if (!user) {
+      if (!user) {
+        return response.notFound({ message: 'User not found' })
+      }
+
+      await emitter.emit('activity:audit', {
+        eventCategory: 'USERS',
+        eventAction: 'VIEW_USER_DETAILS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as Admin)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.ok(user)
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'USERS',
+        eventAction: 'VIEW_USER_DETAILS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message ?? 'User not found',
+      })
       return response.notFound({ message: 'User not found' })
     }
-
-    return response.ok(user)
   }
 
   /**
@@ -102,9 +181,43 @@ export default class UsersController {
    * @param {Object} context.response - The HTTP response object used to send the result.
    * @return {Promise<void>} A Promise that resolves when the response is sent.
    */
-  async block({ params, response }: HttpContext): Promise<void> {
-    await this.changeUserStateUseCase.execute(params.id, UserStatus.BLOCKED)
-    return response.ok({ message: 'User blocked successfully' })
+  async block({ params, response, request, auth }: HttpContext): Promise<void> {
+    try {
+      await this.changeUserStateUseCase.execute(params.id, UserStatus.BLOCKED)
+
+      await emitter.emit('activity:audit', {
+        eventCategory: 'USERS',
+        eventAction: 'BLOCK_USER',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        newValues: { status: UserStatus.BLOCKED },
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.ok({ message: 'User blocked successfully' })
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'USERS',
+        eventAction: 'BLOCK_USER',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as Admin)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message,
+      })
+      throw error
+    }
   }
 
   /**
@@ -116,9 +229,43 @@ export default class UsersController {
    * @param {Object} context.response - The HTTP response object used to send the result.
    * @return {Promise<void>} A Promise that resolves when the response is sent.
    */
-  async activate({ params, response }: HttpContext): Promise<void> {
-    await this.changeUserStateUseCase.execute(params.id, UserStatus.ACTIVE)
-    return response.ok({ message: 'User activated successfully' })
+  async activate({ params, response, request, auth }: HttpContext): Promise<void> {
+    try {
+      await this.changeUserStateUseCase.execute(params.id, UserStatus.ACTIVE)
+
+      await emitter.emit('activity:audit', {
+        eventCategory: 'USERS',
+        eventAction: 'ACTIVATE_USER',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        newValues: { status: UserStatus.ACTIVE },
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.ok({ message: 'User activated successfully' })
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'USERS',
+        eventAction: 'ACTIVATE_USER',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as Admin)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message,
+      })
+      throw error
+    }
   }
 
   /**
@@ -130,7 +277,7 @@ export default class UsersController {
    * @param {Object} context.response - The HTTP response object.
    * @return {Promise<void>} Resolves with no return value, but sends a response with the search results or an error message.
    */
-  async search({ request, response }: HttpContext): Promise<void> {
+  async search({ request, response, auth }: HttpContext): Promise<void> {
     const search = request.input('q')
 
     if (!search) {
@@ -138,6 +285,20 @@ export default class UsersController {
     }
 
     const result = await this.searchUserUseCase.execute(search)
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'USERS',
+      eventAction: 'SEARCH_USERS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as Admin)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { query: search },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(result)
   }
 }

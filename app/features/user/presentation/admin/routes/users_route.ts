@@ -28,7 +28,6 @@ export default function adminUsersRoute() {
         ])
         router.get('/:id/ledgers', [LedgersController, 'getUserLedgers'])
         router.get('/:id/ledgers/stats', [LedgersController, 'getUserLedgerStats'])
-        router.get('/:id/ledgers/chart', [LedgersController, 'getUserLedgerChart'])
         router.get('/:id/kyc', [KycController, 'getUserKyc'])
         router.put('/:id/block', [UsersController, 'block'])
         router.put('/:id/activate', [UsersController, 'activate'])
@@ -40,5 +39,4 @@ export default function adminUsersRoute() {
         guards: ['admin'],
       })
     )
-    .use(middleware.permission(['user.read', 'users_support.read']))
 }

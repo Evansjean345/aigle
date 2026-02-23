@@ -4,6 +4,7 @@ import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/ky
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import { KycAttemp } from '#features/kyc/domain/models/kyc_attemp'
 import User from '#features/user/domain/models/user'
+import Admin from '#features/team/domain/models/admin'
 
 export default class KycDocument extends BaseModel {
   static table = 'kyc_documents'
@@ -38,6 +39,9 @@ export default class KycDocument extends BaseModel {
   @column()
   declare nextAction?: string
 
+  @column()
+  declare agentId?: number
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -55,6 +59,11 @@ export default class KycDocument extends BaseModel {
     localKey: 'usersUid',
   })
   declare user: BelongsTo<typeof User>
+
+  @belongsTo(() => Admin, {
+    foreignKey: 'agentId',
+  })
+  declare agent: BelongsTo<typeof Admin>
 
   static filterByDateRange = scope((query, startDate?: string, endDate?: string) => {
     if (startDate && endDate) {

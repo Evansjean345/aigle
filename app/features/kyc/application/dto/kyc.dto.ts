@@ -22,6 +22,12 @@ export interface AdminKycListDto {
   status: string
   comment?: string
   createdAt: string
+  agent?: {
+    id: number
+    firstname: string
+    lastname: string
+    email: string
+  }
   attempts?: any[]
   user?: {
     firstname: string

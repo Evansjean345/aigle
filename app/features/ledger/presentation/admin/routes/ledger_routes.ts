@@ -6,18 +6,14 @@ import { middleware } from '#start/kernel'
 const adminLedgerRoutes = () => {
   router
     .group(() => {
-      router.get('/', [LedgersController, 'index'])
-      router.get('/stats', [LedgersController, 'stats'])
-      router.get('/chart', [LedgersController, 'chart'])
+      router.get('/', [LedgersController, 'getAllLedgers'])
+      router.get('/stats', [LedgersController, 'getLedgersStats'])
     })
     .prefix('/ledgers')
     .use(
       middleware.auth({
         guards: ['admin'],
       })
-    )
-    .use(
-      middleware.permission(['finance.view'])
     )
 }
 

@@ -2,14 +2,16 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import GetAllTransactionsUseCase from '#features/transactions/application/use_cases/admin/get_all_transactions'
 import GetTransactionDetailsUseCase from '#features/transactions/application/use_cases/admin/get_transaction_details'
-import GetUserTransactionsUseCase from '#features/transactions/application/use_cases/admin/get_user_transactions'
 import GetUserTransactionsStatsUseCase from '#features/transactions/application/use_cases/admin/get_user_transactions_stats'
 import GetGlobalTransactionsStatsUseCase from '#features/transactions/application/use_cases/admin/get_global_transactions_stats'
+import TransactionPolicy from '#features/transactions/presentation/admin/policies/transaction_policy'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 /**
- * Controller class for handling operations related to transactions.
+ * A controller responsible for managing transaction-related operations such as fetching transactions,
+ * viewing transaction details, and retrieving transaction statistics.
  */
-
 @inject()
 export default class TransactionsController {
   /**
@@ -17,14 +19,12 @@ export default class TransactionsController {
    *
    * @param {GetAllTransactionsUseCase} getAllTransactionsUseCase - The use case responsible for fetching all transactions.
    * @param {GetTransactionDetailsUseCase} getTransactionDetailsUseCase - The use case responsible for fetching transaction details.
-   * @param {GetUserTransactionsUseCase} getUserTransactionsUseCase - The use case responsible for fetching user transactions.
    * @param {GetUserTransactionsStatsUseCase} getUserTransactionsStatsUseCase
    * @param {GetGlobalTransactionsStatsUseCase} getGlobalTransactionsStatsUseCase
    */
   constructor(
     private readonly getAllTransactionsUseCase: GetAllTransactionsUseCase,
     private readonly getTransactionDetailsUseCase: GetTransactionDetailsUseCase,
-    private readonly getUserTransactionsUseCase: GetUserTransactionsUseCase,
     private readonly getUserTransactionsStatsUseCase: GetUserTransactionsStatsUseCase,
     private readonly getGlobalTransactionsStatsUseCase: GetGlobalTransactionsStatsUseCase
   ) {}
@@ -36,7 +36,9 @@ export default class TransactionsController {
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async all({ request, response }: HttpContext): Promise<void> {
+  async getAllTransactions({ request, response, bouncer, auth }: HttpContext): Promise<void> {
+    await bouncer.with(TransactionPolicy).authorize('viewTransactions' as never)
+
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 16)
     const type = request.input('type')
@@ -54,6 +56,20 @@ export default class TransactionsController {
       endDate,
       userId,
     })
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'TRANSACTIONS',
+      eventAction: 'READ_TRANSACTIONS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { page, perPage, type, status, search, startDate, endDate, userId },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(transactions)
   }
 
@@ -65,10 +81,47 @@ export default class TransactionsController {
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async show({ params, response }: HttpContext): Promise<void> {
-    const { reference } = params
-    const transaction = await this.getTransactionDetailsUseCase.execute(reference)
-    return response.ok(transaction)
+  async findTransaction({ params, response, bouncer, auth, request }: HttpContext): Promise<void> {
+    try {
+      await bouncer.with(TransactionPolicy).authorize('viewTransaction' as never)
+
+      const { reference } = params
+      const loadLedger = await bouncer.with(TransactionPolicy).allows('viewLedger' as never)
+
+      const transaction = await this.getTransactionDetailsUseCase.execute(reference, { loadLedger })
+
+      await emitter.emit('activity:audit', {
+        eventCategory: 'TRANSACTIONS',
+        eventAction: 'VIEW_TRANSACTION_DETAILS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'transaction',
+        targetId: reference,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.ok(transaction)
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'TRANSACTIONS',
+        eventAction: 'VIEW_TRANSACTION_DETAILS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'transaction',
+        targetId: params.reference,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message ?? 'Transaction not found',
+      })
+      throw error
+    }
   }
 
   /**
@@ -84,7 +137,15 @@ export default class TransactionsController {
    * @param {Object} HttpContext.response - The HTTP response instance, used to send responses back to the client.
    * @return {Promise<void>} Resolves when the user's transactions are successfully retrieved and sent in the response.
    */
-  async getUserTransactions({ params, request, response }: HttpContext): Promise<void> {
+  async getUserTransactions({
+    params,
+    request,
+    response,
+    bouncer,
+    auth,
+  }: HttpContext): Promise<void> {
+    await bouncer.with(TransactionPolicy).authorize('viewUserTransactions' as never)
+
     const { id } = params
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 16)
@@ -102,6 +163,20 @@ export default class TransactionsController {
       endDate,
       userId: id,
     })
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'TRANSACTIONS',
+      eventAction: 'READ_USER_TRANSACTIONS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { page, perPage, type, status, search, startDate, endDate, userId: id },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(transactions)
   }
 
@@ -112,10 +187,26 @@ export default class TransactionsController {
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async stats({ request, response }: HttpContext): Promise<void> {
+  async getTransactionsStats({ request, response, bouncer, auth }: HttpContext): Promise<void> {
+    await bouncer.with(TransactionPolicy).authorize('viewTransactionsReport' as never)
+
     const startDate = request.input('startDate')
     const endDate = request.input('endDate')
     const stats = await this.getGlobalTransactionsStatsUseCase.execute(startDate, endDate)
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'TRANSACTIONS',
+      eventAction: 'READ_GLOBAL_STATS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { startDate, endDate },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(stats)
   }
 
@@ -127,11 +218,33 @@ export default class TransactionsController {
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async getUserTransactionStats({ params, request, response }: HttpContext): Promise<void> {
+  async getUserTransactionStats({
+    params,
+    request,
+    response,
+    bouncer,
+    auth,
+  }: HttpContext): Promise<void> {
+    await bouncer.with(TransactionPolicy).authorize('viewUserTansactionsReport' as never)
+
     const { id } = params
     const startDate = request.input('startDate')
     const endDate = request.input('endDate')
     const stats = await this.getUserTransactionsStatsUseCase.execute(id, startDate, endDate)
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'TRANSACTIONS',
+      eventAction: 'READ_USER_STATS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { startDate, endDate, userId: id },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(stats)
   }
 }

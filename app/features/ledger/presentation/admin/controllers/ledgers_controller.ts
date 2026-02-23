@@ -2,11 +2,11 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import GetAllLedgersUseCase from '#features/ledger/application/use_cases/get_all_ledgers'
 import GetLedgerStatsUseCase from '#features/ledger/application/use_cases/get_ledger_stats'
-import GetLedgerChartUseCase from '#features/ledger/application/use_cases/get_ledger_chart'
-import GetUserLedgersUseCase from '#features/ledger/application/use_cases/get_user_ledgers'
 import GetUserLedgerStatsUseCase from '#features/ledger/application/use_cases/get_user_ledger_stats'
-import GetUserLedgerChartUseCase from '#features/ledger/application/use_cases/get_user_ledger_chart'
 import { LedgerOperationType } from '#features/ledger/domain/ledger_enums'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
+import LedgerPolicy from '#features/ledger/presentation/admin/policies/ledger_policy'
 
 @inject()
 export default class LedgersController {
@@ -15,18 +15,12 @@ export default class LedgersController {
    *
    * @param {GetAllLedgersUseCase} getAllLedgersUseCase - Use case for retrieving all ledgers.
    * @param {GetLedgerStatsUseCase} getLedgerStatsUseCase - Use case for retrieving ledger statistics.
-   * @param {GetLedgerChartUseCase} getLedgerChartUseCase - Use case for retrieving ledger chart data.
-   * @param {GetUserLedgersUseCase} getUserLedgersUseCase - Use case for retrieving user-specific ledgers.
    * @param {GetUserLedgerStatsUseCase} getUserLedgerStatsUseCase - Use case for retrieving user-specific ledger statistics.
-   * @param {GetUserLedgerChartUseCase} getUserLedgerChartUseCase - Use case for retrieving user-specific ledger chart data.
    */
   constructor(
     private readonly getAllLedgersUseCase: GetAllLedgersUseCase,
     private readonly getLedgerStatsUseCase: GetLedgerStatsUseCase,
-    private readonly getLedgerChartUseCase: GetLedgerChartUseCase,
-    private readonly getUserLedgersUseCase: GetUserLedgersUseCase,
-    private readonly getUserLedgerStatsUseCase: GetUserLedgerStatsUseCase,
-    private readonly getUserLedgerChartUseCase: GetUserLedgerChartUseCase
+    private readonly getUserLedgerStatsUseCase: GetUserLedgerStatsUseCase
   ) {}
 
   /**
@@ -35,7 +29,9 @@ export default class LedgersController {
    * @param {HttpContext} context - The context object containing the HTTP request and response.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async index({ request, response }: HttpContext): Promise<void> {
+  async getAllLedgers({ request, response, auth, bouncer }: HttpContext): Promise<void> {
+    await bouncer.with(LedgerPolicy).authorize('viewLedgers' as never)
+
     const page = request.input('page', 1)
     const perPage = request.input('limit', request.input('perPage', 20))
     const walletId = request.input('wallet_id')
@@ -57,6 +53,30 @@ export default class LedgersController {
       search,
       userId,
     })
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'LEDGERS',
+      eventAction: 'READ_LEDGERS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: {
+        page,
+        perPage,
+        walletId,
+        direction,
+        operationType,
+        startDate,
+        endDate,
+        search,
+        userId,
+      },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(ledgers)
   }
 
@@ -68,32 +88,62 @@ export default class LedgersController {
    * @param {object} HttpContext.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the response is sent.
    */
-  async stats({ request, response }: HttpContext): Promise<void> {
+  async getLedgersStats({ request, response, auth, bouncer }: HttpContext): Promise<void> {
+    await bouncer.with(LedgerPolicy).authorize('viewLedgersReport' as never)
+
     const walletId = request.input('wallet_id')
     const period = request.input('period', '30d')
     const startDate = request.input('startDate', request.input('start_date'))
     const endDate = request.input('endDate', request.input('end_date'))
 
     const stats = await this.getLedgerStatsUseCase.execute({ walletId, period, startDate, endDate })
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'LEDGERS',
+      eventAction: 'READ_STATS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { walletId, period, startDate, endDate },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(stats)
   }
 
-  /**
-   * Handles the request to generate and return chart data based on the provided parameters.
-   *
-   * @param {Object} HttpContext - The context object containing the request and response.
-   * @param {Object} HttpContext.request - The HTTP request object.
-   * @param {Object} HttpContext.response - The HTTP response object.
-   * @return {Promise<void>} A promise that resolves with no return value, after sending chart data as a response.
-   */
-  async chart({ request, response }: HttpContext): Promise<void> {
-    const walletId = request.input('wallet_id')
-    const period = request.input('period', '30d')
-    const groupBy = request.input('group_by', 'day')
-
-    const data = await this.getLedgerChartUseCase.execute({ walletId, period, groupBy })
-    return response.ok(data)
-  }
+  // /**
+  //  * Handles the request to generate and return chart data based on the provided parameters.
+  //  *
+  //  * @param {Object} HttpContext - The context object containing the request and response.
+  //  * @param {Object} HttpContext.request - The HTTP request object.
+  //  * @param {Object} HttpContext.response - The HTTP response object.
+  //  * @return {Promise<void>} A promise that resolves with no return value, after sending chart data as a response.
+  //  */
+  // async chart({ request, response, auth }: HttpContext): Promise<void> {
+  //   const walletId = request.input('wallet_id')
+  //   const period = request.input('period', '30d')
+  //   const groupBy = request.input('group_by', 'day')
+  //
+  //   const data = await this.getLedgerChartUseCase.execute({ walletId, period, groupBy })
+  //
+  //   await emitter.emit('activity:audit', {
+  //     eventCategory: 'LEDGERS',
+  //     eventAction: 'READ_CHART',
+  //     actorId: auth.user?.id ?? null,
+  //     actorType: 'admin',
+  //     actorRole: (auth.user as any)?.role?.slug ?? null,
+  //     requestId: request.header('x-request-id') ?? null,
+  //     ipAddress: request.ip(),
+  //     userAgent: request.header('user-agent') ?? null,
+  //     metadata: { walletId, period, groupBy },
+  //     result: AuditResult.SUCCESS,
+  //   })
+  //
+  //   return response.ok(data)
+  // }
 
   /**
    * Fetches the user ledger records based on the provided parameters.
@@ -112,7 +162,9 @@ export default class LedgersController {
    *
    * @return {Promise<void>} Resolves when the ledger records have been retrieved and the response is sent.
    */
-  async getUserLedgers({ params, request, response }: HttpContext): Promise<void> {
+  async getUserLedgers({ params, request, response, auth, bouncer }: HttpContext): Promise<void> {
+    await bouncer.with(LedgerPolicy).authorize('viewUserLedgers' as never)
+
     const { id } = params // userId
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 20)
@@ -133,6 +185,21 @@ export default class LedgersController {
       userId: id,
     })
 
+    await emitter.emit('activity:audit', {
+      eventCategory: 'LEDGERS',
+      eventAction: 'READ_USER_LEDGERS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      targetType: 'user',
+      targetId: id,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { page, perPage, direction, operationType, startDate, endDate, search },
+      result: AuditResult.SUCCESS,
+    })
+
     return response.ok(result)
   }
 
@@ -145,7 +212,15 @@ export default class LedgersController {
    * @param {Object} context.response - The HTTP response object, used to send responses back to the client.
    * @return {Promise<void>} A promise that resolves when the ledger statistics have been retrieved and a response has been sent.
    */
-  async getUserLedgerStats({ params, request, response }: HttpContext): Promise<void> {
+  async getUserLedgerStats({
+    params,
+    request,
+    response,
+    auth,
+    bouncer,
+  }: HttpContext): Promise<void> {
+    await bouncer.with(LedgerPolicy).authorize('viewUserLedgersReport' as never)
+
     const { id } = params // userId
     const period = request.input('period', '30d')
     const startDate = request.input('startDate', request.input('start_date'))
@@ -154,35 +229,95 @@ export default class LedgersController {
     const stats = await this.getUserLedgerStatsUseCase.execute(id, { period, startDate, endDate })
 
     if (!stats) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'LEDGERS',
+        eventAction: 'READ_USER_STATS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        metadata: { period, startDate, endDate },
+        result: AuditResult.FAILURE,
+        errorMessage: 'User or wallet not found',
+      })
       return response.notFound({ message: 'User or wallet not found' })
     }
+
+    await emitter.emit('activity:audit', {
+      eventCategory: 'LEDGERS',
+      eventAction: 'READ_USER_STATS',
+      actorId: auth.user?.id ?? null,
+      actorType: 'admin',
+      actorRole: (auth.user as any)?.role?.slug ?? null,
+      targetType: 'user',
+      targetId: id,
+      requestId: request.header('x-request-id') ?? null,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      metadata: { period, startDate, endDate },
+      result: AuditResult.SUCCESS,
+    })
 
     return response.ok(stats)
   }
 
-  /**
-   * Retrieves the user ledger chart data for a given user ID, period, and grouping option.
-   *
-   * @param {object} context - The HttpContext containing the request and response objects.
-   * @param {object} context.params - The route parameters.
-   * @param {string} context.params.id - The user ID.
-   * @param {object} context.request - The HTTP request object.
-   * @param {string} [context.request.input.period] - The time period for the ledger data, defaults to 30 days.
-   * @param {string} [context.request.input.group_by] - The grouping factor for data aggregation, defaults to 'day'.
-   * @param {object} context.response - The HTTP response object.
-   * @return {Promise<void>} Resolves with a response containing chart data or an error message if not found.
-   */
-  async getUserLedgerChart({ params, request, response }: HttpContext): Promise<void> {
-    const { id } = params // userId
-    const period = request.input('period', '30d')
-    const groupBy = request.input('group_by', 'day') as 'day' | 'week' | 'month'
-
-    const data = await this.getUserLedgerChartUseCase.execute(id, { period, groupBy })
-
-    if (!data) {
-      return response.notFound({ message: 'User or wallet not found' })
-    }
-
-    return response.ok(data)
-  }
+  // /**
+  //  * Retrieves the user ledger chart data for a given user ID, period, and grouping option.
+  //  *
+  //  * @param {object} context - The HttpContext containing the request and response objects.
+  //  * @param {object} context.params - The route parameters.
+  //  * @param {string} context.params.id - The user ID.
+  //  * @param {object} context.request - The HTTP request object.
+  //  * @param {string} [context.request.input.period] - The time period for the ledger data, defaults to 30 days.
+  //  * @param {string} [context.request.input.group_by] - The grouping factor for data aggregation, defaults to 'day'.
+  //  * @param {object} context.response - The HTTP response object.
+  //  * @return {Promise<void>} Resolves with a response containing chart data or an error message if not found.
+  //  */
+  // async getUserLedgerChart({ params, request, response, auth }: HttpContext): Promise<void> {
+  //   const { id } = params // userId
+  //   const period = request.input('period', '30d')
+  //   const groupBy = request.input('group_by', 'day') as 'day' | 'week' | 'month'
+  //
+  //   const data = await this.getUserLedgerChartUseCase.execute(id, { period, groupBy })
+  //
+  //   if (!data) {
+  //     await emitter.emit('activity:audit', {
+  //       eventCategory: 'LEDGERS',
+  //       eventAction: 'READ_USER_CHART',
+  //       actorId: auth.user?.id ?? null,
+  //       actorType: 'admin',
+  //       actorRole: (auth.user as any)?.role?.slug ?? null,
+  //       targetType: 'user',
+  //       targetId: id,
+  //       requestId: request.header('x-request-id') ?? null,
+  //       ipAddress: request.ip(),
+  //       userAgent: request.header('user-agent') ?? null,
+  //       metadata: { period, groupBy },
+  //       result: AuditResult.FAILURE,
+  //       errorMessage: 'User or wallet not found',
+  //     })
+  //     return response.notFound({ message: 'User or wallet not found' })
+  //   }
+  //
+  //   await emitter.emit('activity:audit', {
+  //     eventCategory: 'LEDGERS',
+  //     eventAction: 'READ_USER_CHART',
+  //     actorId: auth.user?.id ?? null,
+  //     actorType: 'admin',
+  //     actorRole: (auth.user as any)?.role?.slug ?? null,
+  //     targetType: 'user',
+  //     targetId: id,
+  //     requestId: request.header('x-request-id') ?? null,
+  //     ipAddress: request.ip(),
+  //     userAgent: request.header('user-agent') ?? null,
+  //     metadata: { period, groupBy },
+  //     result: AuditResult.SUCCESS,
+  //   })
+  //
+  //   return response.ok(data)
+  // }
 }

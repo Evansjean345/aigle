@@ -42,15 +42,27 @@ export default defineConfig({
     () => import('@adonisjs/auth/auth_provider'),
     () => import('@adonisjs/drive/drive_provider'),
     () => import('#providers/repository_provider'),
-    () => import('@adonisjs/redis/redis_provider'),
+    {
+      file: () => import('@adonisjs/redis/redis_provider'),
+      environment: ['web', 'repl', 'console'],
+    },
     () => import('#features/notifications/notification_service_provider'),
     () => import('#features/transactions/transaction_provider'),
     () => import('#features/ledger/ledger_provider'),
-    () => import('@adonisjs/cache/cache_provider'),
-    () => import('@adonisjs/limiter/limiter_provider'),
+    {
+      file: () => import('@adonisjs/cache/cache_provider'),
+      environment: ['web', 'repl', 'console'],
+    },
+    {
+      file: () => import('@adonisjs/limiter/limiter_provider'),
+      environment: ['web', 'repl', 'console'],
+    },
     () => import('@adonisjs/mail/mail_provider'),
     () => import('@adonisjs/core/providers/edge_provider'),
-    () => import('@rlanz/bull-queue/queue_provider'),
+    {
+      file: () => import('@rlanz/bull-queue/queue_provider'),
+      environment: ['web', 'repl', 'console'],
+    },
     () => import('@adonisjs/bouncer/bouncer_provider'),
   ],
 
@@ -81,12 +93,12 @@ export default defineConfig({
   tests: {
     suites: [
       {
-        files: ['tests/unit/**/*.spec(.ExpoPushNotificationChannel|.js)'],
+        files: ['tests/unit/**/*.spec(.ts|.js)'],
         name: 'unit',
         timeout: 2000,
       },
       {
-        files: ['tests/functional/**/*.spec(.ExpoPushNotificationChannel|.js)'],
+        files: ['tests/functional/**/*.spec(.ts|.js)'],
         name: 'functional',
         timeout: 30000,
       },

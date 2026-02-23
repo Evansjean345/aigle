@@ -18,7 +18,10 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
   async findUserKycDocument(userId: string): Promise<KycDocument | null> {
     return KycDocument.query()
       .where('user_id', userId)
-      .preload('attempts')
+      .preload('agent')
+      .preload('attempts', (attemptQuery) => {
+        attemptQuery.preload('agent').orderBy('createdAt', 'desc')
+      })
       .preload('user', (userQuery) => {
         userQuery.preload('wallet')
       })
@@ -53,7 +56,7 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
       endDate?: string
     }
   ): Promise<any> {
-    const query = KycDocument.query().preload('user')
+    const query = KycDocument.query().preload('user').preload('agent')
 
     if (filters?.status) {
       query.where('status', filters.status)
@@ -146,11 +149,12 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
   async findById(id: number): Promise<KycDocument | null> {
     return KycDocument.query()
       .where('id', id)
+      .preload('agent')
       .preload('user', (userQuery) => {
         userQuery.preload('wallet')
       })
       .preload('attempts', (attemptQuery) => {
-        attemptQuery.orderBy('createdAt', 'desc')
+        attemptQuery.preload('agent').orderBy('createdAt', 'desc')
       })
       .first()
   }

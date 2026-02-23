@@ -184,7 +184,9 @@ export default class OtpService {
    */
   private async sendOtpViaSms(phone: string, code: string): Promise<void> {
     const message = `Votre code OTP est ${code}. Il est valide pendant ${OTP_EXPIRY_MINUTES} minutes.`
-    await this.notificationService.sendSms(message, phone)
+    console.log(message)
+
+    // await this.notificationService.sendSms(message, phone)
   }
 
   /**

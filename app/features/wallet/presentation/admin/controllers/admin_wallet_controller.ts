@@ -2,6 +2,8 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import UpdateWalletStatusUseCase from '#features/wallet/application/use_cases/admin/update_wallet_status_use_case'
 import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class AdminWalletController {
@@ -21,13 +23,47 @@ export default class AdminWalletController {
    * @param {Object} context.response - The response object used to send a response back.
    * @return {Promise<void>} The response indicating the wallet activation result.
    */
-  async activate({ params, response }: HttpContext): Promise<void> {
+  async activate({ params, response, auth, request }: HttpContext): Promise<void> {
     const { userId } = params
-    await this.updateWalletStatusUseCase.execute({
-      userId,
-      status: WalletStatus.Active,
-    })
-    return response.ok({ message: 'Wallet activated successfully' })
+    try {
+      await this.updateWalletStatusUseCase.execute({
+        userId,
+        status: WalletStatus.Active,
+      })
+
+      await emitter.emit('activity:audit', {
+        eventCategory: 'WALLET',
+        eventAction: 'ACTIVATE_WALLET',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: userId,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        newValues: { status: WalletStatus.Active },
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.ok({ message: 'Wallet activated successfully' })
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'WALLET',
+        eventAction: 'ACTIVATE_WALLET',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: userId,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message,
+      })
+      throw error
+    }
   }
 
   /**
@@ -39,12 +75,46 @@ export default class AdminWalletController {
    * @param {Object} context.response - The response object to send the result.
    * @return {Promise<void>} Returns a response indicating the wallet was successfully deactivated.
    */
-  async deactivate({ params, response }: HttpContext): Promise<void> {
+  async deactivate({ params, response, auth, request }: HttpContext): Promise<void> {
     const { userId } = params
-    await this.updateWalletStatusUseCase.execute({
-      userId,
-      status: WalletStatus.Inactive,
-    })
-    return response.ok({ message: 'Wallet deactivated successfully' })
+    try {
+      await this.updateWalletStatusUseCase.execute({
+        userId,
+        status: WalletStatus.Inactive,
+      })
+
+      await emitter.emit('activity:audit', {
+        eventCategory: 'WALLET',
+        eventAction: 'DEACTIVATE_WALLET',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: userId,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        newValues: { status: WalletStatus.Inactive },
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.ok({ message: 'Wallet deactivated successfully' })
+    } catch (error) {
+      await emitter.emit('activity:audit', {
+        eventCategory: 'WALLET',
+        eventAction: 'DEACTIVATE_WALLET',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: userId,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message,
+      })
+      throw error
+    }
   }
 }
