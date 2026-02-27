@@ -16,8 +16,8 @@ public/assets
 npm-debug.log
 yarn-error.log
 logs
-database_updates.sql
-insert_tables.sql
+
+docs
 
 docker-compose.yml
 Dockerfile

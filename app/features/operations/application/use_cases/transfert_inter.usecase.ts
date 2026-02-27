@@ -29,6 +29,8 @@ import HttpClient from '#shared/infrastructure/http_client_service'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
+import { normalizePhone } from '#shared/utils/utiles'
+import { Exception } from '@adonisjs/core/exceptions'
 
 /**
  * Class responsible for handling inter-transfer operations, including fees calculation,
@@ -120,6 +122,27 @@ export default class InterTransfertUseCase {
         transactionType: TransactionTypeEnum.TRANSFERT_INTER,
       }),
     ])
+
+    const validatedPhone = normalizePhone(payload.debiteurPhone)
+
+    if (validatedPhone !== user.phone) {
+      transactionLog.error(
+        'INVALIDE_DEBIT_PHONE_NUMBER',
+        {
+          user: { id: user.usersUid, phone: user.phone },
+          payload: { debiteurPhone: payload.debiteurPhone, normalizedPhone: validatedPhone },
+        },
+        "Tentative de débit sur un numéro non prédéfini. Le numéro fourni ne correspond pas au numéro enregistré de l'utilisateur."
+      )
+
+      throw new Exception(
+        'Le numéro de téléphone fourni ne correspond pas au numéro enregistré sur votre compte. Pour des raisons de sécurité, seul le numéro associé à votre compte peut être débité.',
+        {
+          status: 400,
+          code: 'INVALIDE_DEBIT_PHONE_NUMBER',
+        }
+      )
+    }
 
     const trx = await db.transaction()
 

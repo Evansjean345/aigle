@@ -26,6 +26,8 @@ import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
+import { normalizePhone } from '#shared/utils/utiles'
+import { Exception } from '@adonisjs/core/exceptions'
 
 /**
  * Handles the deposit use case, including the calculation of fees based on a given deposit request payload.
@@ -105,6 +107,27 @@ export default class DepositUseCase {
         transactionType: TransactionType.DEPOSIT,
       }),
     ])
+
+    const validatedPhone = normalizePhone(payload.phone)
+
+    if (validatedPhone !== user.phone) {
+      transactionLog.error(
+        'INVALIDE_DEBIT_PHONE_NUMBER',
+        {
+          user: { id: user.usersUid, phone: user.phone },
+          payload: { phone: payload.phone, normalizedPhone: validatedPhone },
+        },
+        "Tentative de débit sur un numéro non prédéfini. Le numéro fourni ne correspond pas au numéro enregistré de l'utilisateur."
+      )
+
+      throw new Exception(
+        'Le numéro de téléphone fourni ne correspond pas au numéro enregistré sur votre compte. Pour des raisons de sécurité, seul le numéro associé à votre compte peut être débité.',
+        {
+          status: 400,
+          code: 'INVALIDE_DEBIT_PHONE_NUMBER',
+        }
+      )
+    }
 
     const trx = await db.transaction()
 

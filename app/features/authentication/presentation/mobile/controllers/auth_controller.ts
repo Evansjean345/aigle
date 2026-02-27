@@ -19,6 +19,7 @@ import ResetPasswordUseCase from '#features/authentication/application/use_cases
 import { toAuthenticatedUserProfileResponse } from '#features/authentication/application/mappers/authenticated_user.mapper'
 import VerifyAndAuthenticateUserAccountUseCase from '#features/authentication/application/use_cases/verify_and_authenticate_user_account_use_case'
 import VerifyForgotPasswordOtpUseCase from '#features/authentication/application/use_cases/verify_forgot_password_otp_use_case'
+import User from '#features/user/domain/models/user'
 
 /**
  * AuthController is responsible for managing user authentication-related operations such as
@@ -133,7 +134,7 @@ export default class AuthController {
    * @return {Promise<void>} Returns a promise resolving to the authenticated user's profile response object.
    */
   async userAuth({ response, auth }: HttpContext): Promise<void> {
-    const authenticatedUser = auth.user!!
+    const authenticatedUser = auth.user!! as User
     const user = await this.getUserProfileUseCase.execute(authenticatedUser)
     return response.ok(toAuthenticatedUserProfileResponse(user))
   }
