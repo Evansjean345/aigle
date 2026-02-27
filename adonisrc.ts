@@ -10,7 +10,13 @@ export default defineConfig({
   | will be scanned automatically from the "./commands" directory.
   |
   */
-  commands: [() => import('@adonisjs/core/commands'), () => import('@adonisjs/lucid/commands')],
+  commands: [
+    () => import('@adonisjs/core/commands'),
+    () => import('@adonisjs/lucid/commands'),
+    () => import('@adonisjs/cache/commands'),
+    () => import('@adonisjs/mail/commands'),
+    () => import('@rlanz/bull-queue/commands'),
+  ],
 
   /*
   |--------------------------------------------------------------------------
@@ -35,7 +41,15 @@ export default defineConfig({
     () => import('@adonisjs/auth/auth_provider'),
     () => import('@adonisjs/drive/drive_provider'),
     () => import('#providers/repository_provider'),
-    () => import('@adonisjs/redis/redis_provider')
+    () => import('@adonisjs/redis/redis_provider'),
+    () => import('#features/notifications/notification_service_provider'),
+    () => import('#features/transactions/transaction_provider'),
+    () => import('#features/ledger/ledger_provider'),
+    () => import('@adonisjs/cache/cache_provider'),
+    () => import('@adonisjs/limiter/limiter_provider'),
+    () => import('@adonisjs/mail/mail_provider'),
+    () => import('@adonisjs/core/providers/edge_provider'),
+    () => import('@rlanz/bull-queue/queue_provider'),
   ],
 
   /*
@@ -50,6 +64,7 @@ export default defineConfig({
     () => import('#start/routes'),
     () => import('#start/kernel'),
     () => import('#start/events'),
+    () => import('#start/admin_routes'),
   ],
 
   /*
@@ -64,16 +79,22 @@ export default defineConfig({
   tests: {
     suites: [
       {
-        files: ['tests/unit/**/*.spec(.ts|.js)'],
+        files: ['tests/unit/**/*.spec(.ExpoPushNotificationChannel|.js)'],
         name: 'unit',
         timeout: 2000,
       },
       {
-        files: ['tests/functional/**/*.spec(.ts|.js)'],
+        files: ['tests/functional/**/*.spec(.ExpoPushNotificationChannel|.js)'],
         name: 'functional',
         timeout: 30000,
       },
     ],
     forceExit: false,
   },
+  metaFiles: [
+    {
+      pattern: 'resources/views/**/*.edge',
+      reloadServer: false,
+    },
+  ],
 })

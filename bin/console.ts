@@ -3,7 +3,7 @@
 | Ace entry point
 |--------------------------------------------------------------------------
 |
-| The "console.ts" file is the entrypoint for booting the AdonisJS
+| The "console.ExpoPushNotificationChannel" file is the entrypoint for booting the AdonisJS
 | command-line framework and executing commands.
 |
 | Commands do not boot the application, unless the currently running command

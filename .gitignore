@@ -15,7 +15,14 @@ public/assets
 # Build tools specific
 npm-debug.log
 yarn-error.log
+logs
+database_updates.sql
+insert_tables.sql
 
+docker-compose.yml
+Dockerfile
+
+*.sql
 *.md
 
 # Editors specific

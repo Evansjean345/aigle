@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Votre code de vérification AigleSend</title>
+    <style>
+        :root {
+            --cerulean: #09adca;
+            --aztec: #091418;
+            --tarawera: #07404b;
+            --blizzard-blue: #a0dce9;
+            --mosque: #066071;
+            --blue-chill: #08879e;
+            --iceberg: #dcf1f4;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            color: #091418;
+            line-height: 1.6;
+        }
+
+        .email-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(9, 20, 24, 0.1);
+        }
+
+        .header {
+            background-color: #07404b;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .logo-img {
+            max-width: 180px;
+            height: auto;
+        }
+
+        .content {
+            padding: 40px;
+            background-color: #ffffff;
+            text-align: center;
+        }
+
+        .greeting {
+            margin-bottom: 24px;
+            color: #07404b;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .message {
+            margin-bottom: 24px;
+            color: #4a5568;
+            font-size: 16px;
+        }
+
+        .otp-code {
+            display: inline-block;
+            background-color: #f0f4f8;
+            color: #09adca;
+            font-size: 36px;
+            font-weight: 800;
+            letter-spacing: 8px;
+            padding: 20px 40px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 2px dashed #09adca;
+        }
+
+        .info-box {
+            background-color: #dcf1f4;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+            font-size: 14px;
+            color: #066071;
+            border-left: 4px solid #08879e;
+            text-align: left;
+        }
+
+        .footer {
+            background-color: #091418;
+            padding: 30px;
+            text-align: center;
+            color: #a0dce9;
+            font-size: 13px;
+        }
+
+        .footer p {
+            margin-bottom: 8px;
+        }
+
+        @media screen and (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                border-radius: 0;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            .greeting {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header -->
+        <div class="header">
+            <img src="https://res.cloudinary.com/dskfw5taz/image/upload/v1758212299/logo_aigle.22a46313_wa20fk.png" alt="AigleSend Logo" class="logo-img">
+        </div>
+
+        <!-- Content -->
+        <div class="content">
+            <div class="greeting">
+                Code de vérification
+            </div>
+
+            <div class="message">
+                Utilisez le code ci-dessous pour valider votre action sur AigleSend.
+            </div>
+
+            <div class="otp-code">
+                {{ code }}
+            </div>
+
+            <div class="info-box">
+                <strong>Note de sécurité :</strong> Ce code est valable pendant {{ expiresAt }} minutes. Ne le partagez jamais avec qui que ce soit.
+            </div>
+
+            <div class="message" style="margin-top: 40px; border-top: 1px solid #edf2f7; padding-top: 20px;">
+                Cordialement,<br>
+                <strong>L'équipe AigleSend</strong>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Cet e-mail automatique a été envoyé par AigleSend.</p>
+            <p>&copy; {{ new Date().getFullYear() }} AigleSend. Tous droits réservés.</p>
+        </div>
+    </div>
+</body>
+</html>

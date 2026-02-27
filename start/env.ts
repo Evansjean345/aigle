@@ -1,14 +1,3 @@
-/*
-|--------------------------------------------------------------------------
-| Environment variables service
-|--------------------------------------------------------------------------
-|
-| The `Env.create` method creates an instance of the Env service. The
-| service validates the environment variables and also cast values
-| to JavaScript data types.
-|
-*/
-
 import { Env } from '@adonisjs/core/env'
 
 export default await Env.create(new URL('../', import.meta.url), {
@@ -36,8 +25,62 @@ export default await Env.create(new URL('../', import.meta.url), {
   JWT_SECRET: Env.schema.string(),
   JWT_ALG: Env.schema.string(),
 
-  APPLE_BYPASS_ENABLED: Env.schema.boolean(),
-  APPLE_REVIEW_PHONE: Env.schema.string.optional(),
+  CLOUDINARY_CLOUD_NAME: Env.schema.string(),
+  CLOUDINARY_API_KEY: Env.schema.string(),
+  CLOUDINARY_API_SECRET: Env.schema.string(),
+
+  BYPASS_OTP_VERIFICATION: Env.schema.boolean(),
+  APP_REVIEW_PHONE_NUMBER: Env.schema.string.optional(),
+
+  MAX_DEVICE_CONNECTIONS: Env.schema.number(),
 
   MOBILE_DEVICE_DEEP_LINK_URL: Env.schema.string(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring the drive package
+  |----------------------------------------------------------
+  */
+  DRIVE_DISK: Env.schema.enum(['fs', 's3'] as const),
+
+  AWS_ACCESS_KEY_ID: Env.schema.string(),
+  AWS_SECRET_ACCESS_KEY: Env.schema.string(),
+  AWS_REGION: Env.schema.string(),
+  S3_BUCKET: Env.schema.string(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring the limiter package
+  |----------------------------------------------------------
+  */
+  LIMITER_STORE: Env.schema.enum(['redis', 'memory'] as const),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring MTarget SMS service
+  |----------------------------------------------------------
+  */
+  MTARGET_URL: Env.schema.string(),
+  MTARGET_USERNAME: Env.schema.string(),
+  MTARGET_PASSWORD: Env.schema.string(),
+  MTARGET_SENDER: Env.schema.string(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring the mail package
+  |----------------------------------------------------------
+  */
+  SMTP_HOST: Env.schema.string(),
+  SMTP_PORT: Env.schema.string(),
+  SMTP_FROM_EMAIL: Env.schema.string.optional(),
+  ADMIN_DASHBOARD_URL: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for @rlanz/bull-queue
+  |----------------------------------------------------------
+  */
+  QUEUE_REDIS_HOST: Env.schema.string({ format: 'host' }),
+  QUEUE_REDIS_PORT: Env.schema.number(),
+  QUEUE_REDIS_PASSWORD: Env.schema.string.optional()
 })

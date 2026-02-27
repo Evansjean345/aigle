@@ -30,3 +30,5 @@ export default class extends BaseSchema {
     this.schema.dropTable(this.tableName)
   }
 }
+
+1738489200000

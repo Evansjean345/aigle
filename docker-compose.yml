@@ -1,0 +1,36 @@
+services:
+  mariadb:
+    image: mariadb:10.6.4
+    container_name: aiglesend-db
+    restart: always
+    ports:
+      - "3307:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=Rolanddev@1995
+      - MYSQL_DATABASE=aiglesend
+      - MYSQL_USER=aiglesendUser
+      - MYSQL_PASSWORD=Rolanddev@1995
+    volumes:
+      - aiglesend_mariadb_data:/var/lib/mysql
+      - ./config:/etc/mysql/conf.d
+    networks:
+      - aiglesend-network
+  redis:
+    image: redis:7-alpine
+    container_name: aiglesend-redis
+    restart: always
+    ports:
+      - "6378:6379"
+    volumes:
+      - aiglesend_redis_data:/data/
+    command: redis-server --appendonly yes
+    networks:
+      - aiglesend-network
+
+volumes:
+  aiglesend_mariadb_data:
+  aiglesend_redis_data:
+
+networks:
+  aiglesend-network:
+    driver: bridge

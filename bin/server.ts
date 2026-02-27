@@ -3,7 +3,7 @@
 | HTTP server entrypoint
 |--------------------------------------------------------------------------
 |
-| The "server.ts" file is the entrypoint for starting the AdonisJS HTTP
+| The "server.ExpoPushNotificationChannel" file is the entrypoint for starting the AdonisJS HTTP
 | server. Either you can run this file directly or use the "serve"
 | command to run this file and monitor file changes
 |
@@ -39,7 +39,7 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
   })
   .httpServer()
   .start()
-  .catch((error) => {
+  .catch(async (error) => {
     process.exitCode = 1
-    prettyPrintError(error)
+    await prettyPrintError(error)
   })

@@ -1,4 +1,0 @@
-alter table service_provider_methods
-    add min_amount int null;
-alter table service_provider_methods
-    add apply_feeds tinyint null default 1;
