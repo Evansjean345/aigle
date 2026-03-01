@@ -139,67 +139,33 @@ export default class DeviceService {
    * @throws {FailedToSaveOrUpdateDeviceException} Throws an error if the operation fails.
    */
   async saveDevice(payload: DeviceCommandDTO, userId: string): Promise<Device> {
-    const existingDevice = await this.deviceRepository.findByFingerprintHash(
-      payload.fingerprintHash
-    )
+    try {
+      // Vérifier d'abord si le device est deja enregistré
+      const existingDevice = await this.deviceRepository.findByFingerprintHash(
+        payload.fingerprintHash
+      )
 
-    if (existingDevice) {
-      const deviceBelongsToUser = existingDevice.userId === userId
+      const isNewDevice = !existingDevice
+      const deviceBelongsToUser = existingDevice?.userId === userId
 
-      // Si le device n'appartient pas à l'utilisateur, vérifier si son quota de devices est atteint
-      if (!deviceBelongsToUser) {
+      // verifier le quota de l'utilisateur si c'est un nouveau device
+      if (isNewDevice || !deviceBelongsToUser) {
         await this.ensureMaxDevicesNotReached(userId)
       }
 
-      try {
-        // Vérifier si c'est le seul device de l'utilisateur pour mettre à jour isPrimary
-        const userDeviceCount = await this.deviceRepository.countByUserId(userId)
-        const shouldBePrimary =
-          userDeviceCount === 0 || (deviceBelongsToUser && userDeviceCount === 1)
+      // Déterminer si la device est primaire ou non
+      const userDeviceCount = await this.deviceRepository.countByUserId(userId)
+      let shouldBePrimary = false
 
-        existingDevice.merge({
-          userId: userId,
-          deviceUid: payload.deviceUid,
-          platform: payload.platform,
-          brand: payload.brand,
-          model: payload.model,
-          osVersion: payload.osVersion,
-          appVersion: payload.appVersion,
-          isEmulator: payload.isEmulator,
-          isRooted: payload.isRooted,
-          ipLastSeen: payload.ipLastSeen,
-          lastSeenAt: DateTime.now(),
-          isPrimary: shouldBePrimary,
-        })
-
-        const savedDevice = await this.deviceRepository.save(existingDevice)
-
-        // Envoyer une notification si le device n'appartient pas à l'utilisateur (connexion à un appareil existant d'un autre utilisateur)
-        if (!deviceBelongsToUser) {
-          await NewDeviceDetected.dispatch(userId, savedDevice)
-        }
-
-        return savedDevice
-      } catch (error) {
-        appLog.error(
-          'FAILED TO UPDATE DEVICE',
-          { fingerprintHash: payload.fingerprintHash, error: error },
-          `Failed to update device: ${error.message}`
-        )
-        throw new FailedToSaveOrUpdateDeviceException()
+      if (isNewDevice) {
+        shouldBePrimary = userDeviceCount === 0
+      } else if (deviceBelongsToUser) {
+        shouldBePrimary = userDeviceCount === 1
       }
-    }
 
-    await this.ensureMaxDevicesNotReached(userId)
-
-    const deviceCount = await this.deviceRepository.countByUserId(userId)
-
-    try {
-      const newDevice = new Device()
-
-      newDevice.fill({
+      // Construire le payload pour updateOrCreate
+      const deviceData: Partial<Device> = {
         userId: userId,
-        fingerprintHash: payload.fingerprintHash,
         deviceUid: payload.deviceUid,
         platform: payload.platform,
         brand: payload.brand,
@@ -208,22 +174,39 @@ export default class DeviceService {
         appVersion: payload.appVersion,
         isEmulator: payload.isEmulator,
         isRooted: payload.isRooted,
-        ipFirstSeen: payload.ipFirstSeen,
         ipLastSeen: payload.ipLastSeen,
-        isPrimary: deviceCount === 0,
-        status: DeviceStatus.PENDING,
         lastSeenAt: DateTime.now(),
-      })
+        isPrimary: shouldBePrimary,
+      }
 
-      await this.deviceRepository.save(newDevice)
-      await NewDeviceDetected.dispatch(userId, newDevice)
+      // Ajouter les champs spécifiques à la création
+      if (isNewDevice) {
+        deviceData.fingerprintHash = payload.fingerprintHash
+        deviceData.ipFirstSeen = payload.ipFirstSeen
+        deviceData.status = DeviceStatus.PENDING
+      }
 
-      return newDevice
+      // Opération atomique : updateOrCreate
+      const device = await this.deviceRepository.updateOrCreateByFingerprintHash(
+        payload.fingerprintHash,
+        deviceData
+      )
+
+      // Notification si nouveau device OU device existant d'un autre utilisateur
+      if (isNewDevice || !deviceBelongsToUser) {
+        await NewDeviceDetected.dispatch(userId, device)
+      }
+
+      return device
     } catch (error) {
+      if (error instanceof MaxDevicesConnectedException) {
+        throw error
+      }
+
       appLog.error(
         'FAILED_TO_SAVE_OR_UPDATE_DEVICE',
         { fingerprintHash: payload.fingerprintHash, error: error },
-        `Failed to register the new device: ${error.message}`
+        `Failed to save or update device: ${error.message}`
       )
       throw new FailedToSaveOrUpdateDeviceException()
     }

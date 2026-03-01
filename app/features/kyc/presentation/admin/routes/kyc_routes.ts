@@ -2,7 +2,6 @@ const KycController = () => import('#features/kyc/presentation/admin/controllers
 const KycLevelController = () =>
   import('#features/kyc/presentation/admin/controllers/kyc_level_controller')
 import router from '@adonisjs/core/services/router'
-import { middleware } from '#start/kernel'
 
 const adminKycRoutes = () => {
   router
@@ -22,14 +21,6 @@ const adminKycRoutes = () => {
       router.post('/:id/process', [KycController, 'process'])
     })
     .prefix('/kyc')
-    .use(
-      middleware.auth({
-        guards: ['admin'],
-      })
-    )
-    .use(
-      middleware.permission(['kyc.manage'])
-    )
 }
 
 export default adminKycRoutes

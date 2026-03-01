@@ -14,10 +14,17 @@ export default abstract class PaymentRepository {
   /**
    * Find by UID (payments_uid) or numeric ID.
    */
-  abstract findByUidOrId(id: string | number): Promise<Payment | null>
+  abstract findByUidOrId(
+    id: string | number,
+    trx?: TransactionClientContract
+  ): Promise<Payment | null>
 
   /**
-   * Find the first payment linked to a transaction id or uid.
+   * Find payments linked to a transaction id or uid.
+   * When trx is provided, the query runs inside the transaction with FOR UPDATE lock.
    */
-  abstract findByTransaction(transactionIdOrUid: number | string): Promise<Payment[]>
+  abstract findByTransaction(
+    transactionIdOrUid: number | string,
+    trx?: TransactionClientContract
+  ): Promise<Payment[]>
 }

@@ -12,7 +12,6 @@ import { TransactionType as TransactionTypeEnum } from '#features/transactions/d
 import env from '#start/env'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import Payment from '#features/transactions/domain/models/payment'
-import config from '@adonisjs/core/services/config'
 import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
@@ -25,10 +24,16 @@ import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import OrangeMoneyCodeRequiredException from '#features/operations/infrastructure/exceptions/orange_money_code_required_exception'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
-import HttpClient from '#shared/infrastructure/http_client_service'
+import SyncCheckoutService from '#features/operations/application/services/sync_checkout_service'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
+import DebitPhoneValidationService from '#features/operations/application/services/debit_phone_validation_service'
+import Wallet from '#features/wallet/domain/models/wallet'
+import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { isSyncDepositProvider } from '#features/operations/application/constants/provider.constants'
+import InitiateInterTransferJob from '#features/operations/application/jobs/initiate_inter_transfer_job'
+import queue from '@rlanz/bull-queue/services/main'
 
 /**
  * Class responsible for handling inter-transfer operations, including fees calculation,
@@ -48,7 +53,8 @@ export default class InterTransfertUseCase {
    * @param {TransactionThrottleCache} throttleCache A cache for managing transaction throttling.
    * @param {TransactionFailureCache} failureCache A cache for storing transaction failures.
    * @param {IdempotencyProvider} idempotency A provider for handling idempotent operations.
-   * @param {HttpClient} httpClient A utility for making HTTP requests.
+   * @param {DebitPhoneValidationService} debitPhoneValidationService A service for validating debit phone numbers.
+   * @param {SyncCheckoutService} syncCheckoutService A service for initiating sync checkout operations.
    */
   constructor(
     private readonly transactionService: TransactionService,
@@ -61,7 +67,8 @@ export default class InterTransfertUseCase {
     private readonly throttleCache: TransactionThrottleCache,
     private readonly failureCache: TransactionFailureCache,
     private readonly idempotency: IdempotencyProvider,
-    private readonly httpClient: HttpClient
+    private readonly debitPhoneValidationService: DebitPhoneValidationService,
+    private readonly syncCheckoutService: SyncCheckoutService
   ) {}
 
   /**
@@ -88,8 +95,18 @@ export default class InterTransfertUseCase {
       'Starting inter-network transfer process'
     )
     this.validateOrangeMoneyRequirements(payload)
-    await this.failureCache.verifyNotBlocked(user.usersUid)
-    await this.throttleCache.verifyThrottle(user.usersUid)
+
+    await Promise.all([
+      this.failureCache.verifyNotBlocked(user.usersUid),
+      this.throttleCache.verifyThrottle(user.usersUid),
+      this.accountValidationService.validateAccount(user),
+      this.accountValidationService.validateDevice(user, deviceInfo),
+      this.debitPhoneValidationService.validateDebitPhone(
+        payload.debiteurPhone,
+        payload.providerFromId,
+        user
+      ),
+    ])
 
     const [serviceType, wallet] = await Promise.all([
       this.serviceTypeRepository.findByCode(payload.serviceType),
@@ -110,21 +127,18 @@ export default class InterTransfertUseCase {
       }
     )
 
-    // Validations: compte + limites (inter transfer = debit)
-    await Promise.all([
-      this.accountValidationService.validateAccount(user),
-      this.accountValidationService.validateDevice(user, deviceInfo),
-      this.transactionLimitValidationService.validateTransactionLimit({
-        user,
-        amount,
-        transactionType: TransactionTypeEnum.TRANSFERT_INTER,
-      }),
-    ])
+    await this.transactionLimitValidationService.validateTransactionLimit({
+      user,
+      amount,
+      transactionType: TransactionTypeEnum.TRANSFERT_INTER,
+    })
 
     const trx = await db.transaction()
+    let transaction: Transaction
+    let depositPaymentId: number
 
     try {
-      const transaction = await this.createTransactionWithPayments(
+      ;({ transaction, depositPaymentId } = await this.createTransactionWithPayments(
         {
           serviceType,
           wallet,
@@ -136,44 +150,8 @@ export default class InterTransfertUseCase {
           idempotency: idempotencyKey || undefined,
         },
         trx
-      )
+      ))
       await trx.commit()
-
-      transactionLog.info(
-        'INTER_TRANSFER_TRANSACTION_CREATED',
-        {
-          transaction: { id: transaction.id, reference: transaction.reference },
-          amount,
-        },
-        'Inter-network transfer transaction and payments created in DB'
-      )
-
-      const checkoutResponse = await this.initiateCheckout(payload, amount, transaction.reference)
-
-      if (checkoutResponse.success) {
-        transactionLog.info(
-          'INTER_TRANSFER_CHECKOUT_SUCCESS',
-          { transaction: { reference: transaction.reference } },
-          'Checkout API call successful for inter-network transfer'
-        )
-      } else {
-        transactionLog.error(
-          'INTER_TRANSFER_CHECKOUT_FAILED',
-          {
-            transaction: { reference: transaction.reference },
-            error: checkoutResponse.error,
-          },
-          'Checkout API call failed for inter-network transfer'
-        )
-      }
-
-      const result = this.buildResponse(transaction, payload.providerFromCode, checkoutResponse)
-
-      if (idempotencyKey) {
-        await this.idempotency.update(idempotencyKey, JSON.stringify(result))
-      }
-
-      return result
     } catch (error) {
       await trx.rollback()
       transactionLog.error(
@@ -186,6 +164,93 @@ export default class InterTransfertUseCase {
       )
       throw error
     }
+
+    transactionLog.info(
+      'INTER_TRANSFER_TRANSACTION_CREATED',
+      {
+        transaction: { id: transaction.id, reference: transaction.reference },
+        amount,
+      },
+      'Inter-network transfer transaction and payments created in DB'
+    )
+
+    if (isSyncDepositProvider(payload.providerFromCode)) {
+      const { waveUrl } = await this.syncCheckoutService.checkout({
+        operationType: payload.paymentMethodDepositCode,
+        amount,
+        provider: payload.providerFromCode,
+        phone: payload.debiteurPhone,
+        reference: transaction.reference,
+        notifySuccessUrl: env.get('NOTIFY_TRANSFERT_INTER_SUCCESS_URL')!,
+        notifyFailureUrl: env.get('NOTIFY_TRANSFERT_INTER_FAILURE_URL')!,
+        failureOptions: {
+          transactionId: transaction.id,
+          webhookEvent: 'TransfertInterTransactionFailed',
+          webhookData: { reference: transaction.reference, amount },
+          paymentId: depositPaymentId,
+          logCode: 'INTER_TRANSFER_SYNC',
+        },
+      })
+
+      const result: InterTransfertResponseDto = {
+        message: 'Initialisation du dépot inter effectuée',
+        data: {
+          transactionReference: transaction.reference,
+          status: transaction.status,
+          wave_url: waveUrl,
+        },
+      }
+
+      if (idempotencyKey) {
+        await this.idempotency.update(idempotencyKey, JSON.stringify(result)).catch((error) => {
+          transactionLog.error(
+            'INTER_TRANSFER_IDEMPOTENCY_UPDATE_FAILED',
+            { transaction: { reference: transaction.reference }, error: error.message },
+            'Failed to update idempotency cache for inter-transfer'
+          )
+        })
+      }
+
+      return result
+    }
+
+    await queue.dispatch(InitiateInterTransferJob, {
+      transactionId: transaction.id,
+      transactionReference: transaction.reference,
+      amount,
+      totalAmount: total,
+      paymentMethod: payload.paymentMethodDepositCode,
+      operator: payload.providerFromCode,
+      phone: payload.debiteurPhone.replaceAll(' ', ''),
+      userId: user.usersUid,
+      pinCode: payload.pinCode,
+    })
+
+    transactionLog.info(
+      'INTER_TRANSFER_JOB_DISPATCHED',
+      { transaction: { reference: transaction.reference } },
+      'Inter-transfer checkout job dispatched'
+    )
+
+    const result: InterTransfertResponseDto = {
+      message: 'Initialisation du dépot inter effectuée',
+      data: {
+        transactionReference: transaction.reference,
+        status: transaction.status,
+      },
+    }
+
+    if (idempotencyKey) {
+      await this.idempotency.update(idempotencyKey, JSON.stringify(result)).catch((error) => {
+        transactionLog.error(
+          'INTER_TRANSFER_IDEMPOTENCY_UPDATE_FAILED',
+          { transaction: { reference: transaction.reference }, error: error.message },
+          'Failed to update idempotency cache for inter-transfer'
+        )
+      })
+    }
+
+    return result
   }
 
   /**
@@ -217,7 +282,7 @@ export default class InterTransfertUseCase {
   private async createTransactionWithPayments(
     params: {
       serviceType: ServiceType
-      wallet: any
+      wallet: Wallet
       amount: number
       total: number
       fees: number
@@ -225,8 +290,8 @@ export default class InterTransfertUseCase {
       payload: InterTransfertRequestDto
       idempotency?: string
     },
-    trx: any
-  ): Promise<Transaction> {
+    trx: TransactionClientContract
+  ): Promise<{ transaction: Transaction; depositPaymentId: number }> {
     const { serviceType, wallet, amount, total, fees, user, payload, idempotency } = params
 
     const transaction = await this.transactionService.createTransaction(
@@ -244,12 +309,12 @@ export default class InterTransfertUseCase {
       trx
     )
 
-    await Promise.all([
+    const [depositPayment] = await Promise.all([
       this.createDepositPayment(payload, transaction, user, trx),
       this.createTransferPayment(payload, transaction, user, trx),
     ])
 
-    return transaction
+    return { transaction, depositPaymentId: depositPayment.id }
   }
 
   /**
@@ -265,7 +330,7 @@ export default class InterTransfertUseCase {
     payload: InterTransfertRequestDto,
     transaction: Transaction,
     user: User,
-    trx: any
+    trx: TransactionClientContract
   ): Promise<Payment> {
     const paymentDetails: Record<string, any> = {
       operator: payload.providerFromCode,
@@ -303,7 +368,7 @@ export default class InterTransfertUseCase {
     payload: InterTransfertRequestDto,
     transaction: Transaction,
     user: User,
-    trx: any
+    trx: TransactionClientContract
   ): Promise<Payment> {
     const paymentDetails: Record<string, any> = {
       operator: payload.providerToCode,
@@ -322,96 +387,5 @@ export default class InterTransfertUseCase {
       user,
       trx
     )
-  }
-
-  /**
-   * Initiates the checkout process by building the payload for checkout and sending a request to the checkout API.
-   *
-   * @param {InterTransfertRequestDto} payload - The data transfer object containing necessary transfer details.
-   * @param {number} amount - The transaction amount.
-   * @param {string} reference - The unique reference identifier for the transaction.
-   * @return {Promise<Record<string, any>>} A Promise that resolves to the API response for the checkout process.
-   */
-  private async initiateCheckout(
-    payload: InterTransfertRequestDto,
-    amount: number,
-    reference: string
-  ): Promise<Record<string, any>> {
-    const dataSend = this.buildCheckoutPayload(payload, amount, reference)
-
-    const response = await this.httpClient.post(env.get('API_CHECKOUT_URL')!!, dataSend)
-
-    console.log('Response from inter-reseaux transaction:', response)
-
-    return response
-  }
-
-  /**
-   * Builds the payload for a checkout operation based on the provided parameters.
-   *
-   * @param {InterTransfertRequestDto} payload - The request data transfer object containing necessary details for the transaction.
-   * @param {number} amount - The amount to be included in the transaction.
-   * @param {string} reference - The reference identifier for the transaction.
-   * @return {Record<string, any>} A record object containing the structured payload for the checkout process.
-   */
-  private buildCheckoutPayload(
-    payload: InterTransfertRequestDto,
-    amount: number,
-    reference: string
-  ): Record<string, any> {
-    const dataSend: Record<string, any> = {
-      operation_type: payload.paymentMethodDepositCode,
-      amount,
-      provider: payload.providerFromCode,
-      number: payload.debiteurPhone,
-      country: 'ci',
-      currency: 'XOF',
-      reference,
-      notify_success_url: env.get('NOTIFY_TRANSFERT_INTER_SUCCESS_URL'),
-      notify_failure_url: env.get('NOTIFY_TRANSFERT_INTER_FAILURE_URL'),
-    }
-
-    // Orange Money specific
-    if (payload.providerFromCode === 'orange' && payload.pinCode) {
-      dataSend.otp = payload.pinCode
-    }
-
-    // Wave specific
-    if (payload.providerFromCode === 'wave') {
-      dataSend.success_url = config.get('app.mobileDeviceDeepLink')
-      dataSend.error_url = config.get('app.mobileDeviceDeepLink')
-    }
-
-    return dataSend
-  }
-
-  /**
-   * Builds and returns a response object containing transaction details and additional information
-   * based on the provided provider code and checkout response.
-   *
-   * @param {any} transaction - The transaction object containing details like reference and status.
-   * @param {string} providerCode - The code of the payment provider (e.g., 'wave').
-   * @param {any} checkoutResponse - The response object from the checkout operation.
-   * @return {InterTransfertResponseDto} An object containing the message, transaction details, and provider-specific data.
-   */
-  private buildResponse(
-    transaction: any,
-    providerCode: string,
-    checkoutResponse: any
-  ): InterTransfertResponseDto {
-    let waveUrl: string | undefined
-
-    if (checkoutResponse.success && providerCode === 'wave') {
-      waveUrl = checkoutResponse.data.payment_details.wave_launch_url
-    }
-
-    return {
-      message: 'Initialisation du dépot inter effectuée',
-      data: {
-        transactionReference: transaction.reference,
-        status: transaction.status,
-        wave_url: waveUrl,
-      },
-    }
   }
 }

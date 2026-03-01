@@ -16,8 +16,6 @@ public/assets
 npm-debug.log
 yarn-error.log
 logs
-database_updates.sql
-insert_tables.sql
 
 docker-compose.yml
 Dockerfile
@@ -32,3 +30,7 @@ Dockerfile
 
 # Platform specific
 .DS_Store
+
+*.txt
+
+.claude

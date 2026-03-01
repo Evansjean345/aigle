@@ -10,6 +10,7 @@ import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import TransactionAlreadyFailedException from '#features/transactions/infrastructure/exceptions/transaction_already_failed_exception'
 import TransactionAlreadySuccessfulException from '#features/transactions/infrastructure/exceptions/transaction_already_successful_exception'
 import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
+import InvalidStatusTransitionException from '#features/transactions/infrastructure/exceptions/invalid_status_transition_exception'
 
 /**
  * Shared TransactionService: creates and manages transaction records.
@@ -109,7 +110,7 @@ export default class TransactionService {
     walletAfterBalance: number,
     trx?: TransactionClientContract
   ): Promise<Transaction> {
-    const transaction = await this.getByUidOrId(id)
+    const transaction = await this.getByUidOrId(id, trx)
 
     if (transaction.status === TransactionStatus.SUCCESS) {
       transactionLog.info(
@@ -118,6 +119,15 @@ export default class TransactionService {
         'Transaction already successful'
       )
       throw new TransactionAlreadySuccessfulException()
+    }
+
+    if (transaction.status === TransactionStatus.FAILED) {
+      transactionLog.warn(
+        'TRANSACTION_INVALID_TRANSITION',
+        { transaction: { id: transaction.id, from: transaction.status, to: 'SUCCESS' } },
+        'Cannot mark a failed transaction as successful'
+      )
+      throw new InvalidStatusTransitionException(transaction.status, 'SUCCESS', 'transaction')
     }
 
     transaction.status = TransactionStatus.SUCCESS
@@ -142,13 +152,30 @@ export default class TransactionService {
    * @throws {TransactionAlreadyFailedException} If the transaction is already marked as failed.
    */
   async markFailed(id: number, trx?: TransactionClientContract): Promise<Transaction> {
-    const transaction = await this.getByUidOrId(id)
+    const transaction = await this.getByUidOrId(id, trx)
 
-    if (transaction.status === TransactionStatus.FAILED)
+    if (transaction.status === TransactionStatus.FAILED) {
+      transactionLog.info(
+        'TRANSACTION_ALREADY_FAILED',
+        { transaction: { id: transaction.id } },
+        'Transaction already failed, skipping'
+      )
+
       throw new TransactionAlreadyFailedException()
+    }
+
+    if (transaction.status === TransactionStatus.SUCCESS) {
+      transactionLog.warn(
+        'TRANSACTION_INVALID_TRANSITION',
+        { transaction: { id: transaction.id, from: transaction.status, to: 'FAILED' } },
+        'Cannot mark a successful transaction as failed'
+      )
+      throw new InvalidStatusTransitionException(transaction.status, 'FAILED', 'transaction')
+    }
 
     transaction.status = TransactionStatus.FAILED
     await this.transactionRepository.save(transaction, trx)
+
     transactionLog.info(
       'TRANSACTION_MARKED_FAILED',
       { transaction: { id: transaction.id } },
@@ -161,17 +188,17 @@ export default class TransactionService {
    * Retrieves a transaction by its UID or ID.
    *
    * @param {string|number} id - The unique identifier (UID) or ID of the transaction to retrieve.
+   * @param trx
    * @return {Promise<Transaction>} A promise that resolves to the retrieved transaction.
    * @throws {TransactionNotFoundException} If no transaction is found with the provided UID or ID.
    */
-  async getByUidOrId(id: string | number): Promise<Transaction> {
+  async getByUidOrId(id: string | number, trx?: TransactionClientContract): Promise<Transaction> {
     transactionLog.debug(
       'TRANSACTION_LOOKUP',
       { transaction: { id } },
       'Looking up transaction by id or uid'
     )
-    const transaction = await this.transactionRepository.findByUidOrId(id)
-
+    const transaction = await this.transactionRepository.findByUidOrId(id, trx)
     if (!transaction) throw new TransactionNotFoundException()
 
     transactionLog.info(

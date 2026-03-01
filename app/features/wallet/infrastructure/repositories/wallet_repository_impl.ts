@@ -48,10 +48,17 @@ export default class WalletRepositoryImpl implements WalletRepository {
    * Fetches the wallet information for a specific user by their user ID.
    *
    * @param {string} userId - The unique identifier of the user whose wallet information is to be retrieved.
+   * @param trx - Optional transaction client to perform the operation within a transaction.
    * @return {Promise<Wallet | null>} A promise that resolves to the wallet associated with the given user ID, or null if no wallet is found.
    */
-  async findByUserId(userId: string): Promise<Wallet | null> {
-    return await Wallet.query().where('userId', userId).first()
+  async findByUserId(userId: string, trx?: TransactionClientContract): Promise<Wallet | null> {
+    const query = Wallet.query({ client: trx }).where('userId', userId)
+
+    if (trx) {
+      query.forUpdate()
+    }
+
+    return await query.first()
   }
 
   /**
@@ -143,11 +150,9 @@ export default class WalletRepositoryImpl implements WalletRepository {
     status: WalletStatus,
     trx?: TransactionClientContract
   ): Promise<Wallet | null> {
-    const wallet = await Wallet.query({ client: trx }).where('id', id).first()
+    const wallet = await Wallet.query({ client: trx }).forUpdate().where('id', id).first()
 
-    if (!wallet) {
-      return null
-    }
+    if (!wallet) return null
 
     wallet.status = status
     await wallet.save()

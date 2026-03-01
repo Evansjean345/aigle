@@ -5,6 +5,7 @@ import ExpiredTokenException from '#features/team/infrastructure/exceptions/expi
 import OtpService from '#features/authentication/application/services/otp_service'
 import { SetupAdminPasswordRequestDto } from '#features/authentication/application/dtos/admin/setup_admin_password.dto'
 import { DateTime } from 'luxon'
+import AdminSetupOtpTemplate from '#features/authentication/infrastructure/otp/templates/admin_setup_otp_template'
 
 @inject()
 export default class SetupAdminPasswordUseCase {
@@ -45,7 +46,7 @@ export default class SetupAdminPasswordUseCase {
     admin.invitationExpiresAt = null
     await this.adminRepository.save(admin)
 
-    await this.otpService.sendOtp(admin.email, admin.id.toString())
+    await this.otpService.sendOtp(admin.email, admin.id.toString(), new AdminSetupOtpTemplate())
     return { email: admin.email }
   }
 }

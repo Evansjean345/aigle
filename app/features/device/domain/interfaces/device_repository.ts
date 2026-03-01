@@ -69,4 +69,15 @@ export default abstract class DeviceRepository {
    * @param device
    */
   abstract deleteDevice(device: Device): Promise<void>
+
+  /**
+   * Atomically finds a device by fingerprint hash and updates it, or creates a new one.
+   * Relies on the UNIQUE constraint on fingerprint_hash to prevent race conditions.
+   * @param fingerprintHash - The search key
+   * @param payload - The data to update or create with
+   */
+  abstract updateOrCreateByFingerprintHash(
+    fingerprintHash: string,
+    payload: Partial<Device>
+  ): Promise<Device>
 }

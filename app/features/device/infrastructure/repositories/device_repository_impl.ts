@@ -51,6 +51,25 @@ export default class DeviceRepositoryImpl implements DeviceRepository {
   }
 
   /**
+   * Atomically finds a device by fingerprint hash and updates it, or creates a new one.
+   * Uses Lucid's updateOrCreate which translates to a single atomic DB operation,
+   * preventing race conditions when combined with the UNIQUE constraint on fingerprint_hash.
+   *
+   * @param {string} fingerprintHash - The fingerprint hash to search for.
+   * @param {Partial<Device>} payload - The data to update or create with.
+   * @return {Promise<Device>} The device and whether it was newly created.
+   */
+  async updateOrCreateByFingerprintHash(
+    fingerprintHash: string,
+    payload: Partial<Device>
+  ): Promise<Device> {
+    return await Device.updateOrCreate(
+      { fingerprintHash }, // search key
+      payload // data to update or create
+    )
+  }
+
+  /**
    * Finds a device by the provided fingerprint hash.
    *
    * @param {string} fingerprintHash - The fingerprint hash associated with the device to be retrieved.

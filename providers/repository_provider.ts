@@ -42,6 +42,8 @@ import RoleRepository from '#features/team/domain/interfaces/role_repository'
 import RoleRepositoryImpl from '#features/team/infrastructure/repositories/role_repository_impl'
 import PermissionRepository from '#features/team/domain/interfaces/permission_repository'
 import PermissionRepositoryImpl from '#features/team/infrastructure/repositories/permission_repository_impl'
+import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_repository'
+import DebitPhoneRepositoryImpl from '#features/user/infrastructure/repositories/debit_phone_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -70,6 +72,7 @@ export default class RepositoryProvider {
       [AdminRepository, AdminRepositoryImpl],
       [RoleRepository, RoleRepositoryImpl],
       [PermissionRepository, PermissionRepositoryImpl],
+      [DebitPhoneRepository, DebitPhoneRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {

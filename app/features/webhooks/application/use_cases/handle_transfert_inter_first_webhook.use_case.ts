@@ -1,358 +1,217 @@
-﻿import { inject } from '@adonisjs/core'
+import { inject } from '@adonisjs/core'
+import { Exception } from '@adonisjs/core/exceptions'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import TransactionService from '#features/transactions/application/services/transaction_service'
-import { Exception } from '@adonisjs/core/exceptions'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import db from '@adonisjs/lucid/services/db'
 import Transaction from '#features/transactions/domain/models/transaction'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import Payment from '#features/transactions/domain/models/payment'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
-import env from '#start/env'
-import HttpClient from '#shared/infrastructure/http_client_service'
+import queue from '@rlanz/bull-queue/services/main'
+import InitiateInterTransferSecondStepJob from '#features/webhooks/application/jobs/initiate_inter_transfer_second_step_job'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
-import errorLog from '#shared/infrastructure/logging/error_log'
-import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
-import { maskPhone } from '#shared/utils/utiles'
+import BaseWebhookHandler, {
+  WEBHOOK_SUCCESS_RESPONSE,
+} from '#features/webhooks/application/use_cases/base_webhook_handler'
 
-/**
- * Use the case responsible for handling the first webhook of an inter-transfer transaction.
- */
 @inject()
-export default class HandleTransfertInterFirstWebhookUseCase {
+export default class HandleTransfertInterFirstWebhookUseCase extends BaseWebhookHandler {
   /**
-   * Creates an instance of the class with provided dependencies.
+   * Constructs an instance of the class and initializes the necessary services.
    *
-   * @param {PaymentService} paymentService - The service responsible for handling payment operations.
-   * @param {TransactionService} transactionService - The service responsible for managing transactions.
-   * @param {HttpClient} httpClient - The HTTP client for external API calls.
+   * @param {PaymentService} paymentService - The service responsible for handling payment-related operations.
+   * @param {TransactionService} transactionService - The service responsible for handling transaction-related operations.
    */
   constructor(
-    private readonly paymentService: PaymentService,
-    private readonly transactionService: TransactionService,
-    private readonly httpClient: HttpClient
-  ) {}
+    protected readonly paymentService: PaymentService,
+    protected readonly transactionService: TransactionService
+  ) {
+    super()
+  }
 
   /**
-   * Executes the first step of the inter-transfer webhook processing.
+   * Executes the inter-transfer process for the first webhook step.
+   * Handles database transactions, processes the first payment status,
+   * and optionally initiates the second step based on the status of the first payment.
    *
-   * @param {WebhookRequestDto} payload - The data payload received from the webhook, containing the transaction reference and associated data.
-   * @param {'success' | 'failed'} status - The status of the webhook process, indicating whether the operation was successful or failed.
-   * @return {Promise<WebhookResponseDto>} A promise that resolves to the resulting response object containing the processed status and relevant data.
+   * @param {WebhookRequestDto} payload - The webhook request data containing transaction details.
+   * @param {TransactionStatus} status - The current transactional status (e.g., SUCCESS, FAILED).
+   * @return {Promise<WebhookResponseDto>} A promise resolving to the response for the webhook execution.
    */
   async execute(
     payload: WebhookRequestDto,
     status: TransactionStatus
   ): Promise<WebhookResponseDto> {
+    this.validatePayload(payload)
+    const reference = payload.data.reference
+    const operatorResponse = { operatorResponse: payload.data } as any
+
     paymentLog.info(
       'INTER_TRANSFER_FIRST_WEBHOOK_RECEIVED',
-      { webhook: { status, reference: payload.data?.reference } },
+      { webhook: { status, reference } },
       'Inter-transfer first webhook received'
     )
-    this.validatePayload(payload)
 
-    const reference = payload.data.reference
-    const operatorResponse = payload.data
-    paymentLog.debug(
-      'INTER_TRANSFER_FIRST_VALIDATED',
-      { webhook: { reference, status } },
-      'Inter-transfer first webhook validated'
+    /**
+     * A boolean flag that determines whether the second step of a process
+     * should be initiated. When set to `true`, the process proceeds
+     * to the second step; when `false`, the process halts or remains
+     * on the current step.
+     */
+    const { shouldInitiateSecondStep, transaction, secondPayment } = await this.withTransaction(
+      async (trx) => {
+        const {
+          firstPayment,
+          secondPayment: second,
+          transaction: txn,
+        } = await this.loadInterPayments(reference, trx)
+
+        if (this.isIdempotent(txn, firstPayment, status)) {
+          paymentLog.warn(
+            'INTER_TRANSFER_FIRST_IDEMPOTENT',
+            { webhook: { reference } },
+            'Inter-transfer first step is idempotent, acknowledging'
+          )
+          return { shouldInitiateSecondStep: false, transaction: txn, secondPayment: second }
+        }
+
+        switch (status) {
+          case TransactionStatus.SUCCESS:
+            await this.paymentService.markSuccess(firstPayment.id, operatorResponse, trx)
+            break
+          case TransactionStatus.FAILED:
+            await this.markAllFailed(txn, firstPayment, second, operatorResponse, trx)
+            break
+          default:
+            throw new Exception('Invalid transaction status', {
+              status: 400,
+              code: 'INVALID_TRANSACTION_STATUS',
+            })
+        }
+
+        paymentLog.info(
+          'INTER_TRANSFER_FIRST_PROCESSED',
+          { webhook: { reference, status } },
+          'Inter-transfer first step processed'
+        )
+
+        return {
+          shouldInitiateSecondStep: status === TransactionStatus.SUCCESS,
+          transaction: txn,
+          secondPayment: second,
+        }
+      }
     )
 
-    const trx = await db.transaction()
-
-    try {
-      const { transaction, payments } = await this.loadEntities(reference, trx)
-      paymentLog.debug(
-        'INTER_TRANSFER_FIRST_ENTITIES_LOADED',
-        {
-          webhook: { reference },
-          transaction: { id: transaction.id },
-          payments: { count: payments.length },
-        },
-        'Loaded transaction and payments for inter-transfer first step'
-      )
-
-      const firstPayment = payments[0]
-      const secondPayment = payments[1]
-
-      if (!firstPayment || !secondPayment) {
-        throw new Exception('Invalid inter-transfer payments structure', {
-          status: 400,
-          code: 'INTER_TRANSFER_INVALID_PAYMENTS',
-        })
-      }
-
-      const idempotent = this.isIdempotentRequest(transaction, firstPayment, status)
-
-      paymentLog.debug(
-        'INTER_TRANSFER_FIRST_IDEMPOTENCY_CHECK',
-        {
-          webhook: { reference, incomingStatus: status },
-          payment: { id: firstPayment?.id, status: firstPayment?.status },
-          idempotent,
-        },
-        'Inter-transfer first step idempotency check'
-      )
-
-      if (idempotent) {
-        await trx.commit()
-        paymentLog.info(
-          'INTER_TRANSFER_FIRST_IDEMPOTENT',
-          { webhook: { reference } },
-          'Inter-transfer first step is idempotent, acknowledging'
-        )
-        return this.createSuccessResponse()
-      }
-
-      paymentLog.info(
-        'INTER_TRANSFER_FIRST_PROCESSING',
-        {
-          webhook: { reference, status },
-          payments: { firstId: firstPayment.id, secondId: secondPayment.id },
-        },
-        'Processing inter-transfer first step'
-      )
-
-      const result = await this.processFirstStep(
-        transaction,
-        firstPayment,
-        secondPayment,
-        operatorResponse,
-        status,
-        trx
-      )
-
-      await trx.commit()
-      paymentLog.info(
-        'INTER_TRANSFER_FIRST_SUCCESS',
-        { webhook: { reference, status } },
-        'Inter-transfer first step processed'
-      )
-      return result
-    } catch (error) {
-      await trx.rollback()
-      throw error
+    if (shouldInitiateSecondStep) {
+      await this.enqueueSecondStep(transaction, secondPayment)
     }
+
+    return WEBHOOK_SUCCESS_RESPONSE
   }
 
   /**
-   * Validates the provided webhook payload to ensure it contains all required fields.
+   * Loads and validates inter-transfer payments associated with the given reference.
    *
-   * @param {WebhookRequestDto} payload - The webhook payload object to be validated.
-   * @return {void} This method does not return a value but throws an exception if the payload is invalid.
-   * @throws {Exception} Throws an exception if the payload is missing the required reference field or is otherwise invalid.
+   * @param {string} reference - The reference identifier used to fetch the transaction and payments.
+   * @param {TransactionClientContract} trx - The transaction client used to query the database.
+   * @return {Promise<{transaction: Transaction, firstPayment: Payment, secondPayment: Payment}>}
+   *         The transaction and the first two associated payments.
+   * @throws {Exception} If fewer than two payments are associated with the transaction.
    */
-  private validatePayload(payload: WebhookRequestDto): void {
-    if (!payload?.data?.reference) {
-      paymentLog.warn(
-        'WEBHOOK_REFERENCE_REQUIRED',
-        {
-          webhook: payload?.data,
-        },
-        'Missing reference in inter-transfer first webhook'
-      )
-      throw new Exception('Invalid payload: Missing reference', {
-        status: 422,
-        code: 'INVALID_WEBHOOK_PAYLOAD',
-      })
-    }
-
-    if (!payload?.data?.status) {
-      paymentLog.warn(
-        'WEBHOOK_STATUS_REQUIRED',
-        {
-          webhook: payload?.data,
-        },
-        'Missing status in inter-transfer first webhook'
-      )
-      throw new Exception('Invalid payload: Missing status', {
-        status: 422,
-        code: 'INVALID_WEBHOOK_PAYLOAD',
-      })
-    }
-  }
-
-  /**
-   * Loads and returns a transaction and its associated payments based on the provided reference.
-   *
-   * @param {string} reference - The unique reference identifier for the transaction.
-   * @param {TransactionClientContract} trx - The transaction client contract.
-   * @return {Promise<{transaction: Transaction, payments: Payment[]}>} An object containing the transaction and an array of associated payments.
-   */
-  private async loadEntities(
+  private async loadInterPayments(
     reference: string,
     trx: TransactionClientContract
-  ): Promise<{
-    transaction: Transaction
-    payments: Payment[]
-  }> {
-    const transaction = await Transaction.query({
-      client: trx,
-    })
-      .where('reference', reference)
-      .forUpdate()
-      .first()
+  ): Promise<{ transaction: Transaction; firstPayment: Payment; secondPayment: Payment }> {
+    const { transaction, payments } = await this.loadTransactionWithPayments(reference, trx)
 
-    if (!transaction) {
-      throw new TransactionNotFoundException()
+    if (payments.length < 2) {
+      throw new Exception('Invalid inter-transfer payments structure', {
+        status: 400,
+        code: 'INTER_TRANSFER_INVALID_PAYMENTS',
+      })
     }
 
-    const payments = await this.paymentService.findByTransaction(transaction.transactionsUid)
-    return { transaction, payments }
+    return { transaction, firstPayment: payments[0], secondPayment: payments[1] }
   }
 
   /**
-   * Determines if a request is idempotent based on transaction, payment, and incoming status.
+   * Determines if the given transaction and payment combination is idempotent based on their statuses.
    *
-   * @param {Transaction} transaction - The transaction object to evaluate.
-   * @param {Payment} payment - The payment object to evaluate.
-   * @param {'success' | 'failed'} incomingStatus - The status of an incoming request.
-   * @return {boolean} Returns true if the request is idempotent, otherwise false.
+   * @param {Transaction} transaction - The transaction object to be evaluated.
+   * @param {Payment} payment - The payment object associated with the transaction.
+   * @param {TransactionStatus} incomingStatus - The current status of the transaction being checked.
+   * @return {boolean} Returns true if the combination of transaction and payment statuses is idempotent; otherwise, false.
    */
-  private isIdempotentRequest(
+  protected override isIdempotent(
     transaction: Transaction,
     payment: Payment,
     incomingStatus: TransactionStatus
   ): boolean {
-    const isIncomingSuccess = incomingStatus === TransactionStatus.SUCCESS
-
-    if (isIncomingSuccess) {
+    if (incomingStatus === TransactionStatus.SUCCESS) {
       return payment.status === PaymentStatus.SUCCESS
-    } else {
-      return (
-        transaction.status === TransactionStatus.FAILED && payment.status === PaymentStatus.FAILED
-      )
     }
+
+    return (
+      transaction.status === TransactionStatus.FAILED && payment.status === PaymentStatus.FAILED
+    )
   }
 
   /**
-   * Processes the first step of a transaction, which involves handling payments and responses based on the provided status.
-   * Updates payment statuses, initiates a second payment if the first step is successful, and handles operator responses.
+   * Marks the given transaction and associated payments as failed.
    *
-   * @param {Transaction} transaction - The transaction object representing the overall payment transaction.
-   * @param {Payment} firstPayment - The first payment object being processed in the transaction flow.
-   * @param {Payment} secondPayment - The second payment object to be handled after the first payment succeeds.
-   * @param {any} operatorResponse - The response data received from the payment operator for the current transaction.
-   * @param {'success' | 'failed'} status - The status of the transaction step, indicating success or failure.
-   * @param {TransactionClientContract} trx - The transaction client contract for database operations within the scope of the transaction.
-   * @return {Promise<WebhookResponseDto>} Returns a promise resolving to a WebhookResponseDto object indicating the transaction outcome.
+   * @param {Transaction} transaction - The main transaction object to be marked as failed.
+   * @param {Payment} firstPayment - The first associated payment to be marked as failed.
+   * @param {Payment} secondPayment - The second associated payment to be marked as failed.
+   * @param {any} operatorResponse - The response provided by the operator, used for the first payment.
+   * @param {TransactionClientContract} trx - The transaction client instance for executing database operations.
+   * @return {Promise<void>} A promise that resolves once all the operations are completed.
    */
-  private async processFirstStep(
+  private async markAllFailed(
     transaction: Transaction,
     firstPayment: Payment,
     secondPayment: Payment,
     operatorResponse: any,
-    status: TransactionStatus,
     trx: TransactionClientContract
-  ): Promise<WebhookResponseDto> {
-    if (status === TransactionStatus.SUCCESS) {
-      paymentLog.debug(
-        'INTER_TRANSFER_FIRST_MARKING_SUCCESS',
-        { transaction: { reference: transaction.reference }, payment: { id: firstPayment.id } },
-        'Marking first payment as success'
-      )
-      await this.paymentService.markSuccess(
-        firstPayment.id,
-        { operatorResponse: operatorResponse },
-        trx
-      )
+  ): Promise<void> {
+    await this.safeMarkTransactionFailed(transaction.id, trx)
 
-      // Initiate the second transaction immediately after first success
-      try {
-        const details = (() => {
-          try {
-            const raw = (secondPayment as any)?.paymentDetails
-            return typeof raw === 'string' ? JSON.parse(raw) : (raw ?? {})
-          } catch {
-            paymentLog.error(
-              'INTER_TRANSFER_FIRST_PARSE_ERROR',
-              {
-                transaction: { reference: transaction.reference },
-                payment: { id: secondPayment.id },
-              },
-              'Failed to get the payment details for the second payment'
-            )
-            return {}
-          }
-        })()
-
-        const dataSend: Record<string, any> = {
-          operation_type: secondPayment.paymentMethod,
-          amount: Number(transaction.totalAmount),
-          provider: details?.operator,
-          number: details?.phone,
-          country: 'ci',
-          currency: 'XOF',
-          reference: transaction.reference,
-          notify_success_url: env.get('NOTIFY_TRANSFERT_INTER_SECOND_SUCCESS_URL'),
-          notify_failure_url: env.get('NOTIFY_TRANSFERT_INTER_SECOND_FAILURE_URL'),
-        }
-
-        await this.httpClient.post(env.get('API_TRANSFERT_URL')!!, dataSend)
-
-        paymentLog.info(
-          'INTER_TRANSFER_SECOND_INITIATED',
-          {
-            transaction: { reference: transaction.reference },
-            payment: { id: secondPayment.id },
-            transfer: {
-              provider: dataSend.provider,
-              numberMasked: maskPhone(dataSend.number),
-            },
-          },
-          'Second inter-transfer step initiated'
-        )
-      } catch (err) {
-        // TODO: Notify the admin about the payment failed //
-
-        errorLog.error(
-          'INTER_TRANSFER_SECOND_INIT_FAILED',
-          {
-            transaction: { reference: transaction.reference },
-            error: { message: (err as any)?.message || 'Unknown error' },
-          },
-          'Failed to initiate second inter-transfer step'
-        )
-      }
-
-      return this.createSuccessResponse()
-    }
-
-    if (status === TransactionStatus.FAILED) {
-      paymentLog.debug(
-        'INTER_TRANSFER_FIRST_MARKING_FAILED',
-        {
-          transaction: { reference: transaction.reference },
-          payments: { firstId: firstPayment.id, secondId: secondPayment.id },
-        },
-        'Marking first and second payments/transaction as failed'
-      )
-
-      await this.transactionService.markFailed(transaction.id, trx)
-
-      await Promise.all([
-        this.paymentService.markFailed(
-          firstPayment.id,
-          { operatorResponse: operatorResponse },
-          trx
-        ),
-        this.paymentService.markFailed(secondPayment.id, {}, trx),
-      ])
-
-      return this.createSuccessResponse()
-    }
-
-    return this.createSuccessResponse()
+    await Promise.all([
+      this.paymentService.markFailed(firstPayment.id, operatorResponse, trx),
+      this.paymentService.markFailed(secondPayment.id, {}, trx),
+    ])
   }
+
   /**
-   * Creates and returns a success response indicating the request has been received.
+   * Enqueues the second step of an inter-transfer as a BullMQ job.
+   * The job handles the HTTP call, failure recovery, and admin alerting.
    *
-   * @return {WebhookResponseDto} An object containing the status code and message for a successful response.
+   * @param {Transaction} transaction - The transaction for the inter-transfer.
+   * @param {Payment} secondPayment - The second payment containing beneficiary details.
+   * @return {Promise<void>} Resolves when the job is enqueued.
    */
-  private createSuccessResponse(): WebhookResponseDto {
-    return { status: 200, message: 'received' }
+  private async enqueueSecondStep(transaction: Transaction, secondPayment: Payment): Promise<void> {
+    const details = this.paymentService.parsePaymentDetails(secondPayment)
+
+    await queue.dispatch(InitiateInterTransferSecondStepJob, {
+      transactionId: transaction.id,
+      transactionReference: transaction.reference,
+      secondPaymentId: secondPayment.id,
+      totalAmount: Number(transaction.totalAmount),
+      paymentMethod: secondPayment.paymentMethod,
+      operator: details?.operator || '',
+      phone: details?.phone || '',
+    })
+
+    paymentLog.info(
+      'INTER_TRANSFER_SECOND_STEP_ENQUEUED',
+      {
+        reference: transaction.reference,
+        paymentId: secondPayment.id,
+      },
+      'Second inter-transfer step enqueued as job'
+    )
   }
 }

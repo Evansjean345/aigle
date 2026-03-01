@@ -27,9 +27,10 @@ export default abstract class WalletRepository {
    * Fetches the wallet information for a specific user by their user ID.
    *
    * @param {string} userId - The unique identifier of the user whose wallet information is to be retrieved.
+   * @param trx - Optional transaction client to perform the operation within a transaction.
    * @return {Promise<Wallet | null>} A promise that resolves to the wallet associated with the given user ID, or null if no wallet is found.
    */
-  abstract findByUserId(userId: string): Promise<Wallet | null>
+  abstract findByUserId(userId: string, trx?: TransactionClientContract): Promise<Wallet | null>
 
   /**
    * Saves the provided wallet instance to the database, optionally using the specified transaction.

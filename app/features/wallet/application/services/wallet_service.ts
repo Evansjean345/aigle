@@ -66,11 +66,12 @@ export default class WalletService {
    * Retrieves a wallet associated with a specific user ID.
    *
    * @param {string} userId - The unique identifier of the user whose wallet is to be retrieved.
+   * @param trx - Optional transaction client for database operations.
    * @return {Promise<Wallet>} A promise that resolves to the wallet associated with the given user ID.
    * @throws {Exception} If no wallet is found for the provided user ID, an exception is thrown with a status of 404 and code 'WALLET_NOT_FOUND'.
    */
-  async getByUserId(userId: string): Promise<Wallet> {
-    const wallet = await this.walletRepository.findByUserId(userId)
+  async getByUserId(userId: string, trx?: TransactionClientContract): Promise<Wallet> {
+    const wallet = await this.walletRepository.findByUserId(userId, trx)
 
     if (!wallet) {
       throw new WalletNotFoundException()

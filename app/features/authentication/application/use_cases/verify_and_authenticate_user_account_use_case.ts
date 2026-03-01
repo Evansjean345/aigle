@@ -14,6 +14,8 @@ import UserRepository from '#features/user/domain/interfaces/user_repository'
 import AccountBlockedException from '#features/authentication/infrastructure/exceptions/account_blocked_exception'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
+import emitter from '@adonisjs/core/services/emitter'
+import AccountVerified from '#features/authentication/application/events/account_verified'
 
 /**
  * Interface pour les informations device passées au use case
@@ -82,6 +84,8 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
       if (type === 'register' && user.status === UserStatus.INACTIVE) {
         user.status = UserStatus.ACTIVE
         await this.userRepository.save(user)
+
+        await emitter.emit(new AccountVerified(user.usersUid, user.phone))
       }
 
       let device

@@ -1,4 +1,4 @@
-﻿import { TransactionStatus } from '#features/transactions/domain/models/transaction'
+﻿import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 
 export interface DepositRequestDto {
   amount: number
@@ -16,5 +16,6 @@ export interface DepositResponseDto {
   data: {
     transactionReference: string
     status: TransactionStatus
+    wave_url?: string
   }
 }
