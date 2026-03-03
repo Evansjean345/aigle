@@ -219,6 +219,24 @@ ALTER TABLE `admins`
   ADD COLUMN `last_login_at` TIMESTAMP NULL DEFAULT NULL AFTER `updated_at`,
   ADD COLUMN `last_login_ip` VARCHAR(255) NULL DEFAULT NULL AFTER `last_login_at`;
 
+
+
+CREATE TABLE debit_phones (
+                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                            user_id CHAR(36) NOT NULL,
+                            provider_id INT(10) UNSIGNED NOT NULL,
+                            phone VARCHAR(20) NOT NULL,
+                            label VARCHAR(255) NULL,
+                            is_verified BOOLEAN DEFAULT FALSE,
+                            is_active BOOLEAN DEFAULT TRUE,
+                            verified_at TIMESTAMP NULL,
+                            created_at TIMESTAMP NOT NULL,
+                            updated_at TIMESTAMP NOT NULL,
+                            UNIQUE (user_id, provider_id),
+                            FOREIGN KEY (user_id) REFERENCES users(users_uid) ON DELETE CASCADE,
+                            FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 /**
   ADDED ON 09 Feb 2026
  */

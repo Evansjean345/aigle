@@ -17,7 +17,9 @@ import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import WalletAdjustException from '#features/wallet/infrastructure/exceptions/wallet_adjust_exception'
-import BaseWebhookHandler, { WEBHOOK_SUCCESS_RESPONSE } from './base_webhook_handler.js'
+import BaseWebhookHandler, {
+  WEBHOOK_SUCCESS_RESPONSE,
+} from '#features/webhooks/application/use_cases/base_webhook_handler'
 
 @inject()
 export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
