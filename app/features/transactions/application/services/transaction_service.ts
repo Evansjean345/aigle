@@ -7,9 +7,13 @@ import { TransactionDirection } from '#features/transactions/domain/enums/transa
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import Transaction from '#features/transactions/domain/models/transaction'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
+import TransactionSecurityContextRepository from '#features/transactions/domain/interfaces/transaction_security_context_repository'
+import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import TransactionAlreadyFailedException from '#features/transactions/infrastructure/exceptions/transaction_already_failed_exception'
 import TransactionAlreadySuccessfulException from '#features/transactions/infrastructure/exceptions/transaction_already_successful_exception'
 import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
+import InvalidStatusTransitionException from '#features/transactions/infrastructure/exceptions/invalid_status_transition_exception'
+import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
 
 /**
  * Shared TransactionService: creates and manages transaction records.
@@ -20,8 +24,12 @@ export default class TransactionService {
    * Constructs an instance of the class with the provided TransactionRepository.
    *
    * @param {TransactionRepository} transactionRepository - The repository used to manage transactions.
+   * @param {TransactionSecurityContextRepository} securityContextRepository - The repository for security context.
    */
-  constructor(private transactionRepository: TransactionRepository) {}
+  constructor(
+    private transactionRepository: TransactionRepository,
+    private securityContextRepository: TransactionSecurityContextRepository
+  ) {}
 
   /**
    * Creates a new transaction based on the provided payload, wallet, and user details.
@@ -37,6 +45,8 @@ export default class TransactionService {
    * @param {string} [payload.description] - A description or note about the transaction.
    * @param {Record<string, any>} [payload.metadata] - Additional metadata to associate with the transaction.
    * @param {User} user - The user performing the transaction.
+   * @param {DeviceHeadersInfo} [deviceInfo] - The device information from headers.
+   * @param geoIpLocation
    * @param {TransactionClientContract} [trx] - An optional transaction client to manage database operations.
    *
    * @return {Promise<Transaction>} A promise that resolves to the newly created transaction object.
@@ -57,6 +67,8 @@ export default class TransactionService {
     },
     walletId: number,
     user: User,
+    deviceInfo?: DeviceHeadersInfo,
+    geoIpLocation?: GeoIpLocation,
     trx?: TransactionClientContract
   ): Promise<Transaction> {
     transactionLog.info(
@@ -92,7 +104,71 @@ export default class TransactionService {
     if (payload.metadata) transaction.dateTransaction = JSON.stringify(payload.metadata)
 
     await this.transactionRepository.save(transaction, trx)
+
+    await this.createSecurityContext(transaction, deviceInfo, geoIpLocation, trx)
+
     return transaction
+  }
+
+  /**
+   * Creates a security context for the given transaction.
+   *
+   * @param {Transaction} transaction - The transaction object.
+   * @param {DeviceHeadersInfo} [deviceInfo] - The device information.
+   * @param {GeoIpLocation} [geoIpLocation] - The GeoIP location information.
+   * @param {TransactionClientContract} [trx] - An optional database transaction client.
+   * @private
+   */
+  private async createSecurityContext(
+    transaction: Transaction,
+    deviceInfo?: DeviceHeadersInfo,
+    geoIpLocation?: GeoIpLocation,
+    trx?: TransactionClientContract
+  ): Promise<void> {
+    if (
+      transaction.operationType === TransactionType.WALLET_TRANSFERT &&
+      transaction.direction === TransactionDirection.CREDIT
+    ) {
+      return
+    }
+
+    if (!deviceInfo || !geoIpLocation) {
+      transactionLog.warn(
+        'SECURITY_CONTEXT_CREATION_FAILED',
+        { transactionId: transaction.id },
+        'Missing device info or geoip location'
+      )
+
+      return
+    }
+
+    try {
+      const countryCode = geoIpLocation.countryCode ?? null
+      const city = geoIpLocation.city ?? null
+      const isVpn = geoIpLocation.isVpn ?? false
+
+      await this.securityContextRepository.create(
+        {
+          transactionId: transaction.id,
+          deviceId: deviceInfo.deviceUid,
+          fingerprintHash: deviceInfo.fingerprintHash,
+          ipAddress: geoIpLocation.ip || '0.0.0.0',
+          userAgent: null, // Si disponible via middleware plus tard
+          osVersion: deviceInfo.osVersion,
+          appVersion: deviceInfo.appVersion,
+          countryCode,
+          city,
+          isVpn,
+        },
+        trx
+      )
+    } catch (err) {
+      transactionLog.error(
+        'SECURITY_CONTEXT_CREATION_FAILED',
+        { transactionId: transaction.id, error: err.message },
+        'Failed to create security context'
+      )
+    }
   }
 
   /**
@@ -109,7 +185,7 @@ export default class TransactionService {
     walletAfterBalance: number,
     trx?: TransactionClientContract
   ): Promise<Transaction> {
-    const transaction = await this.getByUidOrId(id)
+    const transaction = await this.getById(id, trx)
 
     if (transaction.status === TransactionStatus.SUCCESS) {
       transactionLog.info(
@@ -118,6 +194,15 @@ export default class TransactionService {
         'Transaction already successful'
       )
       throw new TransactionAlreadySuccessfulException()
+    }
+
+    if (transaction.status === TransactionStatus.FAILED) {
+      transactionLog.warn(
+        'TRANSACTION_INVALID_TRANSITION',
+        { transaction: { id: transaction.id, from: transaction.status, to: 'SUCCESS' } },
+        'Cannot mark a failed transaction as successful'
+      )
+      throw new InvalidStatusTransitionException(transaction.status, 'SUCCESS', 'transaction')
     }
 
     transaction.status = TransactionStatus.SUCCESS
@@ -142,13 +227,30 @@ export default class TransactionService {
    * @throws {TransactionAlreadyFailedException} If the transaction is already marked as failed.
    */
   async markFailed(id: number, trx?: TransactionClientContract): Promise<Transaction> {
-    const transaction = await this.getByUidOrId(id)
+    const transaction = await this.getById(id, trx)
 
-    if (transaction.status === TransactionStatus.FAILED)
+    if (transaction.status === TransactionStatus.FAILED) {
+      transactionLog.info(
+        'TRANSACTION_ALREADY_FAILED',
+        { transaction: { id: transaction.id } },
+        'Transaction already failed, skipping'
+      )
+
       throw new TransactionAlreadyFailedException()
+    }
+
+    if (transaction.status === TransactionStatus.SUCCESS) {
+      transactionLog.warn(
+        'TRANSACTION_INVALID_TRANSITION',
+        { transaction: { id: transaction.id, from: transaction.status, to: 'FAILED' } },
+        'Cannot mark a successful transaction as failed'
+      )
+      throw new InvalidStatusTransitionException(transaction.status, 'FAILED', 'transaction')
+    }
 
     transaction.status = TransactionStatus.FAILED
     await this.transactionRepository.save(transaction, trx)
+
     transactionLog.info(
       'TRANSACTION_MARKED_FAILED',
       { transaction: { id: transaction.id } },
@@ -161,17 +263,42 @@ export default class TransactionService {
    * Retrieves a transaction by its UID or ID.
    *
    * @param {string|number} id - The unique identifier (UID) or ID of the transaction to retrieve.
+   * @param trx
    * @return {Promise<Transaction>} A promise that resolves to the retrieved transaction.
    * @throws {TransactionNotFoundException} If no transaction is found with the provided UID or ID.
    */
-  async getByUidOrId(id: string | number): Promise<Transaction> {
+  async getById(id: number, trx?: TransactionClientContract): Promise<Transaction> {
+    transactionLog.debug(
+      'TRANSACTION_LOOKUP',
+      { transaction: { id } },
+      'Looking up transaction by id'
+    )
+    const transaction = await this.transactionRepository.findById(id, trx)
+    if (!transaction) throw new TransactionNotFoundException()
+
+    transactionLog.info(
+      'TRANSACTION_RETRIEVED',
+      { transaction: { id: transaction.id } },
+      'Transaction retrieved'
+    )
+    return transaction
+  }
+
+  /**
+   * Retrieves a transaction by its UID or ID.
+   *
+   * @param {string | number} id - The unique identifier (UID) or ID of the transaction.
+   * @param {TransactionClientContract} [trx] - Optional transaction client for managing database transactions.
+   * @return {Promise<Transaction>} - A promise that resolves to the retrieved transaction.
+   * @throws {TransactionNotFoundException} - Throws an exception if no transaction is found.
+   */
+  async getByUidOrId(id: string | number, trx?: TransactionClientContract): Promise<Transaction> {
     transactionLog.debug(
       'TRANSACTION_LOOKUP',
       { transaction: { id } },
       'Looking up transaction by id or uid'
     )
-    const transaction = await this.transactionRepository.findByUidOrId(id)
-
+    const transaction = await this.transactionRepository.findByUidOrId(id, trx)
     if (!transaction) throw new TransactionNotFoundException()
 
     transactionLog.info(

@@ -17,19 +17,18 @@ import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import WalletAdjustException from '#features/wallet/infrastructure/exceptions/wallet_adjust_exception'
-import BaseWebhookHandler, {
-  WEBHOOK_SUCCESS_RESPONSE,
-} from '#features/webhooks/application/use_cases/base_webhook_handler'
+import BaseWebhookHandler, { WEBHOOK_SUCCESS_RESPONSE } from './base_webhook_handler.js'
+import emitter from '@adonisjs/core/services/emitter'
 
 @inject()
 export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
   /**
-   * Constructs an instance of the class, initializing required services.
+   * Constructs an instance of the class with the given service dependencies.
    *
-   * @param {PaymentService} paymentService The service responsible for handling payment-related operations.
-   * @param {TransactionService} transactionService The service responsible for managing transactions.
-   * @param {WalletService} walletService The service for handling wallet-related operations.
-   * @param {LedgerService} ledgerService The service for managing ledger entries and operations.
+   * @param {PaymentService} paymentService - The service responsible for handling payment operations.
+   * @param {TransactionService} transactionService - The service used to manage transaction-related processes.
+   * @param {WalletService} walletService - The service managing wallet-related functionality.
+   * @param {LedgerService} ledgerService - The service responsible for maintaining ledger management and operations.
    */
   constructor(
     protected readonly paymentService: PaymentService,
@@ -41,11 +40,12 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
   }
 
   /**
-   * Handles a transfer webhook event.
+   * Processes a transfer webhook by validating the payload, loading associated transaction details,
+   * and performing the appropriate actions based on the transaction status.
    *
-   * @param {WebhookRequestDto} payload - The webhook payload containing transaction details.
-   * @param {TransactionStatus} status - The status of the transaction.
-   * @return {Promise<WebhookResponseDto>} A promise that resolves with the webhook response.
+   * @param {WebhookRequestDto} payload - The payload received from the webhook, containing transaction details.
+   * @param {TransactionStatus} status - The status of the transaction as indicated by the webhook.
+   * @return {Promise<WebhookResponseDto>} A promise resolving to the response object for the webhook.
    */
   async execute(
     payload: WebhookRequestDto,
@@ -61,11 +61,7 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
     )
 
     return this.withTransaction(async (trx) => {
-      const { transaction, payment, wallet } = await this.loadTransactionWithWallet(
-        reference,
-        this.walletService,
-        trx
-      )
+      const { transaction, payment } = await this.loadTransactionWithPayment(reference, trx)
 
       if (this.isIdempotent(transaction, payment, status)) {
         paymentLog.warn(
@@ -80,18 +76,23 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
         return WEBHOOK_SUCCESS_RESPONSE
       }
 
+      const wallet = await this.loadWallet(this.walletService, transaction, trx)
       const operatorResponse = this.buildOperatorResponse(payload)
 
-      if (status === TransactionStatus.SUCCESS) {
-        await this.processSuccessfulTransfer(transaction, payment, wallet, operatorResponse, trx)
-      } else if (status === TransactionStatus.FAILED) {
-        await this.processFailedTransfer(transaction, payment, wallet, operatorResponse, trx)
-      } else {
-        paymentLog.warn(
-          'TRANSFER_WEBHOOK_UNKNOWN_STATUS',
-          { webhook: { reference, status } },
-          'Webhook received with unhandled status'
-        )
+      switch (status) {
+        case TransactionStatus.SUCCESS:
+          await this.processSuccessfulTransfer(transaction, payment, wallet, operatorResponse, trx)
+          break
+        case TransactionStatus.FAILED:
+          await this.processFailedTransfer(transaction, payment, wallet, operatorResponse, trx)
+          break
+        default:
+          paymentLog.warn(
+            'TRANSFER_WEBHOOK_UNKNOWN_STATUS',
+            { webhook: { reference, status } },
+            'Webhook received with unhandled status'
+          )
+          break
       }
 
       paymentLog.info(
@@ -104,15 +105,15 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
   }
 
   /**
-   * Processes a successful transfer by updating the payment and transaction statuses, recording the transaction in the ledger,
-   * and dispatching an event to signal the completion of the transfer.
+   * Handles the successful processing of a transfer by updating payment and transaction statuses,
+   * recording the transfer in the ledger, and dispatching a transfer completion event.
    *
    * @param {Transaction} transaction - The transaction object containing details of the transfer.
-   * @param {Payment} payment - The payment object representing the payment being processed.
-   * @param {Wallet} wallet - The wallet object associated with the user performing the transfer.
-   * @param {any} operatorResponse - The response received from the payment operator.
-   * @param {TransactionClientContract} trx - The database transaction object to ensure atomic operations.
-   * @return {Promise<void>} A promise that resolves when the processing of the successful transfer is complete.
+   * @param {Payment} payment - The payment object associated with the transfer.
+   * @param {Wallet} wallet - The wallet of the user related to the transfer.
+   * @param {any} operatorResponse - The response data received from the operator for the transfer.
+   * @param {TransactionClientContract} trx - The database transaction object for ensuring atomicity.
+   * @return {Promise<void>} A promise that resolves when all processing steps are completed.
    */
   private async processSuccessfulTransfer(
     transaction: Transaction,
@@ -135,6 +136,11 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
       trx
     )
 
+    emitter.emit('activity:transaction-log', {
+      event: 'SUCCESS',
+      transactionId: transaction.reference,
+    })
+
     this.dispatchEvent(
       TransfertTransactionCompleted,
       <TransfertTransactionCompletedPayload>{
@@ -142,7 +148,7 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
         amount: transaction.amount,
         userId: transaction.usersUid,
         balanceAfter: currentBalance,
-        beneficiaryPhone: payment.paymentDetails?.phone || 'unknown',
+        beneficiaryPhone: this.paymentService.extractBeneficiaryPhone(payment),
       },
       'TRANSFER_COMPLETED',
       transaction.reference
@@ -150,15 +156,16 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
   }
 
   /**
-   * Processes a failed transfer by marking the transaction and payment as failed,
+   * Handles the processing of a failed transfer by marking the transaction and payment as failed,
    * refunding the wallet balance, and recording the reversal in the ledger.
    *
-   * @param {Transaction} transaction - The transaction object related to the failed transfer.
+   * @param {Transaction} transaction - The transaction object representing the failed transfer.
    * @param {Payment} payment - The payment object associated with the failed transaction.
-   * @param {Wallet} wallet - The wallet object to be credited with the refunded amount.
-   * @param {any} operatorResponse - The response object from the operator detailing failure information.
-   * @param {TransactionClientContract} trx - The database transaction context used for atomic operations.
-   * @return {Promise<void>} A promise that resolves upon the successful processing of the failed transfer.
+   * @param {Wallet} wallet - The wallet object to be credited with the refund.
+   * @param {any} operatorResponse - The response object from the operator detailing the failure.
+   * @param {TransactionClientContract} trx - The transaction client contract for database operations.
+   * @return {Promise<void>} A promise that resolves when the failed transfer has been successfully processed.
+   * @throws {WalletAdjustException} If the wallet refund fails during processing.
    */
   private async processFailedTransfer(
     transaction: Transaction,
@@ -202,6 +209,21 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
       refunded.balance,
       trx
     )
+
+    emitter.emit('activity:transaction-log', {
+      event: 'WALLET_CREDITED',
+      transactionId: transaction.reference,
+      walletId: String(wallet.id),
+      amount: refundAmount,
+      balanceBefore: Number(wallet.balance),
+      balanceAfter: refunded.balance,
+    })
+
+    emitter.emit('activity:transaction-log', {
+      event: 'FAILED',
+      transactionId: transaction.reference,
+      errorMessage: 'Transfer failed via webhook — wallet refunded',
+    })
 
     transactionLog.info(
       'WALLET_REFUND_SUCCESS',

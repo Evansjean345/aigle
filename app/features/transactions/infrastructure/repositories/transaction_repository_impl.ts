@@ -49,18 +49,44 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    * Retrieves a transaction record by matching either the unique user identifier (UID) or the record's numeric ID.
    *
    * @param {string | number} id - The unique identifier, which can be either a string-based UID or a numeric ID.
+   * @param trx - The transaction client to be used for saving the transaction.
    * @return {Promise<Transaction|null>} A promise that resolves to the transaction record if found, or null if no matching record exists.
    */
-  async findByUidOrId(id: string | number): Promise<Transaction | null> {
-    return await Transaction.query()
+  async findByUidOrId(
+    id: string | number,
+    trx?: TransactionClientContract
+  ): Promise<Transaction | null> {
+    const query = Transaction.query({ client: trx })
       .preload('user')
       .preload('payment')
-      .preload('ledger', (query) => {
-        query.preload('wallet')
+      .preload('ledger', (q) => {
+        q.preload('wallet')
       })
-      .where('transactionsUid', id)
-      .orWhere('id', id)
-      .first()
+      .where((builder) => {
+        builder.where('transactionsUid', id).orWhere('id', id)
+      })
+
+    if (trx) {
+      query.forUpdate()
+    }
+
+    return await query.first()
+  }
+
+  /**
+   * Finds a transaction by its unique identifier.
+   *
+   * @param {number} id - The unique identifier of the transaction to find.
+   * @param {TransactionClientContract} [trx] - Optional database transaction client to use for the query.
+   * @return {Promise<Transaction | null>} A promise that resolves to the transaction if found, or null if not found.
+   */
+  async findById(id: number, trx?: TransactionClientContract): Promise<Transaction | null> {
+    const query = Transaction.query({ client: trx }).where('id', id)
+    if (trx) {
+      query.forUpdate()
+    }
+
+    return await query.first()
   }
 
   /**

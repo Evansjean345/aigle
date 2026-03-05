@@ -3,7 +3,7 @@ import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import ServiceProviderMethod from '#features/catalogs/domain/models/service_provider_method'
 
-export type ProviderType = 'mobile_money' | 'bank' | 'credit-card'
+export type ProviderType = 'mobile_money' | 'bank' | 'wallet'
 
 export default class Provider extends BaseModel {
   public static table = 'providers'

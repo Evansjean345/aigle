@@ -1,4 +1,5 @@
 import router from '@adonisjs/core/services/router'
+import { webhookThrottle } from '#start/limiter'
 
 const DepositWebhookController = () =>
   import('#features/webhooks/presentation/mobile/controllers/deposit_webhook_controller')
@@ -31,5 +32,6 @@ const mobileWebhookRoutes = () =>
       ])
     })
     .prefix('mobile/webhooks')
+    .use(webhookThrottle)
 
 export default mobileWebhookRoutes

@@ -8,7 +8,6 @@ import ResetPasswordTokenProvider from '#features/authentication/domain/interfac
 import InvalidResetTokenException from '#features/authentication/infrastructure/exceptions/invalid_reset_token_exception'
 import User from '#features/user/domain/models/user'
 import { AuthenticatedProfileAndTokenResponseDto } from '#features/authentication/application/dtos/profile.dto'
-import { toAuthenticatedUserProfileAndTokenResponse } from '#features/authentication/application/mappers/authenticated_user.mapper'
 
 @inject()
 export default class ResetPasswordUseCase {
@@ -59,6 +58,6 @@ export default class ResetPasswordUseCase {
     await user.load('wallet')
     await user.load('kycDocument')
 
-    return toAuthenticatedUserProfileAndTokenResponse(user, token.value!.release())
+    return AuthenticatedProfileAndTokenResponseDto.from(user, token.value!.release())
   }
 }

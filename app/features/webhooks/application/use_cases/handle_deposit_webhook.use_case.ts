@@ -17,12 +17,20 @@ import paymentLog from '#shared/infrastructure/logging/payment_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import WalletAdjustException from '#features/wallet/infrastructure/exceptions/wallet_adjust_exception'
-import BaseWebhookHandler, {
-  WEBHOOK_SUCCESS_RESPONSE,
-} from '#features/webhooks/application/use_cases/base_webhook_handler'
+import BaseWebhookHandler, { WEBHOOK_SUCCESS_RESPONSE } from './base_webhook_handler.js'
+import emitter from '@adonisjs/core/services/emitter'
 
 @inject()
 export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
+  /**
+   * Initializes a new instance of the class with the provided services.
+   *
+   * @param {PaymentService} paymentService - The service responsible for handling payment-related operations.
+   * @param {TransactionService} transactionService - The service responsible for handling transaction-related operations.
+   * @param {WalletService} walletService - The service responsible for handling wallet-related operations.
+   * @param {LedgerService} ledgerService - The service responsible for handling ledger-related operations.
+   *
+   * */
   constructor(
     protected readonly paymentService: PaymentService,
     protected readonly transactionService: TransactionService,
@@ -33,12 +41,12 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
   }
 
   /**
-   * Handles the execution of a deposit webhook by validating the payload, processing the transaction,
-   * and managing the transaction status updates.
+   * Handles the execution of a webhook request, processes the transaction based on the provided status,
+   * and returns a response indicating the result of the operation.
    *
-   * @param {WebhookRequestDto} payload - The request data received from the webhook, including transaction details.
-   * @param {TransactionStatus} status - The status of the transaction received in the webhook (e.g., SUCCESS, FAILED).
-   * @return {Promise<WebhookResponseDto>} A response object indicating the result of webhook processing.
+   * @param {WebhookRequestDto} payload - The request payload containing webhook data, including the transaction reference.
+   * @param {TransactionStatus} status - The status of the transaction from the webhook, indicating success, failure, or other states.
+   * @return {Promise<WebhookResponseDto>} A promise resolving to the response object indicating the result of the webhook processing.
    */
   async execute(
     payload: WebhookRequestDto,
@@ -54,11 +62,7 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
     )
 
     return this.withTransaction(async (trx) => {
-      const { transaction, payment, wallet } = await this.loadTransactionWithWallet(
-        reference,
-        this.walletService,
-        trx
-      )
+      const { transaction, payment } = await this.loadTransactionWithPayment(reference, trx)
 
       if (this.isIdempotent(transaction, payment, status)) {
         paymentLog.warn(
@@ -73,18 +77,23 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
         return WEBHOOK_SUCCESS_RESPONSE
       }
 
+      const wallet = await this.loadWallet(this.walletService, transaction, trx)
       const operatorResponse = this.buildOperatorResponse(payload)
 
-      if (status === TransactionStatus.SUCCESS) {
-        await this.processSuccessfulDeposit(transaction, payment, wallet, operatorResponse, trx)
-      } else if (status === TransactionStatus.FAILED) {
-        await this.processFailedDeposit(transaction, payment, operatorResponse, trx)
-      } else {
-        paymentLog.warn(
-          'DEPOSIT_WEBHOOK_UNKNOWN_STATUS',
-          { webhook: { reference, status } },
-          'Webhook received with unhandled status'
-        )
+      switch (status) {
+        case TransactionStatus.SUCCESS:
+          await this.processSuccessfulDeposit(transaction, payment, wallet, operatorResponse, trx)
+          break
+        case TransactionStatus.FAILED:
+          await this.processFailedDeposit(transaction, payment, operatorResponse, trx)
+          break
+        default:
+          paymentLog.warn(
+            'DEPOSIT_WEBHOOK_UNKNOWN_STATUS',
+            { webhook: { reference, status } },
+            'Webhook received with unhandled status'
+          )
+          break
       }
 
       paymentLog.info(
@@ -97,16 +106,15 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
   }
 
   /**
-   * Processes a successful deposit transaction by marking payment and transaction success, updating the wallet balance,
-   * recording the deposit in the ledger, and dispatching a completion event.
+   * Processes a successful deposit transaction by updating payment status, crediting the user's wallet,
+   * updating the transaction status, recording the transaction in the ledger, and dispatching a completion event.
    *
-   * @param {Transaction} transaction - The transaction object containing details of the deposit.
-   * @param {Payment} payment - The payment object corresponding to the deposit transaction.
-   * @param {Wallet} wallet - The wallet object to be credited with the deposit amount.
+   * @param {Transaction} transaction - The deposit transaction details.
+   * @param {Payment} payment - The payment object associated with the transaction.
+   * @param {Wallet} wallet - The user's wallet to be credited.
    * @param {any} operatorResponse - The response received from the payment operator.
-   * @param {TransactionClientContract} trx - The database transaction object for ensuring atomicity.
-   * @return {Promise<void>} A promise that resolves once the deposit processing is successfully completed.
-   * @throws {WalletAdjustException} If the wallet crediting operation fails.
+   * @param {TransactionClientContract} trx - The database transaction client used for performing atomic operations.
+   * @return {Promise<void>} A promise that resolves when all operations are successfully completed.
    */
   private async processSuccessfulDeposit(
     transaction: Transaction,
@@ -146,6 +154,20 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
       trx
     )
 
+    emitter.emit('activity:transaction-log', {
+      event: 'WALLET_CREDITED',
+      transactionId: transaction.reference,
+      walletId: String(wallet.id),
+      amount: creditAmount,
+      balanceBefore: Number(wallet.balance),
+      balanceAfter: updatedWallet.balance!,
+    })
+
+    emitter.emit('activity:transaction-log', {
+      event: 'SUCCESS',
+      transactionId: transaction.reference,
+    })
+
     this.dispatchEvent(
       DepositTransactionCompleted,
       {
@@ -160,13 +182,14 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
   }
 
   /**
-   * Processes a failed deposit by marking the associated transaction and payment as failed and dispatching a failure event.
+   * Processes a failed deposit by marking the transaction and payment as failed in the system
+   * and dispatching the appropriate event with failure details.
    *
-   * @param {Transaction} transaction - The transaction object associated with the failed deposit.
+   * @param {Transaction} transaction - The transaction object representing the failed deposit.
    * @param {Payment} payment - The payment object associated with the failed deposit.
-   * @param {any} operatorResponse - The operator's response data related to the failed deposit.
-   * @param {TransactionClientContract} trx - The database transaction client to ensure atomicity.
-   * @return {Promise<void>} A promise that resolves when the failed deposit processing is complete.
+   * @param {any} operatorResponse - The response received from the payment operator.
+   * @param {TransactionClientContract} trx - The transaction client contract used for database operations.
+   * @return {Promise<void>} A promise that resolves once the failed deposit has been fully processed.
    */
   private async processFailedDeposit(
     transaction: Transaction,
@@ -182,6 +205,12 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
 
     await this.safeMarkTransactionFailed(transaction.id, trx)
     await this.safeMarkPaymentFailed(payment.id, operatorResponse, trx)
+
+    emitter.emit('activity:transaction-log', {
+      event: 'FAILED',
+      transactionId: transaction.reference,
+      errorMessage: 'Payment failed via webhook',
+    })
 
     this.dispatchEvent(
       DepositTransactionFailed,

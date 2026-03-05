@@ -94,4 +94,12 @@ export default await Env.create(new URL('../', import.meta.url), {
   QUEUE_REDIS_HOST: Env.schema.string({ format: 'host' }),
   QUEUE_REDIS_PORT: Env.schema.number(),
   QUEUE_REDIS_PASSWORD: Env.schema.string.optional(),
+
+  /*
+ |----------------------------------------------------------
+ | Variables for configuration maxmind database connection
+ |----------------------------------------------------------
+ */
+  MAXMIND_LICENSE_KEY: Env.schema.string(),
+  MAXMIND_DB_PATH: Env.schema.string(),
 })

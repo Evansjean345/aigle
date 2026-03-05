@@ -127,7 +127,7 @@ app/
 │   │   │   ├── controllers/auth_controller.ts
 │   │   │   ├── services/mobile_auth_service.ts
 │   │   │   ├── use_cases/
-│   │   │   │   ├── login_use_case.ts
+│   │   │   │   ├── verify_credentials_use_case.ts
 │   │   │   │   └── register_use_case.ts
 │   │   │   ├── middleware/mobile_auth_middleware.ts
 │   │   │   └── routes/auth_routes.ts
@@ -335,7 +335,7 @@ mv app/repositories/* app/shared/repositories/
 ### Étape 3: Création des Use Cases Mobile
 
 #### Mobile Authentication Use Cases
-- `login_use_case.ts`: Logique de connexion mobile
+- `verify_credentials_use_case.ts`: Logique de connexion mobile
 - `register_use_case.ts`: Logique d'inscription
 - `verify_otp_use_case.ts`: Vérification OTP
 

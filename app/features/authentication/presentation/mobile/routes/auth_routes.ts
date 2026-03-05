@@ -9,17 +9,18 @@ const AuthController = () =>
 export default function mobileAuthRoutes() {
   return router
     .group(() => {
-      // Public routes without device middleware (login, checkPhone, register)
-      router.post('check-phone', [AuthController, 'checkPhone'])
-      router.post('register', [AuthController, 'register'])
-      router.post('verify-credentials', [AuthController, 'verifyUserCredentials'])
+      router
+        .group(() => {
+          router.post('check-phone', [AuthController, 'checkPhone'])
+          router.post('register', [AuthController, 'register'])
+          router.post('verify-credentials', [AuthController, 'verifyCredentials'])
+        })
+        .use(middleware.geoip())
 
       // Public routes with device middleware
       router
         .group(() => {
-          router.post('login', [AuthController, 'login']).use(otpThrottle)
           router.post('verify-account', [AuthController, 'verifyUserAccount'])
-          // router.post('reset-password', [AuthController, 'resetPassword'])
           router.post('send-otp', [AuthController, 'sendOtp']).use(otpThrottle)
 
           // Forgot password routes
@@ -27,7 +28,7 @@ export default function mobileAuthRoutes() {
           router.post('forgot-password/verify', [AuthController, 'forgotPasswordVerify'])
           router.post('forgot-password/reset', [AuthController, 'forgotPasswordReset'])
         })
-        .use(middleware.device())
+        .use([middleware.device(), middleware.geoip()])
 
       // Protected routes (authentication + device required)
       router

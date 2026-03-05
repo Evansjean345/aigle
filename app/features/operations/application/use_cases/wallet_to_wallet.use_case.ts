@@ -34,6 +34,8 @@ import transferLog from '#shared/infrastructure/logging/transfer_log'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import WalletUpdateFailedException from '#features/operations/infrastructure/exceptions/wallet_update_failed_exception'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
+import emitter from '@adonisjs/core/services/emitter'
+import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
 
 interface BalanceSnapshot {
   senderBefore: number
@@ -84,14 +86,12 @@ export default class WalletToWalletUseCase {
    * @param payload - The transfer request payload containing sender and recipient details.
    * @param currentUser - The user initiating the transfer.
    * @param mode - The transfer mode (e.g., instant, scheduled).
-   * @param deviceInfo - The device information associated with the transfer request.
    * @param idempotencyKey - The idempotency key for the transaction.
    */
   async execute(
     payload: WalletToWalletRequestDto,
     currentUser: User,
     mode: TransferMode,
-    deviceInfo?: DeviceHeadersInfo,
     idempotencyKey?: string
   ): Promise<WalletToWalletResponseDto> {
     this.logTransferStart(currentUser, mode, payload)
@@ -100,26 +100,34 @@ export default class WalletToWalletUseCase {
     await this.throttleCache.verifyThrottle(currentUser.usersUid)
 
     await Promise.all([
-      this.accountValidationService.validateDevice(currentUser, deviceInfo),
+      this.accountValidationService.validateDevice(
+        currentUser,
+        payload.deviceInfo,
+        payload.geoIpLocation
+      ),
       this.accountValidationService.verifyPinForUser(currentUser, payload.pincode),
     ])
 
     const context = await this.contextFactory.create(payload, currentUser, mode)
-    await this.walletTransferValidationService.validate(context, mode, payload.recipient_phone)
+    await this.walletTransferValidationService.validate(context, mode, payload.recipientPhone)
 
-    return this.executeTransfer(context, idempotencyKey)
+    return this.executeTransfer(context, payload.deviceInfo, payload.geoIpLocation, idempotencyKey)
   }
 
   /**
-   * Executes a wallet-to-wallet transfer, managing the transaction process and updating balances.
-   * Rolls back the transaction in case of an error and logs the failure.
+   * Executes a wallet-to-wallet transfer between the sender and recipient wallets.
    *
-   * @param {TransferContext} context - The transfer context containing details about the sender and recipient wallets.
-   * @param idempotencyKey
-   * @return {Promise<WalletToWalletResponseDto>} A promise that resolves to an object containing the transfer status and reference on success.
+   * @param {TransferContext} context - The context of the transfer, including sender and recipient wallet details, amount, and user context.
+   * @param {DeviceHeadersInfo} deviceInfo - Metadata about the device from which the transfer is initiated.
+   * @param {GeoIpLocation} geoIpLocation - GeoIP location information of the user initiating the transfer.
+   * @param {string} [idempotencyKey] - An optional key to ensure idempotency of the transfer operation.
+   * @return {Promise<WalletToWalletResponseDto>} A promise resolving with the response details of the wallet-to-wallet transfer, which includes the transaction reference and status.
+   * @throws {Error} Throws an error if the transfer fails during the process.
    */
   private async executeTransfer(
     context: TransferContext,
+    deviceInfo: DeviceHeadersInfo,
+    geoIpLocation: GeoIpLocation,
     idempotencyKey?: string
   ): Promise<WalletToWalletResponseDto> {
     const { senderWallet, recipientWallet } = context
@@ -134,8 +142,38 @@ export default class WalletToWalletUseCase {
     const trx = await db.transaction()
 
     try {
-      const transferResult = await this.processTransfer(context, balances, trx, idempotencyKey)
+      const transferResult = await this.processTransfer(
+        context,
+        balances,
+        trx,
+        deviceInfo,
+        geoIpLocation,
+        idempotencyKey
+      )
       await trx.commit()
+
+      emitter.emit('activity:transaction-log', {
+        event: 'WALLET_DEBITED',
+        transactionId: transferResult.senderTx.reference,
+        walletId: String(senderWallet.id),
+        amount: context.total,
+        balanceBefore: balances.senderBefore,
+        balanceAfter: balances.senderAfter,
+      })
+
+      emitter.emit('activity:transaction-log', {
+        event: 'WALLET_CREDITED',
+        transactionId: transferResult.recipientTx.reference,
+        walletId: String(recipientWallet.id),
+        amount: context.total,
+        balanceBefore: balances.recipientBefore,
+        balanceAfter: balances.recipientAfter,
+      })
+
+      emitter.emit('activity:transaction-log', {
+        event: 'SUCCESS',
+        transactionId: transferResult.senderTx.reference,
+      })
 
       const responseResult = {
         message: 'Transfert wallet-to-wallet effectué avec succès',
@@ -186,26 +224,43 @@ export default class WalletToWalletUseCase {
   }
 
   /**
-   * Processes a wallet-to-wallet transfer by updating balances and creating transactions.
-   * Returns a promise that resolves to an object containing the sender and recipient transactions.
+   * Processes a wallet-to-wallet transfer by creating the necessary sender and recipient entries,
+   * updating balances, and logging the results.
    *
-   * @param {TransferContext} context - The transfer context containing sender, recipient, and transfer details.
-   * @param balances - The balance snapshot before the transfer.
-   * @param trx - The database transaction client for atomic operations.
-   * @param idempotencyKey
-   * @private
+   * @param {TransferContext} context - The context of the transfer, containing relevant transfer details.
+   * @param {BalanceSnapshot} balances - The snapshot of sender and recipient balances before the transfer.
+   * @param {TransactionClientContract} trx - The database transaction client for ensuring atomic operations.
+   * @param {DeviceHeadersInfo} deviceInfo - Information about the device initiating the transfer.
+   * @param {GeoIpLocation} geoIpLocation - The geographical location information of the transfer initiator.
+   * @param {string} [idempotencyKey] - Optional idempotency key to ensure the transfer is processed only once.
+   * @return {Promise<TransferResult>} A promise resolving to the result of the transfer, including details of the sender and recipient transactions and updated balances.
    */
   private async processTransfer(
     context: TransferContext,
     balances: BalanceSnapshot,
     trx: TransactionClientContract,
+    deviceInfo: DeviceHeadersInfo,
+    geoIpLocation: GeoIpLocation,
     idempotencyKey?: string
   ): Promise<TransferResult> {
     // Step 1: Create Sender entries (Debit balance, Transaction, Payment, Ledger)
-    const senderTx = await this.createSenderEntries(context, balances, trx, idempotencyKey)
+    const senderTx = await this.createSenderEntries(
+      context,
+      balances,
+      trx,
+      deviceInfo,
+      geoIpLocation,
+      idempotencyKey
+    )
 
     // Step 2: Create Recipient entries (Credit balance, Transaction, Payment, Ledger)
-    const recipientTx = await this.createRecipientEntries(context, balances, trx)
+    const recipientTx = await this.createRecipientEntries(
+      context,
+      balances,
+      trx,
+      deviceInfo,
+      geoIpLocation
+    )
 
     this.logBalancesUpdated(context, balances)
 
@@ -232,6 +287,8 @@ export default class WalletToWalletUseCase {
     context: TransferContext,
     balances: BalanceSnapshot,
     trx: TransactionClientContract,
+    deviceInfo: DeviceHeadersInfo,
+    geoIpLocation: GeoIpLocation,
     idempotencyKey?: string
   ): Promise<Transaction> {
     const { senderWallet, recipientWallet, amount, fees, total, currentUser } = context
@@ -264,6 +321,8 @@ export default class WalletToWalletUseCase {
       },
       senderWallet.id,
       currentUser,
+      deviceInfo,
+      geoIpLocation,
       trx
     )
 
@@ -292,10 +351,11 @@ export default class WalletToWalletUseCase {
   private async createRecipientEntries(
     context: TransferContext,
     balances: BalanceSnapshot,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    deviceInfo: DeviceHeadersInfo,
+    geoIpLocation: GeoIpLocation
   ): Promise<Transaction> {
     const { senderWallet, recipientWallet, total } = context
-
     const recipientAfter = await this.walletService.creditBalance(recipientWallet.id, total, trx)
 
     if (!recipientAfter) {
@@ -324,6 +384,8 @@ export default class WalletToWalletUseCase {
       },
       recipientWallet.id,
       recipientWallet.user,
+      deviceInfo,
+      geoIpLocation,
       trx
     )
 
@@ -426,7 +488,7 @@ export default class WalletToWalletUseCase {
         transfer: {
           mode,
           ...(mode === TransferMode.BY_QRCODE && { qrcode: payload.token }),
-          ...(mode === TransferMode.BY_PHONE && { recipientPhone: payload.recipient_phone }),
+          ...(mode === TransferMode.BY_PHONE && { recipientPhone: payload.recipientPhone }),
           amount: payload.amount,
         },
       },

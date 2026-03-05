@@ -41,6 +41,7 @@ export default defineConfig({
     () => import('@adonisjs/lucid/database_provider'),
     () => import('@adonisjs/auth/auth_provider'),
     () => import('@adonisjs/drive/drive_provider'),
+    () => import('#providers/app_provider'),
     () => import('#providers/repository_provider'),
     {
       file: () => import('@adonisjs/redis/redis_provider'),

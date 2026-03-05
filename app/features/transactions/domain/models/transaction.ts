@@ -12,6 +12,7 @@ import string from '@adonisjs/core/helpers/string'
 import { v4 as uuidv4 } from 'uuid'
 import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations'
 import Payment from '#features/transactions/domain/models/payment'
+import TransactionSecurityContext from '#features/transactions/domain/models/transaction_security_context'
 import User from '#features/users/domain/models/user'
 import Ledger from '#features/ledger/domain/models/ledger'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
@@ -80,6 +81,11 @@ export default class Transaction extends BaseModel {
     foreignKey: 'transactionId',
   })
   declare ledger: HasOne<typeof Ledger>
+
+  @hasOne(() => TransactionSecurityContext, {
+    foreignKey: 'transactionId',
+  })
+  declare securityContext: HasOne<typeof TransactionSecurityContext>
 
   @belongsTo(() => User, {
     foreignKey: 'usersId',

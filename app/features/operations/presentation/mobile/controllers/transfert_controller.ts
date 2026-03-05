@@ -2,11 +2,12 @@ import { HttpContext } from '@adonisjs/core/http'
 import { transfertValidator } from '#features/operations/presentation/mobile/validators/transfert_validator'
 import TransfertUseCase from '#features/operations/application/use_cases/transfert.usecase'
 import { inject } from '@adonisjs/core'
-import { toTransfertDto } from '#features/operations/application/mappers/transfert.mapper'
+import { TransfertRequestDto } from '#features/operations/application/dto/transfert.dto'
 import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
 import { TransferMode } from '#features/operations/application/services/wallet_transfer_context_service'
 import { PaymentMethod } from '#features/transactions/domain/enums/payment_method'
 import User from '#features/user/domain/models/user'
+import { WalletToWalletRequestDto } from '#features/operations/application/dto/wallet_to_wallet.dto'
 
 /**
  * Controller responsible for handling user transactions.
@@ -17,11 +18,11 @@ export default class TransfertController {
    * Constructor for initializing the class with required use cases.
    *
    * @param {TransfertUseCase} transfertUseCase - An instance of TransfertUseCase to handle transfer operations.
-   * @param {WalletToWalletUseCase} walletTowalletUseCase - An instance of WalletToWalletUseCase to handle wallet-to-wallet transactions.
+   * @param {WalletToWalletUseCase} walletToWalletUseCase - An instance of WalletToWalletUseCase to handle wallet-to-wallet transactions.
    */
   constructor(
     private readonly transfertUseCase: TransfertUseCase,
-    private readonly walletTowalletUseCase: WalletToWalletUseCase
+    private readonly walletToWalletUseCase: WalletToWalletUseCase
   ) {}
 
   /**
@@ -34,7 +35,10 @@ export default class TransfertController {
    * @param {Object} HttpContext.auth - The authentication object containing the authenticated user.
    * @return {Promise<void>} The HTTP response containing the result of the transfer operation.
    */
-  async handle({ request, response, auth, deviceInfo }: HttpContext): Promise<void> {
+  async handle({ request, response, auth, deviceInfo, geoLocation }: HttpContext): Promise<void> {
+    console.log('walletToWalletController')
+    console.log(deviceInfo)
+
     const user = auth.user! as User
     const idempotencyKey = request.header('X-Idempotency-Key')
     const payload = await request.validateUsing(transfertValidator)
@@ -44,9 +48,8 @@ export default class TransfertController {
     switch (paymentMethod) {
       case PaymentMethod.MOBILE_MONEY:
         const result = await this.transfertUseCase.execute(
-          toTransfertDto(payload),
+          TransfertRequestDto.fromRequest(payload, deviceInfo, geoLocation),
           user,
-          deviceInfo,
           idempotencyKey
         )
         return response.ok(result)
@@ -57,14 +60,14 @@ export default class TransfertController {
           pincode: payload.pincode,
           include_fees: payload.include_fees,
         }
-        const walletTOWalletResult = await this.walletTowalletUseCase.execute(
-          data,
+
+        const walletToWalletResult = await this.walletToWalletUseCase.execute(
+          WalletToWalletRequestDto.fromRequest(data, deviceInfo, geoLocation),
           user,
           TransferMode.BY_PHONE,
-          deviceInfo,
           idempotencyKey
         )
-        return response.ok(walletTOWalletResult)
+        return response.ok(walletToWalletResult)
 
       default:
         return response.badRequest({ message: 'Payment method not supported' })

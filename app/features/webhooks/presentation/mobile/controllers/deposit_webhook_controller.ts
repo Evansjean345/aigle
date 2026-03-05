@@ -5,24 +5,24 @@ import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_re
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
+import emitter from '@adonisjs/core/services/emitter'
 
 @inject()
 export default class DepositWebhookController {
   /**
-   * Initializes a new instance of the class.
+   * Creates an instance of the class.
    *
-   * @param {HandleDepositWebhookUseCase} handleDepositWebhook - The use case responsible for handling deposit webhooks.
+   * @param {HandleDepositWebhookUseCase} handleDepositWebhook - The use case responsible for handling the deposit webhook logic.
    */
   constructor(private readonly handleDepositWebhook: HandleDepositWebhookUseCase) {}
 
   /**
-   * Handles the deposit success webhook by processing the incoming payload and updating the transaction status to success.
-   * Logs relevant information and processes any errors that occur during the execution.
+   * Handles the deposit success webhook and processes the corresponding logic.
    *
-   * @param {Object} HttpContext - The context object containing the HTTP request and response.
-   * @param {Object} HttpContext.request - The HTTP request object, providing details such as headers, URL, IP, and payload.
-   * @param {Object} HttpContext.response - The HTTP response object, used to send a response back to the client.
-   * @return {Promise<void>} A promise that resolves with no value once the webhook processing is complete.
+   * @param {Object} context - The HTTP context object containing the request and response.
+   * @param {Object} context.request - The HTTP request object, which includes information such as headers, body, and URL.
+   * @param {Object} context.response - The HTTP response object used to send a response back to the client.
+   * @return {Promise<void>} A promise that resolves when the deposit webhook is successfully processed or handled in case of an error.
    */
   async depositSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
@@ -31,12 +31,21 @@ export default class DepositWebhookController {
       'DEPOSIT_SUCCESS_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
-        headers: request.headers(),
+        contentType: request.header('content-type'),
         reference: payload?.data?.reference,
         ip: request.ip(),
       },
       'Received deposit success webhook'
     )
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'WEBHOOK_RECEIVED',
+        reference: payload?.data?.reference,
+        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        ipAddress: request.ip(),
+      })
+      .catch((_) => {})
 
     try {
       const result = await this.handleDepositWebhook.execute(payload, TransactionStatus.SUCCESS)
@@ -57,14 +66,12 @@ export default class DepositWebhookController {
   }
 
   /**
-   * Handles the deposit failure webhook received from an external service.
-   * This method processes the webhook payload, logs relevant information,
-   * and updates the system with the failed transaction state.
+   * Handles the deposit failure webhook by processing the incoming payload and updating the transaction status to "FAILED".
    *
-   * @param {Object} HttpContext - The HTTP context object containing the request and response.
-   * @param {Object} HttpContext.request - The incoming HTTP request object.
-   * @param {Object} HttpContext.response - The outgoing HTTP response object.
-   * @return {Promise<void>} Resolves with no value once processing is complete, sending a response status back to the caller.
+   * @param {Object} param0 - The HTTP context object.
+   * @param {Object} param0.request - The HTTP request object containing the payload and associated metadata.
+   * @param {Object} param0.response - The HTTP response object used to send responses back to the client.
+   * @return {Promise<void>} A promise that resolves with no value, indicating the method handles the response internally.
    */
   async depositFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
@@ -73,12 +80,21 @@ export default class DepositWebhookController {
       'DEPOSIT_FAILED_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
-        headers: request.headers(),
+        contentType: request.header('content-type'),
         reference: payload?.data?.reference,
         ip: request.ip(),
       },
       'Received deposit failure webhook'
     )
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'WEBHOOK_RECEIVED',
+        reference: payload?.data?.reference,
+        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        ipAddress: request.ip(),
+      })
+      .catch((_) => {})
 
     try {
       const result = await this.handleDepositWebhook.execute(payload, TransactionStatus.FAILED)

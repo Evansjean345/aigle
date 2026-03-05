@@ -8,30 +8,19 @@ import InvalidOtpException from '#features/authentication/infrastructure/excepti
 import ExpiredOtpException from '#features/authentication/infrastructure/exceptions/expired_otp_exception'
 import OtpLockedException from '#features/authentication/infrastructure/exceptions/otp_locked_exception'
 import securityLog from '#shared/infrastructure/logging/security_log'
-import NotificationService from '#features/notifications/application/services/notificaton_service'
 import { maskPhone } from '#shared/utils/utiles'
-import { mailFromEmail } from '#config/mail'
-import queue from '@rlanz/bull-queue/services/main'
-import SendMailJob from '#features/notifications/application/jobs/send_mail_job'
-import emitter from '@adonisjs/core/services/emitter'
-
-const OTP_EXPIRY_SECONDS = 600
-const OTP_EXPIRY_MINUTES = OTP_EXPIRY_SECONDS / 60
-const OTP_MAX_ATTEMPTS = 5
-const OTP_LOCK_SECONDS = 60
-const OTP_RESEND_DELAY_SECONDS = 60
+import OtpMessageTemplate from '#features/authentication/domain/interfaces/otp_message_template'
+import DefaultOtpTemplate from '#features/authentication/infrastructure/otp/templates/default_otp_template'
+import SmsOtpDelivery from '#features/authentication/infrastructure/otp/delivery/sms_otp_delivery'
+import EmailOtpDelivery from '#features/authentication/infrastructure/otp/delivery/email_otp_delivery'
+import { Exception } from '@adonisjs/core/exceptions'
 
 @inject()
 export default class OtpService {
-  /**
-   * Creates an instance of the class with the given OTP repository and notification service.
-   *
-   * @param {OtpRepository} otpRepository - The repository used for managing OTP (One-Time Password) data.
-   * @param {NotificationService} notificationService - The service used for sending notifications.
-   */
   constructor(
-    private otpRepository: OtpRepository,
-    private notificationService: NotificationService
+    private readonly otpRepository: OtpRepository,
+    private readonly smsDelivery: SmsOtpDelivery,
+    private readonly emailDelivery: EmailOtpDelivery
   ) {}
 
   /**
@@ -43,27 +32,19 @@ export default class OtpService {
 
   /**
    * Masks a given identifier based on the specified target type.
-   *
-   * @param {string} identifier - The identifier to be masked, such as a mobile number or email.
-   * @param {'mobile' | 'email'} target - The target type*/
+   */
   private maskIdentifier(identifier: string, target: 'mobile' | 'email'): string {
     return target === 'mobile' ? maskPhone(identifier) : identifier
   }
 
   /**
-   * Creates a new OTP (One-Time Password) for the given user and target.
-   * Deletes any existing OTP associated with the provided identifier and target before creating a new one.
-   *
-   * @param {string} userId - The ID of the user for whom the OTP is being created.
-   * @param {string} identifier - The target identifier, such as an email address or mobile phone number.
-   * @param {'mobile' | 'email'} target - Specifies whether the OTP is for a mobile phone or an email.
-   * @return {Promise<{ entity: Otp; code: string }>} A promise that resolves with an object containing the OTP entity and its plaintext code.
-   * @throws {OtpCreationException} If the OTP creation process encounters an error.
+   * Creates a new OTP for the given user and target.
    */
   async createOtp(
     userId: string,
     identifier: string,
-    target: 'mobile' | 'email'
+    target: 'mobile' | 'email',
+    expirySeconds: number
   ): Promise<{ entity: Otp; code: string }> {
     await this.otpRepository.delete(identifier, target)
 
@@ -76,7 +57,7 @@ export default class OtpService {
     otp.target = target
     otp.phone = target === 'mobile' ? identifier : null
     otp.email = target === 'email' ? identifier : null
-    otp.expiresAt = new Date(Date.now() + OTP_EXPIRY_SECONDS * 1000)
+    otp.expiresAt = new Date(Date.now() + expirySeconds * 1000)
     otp.attempts = 0
 
     try {
@@ -98,14 +79,18 @@ export default class OtpService {
   }
 
   /**
-   * Sends a one-time password (OTP) to the specified identifier via email or SMS.
+   * Envoie un OTP à l'identifiant fourni en utilisant le template spécifié.
+   * Le template définit le message, la durée de validité, et les règles de rate limiting.
    *
-   * @param {string} identifier - The email address or phone number to which the OTP should be sent.
-   * @param {string} userId - The unique identifier of the user requesting the OTP.
-   * @return {Promise<{ sent: boolean; waitTime?: number }>} A promise that resolves with an object indicating whether the OTP was sent (`sent: true`) and includes an optional `waitTime` (in seconds) if the user must wait before requesting a new OTP.
-   * @throws Will throw an error if the OTP could not be sent.
+   * @param {string} identifier - Numéro de téléphone ou email
+   * @param {string} userId - Identifiant de l'utilisateur
+   * @param {OtpMessageTemplate} template - Template de message OTP (par défaut : DefaultOtpTemplate)
    */
-  async sendOtp(identifier: string, userId: string): Promise<{ sent: boolean; waitTime?: number }> {
+  async sendOtp(
+    identifier: string,
+    userId: string,
+    template: OtpMessageTemplate = new DefaultOtpTemplate()
+  ): Promise<{ sent: boolean; waitTime?: number }> {
     const target = this.getTarget(identifier)
     const maskedId = this.maskIdentifier(identifier, target)
 
@@ -119,90 +104,59 @@ export default class OtpService {
         if (expiresAt > now) {
           const secondsSinceCreation = now.diff(existingOtp.createdAt, 'seconds').seconds
 
-          if (secondsSinceCreation < OTP_RESEND_DELAY_SECONDS) {
-            const waitTime = Math.ceil(OTP_RESEND_DELAY_SECONDS - secondsSinceCreation)
+          if (secondsSinceCreation < template.resendDelaySeconds) {
+            const waitTime = Math.ceil(template.resendDelaySeconds - secondsSinceCreation)
             securityLog.info(
               'OTP_RESEND_BLOCKED',
-              { identifier: maskedId, target, waitTime },
+              { identifier: maskedId, target, waitTime, context: template.context },
               'OTP resend blocked - must wait before requesting new OTP'
             )
-            return { sent: true, waitTime }
+            return { sent: false, waitTime }
           }
         }
       }
 
-      const { code } = await this.createOtp(userId, identifier, target)
+      const { code } = await this.createOtp(userId, identifier, target, template.expirySeconds)
 
-      if (target === 'email') {
-        await this.sendOtpViaEmail(identifier, code)
-        await emitter.emit('activity:audit', {
-          eventCategory: 'AUTH',
-          eventAction: 'OTP_SENT',
-          actorType: 'SYSTEM',
-          targetType: 'Member',
-          targetId: userId,
-          metadata: { identifier: maskedId, target },
-        })
-      } else {
-        await this.sendOtpViaSms(identifier, code)
+      switch (target) {
+        case 'mobile':
+          await this.smsDelivery.send(identifier, code, template)
+          break
+        case 'email':
+          await this.emailDelivery.send(identifier, code, template)
+          break
+        default:
+          throw new Exception(`Unsupported target: ${target}`, {
+            status: 500,
+            code: 'OTP_UNSUPPORTED_TARGET',
+          })
       }
+
+      securityLog.info(
+        'OTP_SENT',
+        { identifier: maskedId, target, context: template.context },
+        `OTP sent via ${target} for context ${template.context}`
+      )
 
       return { sent: true }
     } catch (err) {
-      securityLog.error('OTP_SEND_ERROR', { identifier: maskedId }, 'Failed to send OTP')
+      securityLog.error(
+        'OTP_SEND_ERROR',
+        { identifier: maskedId, context: template.context },
+        'Failed to send OTP'
+      )
       throw err
     }
   }
 
   /**
-   * Sends a one-time passcode (OTP) via email to the specified recipient.
-   *
-   * @param {string} email - The email address of the recipient.
-   * @param {string} code - The OTP code to be sent.
-   * @return {Promise<void>} A promise that resolves once the email is sent successfully.
+   * Vérifie un OTP. Le template est optionnel et permet de personnaliser
+   * le nombre max de tentatives par contexte.
    */
-  private async sendOtpViaEmail(email: string, code: string): Promise<void> {
-    await queue.dispatch(
-      SendMailJob,
-      {
-        to: email,
-        from: mailFromEmail || 'no-reply@aiglesend.com',
-        subject: 'Votre code de vérification AigleSend',
-        htmlView: 'emails/otp_notification',
-        viewData: { code, expiresAt: OTP_EXPIRY_MINUTES },
-      },
-      { queueName: 'mail' }
-    )
-  }
-
-  /**
-   * Sends an OTP (One-Time Password) to the specified phone number via SMS.
-   *
-   * @param {string} phone - The recipient's phone number to which the OTP will be sent.
-   * @param {string} code - The OTP code to be sent in the SMS message.
-   * @return {Promise<void>} A promise that resolves when the SMS has been successfully sent.
-   */
-  private async sendOtpViaSms(phone: string, code: string): Promise<void> {
-    const message = `Votre code OTP est ${code}. Il est valide pendant ${OTP_EXPIRY_MINUTES} minutes.`
-    console.log(message)
-
-    // await this.notificationService.sendSms(message, phone)
-  }
-
-  /**
-   * Verifies the provided One-Time Password (OTP) for a given identifier.
-   * This method checks if the OTP exists, has not expired, and matches the entered value.
-   * It also handles OTP locking, attempts tracking, and invalidation on successful verification.
-   *
-   * @param {Object} data - The data required for OTP verification.
-   * @param {string} data.identifier - The unique identifier associated with the OTP (e.g., user ID or phone number).
-   * @param {string} data.enteredOtp - The OTP value provided by the user for verification.
-   *
-   * @return {Promise<void>} A promise that resolves if the OTP is successfully verified.
-   *                         Throws an appropriate exception if verification fails due to invalid, expired,
-   *                         or locked OTP, or if maximum attempts are exceeded.
-   */
-  async verifyOtp(data: { identifier: string; enteredOtp: string }): Promise<void> {
+  async verifyOtp(
+    data: { identifier: string; enteredOtp: string },
+    template: OtpMessageTemplate = new DefaultOtpTemplate()
+  ): Promise<void> {
     const target = this.getTarget(data.identifier)
     const maskedId = this.maskIdentifier(data.identifier, target)
     const otp = await this.otpRepository.check(data.identifier, target)
@@ -210,7 +164,7 @@ export default class OtpService {
     if (!otp) {
       securityLog.warn(
         'OTP_VERIFY_NOT_FOUND',
-        { identifier: maskedId, target },
+        { identifier: maskedId, target, context: template.context },
         'OTP not found for verification'
       )
       throw new InvalidOtpException()
@@ -234,8 +188,8 @@ export default class OtpService {
       await this.otpRepository.save(otp)
     }
 
-    if ((otp.attempts ?? 0) >= OTP_MAX_ATTEMPTS) {
-      otp.lockedUntil = new Date(Date.now() + OTP_LOCK_SECONDS * 1000)
+    if ((otp.attempts ?? 0) >= template.maxAttempts) {
+      otp.lockedUntil = new Date(Date.now() + 60 * 1000)
       await this.otpRepository.save(otp)
       securityLog.warn(
         'OTP_LOCKING',

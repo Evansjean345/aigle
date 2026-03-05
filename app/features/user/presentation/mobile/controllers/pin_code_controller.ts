@@ -2,6 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import ChangePasswordUseCase from '#features/users/application/use_cases/change_pin_code_use_case'
 import { changePasswordValidator } from '#features/users/presentation/mobile/validators/profile_validator'
+import User from '#features/user/domain/models/user'
 
 @inject()
 export default class ProfileController {
@@ -25,7 +26,7 @@ export default class ProfileController {
    */
   async changePinCode({ request, response, auth, deviceInfo }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(changePasswordValidator)
-    const user = auth.user!!
+    const user = auth.user!! as User
 
     await this.changePasswordUseCase.execute(
       {

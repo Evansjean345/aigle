@@ -22,6 +22,7 @@ import { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
 import { UserKycStatus, UserStatus } from '#features/user/domain/enum'
 import KycDocument from '#features/kyc/domain/models/kyc_document'
 import Device from '#features/device/domain/models/device'
+import DebitPhone from '#features/user/domain/models/debit_phone'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['phone'],
@@ -139,6 +140,12 @@ export default class User extends compose(BaseModel, AuthFinder) {
     localKey: 'usersUid',
   })
   declare devices: HasMany<typeof Device>
+
+  @hasMany(() => DebitPhone, {
+    foreignKey: 'userId',
+    localKey: 'usersUid',
+  })
+  declare debitPhones: HasMany<typeof DebitPhone>
 
   static search = scope((query, searchTerm: string) => {
     query.where((subQuery) => {

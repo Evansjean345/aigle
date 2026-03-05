@@ -14,6 +14,7 @@ import FailedToUpdatePushTokenException from '#features/device/infrastructure/ex
 import MaxDevicesConnectedException from '#features/device/infrastructure/exceptions/max_devices_connected_exception'
 
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
+import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
 
 /**
  * @class DeviceService
@@ -69,39 +70,19 @@ export default class DeviceService {
   }
 
   /**
-   * Checks if a device with the given fingerprint hash is trusted.
-   *
-   * @return {Promise<boolean>} A promise that resolves to `true` if the device is trusted; otherwise, `false`.
-   * @param fingerprintHash - The fingerprint hash of the device to be checked.
-   * @param deviceUid - The unique identifier of the device to be checked.
-   */
-  async isDeviceTrusted(fingerprintHash: string, deviceUid: string): Promise<boolean> {
-    const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
-    return device?.status === DeviceStatus.TRUSTED && device?.deviceUid === deviceUid
-  }
-
-  /**
-   * Récupère un device par son ID.
-   * @param deviceId
-   */
-  async findById(deviceId: string): Promise<Device | null> {
-    return this.deviceRepository.findById(deviceId)
-  }
-
-  /**
    * Marque un device spécifique comme de confiance en utilisant son fingerprint hash.
    * Met également à jour l'IP et la date de dernière connexion.
    * Utilisé après validation OTP réussie.
    * @param userId - L'ID de l'utilisateur propriétaire du device
    * @param fingerprintHash - Le hash du fingerprint du device
-   * @param deviceUid
-   * @param clientIp - L'adresse IP du client (optionnel)
+   * @param deviceUid - L'UID du device'
+   * @param geoLocation
    */
   async trustDeviceByFingerprintAndUid(
     userId: string,
     fingerprintHash: string,
     deviceUid: string,
-    clientIp?: string
+    geoLocation?: GeoIpLocation
   ): Promise<Device | null> {
     const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
 
@@ -118,8 +99,11 @@ export default class DeviceService {
       device.status = DeviceStatus.TRUSTED
       device.lastSeenAt = DateTime.now()
 
-      if (clientIp) {
-        device.ipLastSeen = clientIp
+      if (geoLocation) {
+        device.ipLastSeen = geoLocation.ip
+        device.isVpn = geoLocation.isVpn
+        device.lastCountryCode = geoLocation.countryCode
+        device.firstCountryCode = device.firstCountryCode ?? geoLocation.countryCode
       }
 
       return this.deviceRepository.save(device)
@@ -139,70 +123,33 @@ export default class DeviceService {
    * @throws {FailedToSaveOrUpdateDeviceException} Throws an error if the operation fails.
    */
   async saveDevice(payload: DeviceCommandDTO, userId: string): Promise<Device> {
-    const existingDevice = await this.deviceRepository.findByFingerprintHash(
-      payload.fingerprintHash
-    )
+    try {
+      // Vérifier d'abord si le device est deja enregistré
+      const existingDevice = await this.deviceRepository.findByFingerprintHash(
+        payload.fingerprintHash
+      )
 
-    if (existingDevice) {
-      const deviceBelongsToUser = existingDevice.userId === userId
+      const isNewDevice = !existingDevice
+      const deviceBelongsToUser = existingDevice?.userId === userId
 
-      // Si le device n'appartient pas à l'utilisateur, vérifier si son quota de devices est atteint
-      if (!deviceBelongsToUser) {
+      // verifier le quota de l'utilisateur si c'est un nouveau device
+      if (isNewDevice || !deviceBelongsToUser) {
         await this.ensureMaxDevicesNotReached(userId)
       }
 
-      try {
-        // Vérifier si c'est le seul device de l'utilisateur pour mettre à jour isPrimary
-        const userDeviceCount = await this.deviceRepository.countByUserId(userId)
+      // Déterminer si la device est primaire ou non
+      const userDeviceCount = await this.deviceRepository.countByUserId(userId)
+      let shouldBePrimary = false
 
-        //TODO: fixer le bug lorsqu'il s'agit du telephone princapl
-        //TODO: le telephone principal n'est pas plus marqué comme principal quand se connecte à nouveau
-        const shouldBePrimary =
-          userDeviceCount === 0 || (deviceBelongsToUser && userDeviceCount === 1)
-
-        existingDevice.merge({
-          userId: userId,
-          deviceUid: payload.deviceUid,
-          platform: payload.platform,
-          brand: payload.brand,
-          model: payload.model,
-          osVersion: payload.osVersion,
-          appVersion: payload.appVersion,
-          isEmulator: payload.isEmulator,
-          isRooted: payload.isRooted,
-          ipLastSeen: payload.ipLastSeen,
-          lastSeenAt: DateTime.now(),
-          isPrimary: shouldBePrimary,
-        })
-
-        const savedDevice = await this.deviceRepository.save(existingDevice)
-
-        // Envoyer une notification si le device n'appartient pas à l'utilisateur (connexion à un appareil existant d'un autre utilisateur)
-        if (!deviceBelongsToUser) {
-          await NewDeviceDetected.dispatch(userId, savedDevice)
-        }
-
-        return savedDevice
-      } catch (error) {
-        appLog.error(
-          'FAILED TO UPDATE DEVICE',
-          { fingerprintHash: payload.fingerprintHash, error: error },
-          `Failed to update device: ${error.message}`
-        )
-        throw new FailedToSaveOrUpdateDeviceException()
+      if (isNewDevice) {
+        shouldBePrimary = userDeviceCount === 0
+      } else if (deviceBelongsToUser) {
+        shouldBePrimary = userDeviceCount === 1
       }
-    }
 
-    await this.ensureMaxDevicesNotReached(userId)
-
-    const deviceCount = await this.deviceRepository.countByUserId(userId)
-
-    try {
-      const newDevice = new Device()
-
-      newDevice.fill({
+      // Construire le payload pour updateOrCreate
+      const deviceData: Partial<Device> = {
         userId: userId,
-        fingerprintHash: payload.fingerprintHash,
         deviceUid: payload.deviceUid,
         platform: payload.platform,
         brand: payload.brand,
@@ -211,22 +158,42 @@ export default class DeviceService {
         appVersion: payload.appVersion,
         isEmulator: payload.isEmulator,
         isRooted: payload.isRooted,
-        ipFirstSeen: payload.ipFirstSeen,
         ipLastSeen: payload.ipLastSeen,
-        isPrimary: deviceCount === 0,
-        status: DeviceStatus.PENDING,
+        isVpn: payload.isVpn || false,
+        lastCountryCode: payload.lastCountryCode || payload.firstCountryCode,
         lastSeenAt: DateTime.now(),
-      })
+        isPrimary: shouldBePrimary,
+      }
 
-      await this.deviceRepository.save(newDevice)
-      await NewDeviceDetected.dispatch(userId, newDevice)
+      // Ajouter les champs spécifiques à la création
+      if (isNewDevice) {
+        deviceData.fingerprintHash = payload.fingerprintHash
+        deviceData.ipFirstSeen = payload.ipFirstSeen
+        deviceData.firstCountryCode = payload.firstCountryCode
+        deviceData.status = DeviceStatus.PENDING
+      }
 
-      return newDevice
+      // Opération atomique : updateOrCreate
+      const device = await this.deviceRepository.updateOrCreateByFingerprintHash(
+        payload.fingerprintHash,
+        deviceData
+      )
+
+      // Notification si nouveau device OU device existant d'un autre utilisateur
+      if (isNewDevice || !deviceBelongsToUser) {
+        await NewDeviceDetected.dispatch(userId, device)
+      }
+
+      return device
     } catch (error) {
+      if (error instanceof MaxDevicesConnectedException) {
+        throw error
+      }
+
       appLog.error(
         'FAILED_TO_SAVE_OR_UPDATE_DEVICE',
         { fingerprintHash: payload.fingerprintHash, error: error },
-        `Failed to register the new device: ${error.message}`
+        `Failed to save or update device: ${error.message}`
       )
       throw new FailedToSaveOrUpdateDeviceException()
     }
@@ -317,27 +284,39 @@ export default class DeviceService {
   }
 
   /**
-   * Updates the device traces by checking if the device's IP address has changed
-   * or if the last observed activity was more than an hour ago. If an update
-   * is required, the method updates the device information and persists it to the database.
+   * Updates the traces of a device with the latest information such as IP address, location, and device details.
+   * The update occurs only if the IP address has changed or the last interaction was recorded more than an hour ago.
    *
-   * @param {Device} device - The device entity that needs to be updated.
-   * @param {DeviceHeadersInfo} deviceInfo - The information headers containing updates
-   *                                          related to the device's IP, app version, and OS version.
-   * @return {Promise<void>} A promise that resolves when the device information has been successfully updated and saved.
+   * @param device The device entity containing stored information about the device.
+   * @param deviceInfo Headers information from the device, including application and operating system versions.
+   * @param geoIpLocation Geolocation details of the device, including IP, VPN detection, and country codes.
+   * @return A promise that resolves when the device information has been updated successfully.
    */
-  async updateDeviceTraces(device: Device, deviceInfo: DeviceHeadersInfo): Promise<void> {
+  async updateDeviceTraces(
+    device: Device,
+    deviceInfo: DeviceHeadersInfo,
+    geoIpLocation?: GeoIpLocation
+  ): Promise<void> {
     const now = DateTime.now()
 
     // On ne met à jour que si l'IP a changé ou si la dernière vue date de plus d'une heure
     const shouldUpdate =
-      device.ipLastSeen !== deviceInfo.ipAddress ||
+      device.ipLastSeen !== geoIpLocation?.ip ||
       !device.lastSeenAt ||
       now.diff(device.lastSeenAt, 'hours').hours >= 1
 
+    console.log('debugging if device usage should change')
+    console.log(shouldUpdate)
+    console.log('=============================== device infos ====================================')
+    console.log(geoIpLocation)
+    console.log(deviceInfo)
+
     if (shouldUpdate) {
       device.merge({
-        ipLastSeen: deviceInfo.ipAddress ?? device.ipLastSeen,
+        ipLastSeen: geoIpLocation?.ip ?? device.ipLastSeen,
+        isVpn: geoIpLocation?.isVpn ?? device.isVpn,
+        lastCountryCode: geoIpLocation?.countryCode ?? device.lastCountryCode,
+        firstCountryCode: device.firstCountryCode ?? geoIpLocation?.countryCode ?? undefined,
         lastSeenAt: now,
         appVersion: deviceInfo.appVersion ?? device.appVersion,
         osVersion: deviceInfo.osVersion ?? device.osVersion,

@@ -1,7 +1,6 @@
 ﻿import OtpService from '#features/authentication/application/services/otp_service'
 import User from '#features/user/domain/models/user'
 import { AuthenticatedProfileAndTokenResponseDto } from '#features/authentication/application/dtos/profile.dto'
-import { toAuthenticatedUserProfileAndTokenResponse } from '#features/authentication/application/mappers/authenticated_user.mapper'
 import { inject } from '@adonisjs/core'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber, maskPhone } from '#shared/utils/utiles'
@@ -14,18 +13,7 @@ import UserRepository from '#features/user/domain/interfaces/user_repository'
 import AccountBlockedException from '#features/authentication/infrastructure/exceptions/account_blocked_exception'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
-
-/**
- * Interface pour les informations device passées au use case
- */
-export interface DeviceInfoPayload {
-  fingerprintHash: string | null
-  deviceUid: string | null
-  platform: string | null
-  appVersion: string | null
-  osVersion: string | null
-  clientIp: string | null
-}
+import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
 
 @inject()
 export default class VerifyAndAuthenticateUserAccountUseCase {
@@ -45,17 +33,19 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
   ) {}
 
   /**
-   * Executes the OTP verification process by validating the provided phone number and PIN code.
+   * Executes the authentication process for a user, including OTP verification, device trust validation,
+   * and token generation. Handles both "register" and "login" authentication types.
    *
-   * @param {VerifyAccountRequestDto} payload - The input data required for OTP verification.
-   * @param type - The type of verification (register or login).
-   * @param deviceInfo - The device information from the request headers.
-   * @return {Promise<AuthenticatedProfileAndTokenResponseDto>} A promise that resolves when the OTP verification process completes successfully.
+   * @param {VerifyAccountRequestDto} payload - The payload containing authentication details such as phone number and OTP.
+   * @param {'register' | 'login'} type - Specifies the type of authentication process (either "register" or "login").
+   * @return {Promise<AuthenticatedProfileAndTokenResponseDto>} Returns a promise that resolves to the authenticated user profile and token response.
+   * @throws {PhoneNotFoundException} Throws an exception if the phone number is not found in the system.
+   * @throws {AccountBlockedException} Throws an exception if the user's account status is blocked.
+   * @throws {Error} Rethrows other errors encountered in the authentication process.
    */
   async execute(
     payload: VerifyAccountRequestDto,
-    type: 'register' | 'login',
-    deviceInfo?: DeviceInfoPayload
+    type: 'register' | 'login'
   ): Promise<AuthenticatedProfileAndTokenResponseDto> {
     const country = await this.countryRepository.findCountryBy('id', payload.country_id)
     const formattedPhone = concartPhoneNumber(country.phoneCode, payload.phone)
@@ -86,12 +76,12 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
 
       let device
 
-      if (deviceInfo?.fingerprintHash && deviceInfo?.deviceUid) {
+      if (payload.deviceInfo?.fingerprintHash && payload.deviceInfo?.deviceUid) {
         device = await this.deviceService.trustDeviceByFingerprintAndUid(
           user.usersUid,
-          deviceInfo.fingerprintHash,
-          deviceInfo.deviceUid,
-          deviceInfo.clientIp ?? undefined
+          payload.deviceInfo.fingerprintHash,
+          payload.deviceInfo.deviceUid,
+          payload.geoLocation as GeoIpLocation
         )
       }
 
@@ -114,7 +104,7 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
       await user.load('wallet')
       await user.load('kycDocument')
 
-      return toAuthenticatedUserProfileAndTokenResponse(user, token.value!.release())
+      return AuthenticatedProfileAndTokenResponseDto.from(user, token.value!.release())
     } catch (error) {
       errorLog.error(
         'AUTH_EXECUTE_ERROR',

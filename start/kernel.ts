@@ -37,4 +37,5 @@ export const middleware = router.named({
   idempotency: () => import('#shared/middleware/idempotency_middleware'),
   device: () => import('#shared/middleware/device_middleware'),
   permission: () => import('#shared/middleware/permission_middleware'),
+  geoip: () => import('#shared/middleware/geoip_middleware'),
 })

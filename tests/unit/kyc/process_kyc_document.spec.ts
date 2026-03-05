@@ -1,0 +1,96 @@
+import { test } from '@japa/runner'
+import ProcessKycDocumentUseCase from '#features/kyc/application/usecases/admin/process_kyc_document.usecase'
+import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
+import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
+import KycDocument from '#features/kyc/domain/models/kyc_document'
+import KycDocumentNotFoundException from '#features/kyc/infrastructure/exceptions/kyc_document_not_found_exception'
+
+test.group('Kyc | Process Use Case', () => {
+  test("devrait lever une exception si le document n'existe pas", async ({ assert }) => {
+    const mockRepo = {
+      findById: async () => null,
+      saveKycDocument: async (doc: any) => doc,
+      findAll: async () => ({}) as any,
+      getStats: async () => ({}) as any,
+      findUserKycDocument: async () => null,
+      findLastAttempt: async () => null,
+      saveAttempt: async () => {},
+    } as unknown as KycDocumentRepository
+
+    const usecase = new ProcessKycDocumentUseCase(mockRepo)
+
+    await assert.rejects(
+      () => usecase.execute(1, KycDocumentStatus.APPROVED, undefined, 1),
+      KycDocumentNotFoundException
+    )
+  })
+
+  test('devrait approuver le document et enregistrer une tentative', async ({ assert }) => {
+    const kycDoc = new KycDocument()
+    kycDoc.id = 1
+    kycDoc.userId = 'user-123'
+    kycDoc.documentType = KycDocumentType.CNI
+    kycDoc.status = KycDocumentStatus.PENDING
+
+    let savedDoc: KycDocument | null = null
+    let savedAttempt: any = null
+
+    const mockRepo = {
+      findById: async () => kycDoc,
+      saveKycDocument: async (doc: any) => {
+        savedDoc = doc
+        return doc
+      },
+      findAll: async () => ({}) as any,
+      getStats: async () => ({}) as any,
+      findUserKycDocument: async () => null,
+      findLastAttempt: async () => null,
+      saveAttempt: async (attempt: any) => {
+        savedAttempt = attempt
+      },
+    } as unknown as KycDocumentRepository
+
+    const usecase = new ProcessKycDocumentUseCase(mockRepo)
+
+    await usecase.execute(1, KycDocumentStatus.APPROVED, 'Bon document', 1)
+
+    assert.equal(savedDoc?.status, KycDocumentStatus.APPROVED)
+    assert.equal(savedDoc?.comment, 'Bon document')
+    assert.equal(savedAttempt?.status, KycDocumentStatus.APPROVED)
+    assert.equal(savedAttempt?.attemptNumber, 1)
+  })
+
+  test('devrait rejeter le document et enregistrer une tentative', async ({ assert }) => {
+    const kycDoc = new KycDocument()
+    kycDoc.id = 1
+    kycDoc.userId = 'user-123'
+    kycDoc.documentType = KycDocumentType.CNI
+    kycDoc.status = KycDocumentStatus.PENDING
+
+    let savedDoc: KycDocument | null = null
+    let savedAttempt: any = null
+
+    const mockRepo = {
+      findById: async () => kycDoc,
+      saveKycDocument: async (doc: any) => {
+        savedDoc = doc
+        return doc
+      },
+      findAll: async () => ({}) as any,
+      getStats: async () => ({}) as any,
+      findUserKycDocument: async () => null,
+      findLastAttempt: async () => ({ attemptNumber: 1 }) as any,
+      saveAttempt: async (attempt: any) => {
+        savedAttempt = attempt
+      },
+    } as unknown as KycDocumentRepository
+
+    const usecase = new ProcessKycDocumentUseCase(mockRepo)
+
+    await usecase.execute(1, KycDocumentStatus.REJECTED, 'Photo floue', 1)
+
+    assert.equal(savedDoc?.status, KycDocumentStatus.REJECTED)
+    assert.equal(savedAttempt?.status, KycDocumentStatus.REJECTED)
+    assert.equal(savedAttempt?.attemptNumber, 2)
+  })
+})

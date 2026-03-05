@@ -2,7 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import DeviceService from '#features/device/application/services/device_service'
 import RevokeUserDeviceUseCase from '#features/device/application/use_cases/admin/revoke_user_device_use_case'
-import { toDeviceResponse } from '#features/device/application/mappers/device.mapper'
+import { DeviceResponseDTO } from '#features/device/application/dto/device.tdo'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 
@@ -34,7 +34,7 @@ export default class AdminDeviceController {
       result: AuditResult.SUCCESS,
     })
 
-    return response.ok(devices.map((d) => toDeviceResponse(d)))
+    return response.ok(devices.map((d) => DeviceResponseDTO.fromModel(d)))
   }
 
   /**

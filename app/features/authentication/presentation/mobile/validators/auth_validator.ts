@@ -1,35 +1,33 @@
 import vine from '@vinejs/vine'
+import { InferInput } from '@vinejs/vine/types'
 
+const deviceSchema = vine.object({
+  fingerprint_hash: vine.string().trim(),
+  device_uid: vine.string().trim(),
+  platform: vine.string().trim().optional(),
+  brand: vine.string().trim().optional(),
+  model: vine.string().trim().optional(),
+  os_version: vine.string().trim().optional(),
+  app_version: vine.string().trim().optional(),
+  is_emulator: vine.boolean(),
+  is_rooted: vine.boolean(),
+})
 
-/**
- * A compiled validation schema for a user registration form.
- *
- * Validates the following fields:
- * - `firstname` (string): Required, trimmed.
- * - `lastname` (string): Required, trimmed.
- * - `birthday` (date): Optional.
- * - `email` (string): Optional, trimmed, must be a valid email if provided.
- * - `phone` (string): Required, trimmed.
- * - `pincode` (string): Required, trimmed, must be exactly 5 characters long.
- * - `country_id` (number): Required, value must exist in the `countries` database table.
- *
- * The schema is created with the Vine library and will enforce the constraints
- * defined for each field during validation.
- */
-export const registerValidator = vine.compile(
-  vine.object({
-    firstname: vine.string().trim(),
-    lastname: vine.string().trim(),
-    birthday: vine.date().optional(),
-    email: vine.string().trim().email().optional(),
-    phone: vine.string().trim(),
-    pincode: vine.string().trim().minLength(5).maxLength(5),
-    country_id: vine.number().exists(async (db, value) => {
-      const row = await db.from('countries').where('id', value).first()
-      return !!row
-    }),
-  })
-)
+const registerSchema = vine.object({
+  firstname: vine.string().trim(),
+  lastname: vine.string().trim(),
+  email: vine.string().trim().email().optional(),
+  phone: vine.string().trim(),
+  pincode: vine.string().trim().minLength(5).maxLength(5),
+  country_id: vine.number().exists(async (db, value) => {
+    const row = await db.from('countries').where('id', value).first()
+    return !!row
+  }),
+  deviceInfo: deviceSchema,
+})
+
+export const registerValidator = vine.compile(registerSchema)
+export type RegisterValidatorType = InferInput<typeof registerSchema>
 
 /**
  * A schema validator for the login process.
@@ -61,17 +59,7 @@ export const loginValidator = vine.compile(
       const row = await db.from('countries').where('id', value).first()
       return !!row
     }),
-    devicePayload: vine.object({
-      fingerprint_hash: vine.string().trim(),
-      device_uid: vine.string().trim(),
-      platform: vine.string().trim().optional(),
-      brand: vine.string().trim().optional(),
-      model: vine.string().trim().optional(),
-      os_version: vine.string().trim().optional(),
-      app_version: vine.string().trim().optional(),
-      is_emulator: vine.boolean(),
-      is_rooted: vine.boolean(),
-    }),
+    devicePayload: deviceSchema,
   })
 )
 

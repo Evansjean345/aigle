@@ -2,6 +2,7 @@
 node_modules
 build
 tmp
+geo-database
 
 # Secrets
 .env
@@ -17,8 +18,6 @@ npm-debug.log
 yarn-error.log
 logs
 
-docs
-
 docker-compose.yml
 Dockerfile
 
@@ -29,6 +28,11 @@ Dockerfile
 .fleet
 .idea
 .vscode
+.claude
 
 # Platform specific
 .DS_Store
+
+*.txt
+
+

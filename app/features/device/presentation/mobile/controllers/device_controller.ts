@@ -2,7 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import DeviceService from '#features/device/application/services/device_service'
 import { updatePushTokenValidator } from '#features/device/presentation/mobile/validators/device_validator'
-import { toDeviceResponse } from '#features/device/application/mappers/device.mapper'
+import { DeviceResponseDTO } from '#features/device/application/dto/device.tdo'
 import RevokeDeviceUseCase from '#features/device/application/use_cases/mobile/revoke_device_use_case'
 
 /**
@@ -32,7 +32,7 @@ export default class DeviceController {
   async getUserDevices({ auth, response }: HttpContext): Promise<void> {
     const user = auth.user!
     const devices = await this.deviceService.getDeviceByUserId(user.usersUid)
-    const deviceResponses = devices.map((device) => toDeviceResponse(device))
+    const deviceResponses = devices.map((device) => DeviceResponseDTO.fromModel(device))
 
     return response.ok(deviceResponses)
   }

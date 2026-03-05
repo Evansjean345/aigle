@@ -6,14 +6,16 @@ import HandleTransfertInterSecondWebhookUseCase from '#features/webhooks/applica
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
+import emitter from '@adonisjs/core/services/emitter'
 
 @inject()
 export default class TransfertInterWebhookController {
   /**
-   * Constructs an instance of the class with the provided use case handlers.
+   * Constructor for the TransfertInterWebhookController class.
+   * Initializes the dependencies for handling inter-network transfer webhooks.
    *
-   * @param {HandleTransfertInterFirstWebhookUseCase} handleTransfertInterFirstWebhook - The use case handler for the first transfer webhook.
-   * @param {HandleTransfertInterSecondWebhookUseCase} handleTransfertInterSecondWebhook - The use case handler for the second transfer webhook.
+   * @param handleTransfertInterFirstWebhook
+   * @param handleTransfertInterSecondWebhook
    */
   constructor(
     private readonly handleTransfertInterFirstWebhook: HandleTransfertInterFirstWebhookUseCase,
@@ -21,15 +23,13 @@ export default class TransfertInterWebhookController {
   ) {}
 
   /**
-   * Handles the "inter-network first operation success" webhook.
-   * Processes a webhook notification indicating a successful first operation
-   * for an inter-network transfer. Logs information about the receipt and the
-   * processing of the webhook.
+   * Handles the processing of a webhook notification for an inter-network first operation success event.
+   * This method processes the incoming request, logs the details, and invokes the appropriate logic to handle the event.
    *
-   * @param {Object} HttpContext - The HTTP context object.
-   * @param {Object} HttpContext.request - The HTTP request object containing request data.
-   * @param {Object} HttpContext.response - The HTTP response object used to send back the response.
-   * @return {Promise<void>} A promise that resolves with no return value but ensures processing of the webhook.
+   * @param {Object} ctx - The HTTP context object containing request and response objects.
+   * @param {Object} ctx.request - The HTTP request object containing data sent by the client.
+   * @param {Object} ctx.response - The HTTP response object used to send a response back to the client.
+   * @return {Promise<void>} A promise that resolves when the processing is complete. The HTTP response is sent as part of this process.
    */
   async interSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
@@ -38,12 +38,21 @@ export default class TransfertInterWebhookController {
       'INTER_TRANSFER_FIRST_SUCCESS_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
-        headers: request.headers(),
+        contentType: request.header('content-type'),
         reference: payload?.data?.reference,
         ip: request.ip(),
       },
       'Received inter-network first operation success webhook'
     )
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'WEBHOOK_RECEIVED',
+        reference: payload?.data?.reference,
+        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        ipAddress: request.ip(),
+      })
+      .catch((_) => {})
 
     try {
       const result = await this.handleTransfertInterFirstWebhook.execute(
@@ -67,12 +76,12 @@ export default class TransfertInterWebhookController {
   }
 
   /**
-   * Handles the inter-network transfer first operation failure webhook.
+   * Handles the inter-network transfer first failure webhook.
    *
-   * @param {Object} context - The HTTP context object.
-   * @param {HttpContext} context.request - The HTTP request containing the webhook payload.
-   * @param {HttpContext} context.response - The HTTP response used to send back the result.
-   * @return {Promise<void>} A promise that resolves once the webhook has been processed.
+   * @param {Object} HttpContext - The HTTP context object containing the request and response.
+   * @param {Object} HttpContext.request - The request object containing request data and metadata.
+   * @param {Object} HttpContext.response - The response object to send responses.
+   * @return {Promise<void>} Resolves when the webhook is processed or an error response is sent.
    */
   async interFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
@@ -81,12 +90,21 @@ export default class TransfertInterWebhookController {
       'INTER_TRANSFER_FIRST_FAILURE_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
-        headers: request.headers(),
+        contentType: request.header('content-type'),
         reference: payload?.data?.reference,
         ip: request.ip(),
       },
       'Received inter-network first operation failure webhook'
     )
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'WEBHOOK_RECEIVED',
+        reference: payload?.data?.reference,
+        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        ipAddress: request.ip(),
+      })
+      .catch((_) => {})
 
     try {
       const result = await this.handleTransfertInterFirstWebhook.execute(
@@ -110,15 +128,14 @@ export default class TransfertInterWebhookController {
   }
 
   /**
-   * Handles the inter-network transfer second success webhook.
+   * Handles the inter-network second operation success webhook.
+   * Processes the webhook payload and performs necessary actions based on the success event.
+   * Logs the event details and operation status for auditing purposes.
    *
-   * This method processes a webhook payload for an inter-network second operation success.
-   * It logs the received webhook data, executes business logic, and sends a response.
-   *
-   * @param {Object} context - The HTTP context containing the request and response objects.
-   * @param {Object} context.request - The HTTP request object, holding details such as headers, payload, and URL.
-   * @param {Object} context.response - The HTTP response object, used for sending responses back to the client.
-   * @return {Promise<void>} A promise that resolves when the webhook is successfully processed or if an error occurs.
+   * @param {Object} context - The HTTP context object containing the request and response.
+   * @param {Object} context.request - The HTTP request object.
+   * @param {Object} context.response - The HTTP response object.
+   * @return {Promise<void>} A promise that resolves with no value.
    */
   async interSecondSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
@@ -127,12 +144,21 @@ export default class TransfertInterWebhookController {
       'INTER_TRANSFER_SECOND_SUCCESS_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
-        headers: request.headers(),
+        contentType: request.header('content-type'),
         reference: payload?.data?.reference,
         ip: request.ip(),
       },
       'Received inter-network second operation success webhook'
     )
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'WEBHOOK_RECEIVED',
+        reference: payload?.data?.reference,
+        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        ipAddress: request.ip(),
+      })
+      .catch((_) => {})
 
     try {
       const result = await this.handleTransfertInterSecondWebhook.execute(
@@ -156,13 +182,13 @@ export default class TransfertInterWebhookController {
   }
 
   /**
-   * Handles the inter-network second operation failure webhook event. Processes the webhook payload and logs the necessary information.
-   * If processing is successful, the result is sent in the HTTP response. In case of an error, the error is logged, and a default response is sent back.
+   * Handles the inter-network second operation failure webhook by processing the payload
+   * and updating the transaction status to FAILED.
    *
-   * @param {Object} context - The HTTP context object containing request and response objects.
-   * @param {Object} context.request - The HTTP request object containing the details of the incoming webhook call.
-   * @param {Object} context.response - The HTTP response object used to send the processed response back to the client.
-   * @return {Promise<void>} Returns a promise that resolves when the webhook handling is completed.
+   * @param {Object} context - The HTTP context containing the request and response objects.
+   * @param {HttpRequest} context.request - The incoming HTTP request object with the payload.
+   * @param {HttpResponse} context.response - The outgoing HTTP response object to send the result.
+   * @return {Promise<void>} A promise that resolves with no return value after processing the webhook.
    */
   async interSecondFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
@@ -171,12 +197,21 @@ export default class TransfertInterWebhookController {
       'INTER_TRANSFER_SECOND_FAILURE_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
-        headers: request.headers(),
+        contentType: request.header('content-type'),
         reference: payload?.data?.reference,
         ip: request.ip(),
       },
       'Received inter-network second operation failure webhook'
     )
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'WEBHOOK_RECEIVED',
+        reference: payload?.data?.reference,
+        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        ipAddress: request.ip(),
+      })
+      .catch((_) => {})
 
     try {
       const result = await this.handleTransfertInterSecondWebhook.execute(

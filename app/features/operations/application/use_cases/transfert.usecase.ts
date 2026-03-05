@@ -12,7 +12,6 @@ import { TransactionStatus } from '#features/transactions/domain/enums/transacti
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
-import env from '#start/env'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
 import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
@@ -21,12 +20,16 @@ import IdempotencyProvider from '#features/transactions/domain/interfaces/idempo
 import FeeCalculatorService from '#features/fees/application/services/fee_calculator_service'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
-import HttpClient, { HttpClientError } from '#shared/infrastructure/http_client_service'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
+import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
 import InsufficientFundsException from '#features/operations/infrastructure/exceptions/insufficient_funds_exception'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import Transaction from '#features/transactions/domain/models/transaction'
+import InitiateTransferJob from '#features/operations/application/jobs/initiate_transfer_job'
+import queue from '@rlanz/bull-queue/services/main'
+import emitter from '@adonisjs/core/services/emitter'
+import { Exception } from '@adonisjs/core/exceptions'
 
 @inject()
 export default class TransfertUseCase {
@@ -40,8 +43,7 @@ export default class TransfertUseCase {
     private readonly transactionLimitValidationService: TransactionLimitValidationService,
     private readonly throttleCache: TransactionThrottleCache,
     private readonly failureCache: TransactionFailureCache,
-    private readonly idempotency: IdempotencyProvider,
-    private readonly httpClient: HttpClient
+    private readonly idempotency: IdempotencyProvider
   ) {}
 
   /**
@@ -50,19 +52,23 @@ export default class TransfertUseCase {
    *
    * @param {TransfertRequestDto} payload - Data for the transfer operation, including amount, provider, and service type.
    * @param {User} user - The user initiating the transfer, containing user identification details.
-   * @param {DeviceHeadersInfo} [deviceInfo] - Optional information about the user's device used for the transaction.
    * @param {string} [idempotencyKey] - Optional idempotency key to ensure repeated requests result in the same operation.
    * @return {Promise<TransfertResponseDto>} A promise resolving to the transfer response, including transaction status and reference.
    */
   async execute(
     payload: TransfertRequestDto,
     user: User,
-    deviceInfo?: DeviceHeadersInfo,
     idempotencyKey?: string
   ): Promise<TransfertResponseDto> {
+    const deviceInfo = payload.deviceInfo
+    const geoIpLocation = payload.geoIpLocation
+
     paymentLog.info(
       'TRANSFER_START',
-      { user: { id: user.id, uid: user.usersUid }, payload: { ...payload } },
+      {
+        user: { id: user.id, uid: user.usersUid },
+        payload: { ...payload, pinCode: payload.pinCode ? '****' : undefined },
+      },
       'Starting transfer process'
     )
 
@@ -71,6 +77,9 @@ export default class TransfertUseCase {
     await Promise.all([
       this.failureCache.verifyNotBlocked(user.usersUid),
       this.throttleCache.verifyThrottle(user.usersUid),
+      this.accountValidationService.validateAccount(user),
+      this.accountValidationService.validateDevice(user, payload.deviceInfo, payload.geoIpLocation),
+      this.accountValidationService.verifyPinForUser(user, payload.pinCode!),
     ])
 
     // Chargement asynchrone du portefeuille et du service de type de transaction
@@ -80,7 +89,10 @@ export default class TransfertUseCase {
     ])
 
     if (!serviceType) {
-      throw new Error(`Service type ${payload.serviceType} not found`)
+      throw new Exception(`Service type ${payload.serviceType} not found`, {
+        code: 'SERVICE_TYPE_NOT_FOUND',
+        status: 404,
+      })
     }
 
     // Calcul des frais en fonction du type de service, moyen de paiement et fournisseur de service
@@ -97,18 +109,12 @@ export default class TransfertUseCase {
       }
     )
 
-    // Application des règles de verification du compte, de l'appareil, du code pin et de la limite de transaction.
-    // Rejecter la transaction si une des règles est violée
-    await Promise.all([
-      this.accountValidationService.validateAccount(user),
-      this.accountValidationService.validateDevice(user, deviceInfo),
-      this.accountValidationService.verifyPinForUser(user, payload.pinCode!),
-      this.transactionLimitValidationService.validateTransactionLimit({
-        user,
-        amount,
-        transactionType: TransactionType.TRANSFERT,
-      }),
-    ])
+    // Application des règles de verification de la limite de transaction.
+    await this.transactionLimitValidationService.validateTransactionLimit({
+      user,
+      amount,
+      transactionType: TransactionType.TRANSFERT,
+    })
 
     // Vérifier que l'utilisateur a les fonds suffisants
     this.assertSufficientBalance(wallet.balance, amount)
@@ -117,21 +123,28 @@ export default class TransfertUseCase {
     const { transaction } = await this.persistTransfer(
       payload,
       user,
-      wallet.id!,
+      wallet,
       serviceType,
       { total, fees, amount },
-      idempotencyKey
+      idempotencyKey,
+      deviceInfo,
+      geoIpLocation
     )
 
-    try {
-      await this.initiateExternalTransfer(payload, transaction.reference, total)
-    } catch (error) {
-      await this.compensateFailedTransfer(wallet.id!, amount, transaction.id, user)
-      throw error
-    }
+    await queue.dispatch(InitiateTransferJob, {
+      transactionId: transaction.id,
+      transactionReference: transaction.reference,
+      walletId: wallet.id!,
+      totalAmount: total,
+      amount,
+      paymentMethod: payload.paymentMethodCode,
+      operator: payload.providerCode,
+      phone: payload.phone.replaceAll(' ', ''),
+      userId: user.usersUid,
+    })
 
     const result: TransfertResponseDto = {
-      message: payload.providerCode === 'wave' ? 'transfert terminé' : 'transfert initié',
+      message: 'transfert initié',
       data: {
         transactionReference: transaction.reference,
         status: transaction.status,
@@ -166,24 +179,30 @@ export default class TransfertUseCase {
    *
    * @param {TransfertRequestDto} payload - The DTO containing transfer details, such as payment method information.
    * @param {User} user - The user performing the transfer.
-   * @param {number} walletId - The ID of the wallet where the transaction is to be recorded.
+   * @param wallet
    * @param {{ id: number, code: string }} serviceType - The type of service associated with the transfer, including its ID and code.
    * @param {{ total: number, fees: number, amount: number }} billing - The billing details for the transfer, including total amount, fees, and the net transfer amount.
    * @param {string} [idempotencyKey] - An optional key used to ensure idempotency for the transfer operation.
+   * @param {DeviceHeadersInfo | undefined} deviceInfo - Device information for the transfer, if available.
+   * @param {GeoIpLocation | undefined} geoIpLocation - GeoIp information for the transfer, if available.
    * @return {Promise<{ transaction: Transaction, updatedWallet: { id: number; balance: number } }>} A promise resolving to an object containing the created transaction and the updated wallet.
    * @throws Will throw an error if the transaction fails or any operation during the transfer persistence process encounters an issue.
    */
   private async persistTransfer(
     payload: TransfertRequestDto,
     user: User,
-    walletId: number,
+    wallet: { id: number; balance: number },
     serviceType: { id: number; code: string },
     billing: { total: number; fees: number; amount: number },
-    idempotencyKey?: string
-  ): Promise<{ transaction: Transaction; updatedWallet: { id: number; balance: number } }> {
+    idempotencyKey?: string,
+    deviceInfo?: DeviceHeadersInfo,
+    geoIpLocation?: GeoIpLocation
+  ): Promise<{ transaction: Transaction }> {
+    const walletId = wallet.id
     const trx = await db.transaction()
 
     try {
+      const balanceBefore = wallet.balance
       const updatedWallet = await this.walletService.debitBalance(walletId, billing.amount, trx)
       const transaction = await this.transactionService.createTransaction(
         {
@@ -197,6 +216,8 @@ export default class TransfertUseCase {
         },
         walletId,
         user,
+        deviceInfo,
+        geoIpLocation,
         trx
       )
 
@@ -215,9 +236,37 @@ export default class TransfertUseCase {
 
       await trx.commit()
 
-      return { transaction, updatedWallet }
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'CREATED',
+          transactionId: transaction.reference,
+          amount: billing.amount,
+          fees: billing.fees,
+          total: billing.total,
+          provider: payload.providerCode,
+          paymentMethod: payload.paymentMethodCode,
+          transactionType: TransactionType.TRANSFERT,
+          actorId: user.usersUid,
+          ipAddress: payload.geoIpLocation.ip,
+        })
+        .catch((_) => {})
+
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'WALLET_DEBITED',
+          transactionId: transaction.reference,
+          walletId: String(walletId),
+          amount: billing.amount,
+          balanceBefore: Number(balanceBefore),
+          balanceAfter: updatedWallet.balance,
+        })
+        .catch((_) => {})
+
+      return { transaction }
     } catch (error) {
-      await trx.rollback()
+      if (trx.isCompleted) {
+        await trx.rollback()
+      }
 
       transactionLog.error(
         'TRANSFER_PERSIST_FAILED',
@@ -225,54 +274,12 @@ export default class TransfertUseCase {
           wallet: { id: walletId },
           user: { id: user.usersUid },
           amount: billing.amount,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Exception ? error.message : 'Unknown error',
         },
         'Failed to persist transfer records'
       )
 
       throw error
-    }
-  }
-
-  /**
-   * Compensates a failed transfer by crediting the specified wallet and updating the transaction status.
-   * If the operation fails, logs an error for manual intervention.
-   *
-   * @param {number} walletId - The unique identifier of the wallet to be credited.
-   * @param {number} amount - The amount to credit to the wallet.
-   * @param {number} transactionId - The identifier of the transaction to update.
-   * @param {User} user - The user object associated with the transaction.
-   * @return {Promise<void>} A promise that resolves when the compensation process is completed.
-   */
-  private async compensateFailedTransfer(
-    walletId: number,
-    amount: number,
-    transactionId: number,
-    user: User
-  ): Promise<void> {
-    try {
-      await db.transaction(async (trx) => {
-        await this.walletService.creditBalance(walletId, amount, trx)
-        await this.transactionService.markFailed(transactionId, trx)
-
-        transactionLog.info(
-          'TRANSFER_COMPENSATED',
-          { walletId, transactionId, amount, user: { id: user.id } },
-          'La compensation du transfert a été finalisée. La transaction est passée à l’état ÉCHEC et le portefeuille a été recrédité.'
-        )
-      })
-    } catch (error) {
-      transactionLog.error(
-        'TRANSFER_COMPENSATION_FAILED',
-        {
-          walletId,
-          transactionId,
-          amount,
-          user: { id: user.id },
-          error: error instanceof Error ? error.message : 'Inconnu',
-        },
-        'Échec de la compensation du transfert. Intervention manuelle requise.'
-      )
     }
   }
 
@@ -300,53 +307,6 @@ export default class TransfertUseCase {
     return {
       operator: payload.providerCode,
       phone: payload.phone.replaceAll(' ', ''),
-    }
-  }
-
-  /**
-   * Initiates an external transfer by making a call to the transfer API using the provided payload, reference, and total amount.
-   *
-   * @param {TransfertRequestDto} payload - The transfer request data containing details such as provider code, phone number, and payment method code.
-   * @param {string} reference - A unique reference identifier for the transfer.
-   * @param {number} total - The total amount to be transferred.
-   * @return {Promise<void>} A promise that resolves when the external transfer is successfully initiated.
-   * @throws {HttpClientError} Throws an error if the external transfer API call fails.
-   */
-  private async initiateExternalTransfer(
-    payload: TransfertRequestDto,
-    reference: string,
-    total: number
-  ): Promise<void> {
-    paymentLog.debug(
-      'TRANSFER_EXTERNAL_INITIATING',
-      { reference, total, provider: payload.providerCode },
-      'Démarrage de l’appel au service de transfert externe'
-    )
-
-    const result = await this.httpClient.post(env.get('API_TRANSFERT_URL')!, {
-      operation_type: payload.paymentMethodCode,
-      amount: total,
-      provider: payload.providerCode,
-      number: payload.phone,
-      country: 'ci',
-      currency: 'XOF',
-      reference,
-      notify_success_url: env.get('NOTIFY_SUCCESS_URL')!,
-      notify_failure_url: env.get('NOTIFY_FAILURE_URL')!,
-    })
-
-    if (!result.success) {
-      paymentLog.error(
-        'TRANSFER_EXTERNAL_FAILED',
-        { reference, error: result.error },
-        'Échec de l’appel à l’API de transfert externe'
-      )
-      throw new HttpClientError(
-        result.error.message,
-        result.error.code,
-        result.error.statusCode,
-        result.error.details
-      )
     }
   }
 }

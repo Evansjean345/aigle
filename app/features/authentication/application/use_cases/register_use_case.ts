@@ -14,6 +14,8 @@ import User from '#features/user/domain/models/user'
 import { UserStatus } from '#features/user/domain/enum'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
+import { DeviceCommandDTO } from '#features/device/application/dto/device.command.tdo'
+import DeviceService from '#features/device/application/services/device_service'
 
 @inject()
 export default class RegisterUseCase {
@@ -24,12 +26,14 @@ export default class RegisterUseCase {
    * @param {CountryRepository} countryRepository - The repository for country data management.
    * @param {WalletService} walletService - The wallet service used for managing wallet-related functionality.
    * @param otpService
+   * @param deviceService
    */
   constructor(
     protected userRepository: UserRepository,
     protected countryRepository: CountryRepository,
     private readonly walletService: WalletService,
-    private readonly otpService: OtpService
+    private readonly otpService: OtpService,
+    private readonly deviceService: DeviceService
   ) {}
 
   /**
@@ -43,6 +47,7 @@ export default class RegisterUseCase {
     const formattedPhone = concartPhoneNumber(country.phoneCode, data.phone)
 
     const exists = await this.userRepository.findByPhone(formattedPhone)
+
     if (exists) {
       securityLog.warn(
         'REGISTRATION_FAILED_EXISTS',
@@ -68,6 +73,11 @@ export default class RegisterUseCase {
 
       await this.walletService.createForUser(userCreated.usersUid, trx)
       await trx.commit()
+
+      if (data.deviceInfoPayload) {
+        const deviceCommand = DeviceCommandDTO.fromRequest(data.deviceInfoPayload)
+        await this.deviceService.saveDevice(deviceCommand, user.usersUid)
+      }
 
       securityLog.info(
         'USER_REGISTERED',

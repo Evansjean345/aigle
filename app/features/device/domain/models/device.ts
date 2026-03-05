@@ -44,6 +44,15 @@ export default class Device extends BaseModel {
   declare ipLastSeen?: string
 
   @column()
+  declare isVpn: boolean
+
+  @column()
+  declare firstCountryCode?: string
+
+  @column()
+  declare lastCountryCode?: string
+
+  @column()
   declare status: DeviceStatus
 
   @column()

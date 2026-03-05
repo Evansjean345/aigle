@@ -2,7 +2,8 @@ import { HttpContext } from '@adonisjs/core/http'
 import { depositValidator } from '#features/operations/presentation/mobile/validators/deposit_validator'
 import DepositUseCase from '#features/operations/application/use_cases/deposit.usecase'
 import { inject } from '@adonisjs/core'
-import { toDepositDto } from '#features/operations/application/mappers/deposit.mapper'
+import { DepositRequestDto } from '#features/operations/application/dto/deposit.dto'
+import User from '#features/user/domain/models/user'
 
 @inject()
 export default class DepositController {
@@ -19,17 +20,16 @@ export default class DepositController {
    * @param {Object} context - The HTTP context object.
    * @param {Object} context.request - The HTTP request object containing the incoming request data.
    * @param {Object} context.response - The HTTP response object for sending responses.
-   * @return {Promise<Object>} A promise that resolves to the HTTP response object with a success message.
+   * @return {Promise<void>} A promise that resolves to the HTTP response object with a success message.
    */
-  async handle({ request, response, auth, deviceInfo }: HttpContext) {
-    const user = auth.user!
+  async handle({ request, response, auth, deviceInfo, geoLocation }: HttpContext): Promise<void> {
+    const user = auth.user!! as User
     const idempotencyKey = request.header('X-Idempotency-Key')
 
     const payload = await request.validateUsing(depositValidator)
     const result = await this.depositUseCase.execute(
-      toDepositDto(payload),
+      DepositRequestDto.fromRequest(payload, deviceInfo, geoLocation),
       user,
-      deviceInfo,
       idempotencyKey
     )
 

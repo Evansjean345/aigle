@@ -29,7 +29,7 @@ export default class SendOtpUseCase {
    *
    * @param {OtpRequestDto} data - The data required to send an OTP, including the user's phone number.
    * @return {Promise<{ message: string }>} A promise that resolves to an object indicating whether the OTP was successfully sent.
-   * @throws {Exception} Throws an exception if no account is associated with the provided phone number or if an error occurs during the OTP sending process.
+   * @throws {PhoneNotFoundException} Throws an exception if no account is associated with the provided phone number or if an error occurs during the OTP sending process.
    */
   async execute(data: OtpRequestDto): Promise<OtpResponseDto> {
     const country = await this.countryRepository.findCountryBy('id', data.country_id)

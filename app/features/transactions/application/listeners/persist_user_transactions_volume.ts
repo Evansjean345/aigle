@@ -40,8 +40,6 @@ export default class PersistUserTransactionsVolume {
       | TransfertTransactionCompleted
       | WalletToWalletTransactionCompleted
   ) {
-    console.log('handle event :', event)
-
     if (event instanceof WalletToWalletTransactionCompleted) {
       const { senderTransaction: sTx, receiverTransaction: rTx } = event
 

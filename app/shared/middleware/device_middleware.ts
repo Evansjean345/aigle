@@ -10,29 +10,21 @@ export interface DeviceHeadersInfo {
   deviceUid: string
   platform: string | null
   appVersion: string | null
-  osVersion: string | null,
-  ipAddress: string | null
+  osVersion: string | null
 }
 
 /**
  * Étend le HttpContext pour inclure les informations device
  */
 declare module '@adonisjs/core/http' {
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   interface HttpContext {
     deviceInfo?: DeviceHeadersInfo
   }
 }
 
 /**
- * DeviceMiddleware est utilisé pour extraire et valider les informations
- * du device depuis les headers HTTP.
- *
- * Headers attendus:
- * - X-Device-Fingerprint (requis): Hash unique de l'appareil
- * - X-Device-Uid (requis): UUID de l'installation de l'app
- * - X-Device-Platform (optionnel): Plateforme (ios/android)
- * - X-App-Version (optionnel): Version de l'application
- * - X-Device-Os-Version (optionnel): Version du système d'exploitation
+ * Middleware for extracting device information from HTTP headers.
  */
 export default class DeviceMiddleware {
   /**
@@ -83,7 +75,14 @@ export default class DeviceMiddleware {
         platform: request.header('X-Device-Platform') || null,
         appVersion: request.header('X-App-Version') || null,
         osVersion: request.header('X-Device-Os-Version') || null,
-        ipAddress: request.ip() || null,
+      }
+    } else {
+      ctx.deviceInfo = {
+        fingerprintHash: '',
+        deviceUid: '',
+        platform: null,
+        appVersion: null,
+        osVersion: null,
       }
     }
 

@@ -22,9 +22,24 @@ export default abstract class TransactionRepository {
    * Retrieves a transaction record by matching either the unique user identifier (UID) or the record's numeric ID.
    *
    * @param {string | number} id - The unique identifier, which can be either a string-based UID or a numeric ID.
+   * @param trx - The transaction client to be used for saving the transaction.
    * @return {Promise<Transaction|null>} A promise that resolves to the transaction record if found, or null if no matching record exists.
    */
-  abstract findByUidOrId(id: string | number): Promise<Transaction | null>
+  abstract findByUidOrId(
+    id: string | number,
+    trx?: TransactionClientContract
+  ): Promise<Transaction | null>
+
+  /**
+   * Retrieves a transaction record by its numeric primary key ID only.
+   * Unlike findByUidOrId, this method does not check the UID column,
+   * avoiding ambiguous OR queries that can return the wrong record.
+   *
+   * @param {number} id - The numeric primary key of the transaction.
+   * @param {TransactionClientContract} [trx] - Optional transaction client.
+   * @return {Promise<Transaction | null>}
+   */
+  abstract findById(id: number, trx?: TransactionClientContract): Promise<Transaction | null>
 
   /**
    * Finds a transaction based on the given reference identifier.

@@ -3,6 +3,8 @@ import { inject } from '@adonisjs/core'
 import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
 import { walletToWalletValidator } from '#features/operations/presentation/mobile/validators/wallet_to_wallet_validator'
 import { TransferMode } from '#features/operations/application/services/wallet_transfer_context_service'
+import { WalletToWalletRequestDto } from '#features/operations/application/dto/wallet_to_wallet.dto'
+import User from '#features/user/domain/models/user'
 
 /**
  * Controller responsible for handling wallet-to-wallet operations.
@@ -22,20 +24,19 @@ export default class WalletToWalletController {
    * @param {Request} HttpContext.request - The HTTP request object for processing payload and input.
    * @param {Response} HttpContext.response - The HTTP response object for sending back responses.
    */
-  async handle({ request, response, auth, deviceInfo }: HttpContext): Promise<void> {
-    const payload = await request.validateUsing(walletToWalletValidator)
-    const user = auth.user!
-    const idempotencyKey = request.header('X-Idempotency-Key')
+  async handle({ request, response, auth, deviceInfo, geoLocation }: HttpContext): Promise<void> {
+    console.log('walletToWalletController')
+    console.log(deviceInfo)
 
+    const payload = await request.validateUsing(walletToWalletValidator)
+
+    const user = auth.user! as User
+    const idempotencyKey = request.header('X-Idempotency-Key')
     const mode = payload.token ? TransferMode.BY_QRCODE : TransferMode.BY_PHONE
 
-    const result = await this.walletToWalletUseCase.execute(
-      payload,
-      user,
-      mode,
-      deviceInfo,
-      idempotencyKey
-    )
+    const dto = WalletToWalletRequestDto.fromRequest(payload, deviceInfo, geoLocation)
+
+    const result = await this.walletToWalletUseCase.execute(dto, user, mode, idempotencyKey)
     return response.ok(result)
   }
 }

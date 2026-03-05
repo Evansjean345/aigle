@@ -32,8 +32,8 @@ export default class UserRepositoryIml implements UserRepository {
    * @param {number} perPage - The number of users per page.
    * @param {ExtractModelRelations<User>[]} [relations] - Optional list of relations to preload.
    * @param {string} [search] - Optional search term.
-   * @param startDate
-   * @param endDate
+   * @param {string} startDate - The start date for filtering users by creation date.
+   * @param {string} endDate - The end date for filtering users by creation date.
    * @returns {Promise<ModelPaginatorContract<User>>}
    */
   async paginate(

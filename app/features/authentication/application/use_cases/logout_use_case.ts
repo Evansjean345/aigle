@@ -8,12 +8,12 @@ import LogoutException from '#features/authentication/infrastructure/exceptions/
 @inject()
 export default class LogoutUseCase {
   /**
-   * Executes the logout process for the authenticated user by deleting the current access token.
+   * Executes the logout process by invalidating the current access token
+   * of the authenticated user.
    *
-   * @param {Object} authenticatedUser - The authenticated user object containing the current access token.
-   * @param {AccessToken} authenticatedUser.currentAccessToken - The access token associated with the authenticated user.
-   * @return {Promise<boolean>} A promise resolving to `true` if the logout process is successful, otherwise throws an exception.
-   * @throws {Exception} Throws an exception if the logout process fails.
+   * @param {any} authenticatedUser - The authenticated user whose access token will be invalidated.
+   * @return {Promise<boolean>} Returns a promise that resolves to `true` if the logout process is successful.
+   * @throws {LogoutException} Throws if an error occurs while attempting to invalidate the access token.
    */
   async execute(authenticatedUser: any): Promise<boolean> {
     try {

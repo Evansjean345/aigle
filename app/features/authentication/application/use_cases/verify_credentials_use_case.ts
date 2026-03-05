@@ -2,7 +2,7 @@
 import { LoginRequestDto, LoginResult } from '#features/authentication/application/dtos/login.dto'
 import OtpService from '#features/authentication/application/services/otp_service'
 import DeviceService from '#features/device/application/services/device_service'
-import { toDeviceCommand } from '#features/device/application/mappers/device.mapper'
+import { DeviceCommandDTO } from '#features/device/application/dto/device.command.tdo'
 import { bypassEnabled, appPhoneNumberReview } from '#config/app'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber, maskPhone } from '#shared/utils/utiles'
@@ -12,7 +12,7 @@ import AccountBlockedException from '#features/authentication/infrastructure/exc
 import securityLog from '#shared/infrastructure/logging/security_log'
 
 @inject()
-export default class LoginUseCase {
+export default class VerifyCredentialsUseCase {
   /**
    * Constructs an instance of the class.
    *
@@ -48,7 +48,7 @@ export default class LoginUseCase {
     }
 
     if (data.device) {
-      const deviceCommand = await toDeviceCommand(data.device)
+      const deviceCommand = DeviceCommandDTO.fromRequest(data.device)
       await this.deviceService.saveDevice(deviceCommand, user.usersUid)
     }
 

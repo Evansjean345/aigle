@@ -5,24 +5,12 @@ import HandleTransfertWebhookUseCase from '#features/webhooks/application/use_ca
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
+import emitter from '@adonisjs/core/services/emitter'
 
 @inject()
 export default class TransferWebhookController {
-  /**
-   * Creates an instance of the class with a dependency on HandleTransfertWebhookUseCase.
-   *
-   * @param {HandleTransfertWebhookUseCase} handleTransfertWebhook - An instance of the HandleTransfertWebhookUseCase, responsible for handling transfer webhook logic.
-   */
   constructor(private readonly handleTransfertWebhook: HandleTransfertWebhookUseCase) {}
 
-  /**
-   * Handles the transfer success webhook.
-   *
-   * @param {HttpContext} params - The HTTP context object containing the request and response.
-   * @param {Object} params.request - The HTTP request object.
-   * @param {Object} params.response - The HTTP response object.
-   * @return {Promise<void>} A promise that resolves when the webhook has been processed.
-   */
   async transferSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
@@ -30,12 +18,21 @@ export default class TransferWebhookController {
       'TRANSFER_SUCCESS_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
-        headers: request.headers(),
+        contentType: request.header('content-type'),
         reference: payload?.data?.reference,
         ip: request.ip(),
       },
       'Received transfer success webhook'
     )
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'WEBHOOK_RECEIVED',
+        reference: payload?.data?.reference,
+        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        ipAddress: request.ip(),
+      })
+      .catch((_) => {})
 
     try {
       const result = await this.handleTransfertWebhook.execute(payload, TransactionStatus.SUCCESS)
@@ -55,16 +52,6 @@ export default class TransferWebhookController {
     }
   }
 
-  /**
-   * Handles the transfer failure webhook event by processing the provided payload
-   * and updating the corresponding transaction status. Logs relevant information
-   * about the request and any errors that occur during processing.
-   *
-   * @param {Object} context - The HTTP context object containing request and response.
-   * @param {RequestContract} context.request - The HTTP request object.
-   * @param {ResponseContract} context.response - The HTTP response object.
-   * @return {Promise<void>} Resolves when the webhook processing is complete.
-   */
   async transferFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
@@ -72,12 +59,21 @@ export default class TransferWebhookController {
       'TRANSFER_FAILURE_WEBHOOK_RECEIVED',
       {
         path: request.url(true),
-        headers: request.headers(),
+        contentType: request.header('content-type'),
         reference: payload?.data?.reference,
         ip: request.ip(),
       },
       'Received transfer failure webhook'
     )
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'WEBHOOK_RECEIVED',
+        reference: payload?.data?.reference,
+        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        ipAddress: request.ip(),
+      })
+      .catch((_) => {})
 
     try {
       const result = await this.handleTransfertWebhook.execute(payload, TransactionStatus.FAILED)

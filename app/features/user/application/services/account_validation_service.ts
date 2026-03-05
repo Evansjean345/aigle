@@ -18,6 +18,7 @@ import hash from '@adonisjs/core/services/hash'
 import limiter from '@adonisjs/limiter/services/main'
 import { errors as limiterErrors } from '@adonisjs/limiter'
 import InvalidPincodeException from '#features/authentication/infrastructure/exceptions/invalid_pincode_exception'
+import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
 
 /**
  * Service for validating user account status and associated wallet information.
@@ -72,9 +73,14 @@ export default class AccountValidationService {
    *
    * @param {User} user - The user object.
    * @param {DeviceHeadersInfo} deviceInfo - The device information from headers.
+   * @param {GeoIpLocation} geoIpLocation - The geolocation details of the device.
    * @throws {UnauthenticatedDeviceException} If the device is not found, not trusted, or doesn't belong to the user.
    */
-  async validateDevice(user: User, deviceInfo?: DeviceHeadersInfo): Promise<void> {
+  async validateDevice(
+    user: User,
+    deviceInfo?: DeviceHeadersInfo,
+    geoIpLocation?: GeoIpLocation
+  ): Promise<void> {
     if (!deviceInfo || !deviceInfo.fingerprintHash) {
       throw new Exception("Les informations de l'appareil sont manquantes.", {
         status: 400,
@@ -90,7 +96,7 @@ export default class AccountValidationService {
       )
       if (updateCheck.status === UpdateStatus.OBSOLETE) {
         throw new Exception(
-          'Cette version de l’application est obsolète. Veuillez la mettre à jour.',
+          'Cette version de l’application est obsolète. Veuillez mettre à jour votr application',
           {
             status: 426,
             code: 'E_APP_OBSOLETE',
@@ -154,7 +160,7 @@ export default class AccountValidationService {
     }
 
     // Mise à jour silencieuse des traces (ne bloque pas la réponse)
-    this.deviceService.updateDeviceTraces(device, deviceInfo).catch((err) => {
+    this.deviceService.updateDeviceTraces(device, deviceInfo, geoIpLocation).catch((err) => {
       appLog.error(
         'ASYNC_DEVICE_UPDATE_FAILED',
         { deviceId: device.id, error: err.message },
@@ -184,7 +190,6 @@ export default class AccountValidationService {
       const isCorrect = await hash.verify(user.pincode, pinCode)
 
       if (!isCorrect) throw new InvalidPincodeException()
-
       await pinLimiter.delete(throttleKey)
 
       return true

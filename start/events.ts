@@ -49,10 +49,12 @@ const HandleTransactionFailure = () =>
   import('#features/transactions/application/listeners/handle_transaction_failure')
 
 import { AuditRecordInput } from '#shared/infrastructure/logging/audit_service'
+import { TransactionLogEventData } from '#features/transactions/application/types/transaction_log_event_data'
 
 declare module '@adonisjs/core/types' {
   interface EventsList {
     'activity:audit': AuditRecordInput
+    'activity:transaction-log': TransactionLogEventData
   }
 }
 
@@ -80,4 +82,8 @@ emitter.listen(TransfertTransactionFailed, [HandleTransactionFailure])
 emitter.listen(WalletToWalletTransactionFailed, [HandleTransactionFailure])
 emitter.listen(TransfertInterTransactionFailed, [HandleTransactionFailure])
 
+const TransactionLogListener = () =>
+  import('#features/transactions/application/listeners/transaction_log_listener')
+
 emitter.on('activity:audit', [AuditListener])
+emitter.on('activity:transaction-log', [TransactionLogListener])

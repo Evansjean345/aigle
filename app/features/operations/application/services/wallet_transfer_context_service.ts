@@ -95,7 +95,7 @@ export default class WalletTransferContextService {
       {
         amount: amountRaw,
         operation: 'subtract',
-        include_fees: payload.include_fees,
+        include_fees: payload.includeFees,
       }
     )
 
@@ -131,7 +131,7 @@ export default class WalletTransferContextService {
         return this.walletService.getByWalletToken(payload.token)
       case TransferMode.BY_PHONE:
         return this.walletService.getWalletByPhoneNumber(
-          payload.recipient_phone!,
+          payload.recipientPhone!,
           senderUserId,
           phoneCode
         )

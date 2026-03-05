@@ -6,6 +6,7 @@ import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { LedgerDirection, LedgerOperationType } from '#features/ledger/domain/ledger_enums'
 import ledgerLog from '#shared/infrastructure/logging/ledger_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
+import emitter from '@adonisjs/core/services/emitter'
 
 /**
  * Service for handling ledger-related operations, such as creating ledger entries
@@ -84,6 +85,21 @@ export default class LedgerService {
         },
         'Ledger entry created successfully'
       )
+
+      emitter.emit('activity:transaction-log', {
+        event: 'LEDGER_ENTRY_CREATED' as const,
+        transactionId: params.transaction.reference,
+        walletId: String(params.walletId),
+        direction: params.direction,
+        amountBrut: params.amountBrut,
+        fees: params.fees,
+        totalAmount,
+        balanceBefore: params.balanceBefore,
+        balanceAfter: params.balanceAfter,
+        operationType:
+          (params.operationType as string) ||
+          (params.transaction.operationType as string),
+      })
 
       return entry
     } catch (error) {

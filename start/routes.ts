@@ -10,6 +10,8 @@ import userAccountMobileRoutes from '#features/users/presentation/mobile/routes/
 import mobileQrRoutes from '#features/qr/presentation/mobile/routes/qr_routes'
 import mobileKycRoutes from '#features/kyc/presentation/mobile/routes/kyc_routes'
 import mobileDeviceRoutes from '#features/device/presentation/mobile/routes/device_routes'
+import mobileDebitPhoneRoutes from '#features/users/presentation/mobile/routes/debit_phone_routes'
+import { middleware } from '#start/kernel'
 
 router
   .group(() => {
@@ -23,5 +25,6 @@ router
     router.group(mobileQrRoutes)
     router.group(mobileKycRoutes)
     router.group(mobileDeviceRoutes)
+    router.group(mobileDebitPhoneRoutes)
   })
   .prefix('/api')

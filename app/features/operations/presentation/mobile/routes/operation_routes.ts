@@ -19,6 +19,6 @@ const mobileOperationRoutes = () =>
       router.post('wallet-to-wallet', [WalletToWalletController])
     })
     .prefix('mobile/operations')
-    .use([middleware.auth(), middleware.device(), middleware.idempotency()])
+    .use([middleware.auth(), middleware.device(), middleware.geoip(), middleware.idempotency()])
 
 export default mobileOperationRoutes

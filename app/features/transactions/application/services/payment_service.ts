@@ -10,6 +10,7 @@ import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import PaymentAlreadyFailedException from '#features/transactions/infrastructure/exceptions/payment_already_failed_exception'
 import PaymentAlreadySuccessfulException from '#features/transactions/infrastructure/exceptions/payment_already_successful_exception'
 import PaymentNotFoundException from '#features/transactions/infrastructure/exceptions/payment_not_found_exception'
+import InvalidStatusTransitionException from '#features/transactions/infrastructure/exceptions/invalid_status_transition_exception'
 
 /**
  * Service class for handling payment-related operations.
@@ -56,7 +57,7 @@ export default class PaymentService {
     transactionLog.info(
       'INIT_PAYMENT_CREATION',
       { transaction_id: transaction.id, user_id: user.id, method: payload.payment_method },
-      'Creating payment'
+      `Creating payment '${payload.step}' for transaction ${transaction.id} by user ${user.id} with method ${payload.payment_method}`
     )
     const payment = new Payment()
 
@@ -75,15 +76,8 @@ export default class PaymentService {
     return this.paymentRepository.save(payment, trx)
   }
 
-  /**
-   * Retrieves a payment record from the repository using a unique identifier (UID) or numerical ID.
-   *
-   * @param {string|number} id - The unique identifier (UID) or numerical ID of the payment to retrieve.
-   * @return {Promise<Payment>} A promise that resolves to the payment record if found, or throws an exception if not found.
-   * @throws {PaymentNotFoundException} If no payment is found for the given identifier.
-   */
-  async getByUidOrId(id: string | number): Promise<Payment> {
-    const payment = await this.paymentRepository.findByUidOrId(id)
+  async getById(id: number, trx?: TransactionClientContract): Promise<Payment> {
+    const payment = await this.paymentRepository.findById(id, trx)
     if (!payment) throw new PaymentNotFoundException()
     return payment
   }
@@ -101,11 +95,11 @@ export default class PaymentService {
    * @throws {PaymentAlreadySuccessfulException} If the payment is already marked as successful.
    */
   async markSuccess(
-    id: string | number,
+    id: number,
     extra?: Partial<Pick<Payment, 'status' | 'operatorResponse'>>,
     trx?: TransactionClientContract
   ): Promise<Payment> {
-    const payment = await this.getByUidOrId(id)
+    const payment = await this.getById(id, trx)
 
     if (payment.status === PaymentStatus.SUCCESS) {
       transactionLog.warn(
@@ -114,6 +108,15 @@ export default class PaymentService {
         'Payment already successful'
       )
       throw new PaymentAlreadySuccessfulException()
+    }
+
+    if (payment.status === PaymentStatus.FAILED) {
+      transactionLog.warn(
+        'PAYMENT_INVALID_TRANSITION',
+        { payment_id: payment.id, from: payment.status, to: 'SUCCESS' },
+        'Cannot mark a failed payment as successful'
+      )
+      throw new InvalidStatusTransitionException(payment.status, 'SUCCESS', 'payment')
     }
 
     payment.status = PaymentStatus.SUCCESS
@@ -143,11 +146,11 @@ export default class PaymentService {
    * @throws {PaymentAlreadyFailedException} If the payment is already marked as `FAILED`.
    */
   async markFailed(
-    id: string | number,
+    id: number,
     extra?: Partial<Pick<Payment, 'operatorResponse' | 'status'>>,
     trx?: TransactionClientContract
   ): Promise<Payment> {
-    const payment = await this.getByUidOrId(id)
+    const payment = await this.getById(id, trx)
 
     if (payment.status === PaymentStatus.FAILED) {
       transactionLog.info(
@@ -156,6 +159,15 @@ export default class PaymentService {
         'Payment already failed'
       )
       throw new PaymentAlreadyFailedException()
+    }
+
+    if (payment.status === PaymentStatus.SUCCESS) {
+      transactionLog.warn(
+        'PAYMENT_INVALID_TRANSITION',
+        { payment_id: payment.id, from: payment.status, to: 'FAILED' },
+        'Cannot mark a successful payment as failed'
+      )
+      throw new InvalidStatusTransitionException(payment.status, 'FAILED', 'payment')
     }
 
     payment.status = PaymentStatus.FAILED
@@ -176,20 +188,52 @@ export default class PaymentService {
    * Finds payments associated with a given transaction ID or UID.
    *
    * @param {number|string} transactionIdOrUid - The ID or UID of the transaction to find associated payments for.
+   * @param trx
    * @return {Promise<Payment[]>} A promise that resolves to an array of payments related to the given transaction.
    */
-  async findByTransaction(transactionIdOrUid: number | string): Promise<Payment[]> {
+  async findByTransaction(
+    transactionIdOrUid: number | string,
+    trx?: TransactionClientContract
+  ): Promise<Payment[]> {
     transactionLog.debug(
       'PAYMENT_LOOKUP_BY_TRANSACTION',
       { transaction: { ref: transactionIdOrUid } },
       'Finding payments by transaction'
     )
-    const payments = await this.paymentRepository.findByTransaction(transactionIdOrUid)
+
+    const payments = await this.paymentRepository.findByTransaction(transactionIdOrUid, trx)
+
     transactionLog.debug(
       'PAYMENTS_FOUND',
       { payments: { count: payments.length } },
       'Payments found for transaction'
     )
     return payments
+  }
+
+  /**
+   * Parses the payment details JSON from a payment object.
+   *
+   * @param {Payment} payment - The payment whose details should be parsed.
+   * @return {Record<string, any>} The parsed details, or an empty object if parsing fails.
+   */
+  parsePaymentDetails(payment: Payment): Record<string, any> {
+    try {
+      const raw = payment.paymentDetails
+      return typeof raw === 'string' ? JSON.parse(raw) : (raw ?? {})
+    } catch {
+      return {}
+    }
+  }
+
+  /**
+   * Extracts the beneficiary phone number from a payment's details.
+   *
+   * @param {Payment} payment - The payment to extract the phone from.
+   * @return {string} The phone number, or 'unknown' if unavailable.
+   */
+  extractBeneficiaryPhone(payment: Payment): string {
+    const details = this.parsePaymentDetails(payment)
+    return details?.phone || 'unknown'
   }
 }
