@@ -1,18 +1,6 @@
 import env from '#start/env'
 import app from '@adonisjs/core/services/app'
-import { Secret } from '@adonisjs/core/helpers'
 import { defineConfig } from '@adonisjs/core/http'
-
-/**
- * Represents the application's secret key used for authentication or encryption purposes.
- * The key is securely retrieved from the environment variables.
- *
- * The `appKey` is an instance of `Secret`, which ensures enhanced security and avoids exposing
- * sensitive information within the codebase.
- *
- * @type {Secret}
- */
-export const appKey = new Secret(env.get('APP_KEY'))
 
 export const appEnv = env.get('NODE_ENV', 'development')
 

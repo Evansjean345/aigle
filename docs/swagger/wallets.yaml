@@ -1,0 +1,154 @@
+paths:
+  /api/mobile/wallet/overview:
+    get:
+      operationId: getWalletOverview
+      summary: Aperçu du portefeuille
+      description: |
+        Récupère l'aperçu complet du portefeuille de l'utilisateur connecté,
+        incluant le solde, la devise, le statut et les dernières transactions.
+      tags:
+        - Wallet
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      responses:
+        '200':
+          description: Aperçu du portefeuille
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletOverview'
+              example:
+                wallet:
+                  id: 1
+                  walletsUid: "550e8400-e29b-41d4-a716-446655440000"
+                  balance: 25000
+                  currencySymbol: "XOF"
+                  qrcodeToken: "qr_a1b2c3d4e5"
+                  status: "active"
+                  createdAt: "2026-01-15T10:30:00Z"
+                transactions:
+                  - reference: "TRF-20260308-A1B2C3"
+                    type: "transfert"
+                    amount: 5000
+                    status: "completed"
+                    createdAt: "2026-03-08T14:22:00Z"
+                  - reference: "DEP-20260307-D4E5F6"
+                    type: "depot"
+                    amount: 10000
+                    status: "completed"
+                    createdAt: "2026-03-07T09:15:00Z"
+        '401':
+          description: Non autorisé
+
+  /api/admin/wallets/{userId}/activate:
+    put:
+      operationId: activateUserWallet
+      summary: Activer le portefeuille d'un utilisateur
+      description: Active le portefeuille d'un utilisateur désactivé.
+      tags:
+        - Admin - Wallets
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Identifiant de l'utilisateur
+          schema:
+            type: integer
+          example: 42
+      responses:
+        '200':
+          description: Portefeuille activé
+          content:
+            application/json:
+              example:
+                message: "Portefeuille activé avec succès"
+        '401':
+          description: Non autorisé
+        '404':
+          description: Utilisateur non trouvé
+
+  /api/admin/wallets/{userId}/deactivate:
+    put:
+      operationId: deactivateUserWallet
+      summary: Désactiver le portefeuille d'un utilisateur
+      description: Désactive le portefeuille d'un utilisateur, bloquant toute opération financière.
+      tags:
+        - Admin - Wallets
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Identifiant de l'utilisateur
+          schema:
+            type: integer
+          example: 42
+      responses:
+        '200':
+          description: Portefeuille désactivé
+          content:
+            application/json:
+              example:
+                message: "Portefeuille désactivé avec succès"
+        '401':
+          description: Non autorisé
+        '404':
+          description: Utilisateur non trouvé
+
+components:
+  schemas:
+    WalletOverview:
+      type: object
+      properties:
+        wallet:
+          $ref: '#/components/schemas/WalletDetail'
+        transactions:
+          type: array
+          description: Dernières transactions de l'utilisateur
+          items:
+            type: object
+            properties:
+              reference:
+                type: string
+              type:
+                type: string
+              amount:
+                type: number
+              status:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+
+    WalletDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        walletsUid:
+          type: string
+          format: uuid
+        balance:
+          type: number
+          description: Solde actuel du portefeuille
+        currencySymbol:
+          type: string
+          description: Symbole de la devise (ex XOF)
+        qrcodeToken:
+          type: string
+          description: Token unique pour les QR codes
+        status:
+          type: string
+          enum: [active, inactive]
+        createdAt:
+          type: string
+          format: date-time

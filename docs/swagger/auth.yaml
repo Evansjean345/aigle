@@ -1,0 +1,795 @@
+paths:
+  /api/mobile/auth/check-phone:
+    post:
+      operationId: checkPhone
+      summary: Vérifier un numéro de téléphone
+      description: |
+        Vérifie si un numéro de téléphone est déjà enregistré dans le système.
+        Utilisé avant l'inscription pour éviter les doublons.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckPhoneRequest'
+            example:
+              phone: "+22890001234"
+              country_id: 1
+      responses:
+        '200':
+          description: Vérification effectuée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exists:
+                    type: boolean
+                    description: Indique si le numéro est déjà enregistré
+              example:
+                exists: false
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/mobile/auth/register:
+    post:
+      operationId: registerUser
+      summary: Inscription d'un nouvel utilisateur
+      description: |
+        Enregistre un nouvel utilisateur avec ses informations personnelles et son appareil.
+        Un OTP est envoyé pour la vérification du compte.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              firstname: "Aminata"
+              lastname: "Diallo"
+              email: "aminata.diallo@email.com"
+              phone: "+22890001234"
+              pincode: "12345"
+              country_id: 1
+              deviceInfo:
+                fingerprint_hash: "a1b2c3d4e5f6"
+                device_uid: "DEV-UUID-001"
+                platform: "android"
+                brand: "Samsung"
+                model: "Galaxy S24"
+                os_version: "14.0"
+                app_version: "1.0.0"
+                is_emulator: false
+                is_rooted: false
+      responses:
+        '201':
+          description: Utilisateur créé — OTP envoyé pour vérification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+              example:
+                id: 42
+                firstname: "Aminata"
+                lastname: "Diallo"
+                phone: "+22890001234"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/mobile/auth/verify-credentials:
+    post:
+      operationId: verifyCredentials
+      summary: Connexion utilisateur
+      description: |
+        Authentifie l'utilisateur avec son téléphone et code PIN.
+        Retourne un token JWT et le profil utilisateur.
+        Enregistre ou vérifie l'appareil utilisé.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              phone: "+22890001234"
+              codepin: "12345"
+              country_id: 1
+              devicePayload:
+                fingerprint_hash: "a1b2c3d4e5f6"
+                device_uid: "DEV-UUID-001"
+                platform: "android"
+                brand: "Samsung"
+                model: "Galaxy S24"
+                os_version: "14.0"
+                app_version: "1.0.0"
+                is_emulator: false
+                is_rooted: false
+      responses:
+        '200':
+          description: Authentification réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+              example:
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                user:
+                  id: 42
+                  firstname: "Aminata"
+                  lastname: "Diallo"
+                  phone: "+22890001234"
+                  email: "aminata.diallo@email.com"
+                  status: "active"
+                  kycLevel: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/mobile/auth/verify-account:
+    post:
+      operationId: verifyAccount
+      summary: Vérification du compte via OTP
+      description: |
+        Vérifie le compte utilisateur avec le code OTP reçu par SMS.
+        Finalise l'inscription et authentifie l'utilisateur.
+      tags:
+        - Auth
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyAccountRequest'
+            example:
+              phone: "+22890001234"
+              otp: "4829"
+              country_id: 1
+      responses:
+        '200':
+          description: Compte vérifié et utilisateur authentifié
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/mobile/auth/send-otp:
+    post:
+      operationId: sendOtp
+      summary: Envoyer un code OTP
+      description: |
+        Envoie un code OTP par SMS au numéro de téléphone spécifié.
+        Soumis au rate limiting pour éviter les abus.
+      tags:
+        - Auth
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckPhoneRequest'
+            example:
+              phone: "+22890001234"
+              country_id: 1
+      responses:
+        '200':
+          description: OTP envoyé avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "OTP envoyé avec succès"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/mobile/auth/forgot-password/request:
+    post:
+      operationId: forgotPasswordRequest
+      summary: Demander la réinitialisation du code PIN
+      description: Envoie un OTP pour initier la réinitialisation du code PIN.
+      tags:
+        - Auth
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckPhoneRequest'
+            example:
+              phone: "+22890001234"
+              country_id: 1
+      responses:
+        '200':
+          description: OTP de réinitialisation envoyé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "OTP envoyé avec succès"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/mobile/auth/forgot-password/verify:
+    post:
+      operationId: forgotPasswordVerify
+      summary: Vérifier l'OTP de réinitialisation
+      description: |
+        Vérifie le code OTP pour la réinitialisation du code PIN.
+        Retourne un `reset_token` temporaire nécessaire pour l'étape suivante.
+      tags:
+        - Auth
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyAccountRequest'
+            example:
+              phone: "+22890001234"
+              otp: "4829"
+              country_id: 1
+      responses:
+        '200':
+          description: OTP vérifié — token de réinitialisation retourné
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reset_token:
+                    type: string
+                    description: Token temporaire pour la réinitialisation
+              example:
+                reset_token: "rst_a1b2c3d4e5f6g7h8"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/mobile/auth/forgot-password/reset:
+    post:
+      operationId: forgotPasswordReset
+      summary: Réinitialiser le code PIN
+      description: |
+        Réinitialise le code PIN de l'utilisateur après vérification de l'OTP.
+        Nécessite le `reset_token` obtenu à l'étape précédente.
+      tags:
+        - Auth
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordResetRequest'
+            example:
+              phone: "+22890001234"
+              reset_token: "rst_a1b2c3d4e5f6g7h8"
+              new_pincode: "54321"
+              confirm_pincode: "54321"
+              country_id: 1
+      responses:
+        '200':
+          description: Code PIN réinitialisé avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Code PIN réinitialisé avec succès"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/mobile/auth/profile:
+    get:
+      operationId: getAuthProfile
+      summary: Profil de l'utilisateur connecté
+      description: Récupère le profil complet de l'utilisateur actuellement authentifié, incluant les informations du wallet.
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      responses:
+        '200':
+          description: Profil utilisateur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticatedProfileResponse'
+              example:
+                id: 42
+                usersUid: "550e8400-e29b-41d4-a716-446655440000"
+                firstname: "Aminata"
+                lastname: "Diallo"
+                phone: "+22890001234"
+                email: "aminata.diallo@email.com"
+                status: "active"
+                kycLevel: 1
+                kycStatus: "approved"
+                accountNumber: "AGL-000042"
+                wallet:
+                  balance: 25000
+                  currencySymbol: "XOF"
+                  status: "active"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/mobile/auth/logout:
+    post:
+      operationId: logout
+      summary: Déconnexion
+      description: Déconnecte l'utilisateur et invalide le token d'accès courant.
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      responses:
+        '204':
+          description: Déconnexion réussie
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/mobile/auth/check-pin:
+    post:
+      operationId: checkPin
+      summary: Vérifier le code PIN
+      description: |
+        Vérifie la validité du code PIN de l'utilisateur authentifié.
+        Soumis au rate limiting pour protéger contre les attaques par force brute.
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pincode
+              properties:
+                pincode:
+                  type: string
+                  minLength: 5
+                  maxLength: 5
+                  description: Code PIN à 5 chiffres
+            example:
+              pincode: "12345"
+      responses:
+        '200':
+          description: Résultat de la vérification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isValid:
+                    type: boolean
+              example:
+                isValid: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+components:
+  schemas:
+    CheckPhoneRequest:
+      type: object
+      required:
+        - phone
+        - country_id
+      properties:
+        phone:
+          type: string
+          description: Numéro de téléphone au format international
+          example: "+22890001234"
+        country_id:
+          type: integer
+          description: Identifiant du pays
+          example: 1
+
+    DevicePayload:
+      type: object
+      required:
+        - fingerprint_hash
+        - device_uid
+        - platform
+        - brand
+        - model
+        - os_version
+        - app_version
+        - is_emulator
+        - is_rooted
+      properties:
+        fingerprint_hash:
+          type: string
+          description: Empreinte unique de l'appareil
+        device_uid:
+          type: string
+          description: Identifiant unique de l'appareil
+        platform:
+          type: string
+          description: Plateforme (ios, android)
+        brand:
+          type: string
+          description: Marque de l'appareil
+        model:
+          type: string
+          description: Modèle de l'appareil
+        os_version:
+          type: string
+          description: Version du système d'exploitation
+        app_version:
+          type: string
+          description: Version de l'application
+        is_emulator:
+          type: boolean
+          description: Indique si l'appareil est un émulateur
+        is_rooted:
+          type: boolean
+          description: Indique si l'appareil est rooté/jailbreaké
+
+    RegisterRequest:
+      type: object
+      required:
+        - firstname
+        - lastname
+        - phone
+        - pincode
+        - country_id
+        - deviceInfo
+      properties:
+        firstname:
+          type: string
+          description: Prénom de l'utilisateur
+        lastname:
+          type: string
+          description: Nom de famille
+        email:
+          type: string
+          format: email
+          description: Adresse email (optionnel)
+        phone:
+          type: string
+          description: Numéro de téléphone au format international
+        pincode:
+          type: string
+          minLength: 5
+          maxLength: 5
+          description: Code PIN à 5 chiffres
+        country_id:
+          type: integer
+          description: Identifiant du pays
+        deviceInfo:
+          $ref: '#/components/schemas/DevicePayload'
+
+    RegisterResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstname:
+          type: string
+        lastname:
+          type: string
+        phone:
+          type: string
+
+    LoginRequest:
+      type: object
+      required:
+        - phone
+        - codepin
+        - country_id
+        - devicePayload
+      properties:
+        phone:
+          type: string
+          description: Numéro de téléphone
+        codepin:
+          type: string
+          minLength: 5
+          maxLength: 5
+          description: Code PIN à 5 chiffres
+        country_id:
+          type: integer
+          description: Identifiant du pays
+        devicePayload:
+          $ref: '#/components/schemas/DevicePayload'
+
+    VerifyAccountRequest:
+      type: object
+      required:
+        - phone
+        - otp
+        - country_id
+      properties:
+        phone:
+          type: string
+          description: Numéro de téléphone
+        otp:
+          type: string
+          minLength: 4
+          maxLength: 4
+          description: Code OTP à 4 chiffres
+        country_id:
+          type: integer
+          description: Identifiant du pays
+
+    ForgotPasswordResetRequest:
+      type: object
+      required:
+        - phone
+        - reset_token
+        - new_pincode
+        - confirm_pincode
+        - country_id
+      properties:
+        phone:
+          type: string
+          description: Numéro de téléphone
+        reset_token:
+          type: string
+          description: Token de réinitialisation obtenu via /forgot-password/verify
+        new_pincode:
+          type: string
+          minLength: 5
+          maxLength: 5
+          description: Nouveau code PIN à 5 chiffres
+        confirm_pincode:
+          type: string
+          minLength: 5
+          maxLength: 5
+          description: Confirmation du nouveau code PIN (doit correspondre)
+        country_id:
+          type: integer
+          description: Identifiant du pays
+
+    AuthTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Token JWT d'accès
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+            firstname:
+              type: string
+            lastname:
+              type: string
+            phone:
+              type: string
+            email:
+              type: string
+              nullable: true
+            status:
+              type: string
+              enum: [active, blocked, pending]
+            kycLevel:
+              type: integer
+
+    AuthenticatedProfileResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        usersUid:
+          type: string
+          format: uuid
+        firstname:
+          type: string
+        lastname:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, blocked, pending]
+        kycLevel:
+          type: integer
+        kycStatus:
+          type: string
+          nullable: true
+        accountNumber:
+          type: string
+        wallet:
+          type: object
+          properties:
+            balance:
+              type: number
+            currencySymbol:
+              type: string
+            status:
+              type: string
+
+  parameters:
+    DeviceFingerprint:
+      name: X-Device-Fingerprint
+      in: header
+      required: true
+      description: Empreinte unique de l'appareil
+      schema:
+        type: string
+      example: "a1b2c3d4e5f6"
+    DeviceUid:
+      name: X-Device-Uid
+      in: header
+      required: true
+      description: Identifiant unique de l'appareil
+      schema:
+        type: string
+      example: "DEV-UUID-001"
+    DevicePlatform:
+      name: X-Device-Platform
+      in: header
+      required: false
+      description: Plateforme de l'appareil (ios, android)
+      schema:
+        type: string
+        enum: [ios, android]
+      example: "android"
+    AppVersion:
+      name: X-App-Version
+      in: header
+      required: false
+      description: Version de l'application mobile
+      schema:
+        type: string
+      example: "1.0.0"
+    DeviceOsVersion:
+      name: X-Device-Os-Version
+      in: header
+      required: false
+      description: Version du système d'exploitation
+      schema:
+        type: string
+      example: "14.0"
+
+  responses:
+    ValidationError:
+      description: Erreur de validation des données
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errors:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    rule:
+                      type: string
+                    field:
+                      type: string
+                    message:
+                      type: string
+          example:
+            errors:
+              - rule: "required"
+                field: "phone"
+                message: "Le champ phone est requis"
+
+    BadRequest:
+      description: Requête invalide
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+          example:
+            message: "Requête invalide"
+
+    Unauthorized:
+      description: Non autorisé — token manquant ou invalide
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              errors:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+          example:
+            errors:
+              - message: "Unauthorized access"
+
+    TooManyRequests:
+      description: Trop de requêtes — rate limit atteint
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+          example:
+            message: "Too many requests. Please try again later."

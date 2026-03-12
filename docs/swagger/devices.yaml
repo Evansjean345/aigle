@@ -1,0 +1,280 @@
+paths:
+  /api/mobile/devices/check-updates:
+    get:
+      operationId: checkAppUpdates
+      summary: Vérifier les mises à jour
+      description: |
+        Vérifie si une mise à jour de l'application est disponible.
+        Compare la version installée avec la dernière version disponible pour la plateforme.
+        Indique si la mise à jour est critique (forçant la mise à jour).
+      tags:
+        - Appareils
+      parameters:
+        - name: platform
+          in: query
+          required: true
+          description: Plateforme de l'appareil
+          schema:
+            type: string
+            enum: [ios, android]
+          example: "android"
+        - name: version
+          in: query
+          required: true
+          description: Version actuelle de l'application installée
+          schema:
+            type: string
+          example: "1.0.0"
+      responses:
+        '200':
+          description: Résultat de la vérification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateCheckResponse'
+              example:
+                updateAvailable: true
+                criticalUpdate: false
+                latestVersion: "1.2.0"
+                downloadUrl: null
+        '422':
+          description: Erreur de validation
+
+  /api/mobile/devices:
+    get:
+      operationId: listUserDevices
+      summary: Lister les appareils de l'utilisateur
+      description: Récupère la liste des appareils enregistrés pour l'utilisateur connecté.
+      tags:
+        - Appareils
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      responses:
+        '200':
+          description: Liste des appareils
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+              example:
+                - id: "d1a2b3c4-e5f6-7890-abcd-ef1234567890"
+                  deviceUid: "DEV-UUID-001"
+                  platform: "android"
+                  brand: "Samsung"
+                  model: "Galaxy S24"
+                  osVersion: "14.0"
+                  appVersion: "1.0.0"
+                  status: "active"
+                  isPrimary: true
+                  pushToken: "fcm_token_abc123"
+                  lastSeenAt: "2026-03-09T08:00:00Z"
+                  createdAt: "2026-01-15T10:30:00Z"
+        '401':
+          description: Non autorisé
+
+  /api/mobile/devices/push-token:
+    put:
+      operationId: updatePushToken
+      summary: Mettre à jour le token push
+      description: Met à jour le token de notification push (FCM/APNs) pour l'appareil courant.
+      tags:
+        - Appareils
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pushToken
+              properties:
+                pushToken:
+                  type: string
+                  description: Token de notification push (FCM pour Android, APNs pour iOS)
+            example:
+              pushToken: "fcm_new_token_xyz789"
+      responses:
+        '200':
+          description: Token mis à jour
+          content:
+            application/json:
+              example:
+                deviceId: "d1a2b3c4-e5f6-7890-abcd-ef1234567890"
+                pushToken: "fcm_new_token_xyz789"
+        '401':
+          description: Non autorisé
+        '422':
+          description: Erreur de validation
+
+  /api/mobile/devices/{id}/revoke:
+    delete:
+      operationId: revokeDevice
+      summary: Révoquer un appareil
+      description: |
+        Révoque un appareil enregistré de l'utilisateur connecté.
+        L'appareil ne pourra plus être utilisé pour se connecter.
+      tags:
+        - Appareils
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant UUID de l'appareil
+          schema:
+            type: string
+            format: uuid
+          example: "d1a2b3c4-e5f6-7890-abcd-ef1234567890"
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      responses:
+        '200':
+          description: Appareil révoqué
+          content:
+            application/json:
+              example:
+                message: "Device revoked successfully."
+        '401':
+          description: Non autorisé
+        '404':
+          description: Appareil non trouvé
+
+  # ─── ADMIN ──────────────────────────────────────────────
+  /api/admin/devices/users/{userId}:
+    get:
+      operationId: adminListUserDevices
+      summary: Lister les appareils d'un utilisateur
+      description: Récupère la liste des appareils enregistrés pour un utilisateur donné.
+      tags:
+        - Admin - Appareils
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Identifiant de l'utilisateur
+          schema:
+            type: integer
+          example: 42
+      responses:
+        '200':
+          description: Liste des appareils
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+        '401':
+          description: Non autorisé
+        '404':
+          description: Utilisateur non trouvé
+
+  /api/admin/devices/users/{userId}/{deviceId}/revoke:
+    delete:
+      operationId: adminRevokeUserDevice
+      summary: Révoquer l'appareil d'un utilisateur
+      description: Révoque un appareil spécifique d'un utilisateur donné (action admin).
+      tags:
+        - Admin - Appareils
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Identifiant de l'utilisateur
+          schema:
+            type: integer
+        - name: deviceId
+          in: path
+          required: true
+          description: Identifiant UUID de l'appareil
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Appareil révoqué
+        '401':
+          description: Non autorisé
+        '404':
+          description: Appareil ou utilisateur non trouvé
+
+components:
+  schemas:
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Identifiant unique de l'appareil
+        deviceUid:
+          type: string
+          description: UID de l'appareil
+        platform:
+          type: string
+          enum: [ios, android]
+        brand:
+          type: string
+        model:
+          type: string
+        osVersion:
+          type: string
+        appVersion:
+          type: string
+        status:
+          type: string
+          enum: [active, revoked]
+        isPrimary:
+          type: boolean
+          description: Indique si c'est l'appareil principal
+        pushToken:
+          type: string
+          nullable: true
+        lastSeenAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    UpdateCheckResponse:
+      type: object
+      properties:
+        updateAvailable:
+          type: boolean
+          description: Indique si une mise à jour est disponible
+        criticalUpdate:
+          type: boolean
+          description: Indique si la mise à jour est obligatoire
+        latestVersion:
+          type: string
+          description: Dernière version disponible
+        downloadUrl:
+          type: string
+          nullable: true
+          description: URL de téléchargement (si disponible)

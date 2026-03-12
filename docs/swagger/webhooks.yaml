@@ -1,0 +1,205 @@
+paths:
+  /api/mobile/webhooks/deposit/success:
+    post:
+      operationId: webhookDepositSuccess
+      summary: Callback dépôt réussi
+      description: |
+        Webhook appelé par le fournisseur de paiement lorsqu'un dépôt est confirmé.
+        Met à jour le statut de la transaction et crédite le portefeuille de l'utilisateur.
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook traité avec succès
+        '400':
+          description: Payload invalide
+        '429':
+          description: Trop de requêtes — rate limit atteint
+
+  /api/mobile/webhooks/deposit/failure:
+    post:
+      operationId: webhookDepositFailure
+      summary: Callback dépôt échoué
+      description: |
+        Webhook appelé par le fournisseur lorsqu'un dépôt échoue.
+        Met à jour le statut de la transaction en "failed".
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook traité avec succès
+        '400':
+          description: Payload invalide
+        '429':
+          description: Trop de requêtes
+
+  /api/mobile/webhooks/transfer/success:
+    post:
+      operationId: webhookTransferSuccess
+      summary: Callback transfert réussi
+      description: |
+        Webhook appelé lorsqu'un transfert simple est confirmé par le fournisseur.
+        Finalise la transaction et met à jour les soldes.
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook traité avec succès
+        '400':
+          description: Payload invalide
+        '429':
+          description: Trop de requêtes
+
+  /api/mobile/webhooks/transfer/failure:
+    post:
+      operationId: webhookTransferFailure
+      summary: Callback transfert échoué
+      description: Webhook appelé lorsqu'un transfert simple échoue.
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook traité avec succès
+        '400':
+          description: Payload invalide
+        '429':
+          description: Trop de requêtes
+
+  /api/mobile/webhooks/transfer-inter/success:
+    post:
+      operationId: webhookInterTransferSuccess
+      summary: Callback transfert inter-réseau réussi (1ère étape)
+      description: |
+        Webhook appelé lorsque la première étape d'un transfert inter-réseau est confirmée
+        (débit chez le fournisseur source). Déclenche automatiquement la deuxième étape
+        (crédit chez le fournisseur destination).
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook traité — 2ème étape initiée
+        '400':
+          description: Payload invalide
+        '429':
+          description: Trop de requêtes
+
+  /api/mobile/webhooks/transfer-inter/failure:
+    post:
+      operationId: webhookInterTransferFailure
+      summary: Callback transfert inter-réseau échoué (1ère étape)
+      description: Webhook appelé lorsque la première étape d'un transfert inter-réseau échoue.
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook traité
+        '400':
+          description: Payload invalide
+        '429':
+          description: Trop de requêtes
+
+  /api/mobile/webhooks/transfer-inter/second/success:
+    post:
+      operationId: webhookInterTransferSecondSuccess
+      summary: Callback transfert inter-réseau réussi (2ème étape)
+      description: |
+        Webhook appelé lorsque la deuxième étape d'un transfert inter-réseau est confirmée
+        (crédit chez le fournisseur destination). La transaction complète est marquée comme terminée.
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook traité — transaction complétée
+        '400':
+          description: Payload invalide
+        '429':
+          description: Trop de requêtes
+
+  /api/mobile/webhooks/transfer-inter/second/failure:
+    post:
+      operationId: webhookInterTransferSecondFailure
+      summary: Callback transfert inter-réseau échoué (2ème étape)
+      description: |
+        Webhook appelé lorsque la deuxième étape d'un transfert inter-réseau échoue.
+        Nécessite une intervention manuelle pour résoudre l'état intermédiaire.
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+      responses:
+        '200':
+          description: Webhook traité
+        '400':
+          description: Payload invalide
+        '429':
+          description: Trop de requêtes
+
+components:
+  schemas:
+    WebhookPayload:
+      type: object
+      description: |
+        Payload envoyé par le fournisseur de paiement.
+        Le format exact dépend du fournisseur utilisé.
+        Le système identifie la transaction via la référence contenue dans le payload.
+      properties:
+        reference:
+          type: string
+          description: Référence de la transaction
+        status:
+          type: string
+          description: Statut retourné par le fournisseur
+        provider_reference:
+          type: string
+          description: Référence unique côté fournisseur
+        amount:
+          type: number
+        metadata:
+          type: object
+          description: Données additionnelles du fournisseur

@@ -1,0 +1,665 @@
+paths:
+  # ─── MOBILE : QR Code ───────────────────────────────────
+  /api/mobile/qr/issue:
+    post:
+      operationId: issueQrCode
+      summary: Générer un QR code
+      description: |
+        Génère un QR code unique lié au portefeuille de l'utilisateur.
+        Ce QR code peut être scanné par un autre utilisateur pour initier un transfert wallet-à-wallet.
+      tags:
+        - QR Code
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  minimum: 1
+                  description: Montant pré-défini pour le QR code (optionnel)
+            example:
+              amount: 5000
+      responses:
+        '201':
+          description: QR code généré
+          content:
+            application/json:
+              example:
+                token: "qr_a1b2c3d4e5f6g7h8i9j0"
+                amount: 5000
+                expiresAt: "2026-03-09T15:30:00Z"
+        '401':
+          description: Non autorisé
+
+  /api/mobile/qr/resolve:
+    post:
+      operationId: resolveQrCode
+      summary: Résoudre un QR code
+      description: |
+        Résout un QR code scanné et retourne les informations du propriétaire.
+        Utilisé pour afficher les détails du bénéficiaire avant un transfert.
+      tags:
+        - QR Code
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - qr_token
+              properties:
+                qr_token:
+                  type: string
+                  description: Token du QR code scanné
+            example:
+              qr_token: "qr_a1b2c3d4e5f6g7h8i9j0"
+      responses:
+        '200':
+          description: QR code résolu
+          content:
+            application/json:
+              example:
+                firstname: "Aminata"
+                lastname: "Diallo"
+                phone: "+22890001234"
+                amount: 5000
+        '404':
+          description: QR code invalide ou expiré
+
+  /api/mobile/qr/verify:
+    post:
+      operationId: verifyQrCode
+      summary: Vérifier la validité d'un QR code
+      description: Vérifie si un QR code est valide et non expiré, sans retourner les détails du propriétaire.
+      tags:
+        - QR Code
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - qr_token
+              properties:
+                qr_token:
+                  type: string
+            example:
+              qr_token: "qr_a1b2c3d4e5f6g7h8i9j0"
+      responses:
+        '200':
+          description: Résultat de la vérification
+          content:
+            application/json:
+              example:
+                isValid: true
+                expiresAt: "2026-03-09T15:30:00Z"
+
+  # ─── MOBILE : KYC ───────────────────────────────────────
+  /api/mobile/kyc/submit-documents:
+    post:
+      operationId: submitKycDocuments
+      summary: Soumettre les documents KYC
+      description: |
+        Soumet les documents d'identité pour la vérification KYC.
+        Les fichiers acceptés sont PNG et JPG.
+        Le verso du document est requis pour les cartes d'identité et permis de conduire.
+      tags:
+        - KYC
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - document_type
+                - document_recto
+                - selfie_image
+              properties:
+                document_type:
+                  type: string
+                  enum: [id_card, passport, driver_license]
+                  description: Type de document d'identité
+                document_recto:
+                  type: string
+                  format: binary
+                  description: Photo recto du document (PNG/JPG, max 5 Mo)
+                document_verso:
+                  type: string
+                  format: binary
+                  description: Photo verso du document (PNG/JPG, max 5 Mo — requis pour id_card et driver_license)
+                selfie_image:
+                  type: string
+                  format: binary
+                  description: Photo selfie de l'utilisateur (PNG/JPG, max 10 Mo)
+      responses:
+        '201':
+          description: Documents soumis pour vérification
+          content:
+            application/json:
+              example:
+                message: "Documents KYC soumis avec succès"
+                status: "pending"
+        '401':
+          description: Non autorisé
+        '422':
+          description: Erreur de validation (fichier trop volumineux, format invalide, etc.)
+
+  # ─── ADMIN : KYC Documents ──────────────────────────────
+  /api/admin/kyc:
+    get:
+      operationId: adminListKycDocuments
+      summary: Liste des demandes KYC
+      description: Récupère la liste paginée des demandes KYC avec filtrage par statut, type et dates.
+      tags:
+        - Admin - KYC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: perPage
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          description: Filtrer par statut
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+        - name: documentType
+          in: query
+          description: Filtrer par type de document
+          schema:
+            type: string
+            enum: [id_card, passport, driver_license]
+        - name: user_id
+          in: query
+          description: Filtrer par utilisateur
+          schema:
+            type: integer
+        - name: search
+          in: query
+          description: Recherche textuelle
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Liste paginée des demandes KYC
+        '401':
+          description: Non autorisé
+
+  /api/admin/kyc/stats:
+    get:
+      operationId: adminGetKycStats
+      summary: Statistiques KYC
+      description: Récupère les statistiques globales des demandes KYC.
+      tags:
+        - Admin - KYC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Statistiques KYC
+          content:
+            application/json:
+              example:
+                total: 320
+                pending: 45
+                approved: 250
+                rejected: 25
+        '401':
+          description: Non autorisé
+
+  /api/admin/kyc/{id}:
+    get:
+      operationId: adminGetKycDocument
+      summary: Détails d'une demande KYC
+      description: Récupère les détails complets d'une demande KYC avec les URLs des documents.
+      tags:
+        - Admin - KYC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Détails de la demande KYC
+          content:
+            application/json:
+              example:
+                id: 15
+                userId: 42
+                documentType: "id_card"
+                status: "pending"
+                documentRectoUrl: "/storage/kyc/42/recto.jpg"
+                documentVersoUrl: "/storage/kyc/42/verso.jpg"
+                selfieUrl: "/storage/kyc/42/selfie.jpg"
+                comment: null
+                createdAt: "2026-03-05T14:00:00Z"
+        '401':
+          description: Non autorisé
+        '404':
+          description: Demande KYC non trouvée
+
+  /api/admin/kyc/{id}/process:
+    post:
+      operationId: adminProcessKyc
+      summary: Traiter une demande KYC
+      description: |
+        Approuve ou rejette une demande KYC.
+        Un commentaire est obligatoire en cas de rejet (minimum 3 caractères).
+      tags:
+        - Admin - KYC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected]
+                  description: Décision de traitement
+                comment:
+                  type: string
+                  minLength: 3
+                  description: Commentaire (obligatoire si rejeté)
+            examples:
+              approval:
+                summary: Approbation
+                value:
+                  status: "approved"
+                  comment: "Documents conformes"
+              rejection:
+                summary: Rejet
+                value:
+                  status: "rejected"
+                  comment: "Document illisible, veuillez soumettre une photo plus nette"
+      responses:
+        '200':
+          description: Demande traitée
+          content:
+            application/json:
+              example:
+                message: "KYC traité avec succès"
+        '401':
+          description: Non autorisé
+        '404':
+          description: Demande KYC non trouvée
+        '422':
+          description: Erreur de validation
+
+  /api/admin/users/{id}/kyc:
+    get:
+      operationId: adminGetUserKyc
+      summary: KYC d'un utilisateur
+      description: Récupère la dernière demande KYC d'un utilisateur. Retourne `null` si aucune demande.
+      tags:
+        - Admin - KYC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Demande KYC de l'utilisateur (ou null)
+        '401':
+          description: Non autorisé
+
+  # ─── ADMIN : KYC Levels ─────────────────────────────────
+  /api/admin/kyc/levels:
+    get:
+      operationId: adminListKycLevels
+      summary: Liste des niveaux KYC
+      description: Récupère la liste de tous les niveaux KYC avec leurs limites de transaction.
+      tags:
+        - Admin - Niveaux KYC
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des niveaux KYC
+          content:
+            application/json:
+              example:
+                - id: 1
+                  level: 0
+                  singleLimit: 10000
+                  dailyLimit: 50000
+                  monthlyLimit: 200000
+                  balanceLimit: 100000
+                  isActive: true
+                - id: 2
+                  level: 1
+                  singleLimit: 50000
+                  dailyLimit: 200000
+                  monthlyLimit: 1000000
+                  balanceLimit: 500000
+                  isActive: true
+        '401':
+          description: Non autorisé
+    post:
+      operationId: adminCreateKycLevel
+      summary: Créer un niveau KYC
+      description: Crée un nouveau niveau KYC avec ses limites de transaction.
+      tags:
+        - Admin - Niveaux KYC
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateKycLevelRequest'
+            example:
+              level: 2
+              singleLimit: 100000
+              dailyLimit: 500000
+              monthlyLimit: 2000000
+              balanceLimit: 1000000
+              isActive: true
+      responses:
+        '201':
+          description: Niveau KYC créé
+        '401':
+          description: Non autorisé
+        '422':
+          description: Erreur de validation
+
+  /api/admin/kyc/levels/{id}:
+    get:
+      operationId: adminGetKycLevel
+      summary: Détails d'un niveau KYC
+      tags:
+        - Admin - Niveaux KYC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Détails du niveau KYC
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+    put:
+      operationId: adminUpdateKycLevel
+      summary: Mettre à jour un niveau KYC
+      tags:
+        - Admin - Niveaux KYC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateKycLevelRequest'
+            example:
+              singleLimit: 150000
+              dailyLimit: 600000
+      responses:
+        '200':
+          description: Niveau KYC mis à jour
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+        '422':
+          description: Erreur de validation
+    delete:
+      operationId: adminDeleteKycLevel
+      summary: Supprimer un niveau KYC
+      tags:
+        - Admin - Niveaux KYC
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Niveau supprimé
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+
+  # ─── ADMIN : Ledger ─────────────────────────────────────
+  /api/admin/ledgers:
+    get:
+      operationId: adminListLedgers
+      summary: Liste des écritures du grand livre
+      description: Récupère la liste paginée de toutes les écritures comptables du grand livre.
+      tags:
+        - Admin - Grand livre
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Liste paginée des écritures
+        '401':
+          description: Non autorisé
+
+  /api/admin/ledgers/stats:
+    get:
+      operationId: adminGetLedgerStats
+      summary: Statistiques du grand livre
+      description: Récupère les statistiques globales du grand livre (total débits/crédits, solde net).
+      tags:
+        - Admin - Grand livre
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Statistiques du grand livre
+          content:
+            application/json:
+              example:
+                totalDebits: 25000000
+                totalCredits: 24500000
+                netBalance: 500000
+                totalEntries: 2500
+        '401':
+          description: Non autorisé
+
+  /api/admin/users/{id}/ledgers:
+    get:
+      operationId: adminGetUserLedgers
+      summary: Grand livre d'un utilisateur
+      description: Récupère les écritures du grand livre d'un utilisateur spécifique.
+      tags:
+        - Admin - Grand livre
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Écritures de l'utilisateur
+        '401':
+          description: Non autorisé
+
+  /api/admin/users/{id}/ledgers/stats:
+    get:
+      operationId: adminGetUserLedgerStats
+      summary: Statistiques du grand livre d'un utilisateur
+      tags:
+        - Admin - Grand livre
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Statistiques du grand livre de l'utilisateur
+        '401':
+          description: Non autorisé
+
+components:
+  schemas:
+    CreateKycLevelRequest:
+      type: object
+      required:
+        - level
+        - singleLimit
+        - dailyLimit
+        - monthlyLimit
+        - balanceLimit
+      properties:
+        level:
+          type: integer
+          minimum: 0
+          description: Numéro du niveau KYC
+        singleLimit:
+          type: number
+          minimum: 0
+          description: Limite par opération
+        dailyLimit:
+          type: number
+          minimum: 0
+          description: Limite journalière
+        monthlyLimit:
+          type: number
+          minimum: 0
+          description: Limite mensuelle
+        balanceLimit:
+          type: number
+          minimum: 0
+          description: Limite de solde
+        isActive:
+          type: boolean
+          default: true
+
+    UpdateKycLevelRequest:
+      type: object
+      properties:
+        level:
+          type: integer
+          minimum: 0
+        singleLimit:
+          type: number
+          minimum: 0
+        dailyLimit:
+          type: number
+          minimum: 0
+        monthlyLimit:
+          type: number
+          minimum: 0
+        balanceLimit:
+          type: number
+          minimum: 0
+        isActive:
+          type: boolean

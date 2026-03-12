@@ -1,7 +1,6 @@
 import { BaseModel, beforeCreate, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 import { DeviceStatus } from '#features/device/domain/enums'
-import { cuid } from '@adonisjs/core/helpers'
 
 export default class Device extends BaseModel {
   @column({ isPrimary: true })
@@ -70,7 +69,7 @@ export default class Device extends BaseModel {
   @beforeCreate()
   static async generateId(device: Device) {
     if (!device.id) {
-      device.id = cuid()
+      device.id = crypto.randomUUID()
     }
   }
 }

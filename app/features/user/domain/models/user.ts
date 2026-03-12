@@ -1,5 +1,5 @@
 ﻿import { DateTime } from 'luxon'
-import { compose, cuid } from '@adonisjs/core/helpers'
+import { compose } from '@adonisjs/core/helpers'
 import {
   BaseModel,
   beforeCreate,
@@ -98,7 +98,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @beforeCreate()
   static async BaseModel(user: User) {
-    if (!user.usersUid) user.usersUid = cuid()
+    if (!user.usersUid) user.usersUid = crypto.randomUUID()
     if (!user.accountNumber) user.accountNumber = uniqueID(8)
   }
 

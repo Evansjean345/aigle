@@ -34,6 +34,7 @@ export default class AdminAuthService {
       admin.lastLoginIp = requestIp
 
       await admin.save()
+
       await emitter.emit('activity:audit', {
         eventCategory: 'AUTH',
         eventAction: 'LOGIN_SUCCESS',

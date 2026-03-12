@@ -1,0 +1,904 @@
+paths:
+  # ─── MOBILE ─────────────────────────────────────────────
+  /api/mobile/services/payment-options/{serviceType}:
+    get:
+      operationId: getPaymentOptions
+      summary: Options de paiement par type de service
+      description: Récupère les fournisseurs et méthodes de paiement disponibles pour un type de service donné.
+      tags:
+        - Services
+      parameters:
+        - name: serviceType
+          in: path
+          required: true
+          description: Code du type de service (ex depot, transfert)
+          schema:
+            type: string
+          example: "depot"
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      responses:
+        '200':
+          description: Liste des options de paiement
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentOption'
+              example:
+                - provider:
+                    id: 1
+                    code: "ORANGE_CI"
+                    name: "Orange Money"
+                    type: "mobile_money"
+                  paymentMethod:
+                    id: 1
+                    code: "MOBILE_MONEY"
+                    label: "Mobile Money"
+                  feeFixed: 0
+                  feePercent: 1
+        '404':
+          description: Type de service non trouvé
+
+  /api/mobile/services/payment-options/{serviceType}/to:
+    get:
+      operationId: getPaymentOptionsTo
+      summary: Options de paiement destination
+      description: |
+        Récupère les fournisseurs de destination pour un transfert inter-réseau.
+        Filtré par le fournisseur source via le query parameter `fromProviderCode`.
+      tags:
+        - Services
+      parameters:
+        - name: serviceType
+          in: path
+          required: true
+          description: Code du type de service
+          schema:
+            type: string
+          example: "transfert_inter"
+        - name: fromProviderCode
+          in: query
+          required: true
+          description: Code du fournisseur source
+          schema:
+            type: string
+          example: "ORANGE_CI"
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      responses:
+        '200':
+          description: Liste des options de paiement destination
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentOption'
+        '404':
+          description: Type de service non trouvé
+
+  /api/mobile/services/company-contacts:
+    get:
+      operationId: getCompanyContacts
+      summary: Contacts de l'entreprise
+      description: Récupère la liste des contacts de l'entreprise (support, FAQ, etc.).
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      responses:
+        '200':
+          description: Liste des contacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyContact'
+              example:
+                - id: 1
+                  key: "support_phone"
+                  value: "+22890000000"
+                  isActive: true
+                - id: 2
+                  key: "support_email"
+                  value: "support@aiglesend.com"
+                  isActive: true
+
+  # ─── ADMIN : Company Contacts ───────────────────────────
+  /api/admin/services-management/company-contacts:
+    get:
+      operationId: adminListCompanyContacts
+      summary: Liste des contacts entreprise
+      description: Récupère la liste des contacts de l'entreprise (admin).
+      tags:
+        - Admin - Contacts
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des contacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyContact'
+        '401':
+          description: Non autorisé
+
+  /api/admin/services-management/company-contacts/{id}:
+    put:
+      operationId: adminUpdateCompanyContact
+      summary: Mettre à jour un contact entreprise
+      description: Met à jour la valeur ou le statut d'un contact de l'entreprise.
+      tags:
+        - Admin - Contacts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant du contact
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: string
+                  description: Nouvelle valeur du contact
+                isActive:
+                  type: boolean
+                  description: Statut d'activation
+            example:
+              value: "+22890000001"
+              isActive: true
+      responses:
+        '200':
+          description: Contact mis à jour
+        '401':
+          description: Non autorisé
+        '404':
+          description: Contact non trouvé
+        '422':
+          description: Erreur de validation
+
+  # ─── ADMIN : Payment Methods ────────────────────────────
+  /api/admin/services-management/payment-methods:
+    get:
+      operationId: adminListPaymentMethods
+      summary: Liste des méthodes de paiement
+      description: Récupère la liste paginée des méthodes de paiement.
+      tags:
+        - Admin - Méthodes de paiement
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SearchParam'
+      responses:
+        '200':
+          description: Liste paginée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPaymentMethods'
+              example:
+                meta:
+                  total: 3
+                  perPage: 20
+                  currentPage: 1
+                  lastPage: 1
+                data:
+                  - id: 1
+                    code: "MOBILE_MONEY"
+                    label: "Mobile Money"
+                  - id: 2
+                    code: "BANK_TRANSFER"
+                    label: "Virement bancaire"
+        '401':
+          description: Non autorisé
+    post:
+      operationId: adminCreatePaymentMethod
+      summary: Créer une méthode de paiement
+      description: Crée une nouvelle méthode de paiement. Le code et le label doivent être uniques.
+      tags:
+        - Admin - Méthodes de paiement
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentMethodRequest'
+            example:
+              code: "MOBILE_MONEY"
+              label: "Mobile Money"
+      responses:
+        '201':
+          description: Méthode créée
+        '401':
+          description: Non autorisé
+        '422':
+          description: Erreur de validation (code ou label déjà utilisé)
+
+  /api/admin/services-management/payment-methods/{id}:
+    get:
+      operationId: adminGetPaymentMethod
+      summary: Détails d'une méthode de paiement
+      description: Récupère les détails d'une méthode de paiement.
+      tags:
+        - Admin - Méthodes de paiement
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Détails de la méthode
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+    put:
+      operationId: adminUpdatePaymentMethod
+      summary: Mettre à jour une méthode de paiement
+      description: Met à jour une méthode de paiement existante.
+      tags:
+        - Admin - Méthodes de paiement
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentMethodRequest'
+            example:
+              code: "MOBILE_MONEY"
+              label: "Mobile Money (mis à jour)"
+      responses:
+        '200':
+          description: Méthode mise à jour
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+        '422':
+          description: Erreur de validation
+    delete:
+      operationId: adminDeletePaymentMethod
+      summary: Supprimer une méthode de paiement
+      tags:
+        - Admin - Méthodes de paiement
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Méthode supprimée
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+
+  # ─── ADMIN : Providers ──────────────────────────────────
+  /api/admin/services-management/providers:
+    get:
+      operationId: adminListProviders
+      summary: Liste des fournisseurs
+      description: Récupère la liste paginée des fournisseurs avec filtrage optionnel par type.
+      tags:
+        - Admin - Fournisseurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - name: type
+          in: query
+          description: Filtrer par type de fournisseur
+          schema:
+            type: string
+            enum: [mobile_money, bank, card]
+      responses:
+        '200':
+          description: Liste paginée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProviders'
+              example:
+                meta:
+                  total: 3
+                  perPage: 20
+                  currentPage: 1
+                  lastPage: 1
+                data:
+                  - id: 1
+                    code: "ORANGE_CI"
+                    name: "Orange Money"
+                    type: "mobile_money"
+                  - id: 2
+                    code: "MTN_CI"
+                    name: "MTN Mobile Money"
+                    type: "mobile_money"
+        '401':
+          description: Non autorisé
+    post:
+      operationId: adminCreateProvider
+      summary: Créer un fournisseur
+      description: Crée un nouveau fournisseur. Le code et le nom doivent être uniques.
+      tags:
+        - Admin - Fournisseurs
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProviderRequest'
+            example:
+              code: "WAVE_CI"
+              name: "Wave"
+              type: "mobile_money"
+      responses:
+        '201':
+          description: Fournisseur créé
+        '401':
+          description: Non autorisé
+        '422':
+          description: Erreur de validation
+
+  /api/admin/services-management/providers/{id}:
+    get:
+      operationId: adminGetProvider
+      summary: Détails d'un fournisseur
+      tags:
+        - Admin - Fournisseurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Détails du fournisseur
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+    put:
+      operationId: adminUpdateProvider
+      summary: Mettre à jour un fournisseur
+      tags:
+        - Admin - Fournisseurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProviderRequest'
+      responses:
+        '200':
+          description: Fournisseur mis à jour
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+        '422':
+          description: Erreur de validation
+    delete:
+      operationId: adminDeleteProvider
+      summary: Supprimer un fournisseur
+      tags:
+        - Admin - Fournisseurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Fournisseur supprimé
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+
+  # ─── ADMIN : Service Provider Methods ───────────────────
+  /api/admin/services-management/service-provider-methods:
+    get:
+      operationId: adminListServiceProviderMethods
+      summary: Liste des méthodes fournisseurs
+      description: Récupère la liste paginée des associations service-fournisseur-méthode avec leurs frais.
+      tags:
+        - Admin - Méthodes fournisseurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SearchParam'
+      responses:
+        '200':
+          description: Liste paginée
+        '401':
+          description: Non autorisé
+    post:
+      operationId: adminCreateServiceProviderMethod
+      summary: Créer une méthode fournisseur
+      description: |
+        Crée une nouvelle association service-fournisseur-méthode.
+        Définit les frais (fixe et/ou pourcentage) pour cette combinaison.
+      tags:
+        - Admin - Méthodes fournisseurs
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceProviderMethodRequest'
+            example:
+              serviceTypeId: 1
+              paymentMethodId: 1
+              providerFromId: 1
+              providerToId: 2
+              feeFixed: 50
+              feePercent: 1.5
+              currency: "XOF"
+              isActive: true
+      responses:
+        '201':
+          description: Méthode fournisseur créée
+        '401':
+          description: Non autorisé
+        '422':
+          description: Erreur de validation
+
+  /api/admin/services-management/service-provider-methods/{id}:
+    get:
+      operationId: adminGetServiceProviderMethod
+      summary: Détails d'une méthode fournisseur
+      tags:
+        - Admin - Méthodes fournisseurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Détails de la méthode
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+    put:
+      operationId: adminUpdateServiceProviderMethod
+      summary: Mettre à jour une méthode fournisseur
+      tags:
+        - Admin - Méthodes fournisseurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateServiceProviderMethodRequest'
+      responses:
+        '200':
+          description: Méthode mise à jour
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+        '422':
+          description: Erreur de validation
+    delete:
+      operationId: adminDeleteServiceProviderMethod
+      summary: Supprimer une méthode fournisseur
+      tags:
+        - Admin - Méthodes fournisseurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Méthode supprimée
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+
+  # ─── ADMIN : Service Types ──────────────────────────────
+  /api/admin/services-management/service-types:
+    get:
+      operationId: adminListServiceTypes
+      summary: Liste des types de service
+      description: Récupère la liste paginée des types de service (dépôt, transfert, etc.).
+      tags:
+        - Admin - Types de service
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SearchParam'
+      responses:
+        '200':
+          description: Liste paginée
+          content:
+            application/json:
+              example:
+                meta:
+                  total: 3
+                  perPage: 20
+                  currentPage: 1
+                  lastPage: 1
+                data:
+                  - id: 1
+                    code: "depot"
+                    label: "Dépôt"
+                    description: "Dépôt d'argent sur le portefeuille"
+                  - id: 2
+                    code: "transfert"
+                    label: "Transfert"
+                    description: "Transfert d'argent"
+        '401':
+          description: Non autorisé
+    post:
+      operationId: adminCreateServiceType
+      summary: Créer un type de service
+      description: Crée un nouveau type de service. Le code et le label doivent être uniques.
+      tags:
+        - Admin - Types de service
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceTypeRequest'
+            example:
+              code: "depot"
+              label: "Dépôt"
+              description: "Dépôt d'argent sur le portefeuille"
+      responses:
+        '201':
+          description: Type de service créé
+        '401':
+          description: Non autorisé
+        '422':
+          description: Erreur de validation
+
+  /api/admin/services-management/service-types/{id}:
+    get:
+      operationId: adminGetServiceType
+      summary: Détails d'un type de service
+      tags:
+        - Admin - Types de service
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '200':
+          description: Détails du type de service
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+    put:
+      operationId: adminUpdateServiceType
+      summary: Mettre à jour un type de service
+      tags:
+        - Admin - Types de service
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceTypeRequest'
+      responses:
+        '200':
+          description: Type de service mis à jour
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+        '422':
+          description: Erreur de validation
+    delete:
+      operationId: adminDeleteServiceType
+      summary: Supprimer un type de service
+      tags:
+        - Admin - Types de service
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+      responses:
+        '204':
+          description: Type de service supprimé
+        '401':
+          description: Non autorisé
+        '404':
+          description: Non trouvé
+
+components:
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Numéro de la page
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+    LimitParam:
+      name: limit
+      in: query
+      description: Nombre d'éléments par page
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+    SearchParam:
+      name: q
+      in: query
+      description: Terme de recherche textuelle
+      schema:
+        type: string
+    IdParam:
+      name: id
+      in: path
+      required: true
+      description: Identifiant de la ressource
+      schema:
+        type: integer
+
+  schemas:
+    PaymentOption:
+      type: object
+      properties:
+        provider:
+          type: object
+          properties:
+            id:
+              type: integer
+            code:
+              type: string
+            name:
+              type: string
+            type:
+              type: string
+        paymentMethod:
+          type: object
+          properties:
+            id:
+              type: integer
+            code:
+              type: string
+            label:
+              type: string
+        feeFixed:
+          type: number
+          description: Frais fixes
+        feePercent:
+          type: number
+          description: Frais en pourcentage
+
+    CompanyContact:
+      type: object
+      properties:
+        id:
+          type: integer
+        key:
+          type: string
+          description: Clé du contact (support_phone, support_email, etc.)
+        value:
+          type: string
+          description: Valeur du contact
+        isActive:
+          type: boolean
+
+    CreatePaymentMethodRequest:
+      type: object
+      required:
+        - code
+        - label
+      properties:
+        code:
+          type: string
+          description: Code unique de la méthode
+        label:
+          type: string
+          description: Libellé unique de la méthode
+
+    CreateProviderRequest:
+      type: object
+      required:
+        - code
+        - name
+        - type
+      properties:
+        code:
+          type: string
+          description: Code unique du fournisseur
+        name:
+          type: string
+          description: Nom unique du fournisseur
+        type:
+          type: string
+          enum: [mobile_money, bank, card]
+          description: Type de fournisseur
+        logo:
+          type: string
+          description: URL du logo (optionnel)
+
+    CreateServiceTypeRequest:
+      type: object
+      required:
+        - code
+        - label
+      properties:
+        code:
+          type: string
+          description: Code unique du type de service
+        label:
+          type: string
+          description: Libellé unique
+        description:
+          type: string
+          description: Description du type de service (optionnel)
+
+    CreateServiceProviderMethodRequest:
+      type: object
+      required:
+        - serviceTypeId
+        - paymentMethodId
+        - providerFromId
+      properties:
+        serviceTypeId:
+          type: integer
+          description: ID du type de service
+        paymentMethodId:
+          type: integer
+          description: ID de la méthode de paiement
+        providerFromId:
+          type: integer
+          description: ID du fournisseur source
+        providerToId:
+          type: integer
+          description: ID du fournisseur destination (pour transferts inter-réseau)
+        feeFixed:
+          type: number
+          minimum: 0
+          description: Frais fixes
+        feePercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Frais en pourcentage
+        currency:
+          type: string
+          minLength: 2
+          maxLength: 6
+          description: Code devise (ex XOF)
+        isActive:
+          type: boolean
+          default: true
+
+    UpdateServiceProviderMethodRequest:
+      type: object
+      properties:
+        serviceTypeId:
+          type: integer
+        paymentMethodId:
+          type: integer
+        providerFromId:
+          type: integer
+        providerToId:
+          type: integer
+        feeFixed:
+          type: number
+          minimum: 0
+        feePercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        currency:
+          type: string
+        isActive:
+          type: boolean
+
+    PaginatedPaymentMethods:
+      type: object
+      properties:
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              code:
+                type: string
+              label:
+                type: string
+
+    PaginatedProviders:
+      type: object
+      properties:
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              code:
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Nombre total d'éléments
+        perPage:
+          type: integer
+          description: Éléments par page
+        currentPage:
+          type: integer
+          description: Page courante
+        lastPage:
+          type: integer
+          description: Dernière page

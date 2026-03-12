@@ -1,0 +1,263 @@
+paths:
+  /api/admin/auth/login:
+    post:
+      operationId: adminLogin
+      summary: Connexion administrateur
+      description: |
+        Authentifie un administrateur avec email et mot de passe.
+        Un OTP est envoyé par email pour la vérification 2FA.
+      tags:
+        - Admin - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Adresse email de l'administrateur
+                password:
+                  type: string
+                  minLength: 8
+                  description: Mot de passe (minimum 8 caractères)
+            example:
+              email: "admin@aiglesend.com"
+              password: "SecurePass123!"
+      responses:
+        '200':
+          description: Identifiants valides — OTP envoyé par email
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "OTP envoyé par email"
+        '401':
+          $ref: '#/components/responses/AdminUnauthorized'
+
+  /api/admin/auth/verify-otp:
+    post:
+      operationId: adminVerifyOtp
+      summary: Vérifier l'OTP administrateur
+      description: |
+        Vérifie le code OTP envoyé par email pour compléter l'authentification 2FA.
+        Retourne les tokens d'accès et de rafraîchissement.
+      tags:
+        - Admin - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - otp
+              properties:
+                email:
+                  type: string
+                  format: email
+                otp:
+                  type: string
+                  description: Code OTP reçu par email
+            example:
+              email: "admin@aiglesend.com"
+              otp: "482910"
+      responses:
+        '200':
+          description: Authentification 2FA réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAuthResponse'
+              example:
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                refresh_token: "eyJhbGciOiJIUzI1NiJ9..."
+                admin:
+                  id: 1
+                  firstname: "Jean"
+                  lastname: "Konan"
+                  email: "admin@aiglesend.com"
+                  role:
+                    id: 1
+                    name: "Super Admin"
+        '400':
+          description: OTP invalide ou expiré
+          content:
+            application/json:
+              example:
+                message: "Code OTP invalide ou expiré"
+
+  /api/admin/auth/refresh:
+    post:
+      operationId: adminRefreshToken
+      summary: Rafraîchir le token d'accès
+      description: Génère un nouveau token d'accès à partir du token de rafraîchissement.
+      tags:
+        - Admin - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  description: Token de rafraîchissement
+            example:
+              refresh_token: "eyJhbGciOiJIUzI1NiJ9..."
+      responses:
+        '200':
+          description: Nouveau token généré
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  refresh_token:
+                    type: string
+              example:
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                refresh_token: "eyJhbGciOiJIUzI1NiJ9..."
+        '401':
+          $ref: '#/components/responses/AdminUnauthorized'
+
+  /api/admin/auth/setup-password:
+    post:
+      operationId: adminSetupPassword
+      summary: Configurer le mot de passe initial
+      description: |
+        Configure le mot de passe d'un administrateur invité.
+        Utilisé lors de la première connexion après invitation par un super admin.
+      tags:
+        - Admin - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - password
+              properties:
+                token:
+                  type: string
+                  description: Token d'invitation reçu par email
+                password:
+                  type: string
+                  minLength: 8
+                  description: Nouveau mot de passe (minimum 8 caractères)
+            example:
+              token: "inv_a1b2c3d4e5f6g7h8"
+              password: "NewSecurePass123!"
+      responses:
+        '200':
+          description: Mot de passe configuré avec succès
+          content:
+            application/json:
+              example:
+                message: "Mot de passe configuré avec succès"
+        '400':
+          description: Token invalide ou expiré
+        '422':
+          description: Erreur de validation
+
+  /api/admin/auth/me:
+    get:
+      operationId: getAdminProfile
+      summary: Profil administrateur connecté
+      description: Récupère le profil de l'administrateur actuellement authentifié avec son rôle et permissions.
+      tags:
+        - Admin - Auth
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profil administrateur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminProfile'
+              example:
+                id: 1
+                firstname: "Jean"
+                lastname: "Konan"
+                email: "admin@aiglesend.com"
+                role:
+                  id: 1
+                  name: "Super Admin"
+                  permissions:
+                    - slug: "team.manage"
+                      name: "Gérer l'équipe"
+                    - slug: "users.read"
+                      name: "Voir les utilisateurs"
+        '401':
+          $ref: '#/components/responses/AdminUnauthorized'
+
+components:
+  schemas:
+    AdminAuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Token JWT d'accès
+        refresh_token:
+          type: string
+          description: Token de rafraîchissement
+        admin:
+          $ref: '#/components/schemas/AdminProfile'
+
+    AdminProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstname:
+          type: string
+        lastname:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            permissions:
+              type: array
+              items:
+                type: object
+                properties:
+                  slug:
+                    type: string
+                  name:
+                    type: string
+
+  responses:
+    AdminUnauthorized:
+      description: Non autorisé — identifiants invalides ou token expiré
+      content:
+        application/json:
+          example:
+            errors:
+              - message: "Unauthorized access"

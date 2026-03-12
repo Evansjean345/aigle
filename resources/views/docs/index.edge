@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aigle Send API — Documentation</title>
+  <style>
+    :root { --bg: #fafafa; --card-bg: #fff; --text: #333; --sub: #666; --btn-bg: #1b1b1b; --btn-fg: #fff; --btn-hover: #333; --shadow: rgba(0,0,0,.08); }
+    html.dark { --bg: #1a1a2e; --card-bg: #16213e; --text: #e0e0e0; --sub: #8b949e; --btn-bg: #0f3460; --btn-fg: #e0e0e0; --btn-hover: #1a4a8a; --shadow: rgba(0,0,0,.3); }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: var(--bg); color: var(--text); transition: background .3s, color .3s; }
+    .card { background: var(--card-bg); border-radius: 16px; padding: 3rem 2.5rem; box-shadow: 0 4px 24px var(--shadow); text-align: center; max-width: 480px; width: 90%; }
+    .logo { font-size: 3rem; margin-bottom: .5rem; }
+    h1 { margin: 0 0 .5rem; font-size: 1.6rem; font-weight: 700; }
+    p { color: var(--sub); margin: 0 0 2rem; font-size: .95rem; }
+    .links { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .links a { display: flex; align-items: center; gap: .5rem; padding: .85rem 1.8rem; background: var(--btn-bg); color: var(--btn-fg); text-decoration: none; border-radius: 10px; font-size: 1rem; font-weight: 500; transition: background .2s, transform .15s; }
+    .links a:hover { background: var(--btn-hover); transform: translateY(-2px); }
+    .theme-toggle { position: fixed; top: 1rem; right: 1rem; background: var(--card-bg); border: 1px solid var(--shadow); padding: .5rem .75rem; border-radius: 8px; cursor: pointer; font-size: 1.1rem; box-shadow: 0 2px 8px var(--shadow); transition: background .2s; }
+    .theme-toggle:hover { opacity: .8; }
+  </style>
+</head>
+<body>
+  <button class="theme-toggle" onclick="toggleTheme()" title="Basculer le thème">🌙</button>
+  <div class="card">
+    <div class="logo">🦅</div>
+    <h1>Aigle Send API</h1>
+    <p>Sélectionnez la documentation à consulter</p>
+    <div class="links">
+      <a href="/docs/mobile">📱 API Mobile</a>
+      <a href="/docs/admin">🔧 API Admin</a>
+    </div>
+  </div>
+  <script>
+    function getTheme(){return localStorage.getItem('swagger-theme')||'light'}
+    function applyTheme(t){document.documentElement.classList.toggle('dark',t==='dark');document.querySelector('.theme-toggle').textContent=t==='dark'?'☀️':'🌙'}
+    function toggleTheme(){const t=getTheme()==='dark'?'light':'dark';localStorage.setItem('swagger-theme',t);applyTheme(t)}
+    applyTheme(getTheme());
+  </script>
+</body>
+</html>

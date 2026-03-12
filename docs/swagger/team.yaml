@@ -1,0 +1,599 @@
+paths:
+  # ─── Team Members ───────────────────────────────────────
+  /api/admin/team:
+    get:
+      operationId: adminListTeamMembers
+      summary: Lister les membres de l'équipe
+      description: |
+        Récupère la liste de tous les membres de l'équipe admin.
+        Nécessite la permission `team.manage`.
+      tags:
+        - Admin - Équipe
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des membres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TeamMember'
+              example:
+                - id: 1
+                  firstname: "Jean"
+                  lastname: "Konan"
+                  email: "jean.konan@aiglesend.com"
+                  roleId: 1
+                  createdAt: "2026-01-10T08:00:00Z"
+                - id: 2
+                  firstname: "Marie"
+                  lastname: "Bamba"
+                  email: "marie.bamba@aiglesend.com"
+                  roleId: 2
+                  createdAt: "2026-02-20T14:30:00Z"
+        '401':
+          description: Non autorisé
+        '403':
+          description: Permission insuffisante (team.manage requis)
+    post:
+      operationId: adminCreateTeamMember
+      summary: Ajouter un membre à l'équipe
+      description: |
+        Crée un nouveau membre admin et envoie une invitation par email.
+        Le membre devra configurer son mot de passe via le lien d'invitation.
+        Nécessite la permission `team.manage`.
+      tags:
+        - Admin - Équipe
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTeamMemberRequest'
+            example:
+              firstname: "Kofi"
+              lastname: "Asante"
+              email: "kofi.asante@aiglesend.com"
+              roleId: 2
+      responses:
+        '201':
+          description: Membre créé — invitation envoyée par email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamMember'
+        '401':
+          description: Non autorisé
+        '403':
+          description: Permission insuffisante
+        '422':
+          description: Erreur de validation (email déjà utilisé, etc.)
+
+  /api/admin/team/{id}:
+    put:
+      operationId: adminUpdateTeamMember
+      summary: Mettre à jour un membre de l'équipe
+      description: Met à jour les informations d'un membre admin (nom, email, rôle).
+      tags:
+        - Admin - Équipe
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant du membre
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTeamMemberRequest'
+            example:
+              roleId: 3
+      responses:
+        '200':
+          description: Membre mis à jour
+        '401':
+          description: Non autorisé
+        '403':
+          description: Permission insuffisante
+        '404':
+          description: Membre non trouvé
+        '422':
+          description: Erreur de validation
+    delete:
+      operationId: adminDeleteTeamMember
+      summary: Supprimer un membre de l'équipe
+      description: Supprime un membre admin de l'équipe. Son accès sera immédiatement révoqué.
+      tags:
+        - Admin - Équipe
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant du membre
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Membre supprimé
+        '401':
+          description: Non autorisé
+        '403':
+          description: Permission insuffisante
+        '404':
+          description: Membre non trouvé
+
+  # ─── Roles ──────────────────────────────────────────────
+  /api/admin/team/roles:
+    get:
+      operationId: adminListRoles
+      summary: Lister les rôles
+      description: Récupère la liste de tous les rôles disponibles avec leurs permissions.
+      tags:
+        - Admin - Rôles
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des rôles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+              example:
+                - id: 1
+                  name: "Super Admin"
+                  description: "Accès complet à toutes les fonctionnalités"
+                  permissions:
+                    - id: 1
+                      slug: "team.manage"
+                      name: "Gérer l'équipe"
+                    - id: 2
+                      slug: "users.read"
+                      name: "Voir les utilisateurs"
+                - id: 2
+                  name: "Support"
+                  description: "Accès en lecture aux utilisateurs et transactions"
+                  permissions:
+                    - id: 2
+                      slug: "users.read"
+                      name: "Voir les utilisateurs"
+        '401':
+          description: Non autorisé
+        '403':
+          description: Permission insuffisante
+    post:
+      operationId: adminCreateRole
+      summary: Créer un rôle
+      description: Crée un nouveau rôle avec des permissions optionnelles.
+      tags:
+        - Admin - Rôles
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+            example:
+              name: "Comptable"
+              description: "Accès aux transactions et au grand livre"
+              permissionIds: [3, 5, 7]
+      responses:
+        '201':
+          description: Rôle créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '401':
+          description: Non autorisé
+        '403':
+          description: Permission insuffisante
+        '422':
+          description: Erreur de validation
+
+  /api/admin/team/roles/{id}:
+    get:
+      operationId: adminGetRole
+      summary: Détails d'un rôle
+      description: Récupère les détails d'un rôle avec ses permissions associées.
+      tags:
+        - Admin - Rôles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant du rôle
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Détails du rôle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '401':
+          description: Non autorisé
+        '404':
+          description: Rôle non trouvé
+    put:
+      operationId: adminUpdateRole
+      summary: Mettre à jour un rôle
+      description: Met à jour un rôle et ses permissions associées.
+      tags:
+        - Admin - Rôles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant du rôle
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleRequest'
+            example:
+              name: "Comptable Senior"
+              permissionIds: [3, 5, 7, 8]
+      responses:
+        '200':
+          description: Rôle mis à jour
+        '401':
+          description: Non autorisé
+        '404':
+          description: Rôle non trouvé
+        '422':
+          description: Erreur de validation
+    delete:
+      operationId: adminDeleteRole
+      summary: Supprimer un rôle
+      description: Supprime un rôle. Les membres ayant ce rôle perdront leurs permissions.
+      tags:
+        - Admin - Rôles
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant du rôle
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Rôle supprimé
+        '401':
+          description: Non autorisé
+        '404':
+          description: Rôle non trouvé
+
+  # ─── Permissions ────────────────────────────────────────
+  /api/admin/team/permissions:
+    get:
+      operationId: adminListPermissions
+      summary: Lister les permissions (paginé)
+      description: Récupère la liste paginée des permissions.
+      tags:
+        - Admin - Permissions
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des permissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Permission'
+        '401':
+          description: Non autorisé
+        '403':
+          description: Permission insuffisante
+    post:
+      operationId: adminCreatePermission
+      summary: Créer une permission
+      description: Crée une nouvelle permission avec un slug unique.
+      tags:
+        - Admin - Permissions
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePermissionRequest'
+            example:
+              slug: "transactions.export"
+              name: "Exporter les transactions"
+              description: "Permet d'exporter les transactions au format CSV"
+      responses:
+        '201':
+          description: Permission créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+        '401':
+          description: Non autorisé
+        '403':
+          description: Permission insuffisante
+        '422':
+          description: Erreur de validation (slug déjà utilisé)
+
+  /api/admin/team/permissions/all:
+    get:
+      operationId: adminListAllPermissions
+      summary: Lister toutes les permissions
+      description: Récupère la liste complète de toutes les permissions sans pagination. Utile pour l'assignation de permissions aux rôles.
+      tags:
+        - Admin - Permissions
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste complète des permissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Permission'
+              example:
+                - id: 1
+                  slug: "team.manage"
+                  name: "Gérer l'équipe"
+                  description: "Ajouter/modifier/supprimer des membres admin"
+                - id: 2
+                  slug: "users.read"
+                  name: "Voir les utilisateurs"
+                  description: null
+                - id: 3
+                  slug: "transactions.read"
+                  name: "Voir les transactions"
+                  description: null
+        '401':
+          description: Non autorisé
+
+  /api/admin/team/permissions/{id}:
+    get:
+      operationId: adminGetPermission
+      summary: Détails d'une permission
+      tags:
+        - Admin - Permissions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant de la permission
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Détails de la permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+        '401':
+          description: Non autorisé
+        '404':
+          description: Permission non trouvée
+    put:
+      operationId: adminUpdatePermission
+      summary: Mettre à jour une permission
+      description: Met à jour le nom et/ou la description d'une permission (le slug ne peut pas être modifié).
+      tags:
+        - Admin - Permissions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant de la permission
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePermissionRequest'
+            example:
+              name: "Exporter les transactions (CSV/PDF)"
+              description: "Permet d'exporter les transactions aux formats CSV et PDF"
+      responses:
+        '200':
+          description: Permission mise à jour
+        '401':
+          description: Non autorisé
+        '404':
+          description: Permission non trouvée
+        '422':
+          description: Erreur de validation
+    delete:
+      operationId: adminDeletePermission
+      summary: Supprimer une permission
+      description: Supprime une permission. Elle sera automatiquement retirée de tous les rôles.
+      tags:
+        - Admin - Permissions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant de la permission
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Permission supprimée
+        '401':
+          description: Non autorisé
+        '404':
+          description: Permission non trouvée
+
+components:
+  schemas:
+    TeamMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstname:
+          type: string
+        lastname:
+          type: string
+        email:
+          type: string
+          format: email
+        roleId:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateTeamMemberRequest:
+      type: object
+      required:
+        - firstname
+        - lastname
+        - email
+      properties:
+        firstname:
+          type: string
+          description: Prénom du membre
+        lastname:
+          type: string
+          description: Nom de famille
+        email:
+          type: string
+          format: email
+          description: Adresse email unique
+        roleId:
+          type: integer
+          description: ID du rôle à assigner (optionnel)
+
+    UpdateTeamMemberRequest:
+      type: object
+      properties:
+        firstname:
+          type: string
+        lastname:
+          type: string
+        email:
+          type: string
+          format: email
+        roleId:
+          type: integer
+
+    Role:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+
+    CreateRoleRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Nom du rôle
+        description:
+          type: string
+          description: Description du rôle (optionnel)
+        permissionIds:
+          type: array
+          items:
+            type: integer
+          description: IDs des permissions à associer
+
+    UpdateRoleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        permissionIds:
+          type: array
+          items:
+            type: integer
+
+    Permission:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+          description: Identifiant technique unique (ex team.manage)
+        name:
+          type: string
+          description: Nom lisible
+        description:
+          type: string
+          nullable: true
+
+    CreatePermissionRequest:
+      type: object
+      required:
+        - slug
+        - name
+      properties:
+        slug:
+          type: string
+          description: Identifiant technique unique
+        name:
+          type: string
+          description: Nom lisible
+        description:
+          type: string
+          description: Description (optionnel)
+
+    UpdatePermissionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string

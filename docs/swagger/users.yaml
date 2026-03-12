@@ -1,0 +1,535 @@
+paths:
+  # ─── MOBILE : Profile ───────────────────────────────────
+  /api/mobile/profile/change-pincode:
+    post:
+      operationId: changePincode
+      summary: Changer le code PIN
+      description: |
+        Permet à l'utilisateur de changer son code PIN.
+        L'ancien code PIN doit être valide et le nouveau doit être confirmé.
+      tags:
+        - Profil
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_pincode
+                - new_pincode
+                - confirm_pincode
+              properties:
+                old_pincode:
+                  type: string
+                  minLength: 5
+                  maxLength: 5
+                  description: Code PIN actuel
+                new_pincode:
+                  type: string
+                  minLength: 5
+                  maxLength: 5
+                  description: Nouveau code PIN
+                confirm_pincode:
+                  type: string
+                  minLength: 5
+                  maxLength: 5
+                  description: Confirmation du nouveau code PIN (doit correspondre)
+            example:
+              old_pincode: "12345"
+              new_pincode: "54321"
+              confirm_pincode: "54321"
+      responses:
+        '200':
+          description: Code PIN modifié avec succès
+          content:
+            application/json:
+              example:
+                message: "Code PIN modifié avec succès"
+        '400':
+          description: Ancien code PIN incorrect
+        '401':
+          description: Non autorisé
+        '422':
+          description: Erreur de validation
+
+  # ─── MOBILE : Debit Phones ──────────────────────────────
+  /api/mobile/debit-phones:
+    get:
+      operationId: listDebitPhones
+      summary: Liste des téléphones de débit
+      description: Récupère la liste des téléphones de débit enregistrés et vérifiés de l'utilisateur.
+      tags:
+        - Téléphones de débit
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      responses:
+        '200':
+          description: Liste des téléphones de débit
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DebitPhone'
+              example:
+                - id: 1
+                  phone: "+22890001234"
+                  providerCode: "ORANGE_CI"
+                  label: "Mon Orange"
+                  isVerified: true
+                  createdAt: "2026-02-15T10:00:00Z"
+                - id: 2
+                  phone: "+22890005678"
+                  providerCode: "MTN_CI"
+                  label: null
+                  isVerified: true
+                  createdAt: "2026-03-01T08:30:00Z"
+        '401':
+          description: Non autorisé
+    post:
+      operationId: storeDebitPhone
+      summary: Ajouter un téléphone de débit
+      description: |
+        Ajoute un nouveau téléphone de débit. Un OTP est envoyé au numéro pour vérification.
+        Le téléphone ne sera actif qu'après vérification via `/verify`.
+      tags:
+        - Téléphones de débit
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreDebitPhoneRequest'
+            example:
+              phone: "+22890009876"
+              providerCode: "ORANGE_CI"
+              label: "Mon Orange Pro"
+      responses:
+        '201':
+          description: Téléphone ajouté — OTP envoyé pour vérification
+          content:
+            application/json:
+              example:
+                message: "Téléphone ajouté. Veuillez vérifier avec le code OTP envoyé."
+        '401':
+          description: Non autorisé
+        '422':
+          description: Erreur de validation
+
+  /api/mobile/debit-phones/verify:
+    post:
+      operationId: verifyDebitPhone
+      summary: Vérifier un téléphone de débit
+      description: Vérifie un téléphone de débit via le code OTP reçu par SMS.
+      tags:
+        - Téléphones de débit
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+                - codeOtp
+              properties:
+                phone:
+                  type: string
+                  description: Numéro de téléphone à vérifier
+                codeOtp:
+                  type: string
+                  description: Code OTP reçu par SMS
+            example:
+              phone: "+22890009876"
+              codeOtp: "4829"
+      responses:
+        '200':
+          description: Téléphone vérifié avec succès
+          content:
+            application/json:
+              example:
+                message: "Téléphone vérifié avec succès"
+        '400':
+          description: OTP invalide ou expiré
+        '401':
+          description: Non autorisé
+        '422':
+          description: Erreur de validation
+
+  /api/mobile/debit-phones/resend-otp:
+    post:
+      operationId: resendDebitPhoneOtp
+      summary: Renvoyer l'OTP d'un téléphone de débit
+      description: |
+        Renvoie le code OTP pour la vérification d'un téléphone de débit.
+        Soumis au rate limiting.
+      tags:
+        - Téléphones de débit
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+                - providerCode
+              properties:
+                phone:
+                  type: string
+                  description: Numéro de téléphone
+                providerCode:
+                  type: string
+                  description: Code du fournisseur associé
+            example:
+              phone: "+22890009876"
+              providerCode: "ORANGE_CI"
+      responses:
+        '200':
+          description: OTP renvoyé
+          content:
+            application/json:
+              example:
+                message: "OTP renvoyé avec succès"
+        '401':
+          description: Non autorisé
+        '429':
+          description: Trop de requêtes — rate limit atteint
+
+  # ─── ADMIN : Users ──────────────────────────────────────
+  /api/admin/users:
+    get:
+      operationId: adminListUsers
+      summary: Liste des utilisateurs
+      description: Récupère la liste paginée des utilisateurs avec filtrage par statut, dates et recherche.
+      tags:
+        - Admin - Utilisateurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: perPage
+          in: query
+          description: Nombre d'éléments par page
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          description: Recherche par nom, téléphone ou email
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filtrer par statut
+          schema:
+            type: string
+            enum: [active, blocked, pending]
+        - name: startDate
+          in: query
+          description: Date de début (format YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          description: Date de fin (format YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Liste paginée des utilisateurs
+          content:
+            application/json:
+              example:
+                meta:
+                  total: 150
+                  perPage: 20
+                  currentPage: 1
+                  lastPage: 8
+                data:
+                  - id: 42
+                    usersUid: "550e8400-e29b-41d4-a716-446655440000"
+                    firstname: "Aminata"
+                    lastname: "Diallo"
+                    phone: "+22890001234"
+                    email: "aminata@email.com"
+                    status: "active"
+                    kycLevel: 1
+                    createdAt: "2026-01-15T10:30:00Z"
+        '401':
+          description: Non autorisé
+
+  /api/admin/users/search:
+    get:
+      operationId: adminSearchUsers
+      summary: Rechercher des utilisateurs
+      description: Recherche rapide d'utilisateurs par nom, téléphone ou email.
+      tags:
+        - Admin - Utilisateurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Terme de recherche (minimum 2 caractères)
+          schema:
+            type: string
+          example: "Aminata"
+      responses:
+        '200':
+          description: Résultats de recherche
+        '401':
+          description: Non autorisé
+
+  /api/admin/users/stats:
+    get:
+      operationId: adminGetUserStats
+      summary: Statistiques des utilisateurs
+      description: Récupère les statistiques globales des utilisateurs (total, actifs, bloqués, par niveau KYC).
+      tags:
+        - Admin - Utilisateurs
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Statistiques
+          content:
+            application/json:
+              example:
+                totalUsers: 1500
+                activeUsers: 1350
+                blockedUsers: 50
+                pendingUsers: 100
+                byKycLevel:
+                  level_0: 200
+                  level_1: 800
+                  level_2: 500
+        '401':
+          description: Non autorisé
+
+  /api/admin/users/{id}:
+    get:
+      operationId: adminGetUser
+      summary: Détails d'un utilisateur
+      description: Récupère le profil détaillé d'un utilisateur avec wallet, KYC et statistiques.
+      tags:
+        - Admin - Utilisateurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Détails de l'utilisateur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetail'
+              example:
+                id: 42
+                usersUid: "550e8400-e29b-41d4-a716-446655440000"
+                firstname: "Aminata"
+                lastname: "Diallo"
+                phone: "+22890001234"
+                email: "aminata@email.com"
+                status: "active"
+                kycLevel: 1
+                kycStatus: "approved"
+                accountNumber: "AGL-000042"
+                createdAt: "2026-01-15T10:30:00Z"
+        '401':
+          description: Non autorisé
+        '404':
+          description: Utilisateur non trouvé
+
+  /api/admin/users/{id}/wallet-stats:
+    get:
+      operationId: adminGetUserWalletStats
+      summary: Statistiques du portefeuille d'un utilisateur
+      description: Récupère le solde et les statistiques du portefeuille d'un utilisateur.
+      tags:
+        - Admin - Utilisateurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Statistiques du portefeuille
+        '401':
+          description: Non autorisé
+
+  /api/admin/users/{id}/block:
+    put:
+      operationId: adminBlockUser
+      summary: Bloquer un utilisateur
+      description: Bloque un utilisateur, désactivant son accès à l'application et ses opérations.
+      tags:
+        - Admin - Utilisateurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Utilisateur bloqué
+          content:
+            application/json:
+              example:
+                message: "User blocked successfully"
+        '401':
+          description: Non autorisé
+        '404':
+          description: Utilisateur non trouvé
+
+  /api/admin/users/{id}/activate:
+    put:
+      operationId: adminActivateUser
+      summary: Activer un utilisateur
+      description: Réactive un utilisateur précédemment bloqué.
+      tags:
+        - Admin - Utilisateurs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Utilisateur activé
+          content:
+            application/json:
+              example:
+                message: "User activated successfully"
+        '401':
+          description: Non autorisé
+        '404':
+          description: Utilisateur non trouvé
+
+components:
+  schemas:
+    DebitPhone:
+      type: object
+      properties:
+        id:
+          type: integer
+        phone:
+          type: string
+        providerCode:
+          type: string
+        label:
+          type: string
+          nullable: true
+        isVerified:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    StoreDebitPhoneRequest:
+      type: object
+      required:
+        - phone
+        - providerCode
+      properties:
+        phone:
+          type: string
+          description: Numéro de téléphone de débit
+        providerCode:
+          type: string
+          description: Code du fournisseur (ex ORANGE_CI, MTN_CI)
+        label:
+          type: string
+          description: Libellé personnalisé (optionnel)
+
+    UserDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        usersUid:
+          type: string
+          format: uuid
+        firstname:
+          type: string
+        lastname:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, blocked, pending]
+        kycLevel:
+          type: integer
+        kycStatus:
+          type: string
+          nullable: true
+        accountNumber:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
