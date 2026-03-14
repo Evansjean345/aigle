@@ -1,6 +1,6 @@
 import { DeviceRequestDTO } from '#features/device/application/dto/device.tdo'
-import { RegisterValidatorType } from '#features/authentication/presentation/mobile/validators/auth_validator'
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import { type RegisterValidatorType } from '#features/authentication/presentation/mobile/validators/auth_validator'
+import { type GeoIpLocation } from '#shared/infrastructure/geoip_service'
 
 export class RegisterRequestDto {
   declare phone: string

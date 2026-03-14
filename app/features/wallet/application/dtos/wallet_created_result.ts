@@ -1,5 +1,4 @@
-// Stable view of a Wallet exposed to upper layers
-import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
+import type { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
 
 export interface WalletCreatedResult {
   id: string

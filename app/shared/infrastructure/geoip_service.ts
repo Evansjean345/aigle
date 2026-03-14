@@ -1,4 +1,4 @@
-import { Reader, ReaderModel } from '@maxmind/geoip2-node'
+import { Reader, type ReaderModel } from '@maxmind/geoip2-node'
 import path from 'node:path'
 import fs from 'node:fs'
 import app from '@adonisjs/core/services/app'

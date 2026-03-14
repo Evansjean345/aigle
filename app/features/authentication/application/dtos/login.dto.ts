@@ -1,4 +1,4 @@
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import type { GeoIpLocation } from '#shared/infrastructure/geoip_service'
 import { DeviceRequestDTO } from '#features/device/application/dto/device.tdo'
 
 export class LoginRequestDto {
