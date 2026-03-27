@@ -14,6 +14,8 @@ export default class TransferWebhookController {
   async transferSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
+    console.log('payload', payload)
+
     paymentLog.info(
       'TRANSFER_SUCCESS_WEBHOOK_RECEIVED',
       {
@@ -45,7 +47,7 @@ export default class TransferWebhookController {
     } catch (error: any) {
       errorLog.error(
         'TRANSFER_SUCCESS_WEBHOOK_ERROR',
-        { err: error, reference: payload?.data?.reference },
+        { err: { message: (error as any)?.message, stack: (error as any)?.stack, code: (error as any)?.code }, reference: payload?.data?.reference },
         'Error while processing transfer success webhook'
       )
       return response.ok({ message: 'received' })
@@ -86,7 +88,7 @@ export default class TransferWebhookController {
     } catch (error: any) {
       errorLog.error(
         'TRANSFER_FAILURE_WEBHOOK_ERROR',
-        { err: error, reference: payload?.data?.reference },
+        { err: { message: (error as any)?.message, stack: (error as any)?.stack, code: (error as any)?.code }, reference: payload?.data?.reference },
         'Error while processing transfer failure webhook'
       )
       return response.ok({ message: 'received' })

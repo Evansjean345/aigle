@@ -1,6 +1,5 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
-import queue from '@rlanz/bull-queue/services/main'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import WalletService from '#features/wallet/application/services/wallet_service'
@@ -31,13 +30,23 @@ export default class TransactionFailureHandler {
   ) {}
 
   /**
-   * Handle transaction failure and dispatch webhook event.
-   * 1. Credit wallet if compensation is provided
-   * 2. Mark transaction as failed
-   * 3. Mark payment as failed if paymentId is provided
-   * 4. Dispatch webhook event
-   * @param options
-   * @returns void
+   * Handles a failed transaction by updating relevant records, triggering compensations if applicable,
+   * and dispatching events to notify the concerned parties. Rolls back changes in case of an error
+   * and logs the failure for manual intervention if necessary.
+   *
+   * @param {TransactionFailureOptions} options - The options required to handle the transaction failure.
+   * @param {string} options.transactionId - The unique identifier of the transaction to be marked as failed.
+   * @param {string} options.transactionReference - The reference identifier associated with the transaction.
+   * @param {string} options.logCode - A code used for logging purposes.
+   * @param {Object} [options.compensation] - An optional object containing compensation details.
+   * @param {string} options.compensation.walletId - The wallet ID to credit as part of compensation.
+   * @param {number} options.compensation.amount - The compensation amount to be credited.
+   * @param {string} [options.paymentId] - The unique identifier of the payment to be marked as failed.
+   * @param {string} options.webhookEvent - The webhook event name to be dispatched.
+   * @param {Object} options.webhookData - Additional data to include when dispatching the webhook event.
+   *
+   * @return {Promise<void>} Resolves once the transaction failure has been successfully handled.
+   * @throws Will throw an error if the transaction failure handling encounters an issue.
    */
   async handle(options: TransactionFailureOptions): Promise<void> {
     const { transactionId, transactionReference, logCode } = options
@@ -61,7 +70,7 @@ export default class TransactionFailureHandler {
 
       await trx.commit()
 
-      await queue.dispatch(DispatchWebhookEventJob, {
+      await DispatchWebhookEventJob.dispatch({
         eventName: options.webhookEvent,
         eventData: {
           ...options.webhookData,
@@ -88,7 +97,7 @@ export default class TransactionFailureHandler {
         'CRITICAL: Failed to handle transaction failure - manual intervention required'
       )
 
-      this.sendAdminAlert(options, markErr)
+      await this.sendAdminAlert(options, markErr)
       throw markErr
     }
   }

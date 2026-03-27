@@ -37,6 +37,28 @@ export interface AdminTransactionResponseDTO {
     balanceBefore: number
     createdAt: DateTime
   }
+  securityContext?: {
+    ipAddress: string
+    deviceId: string | null
+    userAgent: string | null
+    osVersion: string | null
+    appVersion: string | null
+    countryCode: string | null
+    city: string | null
+    isVpn: boolean
+    riskScore: number | null
+    capturedAt: DateTime
+  }
+  logs?: {
+    id: number
+    eventType: string
+    status: string
+    errorMessage: string | null
+    ipAddress: string | null
+    actorId: string | null
+    actorType: string | null
+    createdAt: DateTime
+  }[]
 }
 
 export interface PaginationMeta {

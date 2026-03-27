@@ -1,4 +1,4 @@
-﻿import {
+import {
   TransfertRequestDto,
   TransfertResponseDto,
 } from '#features/operations/application/dto/transfert.dto'
@@ -27,7 +27,6 @@ import InsufficientFundsException from '#features/operations/infrastructure/exce
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import Transaction from '#features/transactions/domain/models/transaction'
 import InitiateTransferJob from '#features/operations/application/jobs/initiate_transfer_job'
-import queue from '@rlanz/bull-queue/services/main'
 import emitter from '@adonisjs/core/services/emitter'
 import { Exception } from '@adonisjs/core/exceptions'
 
@@ -72,8 +71,8 @@ export default class TransfertUseCase {
       'Starting transfer process'
     )
 
-    // Vérifier les échecs et temps de transactions effectués par l'utilisateur.
-    // Rejeter la transaction si une des règles est violée
+    // V?rifier les ?checs et temps de transactions effectu?s par l'utilisateur.
+    // Rejeter la transaction si une des r?gles est viol?e
     await Promise.all([
       this.failureCache.verifyNotBlocked(user.usersUid),
       this.throttleCache.verifyThrottle(user.usersUid),
@@ -109,17 +108,17 @@ export default class TransfertUseCase {
       }
     )
 
-    // Application des règles de verification de la limite de transaction.
+    // Application des r?gles de verification de la limite de transaction.
     await this.transactionLimitValidationService.validateTransactionLimit({
       user,
       amount,
       transactionType: TransactionType.TRANSFERT,
     })
 
-    // Vérifier que l'utilisateur a les fonds suffisants
+    // V?rifier que l'utilisateur a les fonds suffisants
     this.assertSufficientBalance(wallet.balance, amount)
 
-    // persister la transaction, le debit du portefeuille et le paiement en base de données
+    // persister la transaction, le debit du portefeuille et le paiement en base de donn?es
     const { transaction } = await this.persistTransfer(
       payload,
       user,
@@ -131,7 +130,7 @@ export default class TransfertUseCase {
       geoIpLocation
     )
 
-    await queue.dispatch(InitiateTransferJob, {
+    await InitiateTransferJob.dispatch({
       transactionId: transaction.id,
       transactionReference: transaction.reference,
       walletId: wallet.id!,
@@ -141,10 +140,10 @@ export default class TransfertUseCase {
       operator: payload.providerCode,
       phone: payload.phone.replaceAll(' ', ''),
       userId: user.usersUid,
-    })
+    }).toQueue('payment').priority(1)
 
     const result: TransfertResponseDto = {
-      message: 'transfert initié',
+      message: 'transfert initi?',
       data: {
         transactionReference: transaction.reference,
         status: transaction.status,
@@ -238,6 +237,25 @@ export default class TransfertUseCase {
 
       emitter
         .emit('activity:transaction-log', {
+          event: 'VALIDATION_PASSED',
+          transactionId: transaction.reference,
+          checks: ['account', 'device', 'pin', 'throttle', 'limits'],
+          actorId: user.usersUid,
+        })
+        .catch((_) => {})
+
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'FEES_CALCULATED',
+          transactionId: transaction.reference,
+          amount: billing.amount,
+          fees: billing.fees,
+          total: billing.total,
+        })
+        .catch((_) => {})
+
+      emitter
+        .emit('activity:transaction-log', {
           event: 'CREATED',
           transactionId: transaction.reference,
           amount: billing.amount,
@@ -278,6 +296,15 @@ export default class TransfertUseCase {
         },
         'Failed to persist transfer records'
       )
+
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'FAILED',
+          transactionId: 'unknown',
+          errorMessage:
+            error instanceof Exception ? error.message : 'Transfer creation failed (rollback)',
+        })
+        .catch((_) => {})
 
       throw error
     }

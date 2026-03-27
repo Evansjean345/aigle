@@ -68,11 +68,35 @@ export const toAdminTransactionResponseDto = (
       balanceBefore: transaction.ledger.balanceBefore,
       createdAt: transaction.ledger.createdAt,
     },
+    securityContext: transaction.securityContext && {
+      ipAddress: transaction.securityContext.ipAddress,
+      deviceId: transaction.securityContext.deviceId,
+      userAgent: transaction.securityContext.userAgent,
+      osVersion: transaction.securityContext.osVersion,
+      appVersion: transaction.securityContext.appVersion,
+      countryCode: transaction.securityContext.countryCode,
+      city: transaction.securityContext.city,
+      isVpn: transaction.securityContext.isVpn,
+      riskScore: transaction.securityContext.riskScore,
+      capturedAt: transaction.securityContext.capturedAt,
+    },
+    logs: transaction.logs?.map((log) => ({
+      id: log.id,
+      eventType: log.eventType,
+      status: log.status,
+      errorMessage: log.errorMessage,
+      ipAddress: log.ipAddress,
+      actorId: log.actorId,
+      actorType: log.actorType,
+      createdAt: log.createdAt,
+    })),
   }
 }
 
 export const toTransactionPayment = (payment: Payment): PaymentResponseDTO => ({
   paymentMethod: payment.paymentMethod,
+  status: payment.status,
+  step: payment.step,
   paymentDetails: {
     operator: payment.paymentDetails.operator,
     phone: payment.paymentDetails.phone || '',

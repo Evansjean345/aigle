@@ -4,10 +4,7 @@ import { indexPolicies } from '@adonisjs/bouncer'
 
 export default defineConfig({
   hooks: {
-    init: [
-      indexEntities(),
-      indexPolicies(),
-    ],
+    init: [indexEntities(), indexPolicies()],
   },
 
   /*
@@ -24,7 +21,7 @@ export default defineConfig({
     () => import('@adonisjs/lucid/commands'),
     () => import('@adonisjs/cache/commands'),
     () => import('@adonisjs/mail/commands'),
-    () => import('@rlanz/bull-queue/commands'),
+    () => import('@adonisjs/queue/commands'),
     () => import('@adonisjs/bouncer/commands'),
   ],
 
@@ -70,7 +67,7 @@ export default defineConfig({
     () => import('@adonisjs/mail/mail_provider'),
     () => import('@adonisjs/core/providers/edge_provider'),
     {
-      file: () => import('@rlanz/bull-queue/queue_provider'),
+      file: () => import('@adonisjs/queue/queue_provider'),
       environment: ['web', 'repl', 'console'],
     },
     () => import('@adonisjs/bouncer/bouncer_provider'),
@@ -89,6 +86,11 @@ export default defineConfig({
     () => import('#start/kernel'),
     () => import('#start/events'),
     () => import('#start/admin_routes'),
+    () => import('#start/routes_docs'),
+    {
+      file: () => import('#start/scheduler'),
+      environment: ['web'],
+    }
   ],
 
   /*

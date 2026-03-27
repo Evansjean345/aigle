@@ -1,6 +1,5 @@
-import { OtpDeliveryStrategy } from '#features/authentication/domain/interfaces/otp_delivery_strategy'
-import OtpMessageTemplate from '#features/authentication/domain/interfaces/otp_message_template'
-import queue from '@rlanz/bull-queue/services/main'
+import { type OtpDeliveryStrategy } from '#features/authentication/domain/interfaces/otp_delivery_strategy'
+import type OtpMessageTemplate from '#features/authentication/domain/interfaces/otp_message_template'
 import SendMailJob from '#features/notifications/application/jobs/send_mail_job'
 import { mailFromEmail } from '#config/mail'
 
@@ -16,16 +15,12 @@ export default class EmailOtpDelivery implements OtpDeliveryStrategy {
    * @return {Promise<void>} A promise that resolves when the email dispatch is completed.
    */
   async send(email: string, code: string, template: OtpMessageTemplate): Promise<void> {
-    await queue.dispatch(
-      SendMailJob,
-      {
-        to: email,
-        from: mailFromEmail || 'no-reply@aiglesend.com',
-        subject: template.formatEmailSubject(),
-        htmlView: 'emails/otp_notification',
-        viewData: template.formatEmailViewData(code),
-      },
-      { queueName: 'mail' }
-    )
+    await SendMailJob.dispatch({
+      to: email,
+      from: mailFromEmail || 'no-reply@aiglesend.com',
+      subject: template.formatEmailSubject(),
+      htmlView: 'emails/otp_notification',
+      viewData: template.formatEmailViewData(code),
+    }).toQueue('mail')
   }
 }

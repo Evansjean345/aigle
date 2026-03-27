@@ -1,4 +1,4 @@
-﻿import OtpService from '#features/authentication/application/services/otp_service'
+import OtpService from '#features/authentication/application/services/otp_service'
 import User from '#features/user/domain/models/user'
 import { AuthenticatedProfileAndTokenResponseDto } from '#features/authentication/application/dtos/profile.dto'
 import { inject } from '@adonisjs/core'

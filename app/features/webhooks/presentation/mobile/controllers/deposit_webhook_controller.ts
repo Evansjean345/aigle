@@ -27,6 +27,9 @@ export default class DepositWebhookController {
   async depositSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
+    console.log('payload from webhook')
+    console.log(payload)
+
     paymentLog.info(
       'DEPOSIT_SUCCESS_WEBHOOK_RECEIVED',
       {
@@ -58,7 +61,14 @@ export default class DepositWebhookController {
     } catch (error: any) {
       errorLog.error(
         'DEPOSIT_SUCCESS_WEBHOOK_ERROR',
-        { err: error, reference: payload?.data?.reference },
+        {
+          err: {
+            message: (error as any)?.message,
+            stack: (error as any)?.stack,
+            code: (error as any)?.code,
+          },
+          reference: payload?.data?.reference,
+        },
         'Error while processing deposit success webhook'
       )
       return response.ok({ message: 'received' })
@@ -107,7 +117,14 @@ export default class DepositWebhookController {
     } catch (error: any) {
       errorLog.error(
         'DEPOSIT_FAILED_WEBHOOK_ERROR',
-        { err: error, reference: payload?.data?.reference },
+        {
+          err: {
+            message: (error as any)?.message,
+            stack: (error as any)?.stack,
+            code: (error as any)?.code,
+          },
+          reference: payload?.data?.reference,
+        },
         'Error while processing deposit failure webhook'
       )
       return response.ok({ message: 'received' })

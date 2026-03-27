@@ -102,4 +102,11 @@ export default await Env.create(new URL('../', import.meta.url), {
  */
   MAXMIND_LICENSE_KEY: Env.schema.string(),
   MAXMIND_DB_PATH: Env.schema.string(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring @adonisjs/queue
+  |----------------------------------------------------------
+  */
+  QUEUE_DRIVER: Env.schema.enum(['redis', 'database', 'sync'] as const)
 })

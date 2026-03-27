@@ -1,4 +1,4 @@
-import { Job } from '@rlanz/bull-queue'
+import { Job } from '@adonisjs/queue'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 
@@ -12,9 +12,7 @@ const EVENT_MAP = {
   TransfertTransactionFailed: () =>
     import('#features/webhooks/application/events/transfert/transfert_transaction_failed'),
   TransfertInterTransactionFailed: () =>
-    import(
-      '#features/webhooks/application/events/transfert_inter/transfert_inter_transaction_failed'
-    ),
+    import('#features/webhooks/application/events/transfert_inter/transfert_inter_transaction_failed'),
 } as const
 
 export type WebhookEventName = keyof typeof EVENT_MAP
@@ -25,24 +23,9 @@ export interface DispatchWebhookEventPayload {
   reference: string
 }
 
-export default class DispatchWebhookEventJob extends Job {
-  static get $$filepath() {
-    return import.meta.url
-  }
-
-  /**
-   * Handles the dispatch of a webhook event by loading its corresponding event class
-   * and invoking its dispatch method with the provided event data.
-   *
-   * @param {DispatchWebhookEventPayload} payload - The payload containing details about the webhook event,
-   * including the event name, event data, and a reference identifier.
-   *
-   * @return {Promise<void>} A promise that resolves once the event has been successfully dispatched.
-   *
-   * @throws {Error} Throws an error if the event name is unknown or not mapped in the event loader.
-   */
-  async handle(payload: DispatchWebhookEventPayload): Promise<void> {
-    const { eventName, eventData, reference } = payload
+export default class DispatchWebhookEventJob extends Job<DispatchWebhookEventPayload> {
+  async execute(): Promise<void> {
+    const { eventName, eventData, reference } = this.payload
 
     const loader = EVENT_MAP[eventName]
     if (!loader) {
@@ -59,14 +42,8 @@ export default class DispatchWebhookEventJob extends Job {
     )
   }
 
-  /**
-   * Handles errors occurring during the processing of a webhook event payload by logging the failure.
-   *
-   * @param {DispatchWebhookEventPayload} payload - The payload of the webhook event containing details about the event.
-   * @param {Error} error - The error object that was thrown during the processing of the webhook event.
-   * @return {Promise<void>} A promise that resolves when the error is logged.
-   */
-  async rescue(payload: DispatchWebhookEventPayload, error: Error): Promise<void> {
+  async failed(error: Error): Promise<void> {
+    const payload = this.payload
     errorLog.error(
       `${payload.eventName}_JOB_FAILED`,
       {

@@ -1,6 +1,6 @@
 import logger from '@adonisjs/core/services/logger'
-import { LoggersList } from '@adonisjs/core/types'
-import { Logger } from '@adonisjs/core/logger'
+import { type LoggersList } from '@adonisjs/core/types'
+import { type Logger } from '@adonisjs/core/logger'
 
 export interface BaseLogContext {
   event: string
@@ -20,10 +20,7 @@ export abstract class BaseLog {
     this.loggerName = loggerName
   }
 
-  /**
-   * Lazily gets the logger instance
-   */
-  protected get logger(): Logger {
+  protected get log(): Logger {
     if (!this._logger) {
       this._logger = logger.use(this.loggerName)
     }
@@ -44,25 +41,22 @@ export abstract class BaseLog {
   }
 
   info(event: string, data: Record<string, unknown>, message: string): void {
-    this.logger.info(this.formatContext(event, data), message)
+    this.log.info(this.formatContext(event, data), message)
   }
 
   error(event: string, data: Record<string, unknown>, message: string): void {
-    this.logger.error(this.formatContext(event, data), message)
+    this.log.error(this.formatContext(event, data), message)
   }
 
   warn(event: string, data: Record<string, unknown>, message: string): void {
-    this.logger.warn(this.formatContext(event, data), message)
+    this.log.warn(this.formatContext(event, data), message)
   }
 
   debug(event: string, data: Record<string, unknown>, message: string): void {
-    this.logger.debug(this.formatContext(event, data), message)
+    this.log.debug(this.formatContext(event, data), message)
   }
 
-  /**
-   * Get the underlying logger for advanced usage
-   */
   getLogger(): Logger {
-    return this.logger
+    return this.log
   }
 }

@@ -68,7 +68,7 @@ export default class TransfertInterWebhookController {
     } catch (error: any) {
       errorLog.error(
         'INTER_TRANSFER_FIRST_SUCCESS_WEBHOOK_ERROR',
-        { err: error, reference: payload?.data?.reference },
+        { err: { message: (error as any)?.message, stack: (error as any)?.stack, code: (error as any)?.code }, reference: payload?.data?.reference },
         'Error while processing inter-network first operation success webhook'
       )
       return response.ok({ message: 'received' })
@@ -120,7 +120,7 @@ export default class TransfertInterWebhookController {
     } catch (error: any) {
       errorLog.error(
         'INTER_TRANSFER_FIRST_FAILURE_WEBHOOK_ERROR',
-        { err: error, reference: payload?.data?.reference },
+        { err: { message: (error as any)?.message, stack: (error as any)?.stack, code: (error as any)?.code }, reference: payload?.data?.reference },
         'Error while processing inter-network first operation failure webhook'
       )
       return response.ok({ message: 'received' })
@@ -174,7 +174,7 @@ export default class TransfertInterWebhookController {
     } catch (error: any) {
       errorLog.error(
         'INTER_TRANSFER_SECOND_SUCCESS_WEBHOOK_ERROR',
-        { err: error, reference: payload?.data?.reference },
+        { err: { message: (error as any)?.message, stack: (error as any)?.stack, code: (error as any)?.code }, reference: payload?.data?.reference },
         'Error while processing inter-network second operation success webhook'
       )
       return response.ok({ message: 'received' })
@@ -227,7 +227,7 @@ export default class TransfertInterWebhookController {
     } catch (error: any) {
       errorLog.error(
         'INTER_TRANSFER_SECOND_FAILURE_WEBHOOK_ERROR',
-        { err: error, reference: payload?.data?.reference },
+        { err: { message: (error as any)?.message, stack: (error as any)?.stack, code: (error as any)?.code }, reference: payload?.data?.reference },
         'Error while processing inter-network second operation failure webhook'
       )
       return response.ok({ message: 'received' })

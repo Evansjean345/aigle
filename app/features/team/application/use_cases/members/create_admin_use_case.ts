@@ -7,7 +7,6 @@ import { v4 as uuidv4 } from 'uuid'
 import { mailFromEmail } from '#config/mail'
 import { adminDashboardUrl } from '#config/app'
 import { DateTime } from 'luxon'
-import queue from '@rlanz/bull-queue/services/main'
 import SendMailJob from '#features/notifications/application/jobs/send_mail_job'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
@@ -61,20 +60,16 @@ export default class CreateAdminUseCase {
     const setupPasswordUrl = `${adminDashboardUrl}/setup-password?token=${admin.invitationToken}`
     await admin.load('role', (roleQuery) => roleQuery.preload('permissions'))
 
-    await queue.dispatch(
-      SendMailJob,
-      {
-        to: admin.email,
-        from: mailFromEmail || 'no-reply@aiglesend.com',
-        subject: "Invitation à rejoindre l'administration AigleSend",
-        htmlView: 'emails/admin_invitation',
-        viewData: {
-          admin: admin,
-          url: setupPasswordUrl,
-        },
+    await SendMailJob.dispatch({
+      to: admin.email,
+      from: mailFromEmail || 'no-reply@aiglesend.com',
+      subject: "Invitation à rejoindre l'administration AigleSend",
+      htmlView: 'emails/admin_invitation',
+      viewData: {
+        admin: admin,
+        url: setupPasswordUrl,
       },
-      { queueName: 'mail' }
-    )
+    }).toQueue('mail')
 
     await emitter.emit('activity:audit', {
       eventCategory: 'TEAM',

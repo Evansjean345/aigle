@@ -146,6 +146,42 @@ class TransactionLogService {
           },
           actorType: 'SYSTEM' as const,
         }
+
+      case 'VALIDATION_PASSED':
+        return {
+          transactionId: data.transactionId,
+          eventType: 'VALIDATION_PASSED',
+          status: 'PENDING',
+          payload: { checks: data.checks },
+          actorId: data.actorId,
+          actorType: 'SYSTEM' as const,
+        }
+
+      case 'FEES_CALCULATED':
+        return {
+          transactionId: data.transactionId,
+          eventType: 'FEES_CALCULATED',
+          status: 'PENDING',
+          payload: {
+            amount: data.amount,
+            fees: data.fees,
+            total: data.total,
+          },
+          actorType: 'SYSTEM' as const,
+        }
+
+      case 'AGGREGATOR_RESPONSE_RECEIVED':
+        return {
+          transactionId: data.transactionId,
+          eventType: 'AGGREGATOR_RESPONSE_RECEIVED',
+          status: 'PROCESSING',
+          payload: {
+            provider: data.provider,
+            success: data.success,
+          },
+          errorMessage: data.errorMessage,
+          actorType: 'SYSTEM' as const,
+        }
     }
   }
 }

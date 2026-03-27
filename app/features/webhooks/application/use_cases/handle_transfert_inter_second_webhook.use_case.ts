@@ -188,7 +188,7 @@ export default class HandleTransfertInterSecondWebhookUseCase extends BaseWebhoo
 
       const beneficiaryPhone = this.paymentService.extractBeneficiaryPhone(secondPayment)
 
-      this.dispatchEvent(
+      await this.dispatchEvent(
         TransfertInterTransactionFailed,
         {
           reference: transaction.reference,

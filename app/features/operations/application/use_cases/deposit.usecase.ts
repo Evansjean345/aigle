@@ -23,7 +23,6 @@ import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
 import DebitPhoneValidationService from '#features/operations/application/services/debit_phone_validation_service'
 import InitiateDepositJob from '#features/operations/application/jobs/initiate_deposit_job'
-import queue from '@rlanz/bull-queue/services/main'
 import { isSyncDepositProvider } from '#features/operations/application/constants/provider.constants'
 import SyncCheckoutService from '#features/operations/application/services/sync_checkout_service'
 import Transaction from '#features/transactions/domain/models/transaction'
@@ -163,6 +162,15 @@ export default class DepositUseCase {
         },
         'Error during deposit process'
       )
+
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'FAILED',
+          transactionId: 'unknown',
+          errorMessage: error.message || 'Deposit creation failed (rollback)',
+        })
+        .catch((_) => {})
+
       throw error
     }
 
@@ -175,6 +183,25 @@ export default class DepositUseCase {
       },
       'Deposit transaction and payment created in DB'
     )
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'VALIDATION_PASSED',
+        transactionId: transaction.reference,
+        checks: ['account', 'device', 'debit_phone'],
+        actorId: user.usersUid,
+      })
+      .catch((_) => {})
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'FEES_CALCULATED',
+        transactionId: transaction.reference,
+        amount,
+        fees,
+        total,
+      })
+      .catch((_) => {})
 
     emitter.emit('activity:transaction-log', {
       event: 'CREATED',
@@ -223,7 +250,7 @@ export default class DepositUseCase {
       return result
     }
 
-    await queue.dispatch(InitiateDepositJob, {
+    await InitiateDepositJob.dispatch({
       transactionId: transaction.id,
       transactionReference: transaction.reference,
       amount,
@@ -233,7 +260,7 @@ export default class DepositUseCase {
       phone: payload.phone.replaceAll(' ', ''),
       userId: user.usersUid,
       pinCode: payload.pinCode,
-    })
+    }).toQueue('payment').priority(1)
 
     transactionLog.info(
       'DEPOSIT_CHECKOUT_SUCCESS',

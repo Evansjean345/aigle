@@ -1,4 +1,4 @@
-import { Job } from '@rlanz/bull-queue'
+import { Job } from '@adonisjs/queue'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import env from '#start/env'
@@ -19,12 +19,9 @@ export interface InitiateDepositPayload {
   pinCode?: string
 }
 
-export default class InitiateDepositJob extends Job {
-  static get $$filepath() {
-    return import.meta.url
-  }
-
-  async handle(payload: InitiateDepositPayload): Promise<void> {
+export default class InitiateDepositJob extends Job<InitiateDepositPayload> {
+  async execute(): Promise<void> {
+    const payload = this.payload
     const { transactionReference, operator, phone, paymentMethod, amount } = payload
 
     paymentLog.info(
@@ -63,6 +60,16 @@ export default class InitiateDepositJob extends Job {
         })
         .catch((_) => {})
 
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'AGGREGATOR_RESPONSE_RECEIVED',
+          transactionId: payload.transactionReference,
+          provider: operator,
+          success: result.success,
+          errorMessage: result.success ? undefined : result.error?.message,
+        })
+        .catch((_) => {})
+
       if (!result.success) {
         paymentLog.error(
           'DEPOSIT_CHECKOUT_FAILED',
@@ -81,7 +88,6 @@ export default class InitiateDepositJob extends Job {
         },
         'Deposit checkout initiated via job'
       )
-
     } catch (err) {
       errorLog.error(
         'DEPOSIT_CHECKOUT_INIT_ERROR',
@@ -111,7 +117,17 @@ export default class InitiateDepositJob extends Job {
     })
   }
 
-  async rescue(payload: InitiateDepositPayload, error: Error): Promise<void> {
+  async failed(error: Error): Promise<void> {
+    const payload = this.payload
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'RETRY',
+        transactionId: payload.transactionReference,
+        attempt: this.context.attempt,
+      })
+      .catch((_) => {})
+
     errorLog.error(
       'DEPOSIT_JOB_EXHAUSTED',
       {

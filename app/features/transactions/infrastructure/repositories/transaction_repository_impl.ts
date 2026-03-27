@@ -115,6 +115,12 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
           ledgerQuery.preload('wallet')
         })
       })
+      .if(preloads?.includes('logs'), (q) => {
+        q.preload('logs')
+      })
+      .if(preloads?.includes('securityContext'), (q) => {
+        q.preload('securityContext')
+      })
 
     return await query.where('reference', reference).first()
   }

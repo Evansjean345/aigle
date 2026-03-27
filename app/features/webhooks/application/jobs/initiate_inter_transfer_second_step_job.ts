@@ -1,4 +1,4 @@
-import { Job } from '@rlanz/bull-queue'
+import { Job } from '@adonisjs/queue'
 import env from '#start/env'
 import HttpClient from '#shared/infrastructure/http_client_service'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
@@ -18,12 +18,9 @@ export interface InitiateInterTransferSecondStepPayload {
   phone: string
 }
 
-export default class InitiateInterTransferSecondStepJob extends Job {
-  static get $$filepath() {
-    return import.meta.url
-  }
-
-  async handle(payload: InitiateInterTransferSecondStepPayload): Promise<void> {
+export default class InitiateInterTransferSecondStepJob extends Job<InitiateInterTransferSecondStepPayload> {
+  async execute(): Promise<void> {
+    const payload = this.payload
     const { transactionReference, secondPaymentId, paymentMethod, operator, phone } = payload
 
     paymentLog.info(
@@ -101,7 +98,8 @@ export default class InitiateInterTransferSecondStepJob extends Job {
     })
   }
 
-  async rescue(payload: InitiateInterTransferSecondStepPayload, error: Error): Promise<void> {
+  async failed(error: Error): Promise<void> {
+    const payload = this.payload
     errorLog.error(
       'INTER_TRANSFER_SECOND_STEP_JOB_EXHAUSTED',
       {

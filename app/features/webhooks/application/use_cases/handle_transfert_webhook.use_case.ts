@@ -141,7 +141,7 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
       transactionId: transaction.reference,
     })
 
-    this.dispatchEvent(
+    await this.dispatchEvent(
       TransfertTransactionCompleted,
       <TransfertTransactionCompletedPayload>{
         reference: transaction.reference,
@@ -217,6 +217,12 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
       amount: refundAmount,
       balanceBefore: Number(wallet.balance),
       balanceAfter: refunded.balance,
+    })
+
+    emitter.emit('activity:transaction-log', {
+      event: 'REFUND',
+      transactionId: transaction.reference,
+      amount: refundAmount,
     })
 
     emitter.emit('activity:transaction-log', {

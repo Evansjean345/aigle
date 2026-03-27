@@ -1,4 +1,4 @@
-ï»¿import { inject } from '@adonisjs/core'
+import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import {
@@ -87,7 +87,7 @@ export default class RegisterUseCase {
 
       await this.otpService.sendOtp(userCreated.phone, userCreated.usersUid)
       return {
-        message: 'Un code de vÃ©rification a Ã©tÃ© envoyÃ© Ã  ce numÃ©ro',
+        message: 'Un code de vérification a été envoyé à ce numéro',
         phone: userCreated.phone,
       }
     } catch (error) {

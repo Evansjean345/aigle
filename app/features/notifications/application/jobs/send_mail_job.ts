@@ -1,4 +1,4 @@
-import { Job } from '@rlanz/bull-queue'
+import { Job } from '@adonisjs/queue'
 import mail from '@adonisjs/mail/services/main'
 import { mailFromEmail } from '#config/mail'
 
@@ -13,12 +13,9 @@ export type SendMailPayload = {
   text?: string
 }
 
-export default class SendMailJob extends Job {
-  static get $$filepath() {
-    return import.meta.url
-  }
-
-  public async handle(payload: SendMailPayload): Promise<void> {
+export default class SendMailJob extends Job<SendMailPayload> {
+  public async execute(): Promise<void> {
+    const payload = this.payload
     const from = payload.from || mailFromEmail || 'no-reply@aiglesend.com'
 
     await mail.send((message) => {
@@ -39,8 +36,7 @@ export default class SendMailJob extends Job {
     })
   }
 
-  public async rescue(payload: SendMailPayload, error: Error): Promise<void> {
-    // Optionally, you can add structured logging here. Using the base Job logger
-    this.logger.error({ err: error, payload }, 'SendMailJob failed')
+  public async failed(error: Error): Promise<void> {
+    console.error('SendMailJob failed', error, this.payload)
   }
 }

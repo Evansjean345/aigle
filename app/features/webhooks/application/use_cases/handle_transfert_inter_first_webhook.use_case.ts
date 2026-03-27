@@ -9,7 +9,6 @@ import { PaymentStatus } from '#features/transactions/domain/enums/payment_statu
 import Payment from '#features/transactions/domain/models/payment'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
-import queue from '@rlanz/bull-queue/services/main'
 import InitiateInterTransferSecondStepJob from '#features/webhooks/application/jobs/initiate_inter_transfer_second_step_job'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import BaseWebhookHandler, {
@@ -195,7 +194,7 @@ export default class HandleTransfertInterFirstWebhookUseCase extends BaseWebhook
   private async enqueueSecondStep(transaction: Transaction, secondPayment: Payment): Promise<void> {
     const details = this.paymentService.parsePaymentDetails(secondPayment)
 
-    await queue.dispatch(InitiateInterTransferSecondStepJob, {
+    await InitiateInterTransferSecondStepJob.dispatch({
       transactionId: transaction.id,
       transactionReference: transaction.reference,
       secondPaymentId: secondPayment.id,
@@ -203,7 +202,7 @@ export default class HandleTransfertInterFirstWebhookUseCase extends BaseWebhook
       paymentMethod: secondPayment.paymentMethod,
       operator: details?.operator || '',
       phone: details?.phone || '',
-    })
+    }).toQueue('payment').priority(1)
 
     paymentLog.info(
       'INTER_TRANSFER_SECOND_STEP_ENQUEUED',

@@ -213,6 +213,15 @@ export default class WalletToWalletUseCase {
         'Wallet-to-wallet transfer failed'
       )
 
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'FAILED',
+          transactionId: 'unknown',
+          errorMessage:
+            error instanceof Error ? error.message : 'Wallet-to-wallet transfer failed (rollback)',
+        })
+        .catch((_) => {})
+
       await WalletToWalletTransactionFailed.dispatch({
         userId: context.currentUser.usersUid,
         amount: context.amount,

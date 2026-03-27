@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import app from '@adonisjs/core/services/app'
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import type { GeoIpLocation } from '#shared/infrastructure/geoip_service'
 
 declare module '@adonisjs/core/http' {
   // eslint-disable-next-line @typescript-eslint/no-shadow

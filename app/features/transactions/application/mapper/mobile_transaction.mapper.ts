@@ -51,6 +51,8 @@ export const toMobileTransactionResponseDto = (
 
 export const toTransactionPayment = (payment: Payment): PaymentResponseDTO => ({
   paymentMethod: payment.paymentMethod,
+  status: payment.status,
+  step: payment.step,
   paymentDetails: {
     operator: payment.paymentDetails.operator,
     phone: payment.paymentDetails.phone || '',

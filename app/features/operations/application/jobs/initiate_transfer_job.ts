@@ -1,4 +1,4 @@
-import { Job } from '@rlanz/bull-queue'
+import { Job } from '@adonisjs/queue'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import env from '#start/env'
@@ -20,12 +20,9 @@ export interface InitiateTransferPayload {
   userId: string
 }
 
-export default class InitiateTransferJob extends Job {
-  static get $$filepath() {
-    return import.meta.url
-  }
-
-  async handle(payload: InitiateTransferPayload): Promise<void> {
+export default class InitiateTransferJob extends Job<InitiateTransferPayload> {
+  async execute(): Promise<void> {
+    const payload = this.payload
     const { transactionReference, operator, phone, paymentMethod, totalAmount } = payload
 
     paymentLog.info(
@@ -59,6 +56,16 @@ export default class InitiateTransferJob extends Job {
         })
         .catch((_) => {})
 
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'AGGREGATOR_RESPONSE_RECEIVED',
+          transactionId: payload.transactionReference,
+          provider: operator,
+          success: result.success,
+          errorMessage: result.success ? undefined : result.error?.message,
+        })
+        .catch((_) => {})
+
       if (!result.success) {
         paymentLog.error(
           'TRANSFER_EXTERNAL_FAILED',
@@ -78,7 +85,6 @@ export default class InitiateTransferJob extends Job {
         },
         'External transfer initiated via job'
       )
-
     } catch (err) {
       errorLog.error(
         'TRANSFER_EXTERNAL_INIT_ERROR',
@@ -113,7 +119,17 @@ export default class InitiateTransferJob extends Job {
     })
   }
 
-  async rescue(payload: InitiateTransferPayload, error: Error): Promise<void> {
+  async failed(error: Error): Promise<void> {
+    const payload = this.payload
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'RETRY',
+        transactionId: payload.transactionReference,
+        attempt: this.context.attempt,
+      })
+      .catch((_) => {})
+
     errorLog.error(
       'TRANSFER_JOB_EXHAUSTED',
       {

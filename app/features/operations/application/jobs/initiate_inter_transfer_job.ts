@@ -1,4 +1,4 @@
-import { Job } from '@rlanz/bull-queue'
+import { Job } from '@adonisjs/queue'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import env from '#start/env'
@@ -20,12 +20,9 @@ export interface InitiateInterTransferPayload {
   pinCode?: string
 }
 
-export default class InitiateInterTransferJob extends Job {
-  static get $$filepath() {
-    return import.meta.url
-  }
-
-  async handle(payload: InitiateInterTransferPayload): Promise<void> {
+export default class InitiateInterTransferJob extends Job<InitiateInterTransferPayload> {
+  async execute(): Promise<void> {
+    const payload = this.payload
     const { transactionReference, operator, phone, paymentMethod, amount } = payload
 
     paymentLog.info(
@@ -70,6 +67,16 @@ export default class InitiateInterTransferJob extends Job {
         })
         .catch((_) => {})
 
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'AGGREGATOR_RESPONSE_RECEIVED',
+          transactionId: payload.transactionReference,
+          provider: operator,
+          success: result.success,
+          errorMessage: result.success ? undefined : result.error?.message,
+        })
+        .catch((_) => {})
+
       if (!result.success) {
         paymentLog.error(
           'INTER_TRANSFER_CHECKOUT_FAILED',
@@ -88,7 +95,6 @@ export default class InitiateInterTransferJob extends Job {
         },
         'Inter-transfer checkout initiated via job'
       )
-
     } catch (err) {
       errorLog.error(
         'INTER_TRANSFER_CHECKOUT_INIT_ERROR',
@@ -118,7 +124,17 @@ export default class InitiateInterTransferJob extends Job {
     })
   }
 
-  async rescue(payload: InitiateInterTransferPayload, error: Error): Promise<void> {
+  async failed(error: Error): Promise<void> {
+    const payload = this.payload
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'RETRY',
+        transactionId: payload.transactionReference,
+        attempt: this.context.attempt,
+      })
+      .catch((_) => {})
+
     errorLog.error(
       'INTER_TRANSFER_JOB_EXHAUSTED',
       {

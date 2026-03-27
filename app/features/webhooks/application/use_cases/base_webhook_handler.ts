@@ -17,7 +17,6 @@ import WalletNotFoundException from '#features/wallet/infrastructure/exceptions/
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
-import queue from '@rlanz/bull-queue/services/main'
 import DispatchWebhookEventJob from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
 import type { WebhookEventName } from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
 import { WebhookEventCode } from '#features/webhooks/type'
@@ -251,12 +250,12 @@ export default abstract class BaseWebhookHandler {
     }
   }
 
-  protected dispatchEvent(
+  protected async dispatchEvent(
     _event: { dispatch: (payload: any) => Promise<any> },
     payload: any,
     eventCode: WebhookEventCode,
     reference: string
-  ): void {
+  ): Promise<void> {
     const eventNameMap: Record<WebhookEventCode, WebhookEventName> = {
       DEPOSIT_COMPLETED: 'DepositTransactionCompleted',
       DEPOSIT_FAILED: 'DepositTransactionFailed',
@@ -277,22 +276,22 @@ export default abstract class BaseWebhookHandler {
       return
     }
 
-    queue
-      .dispatch(DispatchWebhookEventJob, {
+    try {
+      await DispatchWebhookEventJob.dispatch({
         eventName: resolvedName,
         eventData: payload,
         reference,
       })
-      .catch((err: unknown) => {
-        errorLog.error(
-          `${eventCode}_ENQUEUE_FAILED`,
-          {
-            reference,
-            error: err instanceof Error ? err.message : 'Unknown',
-          },
-          `Failed to enqueue ${eventCode} event job`
-        )
-      })
+    } catch (err: unknown) {
+      errorLog.error(
+        `${eventCode}_DISPATCH_ERROR`,
+        {
+          reference,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        `Synchronous error dispatching ${eventCode} event job`
+      )
+    }
   }
 
   protected buildOperatorResponse(payload: WebhookRequestDto): { operator_response: any } {

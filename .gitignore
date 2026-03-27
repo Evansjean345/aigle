@@ -24,6 +24,12 @@ Dockerfile
 *.sql
 *.md
 
+database_updates.sql
+insert_tables.sql
+
+country.json
+
+m
 # Editors specific
 .fleet
 .idea

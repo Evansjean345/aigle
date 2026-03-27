@@ -1,8 +1,11 @@
 export type TransactionLogEvent =
   | 'CREATED'
+  | 'VALIDATION_PASSED'
+  | 'FEES_CALCULATED'
   | 'WALLET_DEBITED'
   | 'WALLET_CREDITED'
   | 'SENT_TO_AGGREGATOR'
+  | 'AGGREGATOR_RESPONSE_RECEIVED'
   | 'WEBHOOK_RECEIVED'
   | 'SUCCESS'
   | 'FAILED'
@@ -52,6 +55,26 @@ export type TransactionLogEventData =
   | { event: 'RETRY'; transactionId: string; attempt: number }
   | { event: 'REFUND'; transactionId: string; amount: number }
   | { event: 'CANCELLED'; transactionId: string }
+  | {
+      event: 'VALIDATION_PASSED'
+      transactionId: string
+      checks: string[]
+      actorId: string
+    }
+  | {
+      event: 'FEES_CALCULATED'
+      transactionId: string
+      amount: number
+      fees: number
+      total: number
+    }
+  | {
+      event: 'AGGREGATOR_RESPONSE_RECEIVED'
+      transactionId: string
+      provider: string
+      success: boolean
+      errorMessage?: string
+    }
   | {
       event: 'LEDGER_ENTRY_CREATED'
       transactionId: string

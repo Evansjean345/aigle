@@ -75,6 +75,16 @@ export default class SyncCheckoutService {
       })
       .catch((_) => {})
 
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'AGGREGATOR_RESPONSE_RECEIVED',
+        transactionId: params.reference,
+        provider: params.provider,
+        success: response.success,
+        errorMessage: response.success ? undefined : response.error?.message,
+      })
+      .catch((_) => {})
+
     if (!response.success) {
       const failureOpts: TransactionFailureOptions = {
         ...params.failureOptions,

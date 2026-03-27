@@ -168,7 +168,7 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
       transactionId: transaction.reference,
     })
 
-    this.dispatchEvent(
+    await this.dispatchEvent(
       DepositTransactionCompleted,
       {
         reference: transaction.reference,
@@ -212,7 +212,7 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
       errorMessage: 'Payment failed via webhook',
     })
 
-    this.dispatchEvent(
+    await this.dispatchEvent(
       DepositTransactionFailed,
       <DepositTransactionFailedPayload>{
         reference: transaction.reference,

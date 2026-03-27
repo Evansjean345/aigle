@@ -32,7 +32,6 @@ import Wallet from '#features/wallet/domain/models/wallet'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { isSyncDepositProvider } from '#features/operations/application/constants/provider.constants'
 import InitiateInterTransferJob from '#features/operations/application/jobs/initiate_inter_transfer_job'
-import queue from '@rlanz/bull-queue/services/main'
 import emitter from '@adonisjs/core/services/emitter'
 
 /**
@@ -160,6 +159,15 @@ export default class InterTransfertUseCase {
         },
         'Error during inter-network transfer process'
       )
+
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'FAILED',
+          transactionId: 'unknown',
+          errorMessage: error.message || 'Inter-transfer creation failed (rollback)',
+        })
+        .catch((_) => {})
+
       throw error
     }
 
@@ -171,6 +179,25 @@ export default class InterTransfertUseCase {
       },
       'Inter-network transfer transaction and payments created in DB'
     )
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'VALIDATION_PASSED',
+        transactionId: transaction.reference,
+        checks: ['account', 'device', 'debit_phone', 'throttle', 'limits'],
+        actorId: user.usersUid,
+      })
+      .catch((_) => {})
+
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'FEES_CALCULATED',
+        transactionId: transaction.reference,
+        amount,
+        fees,
+        total,
+      })
+      .catch((_) => {})
 
     emitter.emit('activity:transaction-log', {
       event: 'CREATED',
@@ -225,7 +252,7 @@ export default class InterTransfertUseCase {
       return result
     }
 
-    await queue.dispatch(InitiateInterTransferJob, {
+    await InitiateInterTransferJob.dispatch({
       transactionId: transaction.id,
       transactionReference: transaction.reference,
       amount,
@@ -235,7 +262,7 @@ export default class InterTransfertUseCase {
       phone: payload.debiteurPhone.replaceAll(' ', ''),
       userId: user.usersUid,
       pinCode: payload.pinCode,
-    })
+    }).toQueue('payment').priority(1)
 
     transactionLog.info(
       'INTER_TRANSFER_JOB_DISPATCHED',
