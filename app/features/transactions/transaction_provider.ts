@@ -14,6 +14,8 @@ import IdempotencyProvider from '#features/transactions/domain/interfaces/idempo
 import RedisIdempotencyProvider from '#features/transactions/infrastructure/redis_idempotency_provider'
 import TransactionSecurityContextRepository from '#features/transactions/domain/interfaces/transaction_security_context_repository'
 import TransactionSecurityContextRepositoryImpl from '#features/transactions/infrastructure/repositories/transaction_security_context_repository_impl'
+import RefundRepository from '#features/transactions/domain/interfaces/refund_repository'
+import RefundRepositoryImpl from '#features/transactions/infrastructure/repositories/refund_repository_impl'
 
 export default class TransactionProvider {
   constructor(protected app: ApplicationService) {}
@@ -27,6 +29,7 @@ export default class TransactionProvider {
       [TransactionFailureCache, RedisTransactionFailureCache],
       [IdempotencyProvider, RedisIdempotencyProvider],
       [TransactionSecurityContextRepository, TransactionSecurityContextRepositoryImpl],
+      [RefundRepository, RefundRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {

@@ -45,7 +45,7 @@ export default class UpdatePermissionUseCase {
 
       await this.permissionRepository.save(permission)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'TEAM',
         eventAction: 'PERMISSION_UPDATED',
         actorId: String(auth.id),
@@ -66,7 +66,7 @@ export default class UpdatePermissionUseCase {
         updatedAt: permission.updatedAt.toJSDate(),
       }
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'TEAM',
         eventAction: 'PERMISSION_UPDATE_FAILED',
         actorId: String(auth.id),

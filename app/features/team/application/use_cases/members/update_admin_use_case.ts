@@ -47,7 +47,7 @@ export default class UpdateAdminUseCase {
 
     await this.adminRepository.save(admin)
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'TEAM',
       eventAction: 'ADMIN_UPDATED',
       actorId: String(auth.id),

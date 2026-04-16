@@ -78,8 +78,11 @@ export const otpThrottle = limiter.define('otp_attempts', (ctx) => {
   const countryId = ctx.request.input('country_id') || ''
   const key = phone ? `otp_${countryId}_${phone}` : `otp_ip_${ctx.request.ip()}`
 
+  // Filet de sécurité anti brute-force uniquement.
+  // La logique métier de renvoi (resendDelaySeconds) est gérée par OtpService via les templates.
+  // Ce limiter doit être plus permissif pour ne pas court-circuiter le service.
   return limiter
-    .allowRequests(3)
+    .allowRequests(4)
     .every('5 minutes')
     .usingKey(key)
     .blockFor('5 minutes')

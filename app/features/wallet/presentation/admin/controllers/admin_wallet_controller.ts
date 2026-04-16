@@ -1,7 +1,7 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import UpdateWalletStatusUseCase from '#features/wallet/application/use_cases/admin/update_wallet_status_use_case'
-import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
+import { WalletStatus } from '#features/wallet/domain/enums/wallet_status'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 
@@ -31,7 +31,7 @@ export default class AdminWalletController {
         status: WalletStatus.Active,
       })
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'WALLET',
         eventAction: 'ACTIVATE_WALLET',
         actorId: auth.user?.id ?? null,
@@ -48,7 +48,7 @@ export default class AdminWalletController {
 
       return response.ok({ message: 'Wallet activated successfully' })
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'WALLET',
         eventAction: 'ACTIVATE_WALLET',
         actorId: auth.user?.id ?? null,
@@ -83,7 +83,7 @@ export default class AdminWalletController {
         status: WalletStatus.Inactive,
       })
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'WALLET',
         eventAction: 'DEACTIVATE_WALLET',
         actorId: auth.user?.id ?? null,
@@ -100,7 +100,7 @@ export default class AdminWalletController {
 
       return response.ok({ message: 'Wallet deactivated successfully' })
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'WALLET',
         eventAction: 'DEACTIVATE_WALLET',
         actorId: auth.user?.id ?? null,

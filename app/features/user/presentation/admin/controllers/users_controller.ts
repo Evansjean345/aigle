@@ -49,7 +49,7 @@ export default class UsersController {
     const endDate = request.input('endDate')
     const users = await this.getAllUsersUseCase.execute(page, perPage, search, startDate, endDate)
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'USERS',
       eventAction: 'READ_USERS',
       actorId: auth.user?.id ?? null,
@@ -76,7 +76,7 @@ export default class UsersController {
     const endDate = request.input('endDate')
     const stats = await this.getUserStatsUseCase.execute(startDate, endDate)
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'USERS',
       eventAction: 'READ_USERS_STATS',
       actorId: auth.user?.id ?? null,
@@ -104,7 +104,7 @@ export default class UsersController {
   async walletStats({ params, response, request, auth }: HttpContext): Promise<void> {
     const stats = await this.getUserWalletStatsUseCase.execute(params.id)
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'USERS',
       eventAction: 'READ_USER_WALLET_STATS',
       actorId: auth.user?.id ?? null,
@@ -138,7 +138,7 @@ export default class UsersController {
         return response.notFound({ message: 'User not found' })
       }
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'USERS',
         eventAction: 'VIEW_USER_DETAILS',
         actorId: auth.user?.id ?? null,
@@ -154,7 +154,7 @@ export default class UsersController {
 
       return response.ok(user)
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'USERS',
         eventAction: 'VIEW_USER_DETAILS',
         actorId: auth.user?.id ?? null,
@@ -185,7 +185,7 @@ export default class UsersController {
     try {
       await this.changeUserStateUseCase.execute(params.id, UserStatus.BLOCKED)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'USERS',
         eventAction: 'BLOCK_USER',
         actorId: auth.user?.id ?? null,
@@ -202,7 +202,7 @@ export default class UsersController {
 
       return response.ok({ message: 'User blocked successfully' })
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'USERS',
         eventAction: 'BLOCK_USER',
         actorId: auth.user?.id ?? null,
@@ -233,7 +233,7 @@ export default class UsersController {
     try {
       await this.changeUserStateUseCase.execute(params.id, UserStatus.ACTIVE)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'USERS',
         eventAction: 'ACTIVATE_USER',
         actorId: auth.user?.id ?? null,
@@ -250,7 +250,7 @@ export default class UsersController {
 
       return response.ok({ message: 'User activated successfully' })
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'USERS',
         eventAction: 'ACTIVATE_USER',
         actorId: auth.user?.id ?? null,
@@ -286,7 +286,7 @@ export default class UsersController {
 
     const result = await this.searchUserUseCase.execute(search)
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'USERS',
       eventAction: 'SEARCH_USERS',
       actorId: auth.user?.id ?? null,

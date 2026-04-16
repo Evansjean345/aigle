@@ -45,7 +45,7 @@ export default class HandleTransfertInterFirstWebhookUseCase extends BaseWebhook
   ): Promise<WebhookResponseDto> {
     this.validatePayload(payload)
     const reference = payload.data.reference
-    const operatorResponse = { operatorResponse: payload.data } as any
+    const operatorResponse = this.buildOperatorResponse(payload)
 
     paymentLog.info(
       'INTER_TRANSFER_FIRST_WEBHOOK_RECEIVED',
@@ -78,10 +78,20 @@ export default class HandleTransfertInterFirstWebhookUseCase extends BaseWebhook
 
         switch (status) {
           case TransactionStatus.SUCCESS:
-            await this.paymentService.markSuccess(firstPayment.id, operatorResponse, trx)
+            await this.paymentService.markSuccess(
+              firstPayment.id,
+              operatorResponse.operatorResponse,
+              trx
+            )
             break
           case TransactionStatus.FAILED:
-            await this.markAllFailed(txn, firstPayment, second, operatorResponse, trx)
+            await this.markAllFailed(
+              txn,
+              firstPayment,
+              second,
+              operatorResponse.operatorResponse,
+              trx
+            )
             break
           default:
             throw new Exception('Invalid transaction status', {
@@ -178,7 +188,7 @@ export default class HandleTransfertInterFirstWebhookUseCase extends BaseWebhook
     await this.safeMarkTransactionFailed(transaction.id, trx)
 
     await Promise.all([
-      this.paymentService.markFailed(firstPayment.id, operatorResponse, trx),
+      this.paymentService.markFailed(firstPayment.id, { operatorResponse }, trx),
       this.paymentService.markFailed(secondPayment.id, {}, trx),
     ])
   }
@@ -202,7 +212,9 @@ export default class HandleTransfertInterFirstWebhookUseCase extends BaseWebhook
       paymentMethod: secondPayment.paymentMethod,
       operator: details?.operator || '',
       phone: details?.phone || '',
-    }).toQueue('payment').priority(1)
+    })
+      .toQueue('payment')
+      .priority(1)
 
     paymentLog.info(
       'INTER_TRANSFER_SECOND_STEP_ENQUEUED',

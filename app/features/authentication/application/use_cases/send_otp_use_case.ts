@@ -1,6 +1,6 @@
 ﻿import { inject } from '@adonisjs/core'
-import OtpService from '#features/authentication/application/services/otp_service'
-import UserRepository from '#features/users/domain/interfaces/user_repository'
+import OtpSendingService from '#features/otp/application/services/otp_sending_service'
+import UserRepository from '#features/user/domain/interfaces/user_repository'
 import { OtpRequestDto, OtpResponseDto } from '#features/authentication/application/dtos/otp.dto'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber } from '#shared/utils/utiles'
@@ -15,12 +15,12 @@ export default class SendOtpUseCase {
    * Constructs an instance of the class with the provided dependencies.
    *
    * @param {UserRepository} userRepository - The repository for user data management.
-   * @param {OtpService} otpService - The service responsible for handling OTP (One-Time Password) operations.
+   * @param otpSendingService
    * @param {CountryRepository} countryRepository - The repository for managing country-related data.
    */
   constructor(
     protected userRepository: UserRepository,
-    protected otpService: OtpService,
+    protected otpSendingService: OtpSendingService,
     protected countryRepository: CountryRepository
   ) {}
 
@@ -34,18 +34,22 @@ export default class SendOtpUseCase {
   async execute(data: OtpRequestDto): Promise<OtpResponseDto> {
     const country = await this.countryRepository.findCountryBy('id', data.country_id)
     const formattedPhone = concartPhoneNumber(country.phoneCode, data.phone)
-
     const user = await this.userRepository.findByPhone(formattedPhone)
 
     if (!user) {
       throw new PhoneNotFoundException('Numéro de téléphone introuvable')
     }
 
-    try {
-      await this.otpService.sendOtp(user.phone, user.usersUid)
-      return { message: 'OTP Sent successfully' }
-    } catch (error) {
-      throw error
+    const response = await this.otpSendingService.send(user.phone, user.usersUid)
+
+    if (!response.sent) {
+      return {
+        message: `Veuillez patienter ${response.waitTime} secondes avant de renvoyer un code OTP.`,
+        sent: false,
+        waitTime: response.waitTime,
+      }
     }
+
+    return { message: 'Code OTP envoyé avec succès', sent: true }
   }
 }

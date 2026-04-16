@@ -1,6 +1,5 @@
 import { inject } from '@adonisjs/core'
-import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
-import KycMapper from '#features/kyc/application/mapper/kyc_mapper'
+import KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
 import { AdminKycListDto } from '#features/kyc/application/dto/kyc.dto'
 
 @inject()
@@ -20,6 +19,6 @@ export default class GetKycDocumentByIdUseCase {
       return null
     }
 
-    return KycMapper.toAdminDto(kycDocument)
+    return AdminKycListDto.fromKycDocument(kycDocument)
   }
 }

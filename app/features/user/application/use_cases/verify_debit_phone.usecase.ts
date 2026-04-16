@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import { Exception } from '@adonisjs/core/exceptions'
 import { DateTime } from 'luxon'
 import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_repository'
-import OtpService from '#features/authentication/application/services/otp_service'
+import OtpVerificationService from '#features/otp/application/services/otp_verification_service'
 import { normalizePhone } from '#shared/utils/utiles'
 import securityLog from '#shared/infrastructure/logging/security_log'
 
@@ -16,7 +16,7 @@ export default class VerifyDebitPhoneUseCase {
    */
   constructor(
     private debitPhoneRepository: DebitPhoneRepository,
-    private otpService: OtpService
+    private otpVerificationService: OtpVerificationService
   ) {}
 
   /**
@@ -46,7 +46,7 @@ export default class VerifyDebitPhoneUseCase {
       })
     }
 
-    await this.otpService.verifyOtp({
+    await this.otpVerificationService.verify({
       identifier: normalizedPhone,
       enteredOtp: otpCode,
     })

@@ -4,7 +4,7 @@
 } from '#features/operations/application/dto/transfert_inter.dto'
 import ServiceType from '#features/catalogs/domain/models/service_type'
 import { inject } from '@adonisjs/core'
-import User from '#features/users/domain/models/user'
+import User from '#features/user/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
@@ -199,18 +199,20 @@ export default class InterTransfertUseCase {
       })
       .catch((_) => {})
 
-    emitter.emit('activity:transaction-log', {
-      event: 'CREATED',
-      transactionId: transaction.reference,
-      amount,
-      fees,
-      total,
-      provider: payload.providerFromCode,
-      paymentMethod: payload.paymentMethodDepositCode,
-      transactionType: TransactionTypeEnum.TRANSFERT_INTER,
-      actorId: user.usersUid,
-      ipAddress: payload.geoIpLocation?.ip,
-    })
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'CREATED',
+        transactionId: transaction.reference,
+        amount,
+        fees,
+        total,
+        provider: payload.providerFromCode,
+        paymentMethod: payload.paymentMethodDepositCode,
+        transactionType: TransactionTypeEnum.TRANSFERT_INTER,
+        actorId: user.usersUid,
+        ipAddress: payload.geoIpLocation?.ip,
+      })
+      .catch((_) => {})
 
     if (isSyncDepositProvider(payload.providerFromCode)) {
       const { waveUrl } = await this.syncCheckoutService.checkout({
@@ -223,10 +225,14 @@ export default class InterTransfertUseCase {
         notifyFailureUrl: env.get('NOTIFY_TRANSFERT_INTER_FAILURE_URL')!,
         failureOptions: {
           transactionId: transaction.id,
-          webhookEvent: 'TransfertInterTransactionFailed',
-          webhookData: { reference: transaction.reference, amount },
-          paymentId: depositPaymentId,
           logCode: 'INTER_TRANSFER_SYNC',
+          notification: {
+            webhookEvent: 'TransfertInterTransactionFailed',
+            webhookData: { reference: transaction.reference, amount },
+          },
+          payment: {
+            paymentId: depositPaymentId,
+          },
         },
       })
 
@@ -262,7 +268,9 @@ export default class InterTransfertUseCase {
       phone: payload.debiteurPhone.replaceAll(' ', ''),
       userId: user.usersUid,
       pinCode: payload.pinCode,
-    }).toQueue('payment').priority(1)
+    })
+      .toQueue('payment')
+      .priority(1)
 
     transactionLog.info(
       'INTER_TRANSFER_JOB_DISPATCHED',

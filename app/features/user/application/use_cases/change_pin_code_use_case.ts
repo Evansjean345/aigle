@@ -1,8 +1,8 @@
 ﻿import { inject } from '@adonisjs/core'
 import hash from '@adonisjs/core/services/hash'
-import UserRepository from '#features/users/domain/interfaces/user_repository'
+import UserRepository from '#features/user/domain/interfaces/user_repository'
 import { Exception } from '@adonisjs/core/exceptions'
-import { ChangePinCodeDTO } from '#features/users/application/dtos/change_pin_code.dto'
+import { ChangePinCodeDTO } from '#features/user/application/dtos/change_pin_code.dto'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 

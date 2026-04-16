@@ -1,4 +1,4 @@
-import NotificationService from '#features/notifications/application/services/notificaton_service'
+import NotificationService from '#features/notifications/application/services/notification_service'
 import { Notification } from '#features/notifications/domain/notification'
 import { inject } from '@adonisjs/core'
 import Device from '#features/device/domain/models/device'
@@ -13,10 +13,9 @@ interface NewDeviceDetectedPayload {
 @inject()
 export default class OnNewDeviceDetectedNotification {
   /**
-   * Initializes a new instance of the class.
-   *
-   * @param {NotificationService} notificationService - The service used to handle notifications.
-   * @param {DeviceService} deviceService - The service used to manage devices.
+   * Creates an instance of OnNewDeviceDetectedNotification.
+   * @param {NotificationService} notificationService - Used for sending notifications.
+   * @param {DeviceService} deviceService - Used for managing device-related operations.
    */
   constructor(
     private readonly notificationService: NotificationService,
@@ -24,26 +23,23 @@ export default class OnNewDeviceDetectedNotification {
   ) {}
 
   /**
-   * Handles the event triggered when a new device is detected.
-   * Sends a push notification to the user's other connected devices notifying them about the new device detected on their account.
-   *
-   * @param {NewDeviceDetectedPayload} event - The payload containing information about the detected device and the associated user.
-   * @return {Promise<void>} A promise that resolves when the notification has been successfully sent.
+   * Handles the event when a new device is detected.
+   * @param {NewDeviceDetectedPayload} event - The event payload containing device information.
    */
   async handle(event: NewDeviceDetectedPayload): Promise<void> {
     const deviceInfo = event.device.brand
       ? `${event.device.brand} ${event.device.model || ''}`
       : event.device.platform || 'Appareil inconnu'
 
-    // Récupérer les autres appareils de l'utilisateur (en excluant le device détecté)
-    const userDevices = await this.deviceService.getDeviceByUserId(event.userId)
+    // Récupérer les autres appareils actifs de l'utilisateur
+    const userDevices = await this.deviceService.getActiveUserDevices(event.userId)
+
     const otherTrustedDevices = userDevices.filter(
-      (d) => d.id !== event.device.id && d.status === DeviceStatus.TRUSTED && d.pushToken
+      (ud) => ud.deviceId !== event.device.id && ud.status === DeviceStatus.TRUSTED && ud.pushToken
     )
 
-    // Si l'utilisateur a d'autres appareils connectés, envoyer la notification à ces appareils
     if (otherTrustedDevices.length > 0) {
-      const tokens = otherTrustedDevices.map((d) => d.pushToken).filter(Boolean) as string[]
+      const tokens = otherTrustedDevices.map((ud) => ud.pushToken).filter(Boolean) as string[]
 
       if (tokens.length > 0) {
         const notification = new Notification(

@@ -1,13 +1,11 @@
-import { BaseModel, beforeCreate, column } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeCreate, column, hasMany } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
-import { DeviceStatus } from '#features/device/domain/enums'
+import type { HasMany } from '@adonisjs/lucid/types/relations'
+import UserDevice from '#features/device/domain/models/user_device'
 
 export default class Device extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
-
-  @column()
-  declare userId: string
 
   @column()
   declare fingerprintHash: string
@@ -36,33 +34,6 @@ export default class Device extends BaseModel {
   @column()
   declare isRooted: boolean
 
-  @column()
-  declare ipFirstSeen?: string
-
-  @column()
-  declare ipLastSeen?: string
-
-  @column()
-  declare isVpn: boolean
-
-  @column()
-  declare firstCountryCode?: string
-
-  @column()
-  declare lastCountryCode?: string
-
-  @column()
-  declare status: DeviceStatus
-
-  @column()
-  declare isPrimary: boolean
-
-  @column()
-  declare pushToken?: string | null
-
-  @column.dateTime()
-  declare lastSeenAt?: DateTime
-
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -72,4 +43,7 @@ export default class Device extends BaseModel {
       device.id = crypto.randomUUID()
     }
   }
+
+  @hasMany(() => UserDevice)
+  declare sessions: HasMany<typeof UserDevice>
 }

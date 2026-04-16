@@ -14,8 +14,9 @@ import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations
 import Payment from '#features/transactions/domain/models/payment'
 import TransactionLogEntry from '#features/transactions/domain/models/transaction_log_entry'
 import TransactionSecurityContext from '#features/transactions/domain/models/transaction_security_context'
-import User from '#features/users/domain/models/user'
+import User from '#features/user/domain/models/user'
 import Ledger from '#features/ledger/domain/models/ledger'
+import Refund from '#features/transactions/domain/models/refund'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
@@ -78,10 +79,15 @@ export default class Transaction extends BaseModel {
   })
   declare payment: HasMany<typeof Payment>
 
-  @hasOne(() => Ledger, {
+  @hasMany(() => Ledger, {
     foreignKey: 'transactionId',
   })
-  declare ledger: HasOne<typeof Ledger>
+  declare ledgers: HasMany<typeof Ledger>
+
+  @hasOne(() => Refund, {
+    foreignKey: 'transactionId',
+  })
+  declare refund: HasOne<typeof Refund>
 
   @hasMany(() => TransactionLogEntry, {
     foreignKey: 'transactionId',

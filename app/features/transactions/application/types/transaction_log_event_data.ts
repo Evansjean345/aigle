@@ -53,7 +53,17 @@ export type TransactionLogEventData =
   | { event: 'SUCCESS'; transactionId: string }
   | { event: 'FAILED'; transactionId: string; errorMessage: string }
   | { event: 'RETRY'; transactionId: string; attempt: number }
-  | { event: 'REFUND'; transactionId: string; amount: number }
+  | {
+      event: 'REFUND'
+      transactionId: string
+      amount: number
+      walletId?: string
+      balanceBefore?: number
+      balanceAfter?: number
+      refundType?: string
+      refundReason?: string
+      adminId?: number | null
+    }
   | { event: 'CANCELLED'; transactionId: string }
   | {
       event: 'VALIDATION_PASSED'

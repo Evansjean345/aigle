@@ -1,4 +1,4 @@
-import KycLevelRepository from '#features/kyc/domain/imterfaces/kyc_level_repository'
+import KycLevelRepository from '#features/kyc/domain/interfaces/kyc_level_repository'
 import { inject } from '@adonisjs/core'
 import { CreateKycLevelDto, KycLevelResponseDto } from '#features/kyc/application/dto/kyc_level.dto'
 import KycLevel from '#features/kyc/domain/models/kyc_level'
@@ -26,16 +26,6 @@ export default class CreateKycLevelUseCase {
 
     await this.kycLevelRepository.save(kycLevel)
 
-    return {
-      id: kycLevel.id,
-      level: kycLevel.level,
-      singleLimit: kycLevel.singleLimit,
-      dailyLimit: kycLevel.dailyLimit,
-      monthlyLimit: kycLevel.monthlyLimit,
-      balanceLimit: kycLevel.balanceLimit,
-      isActive: kycLevel.isActive,
-      createdAt: kycLevel.createdAt?.toISO() || '',
-      updatedAt: kycLevel.updatedAt?.toISO() || '',
-    }
+    return KycLevelResponseDto.fromKycLevel(kycLevel)
   }
 }

@@ -29,6 +29,24 @@ export default class Payment extends BaseModel {
   @column({ consume: (value: string | null) => (value ? JSON.parse(value) : null) })
   declare operatorResponse: string
 
+  @column({ consume: (value: string | null) => (value ? JSON.parse(value) : null) })
+  declare error: string
+
+  @column()
+  declare errorCode: string | null
+
+  @column()
+  declare errorCategory: string | null
+
+  @column()
+  declare adminAction: string | null
+
+  @column()
+  declare userMessage: string | null
+
+  @column()
+  declare adminMessage: string | null
+
   @column()
   declare transactionMetadata: string
 

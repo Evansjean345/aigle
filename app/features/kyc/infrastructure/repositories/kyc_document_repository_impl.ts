@@ -1,4 +1,4 @@
-import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
+import KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
 import KycDocument from '#features/kyc/domain/models/kyc_document'
 import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
 import db from '@adonisjs/lucid/services/db'

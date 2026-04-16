@@ -11,7 +11,9 @@ const limiterConfig = defineConfig({
      * It is recommended to use a separate database for
      * the limiter connection.
      */
-    redis: stores.redis({}),
+    redis: stores.redis({
+      connectionName: 'limiter',
+    }),
 
     /**
      * Memory store could be used during

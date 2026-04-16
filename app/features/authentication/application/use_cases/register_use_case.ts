@@ -5,7 +5,7 @@ import {
   RegisterRequestDto,
   RegisterResponseDto,
 } from '#features/authentication/application/dtos/register.dto'
-import OtpService from '#features/authentication/application/services/otp_service'
+import OtpSendingService from '#features/otp/application/services/otp_sending_service'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import { concartPhoneNumber, maskPhone } from '#shared/utils/utiles'
@@ -14,7 +14,7 @@ import User from '#features/user/domain/models/user'
 import { UserStatus } from '#features/user/domain/enum'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
-import { DeviceCommandDTO } from '#features/device/application/dto/device.command.tdo'
+import { DeviceCommandDTO } from '#features/device/application/dto/device.command.dto'
 import DeviceService from '#features/device/application/services/device_service'
 
 @inject()
@@ -32,7 +32,7 @@ export default class RegisterUseCase {
     protected userRepository: UserRepository,
     protected countryRepository: CountryRepository,
     private readonly walletService: WalletService,
-    private readonly otpService: OtpService,
+    private readonly otpSendingService: OtpSendingService,
     private readonly deviceService: DeviceService
   ) {}
 
@@ -85,9 +85,9 @@ export default class RegisterUseCase {
         'User successfully registered (inactive status)'
       )
 
-      await this.otpService.sendOtp(userCreated.phone, userCreated.usersUid)
+      await this.otpSendingService.send(userCreated.phone, userCreated.usersUid)
       return {
-        message: 'Un code de vérification a été envoyé à ce numéro',
+        message: 'Un code de vï¿½rification a ï¿½tï¿½ envoyï¿½ ï¿½ ce numï¿½ro',
         phone: userCreated.phone,
       }
     } catch (error) {

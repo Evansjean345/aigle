@@ -1,4 +1,4 @@
-import KycLevelRepository from '#features/kyc/domain/imterfaces/kyc_level_repository'
+import KycLevelRepository from '#features/kyc/domain/interfaces/kyc_level_repository'
 import { inject } from '@adonisjs/core'
 import KycLevelNotFoundException from '#features/kyc/infrastructure/exceptions/kyc_level_not_found_exception'
 

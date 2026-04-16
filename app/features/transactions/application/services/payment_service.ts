@@ -2,10 +2,11 @@
 import PaymentRepository from '#features/transactions/domain/interfaces/payment_repository'
 import Payment from '#features/transactions/domain/models/payment'
 import Transaction from '#features/transactions/domain/models/transaction'
-import User from '#features/users/domain/models/user'
+import User from '#features/user/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
+import { ProviderErrorDefinition } from '#shared/infrastructure/services/provider_error_service'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import PaymentAlreadyFailedException from '#features/transactions/infrastructure/exceptions/payment_already_failed_exception'
 import PaymentAlreadySuccessfulException from '#features/transactions/infrastructure/exceptions/payment_already_successful_exception'
@@ -137,8 +138,11 @@ export default class PaymentService {
    * Marks a payment as failed by updating its status to `FAILED`.
    * Optionally updates the operator response and saves the changes in the payment repository.
    *
-   * @param {string | number} id - The unique identifier of the payment. Can be a string or numeric ID.
-   * @param {Partial<Pick<Payment, 'operatorResponse' | 'status'>>} [extra] - Optional additional data to associate with the update.
+   * @param {number} id - The unique identifier of the payment.
+   * @param {Object} [extra] - Optional additional data to associate with the update.
+   * @param {ProviderErrorDefinition} [extra.definition] - The categorized error definition.
+   * @param {any} [extra.operatorResponse] - The raw response from the operator.
+   * @param {any} [extra.error] - The raw error details.
    * @param {TransactionClientContract} [trx] - Optional database transaction for persisting the changes.
    *
    * @return {Promise<Payment>} A promise that resolves to the updated payment object.
@@ -147,7 +151,11 @@ export default class PaymentService {
    */
   async markFailed(
     id: number,
-    extra?: Partial<Pick<Payment, 'operatorResponse' | 'status'>>,
+    extra?: {
+      definition?: ProviderErrorDefinition
+      operatorResponse?: any
+      status?: PaymentStatus
+    },
     trx?: TransactionClientContract
   ): Promise<Payment> {
     const payment = await this.getById(id, trx)
@@ -172,13 +180,21 @@ export default class PaymentService {
 
     payment.status = PaymentStatus.FAILED
 
+    if (extra?.definition) {
+      payment.errorCode = extra.definition.code
+      payment.errorCategory = extra.definition.category
+      payment.adminAction = extra.definition.adminAction
+      payment.userMessage = extra.definition.userMessage
+      payment.adminMessage = extra.definition.adminMessage
+    }
+
     if (extra?.operatorResponse) {
       payment.operatorResponse = JSON.stringify(extra.operatorResponse as any)
     }
 
     transactionLog.info(
       'PAYMENT_MARKED_AS_FAILED',
-      { payment: { id: payment.id } },
+      { payment: { id: payment.id }, category: payment.errorCategory },
       'Payment marked as failed'
     )
     return this.paymentRepository.save(payment, trx)

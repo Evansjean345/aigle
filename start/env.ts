@@ -108,5 +108,18 @@ export default await Env.create(new URL('../', import.meta.url), {
   | Variables for configuring @adonisjs/queue
   |----------------------------------------------------------
   */
-  QUEUE_DRIVER: Env.schema.enum(['redis', 'database', 'sync'] as const)
+  QUEUE_DRIVER: Env.schema.enum(['redis', 'database', 'sync'] as const),
+
+  APP_NAME: Env.schema.string(),
+  APP_VERSION: Env.schema.string(),
+  APP_ENV: Env.schema.enum(['development', 'staging', 'production'] as const),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for admin alerting emails
+  |----------------------------------------------------------
+  */
+  ALERT_EMAIL_TECH_TEAM: Env.schema.string.optional(),
+  ALERT_EMAIL_OPS_TEAM: Env.schema.string.optional(),
+  ALERT_EMAIL_FINANCE_TEAM: Env.schema.string.optional()
 })

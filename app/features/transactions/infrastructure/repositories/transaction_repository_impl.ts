@@ -39,7 +39,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
   ): Promise<ModelPaginatorContract<Transaction>> {
     return await Transaction.query()
       .preload('payment')
-      .preload('ledger')
+      .preload('ledgers')
       .where('usersUid', userId)
       .orderBy('createdAt', 'desc')
       .paginate(page, perPage)
@@ -59,7 +59,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
     const query = Transaction.query({ client: trx })
       .preload('user')
       .preload('payment')
-      .preload('ledger', (q) => {
+      .preload('ledgers', (q) => {
         q.preload('wallet')
       })
       .where((builder) => {
@@ -110,8 +110,8 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       .if(preloads?.includes('payment'), (q) => {
         q.preload('payment')
       })
-      .if(preloads?.includes('ledger'), (q) => {
-        q.preload('ledger', (ledgerQuery) => {
+      .if(preloads?.includes('ledgers'), (q) => {
+        q.preload('ledgers', (ledgerQuery) => {
           ledgerQuery.preload('wallet')
         })
       })
@@ -119,7 +119,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
         q.preload('logs')
       })
       .if(preloads?.includes('securityContext'), (q) => {
-        q.preload('securityContext')
+        q.preload('securityContext', (subQuery) => subQuery.preload('device'))
       })
 
     return await query.where('reference', reference).first()
@@ -132,12 +132,17 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    * @param {string} userId - The unique identifier of the user associated with the transaction.
    * @return {Promise<Transaction | null>} A promise that resolves to the matching transaction object if found, or null if no match is found.
    */
-  async findByReferenceAndUserId(reference: string, userId: string): Promise<Transaction | null> {
-    return await Transaction.query()
+  async findByReferenceAndUserId(reference: string, userId: string, preloads?: string[]): Promise<Transaction | null> {
+    const query = Transaction.query()
       .preload('payment')
       .where('reference', reference)
       .where('usersUid', userId)
-      .first()
+
+    if (preloads?.includes('ledgers')) {
+      query.preload('ledgers')
+    }
+
+    return await query.first()
   }
 
   /**

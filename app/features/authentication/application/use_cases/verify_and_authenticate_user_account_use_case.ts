@@ -1,4 +1,4 @@
-import OtpService from '#features/authentication/application/services/otp_service'
+import OtpVerificationService from '#features/otp/application/services/otp_verification_service'
 import User from '#features/user/domain/models/user'
 import { AuthenticatedProfileAndTokenResponseDto } from '#features/authentication/application/dtos/profile.dto'
 import { inject } from '@adonisjs/core'
@@ -13,7 +13,7 @@ import UserRepository from '#features/user/domain/interfaces/user_repository'
 import AccountBlockedException from '#features/authentication/infrastructure/exceptions/account_blocked_exception'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 @inject()
 export default class VerifyAndAuthenticateUserAccountUseCase {
@@ -21,13 +21,13 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
    * Initializes a new instance of the class with the specified dependencies.
    *
    * @param {UserRepository} userRepository - The repository used for user data management.
-   * @param {OtpService} otpService - The service used for managing one-time password (OTP) functionalities.
+   * @param {OtpVerificationService} otpVerificationService - The service used for OTP verification.
    * @param {CountryRepository} countryRepository - The repository used for accessing and managing country-related data.
    * @param {DeviceService} deviceService - The service used for managing device-related operations.
    */
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly otpService: OtpService,
+    private readonly otpVerificationService: OtpVerificationService,
     private readonly countryRepository: CountryRepository,
     private readonly deviceService: DeviceService
   ) {}
@@ -66,7 +66,10 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
 
     try {
       if (!this.shouldBypassOtpVerification(user)) {
-        await this.otpService.verifyOtp({ identifier: user.phone, enteredOtp: payload.otp })
+        await this.otpVerificationService.verify({
+          identifier: user.phone,
+          enteredOtp: payload.otp,
+        })
       }
 
       if (type === 'register' && user.status === UserStatus.INACTIVE) {
@@ -74,10 +77,10 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
         await this.userRepository.save(user)
       }
 
-      let device
+      let userDevice
 
       if (payload.deviceInfo?.fingerprintHash && payload.deviceInfo?.deviceUid) {
-        device = await this.deviceService.trustDeviceByFingerprintAndUid(
+        userDevice = await this.deviceService.trustDevice(
           user.usersUid,
           payload.deviceInfo.fingerprintHash,
           payload.deviceInfo.deviceUid,
@@ -86,7 +89,7 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
       }
 
       const token = await User.accessTokens.create(user, ['*'], {
-        name: device ? `device:${device.id}` : 'unknown_device',
+        name: userDevice ? `device:${userDevice.id}` : 'unknown_device',
       })
 
       securityLog.info(
@@ -95,7 +98,7 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
           userId: user.id,
           phone: maskPhone(user.phone),
           type,
-          deviceId: device?.id,
+          userDeviceId: userDevice?.id,
         },
         'User successfully authenticated'
       )

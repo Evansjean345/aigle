@@ -3,13 +3,15 @@
 // Feature-based imports
 import DeviceRepository from '#features/device/domain/interfaces/device_repository'
 import DeviceRepositoryImpl from '#features/device/infrastructure/repositories/device_repository_impl'
+import UserDeviceRepository from '#features/device/domain/interfaces/user_device_repository'
+import UserDeviceRepositoryImpl from '#features/device/infrastructure/repositories/user_device_repository_impl'
 import AppVersionRepository from '#features/device/domain/interfaces/app_version_repository'
 import AppVersionRepositoryImpl from '#features/device/infrastructure/repositories/app_version_repository_impl'
 
-import UserRepository from '#features/users/domain/interfaces/user_repository'
-import UserRepositoryImpl from '#features/users/infrastructure/repositories/user_repository_impl'
-import OtpRepository from '#features/authentication/domain/interfaces/otp_repository'
-import OtpRepositoryImpl from '#features/authentication/infrastructure/repositories/otp_repository_impl'
+import UserRepository from '#features/user/domain/interfaces/user_repository'
+import UserRepositoryImpl from '#features/user/infrastructure/repositories/user_repository_impl'
+import OtpRepository from '#features/otp/domain/interfaces/otp_repository'
+import OtpRepositoryImpl from '#features/otp/infrastructure/repositories/otp_repository_impl'
 
 import WalletRepository from '#features/wallet/domain/interfaces/wallet_repository'
 import WalletRepositoryImpl from '#features/wallet/infrastructure/repositories/wallet_repository_impl'
@@ -30,9 +32,9 @@ import ServiceProviderMethodRepository from '#features/catalogs/domain/interface
 import ServiceProviderMethodRepositoryImpl from '#features/catalogs/infrastructure/repositories/service_provider_method_repository_impl'
 import CompanyContactRepository from '#features/catalogs/domain/interfaces/company_contact_repository'
 import CompanyContactRepositoryImpl from '#features/catalogs/infrastructure/repositories/company_contact_repository_impl'
-import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
+import KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
 import KycDocumentRepositoryImpl from '#features/kyc/infrastructure/repositories/kyc_document_repository_impl'
-import KycLevelRepository from '#features/kyc/domain/imterfaces/kyc_level_repository'
+import KycLevelRepository from '#features/kyc/domain/interfaces/kyc_level_repository'
 import KycLevelRepositoryImpl from '#features/kyc/infrastructure/repositories/kyc_level_repository_impl'
 import ResetPasswordTokenProvider from '#features/authentication/domain/interfaces/reset_password_token_provider'
 import RedisResetPasswordTokenProvider from '#features/authentication/infrastructure/redis_reset_password_token_provider'
@@ -44,6 +46,8 @@ import PermissionRepository from '#features/team/domain/interfaces/permission_re
 import PermissionRepositoryImpl from '#features/team/infrastructure/repositories/permission_repository_impl'
 import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_repository'
 import DebitPhoneRepositoryImpl from '#features/user/infrastructure/repositories/debit_phone_repository_impl'
+import WalletAdjustmentRepository from '#features/wallet/domain/interfaces/wallet_adjustment_repository'
+import WalletAdjustmentRepositoryImpl from '#features/wallet/infrastructure/repositories/wallet_adjustment_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -65,6 +69,7 @@ export default class RepositoryProvider {
       [CompanyContactRepository, CompanyContactRepositoryImpl],
       [ServiceProviderFeesRepository, ServiceProviderFeesRepositoryImpl],
       [DeviceRepository, DeviceRepositoryImpl],
+      [UserDeviceRepository, UserDeviceRepositoryImpl],
       [AppVersionRepository, AppVersionRepositoryImpl],
       [KycDocumentRepository, KycDocumentRepositoryImpl],
       [KycLevelRepository, KycLevelRepositoryImpl],
@@ -73,6 +78,7 @@ export default class RepositoryProvider {
       [RoleRepository, RoleRepositoryImpl],
       [PermissionRepository, PermissionRepositoryImpl],
       [DebitPhoneRepository, DebitPhoneRepositoryImpl],
+      [WalletAdjustmentRepository, WalletAdjustmentRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {

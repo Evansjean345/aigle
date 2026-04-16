@@ -2,70 +2,60 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import DeviceService from '#features/device/application/services/device_service'
 import { updatePushTokenValidator } from '#features/device/presentation/mobile/validators/device_validator'
-import { DeviceResponseDTO } from '#features/device/application/dto/device.tdo'
+import { DeviceResponseDTO } from '#features/device/application/dto/device.dto'
 import RevokeDeviceUseCase from '#features/device/application/use_cases/mobile/revoke_device_use_case'
 
-/**
- * DeviceController gère les opérations liées aux devices mobiles.
- */
 @inject()
 export default class DeviceController {
   /**
-   * Initializes a new instance of the class.
-   *
-   * @param {DeviceService} deviceService - An instance of the DeviceService used for managing device-related operations.
-   * @param {RevokeDeviceUseCase} revokeDeviceUseCase
+   * Creates an instance of DeviceController.
+   * @param {DeviceService} deviceService - Used for managing device-related operations.
+   * @param {RevokeDeviceUseCase} revokeDeviceUseCase - Used for revoking device associations.
    */
   constructor(
-    private deviceService: DeviceService,
-    private revokeDeviceUseCase: RevokeDeviceUseCase
+    private readonly deviceService: DeviceService,
+    private readonly revokeDeviceUseCase: RevokeDeviceUseCase
   ) {}
 
   /**
-   * Fetches and returns the devices associated with the authenticated user.
+   * Retrieves the active devices associated with the authenticated user.
    *
-   * @param {Object} context - The HTTP context object.
-   * @param {Object} context.auth - The authentication object containing the authenticated user's information.
-   * @param {Object} context.response - The response object used to send the results.
-   * @return {Promise<void>} Resolves when the device data has been fetched and the response is sent.
+   * @param {HttpContext} ctx - The HTTP context containing authentication and response information.
+   * @returns {Promise<void>} - A promise that resolves when the operation is complete.
    */
   async getUserDevices({ auth, response }: HttpContext): Promise<void> {
     const user = auth.user!
-    const devices = await this.deviceService.getDeviceByUserId(user.usersUid)
-    const deviceResponses = devices.map((device) => DeviceResponseDTO.fromModel(device))
+    const userDevices = await this.deviceService.getActiveUserDevices(user.usersUid)
+    const deviceResponses = userDevices.map((ud) => DeviceResponseDTO.fromUserDevice(ud))
 
     return response.ok(deviceResponses)
   }
 
   /**
-   * Révoque un appareil spécifique pour l'utilisateur authentifié.
+   * Revokes a device association for the authenticated user.
    *
-   * @param context
+   * @param {HttpContext} ctx - The HTTP context containing authentication, response, and request parameters.
+   * @returns {Promise<void>} - A promise that resolves when the operation is complete.
    */
   async revokeDevice({ auth, response, params }: HttpContext): Promise<void> {
     const user = auth.user!
-    const deviceId = params.id
+    const userDeviceId = params.id
 
-    await this.revokeDeviceUseCase.execute(user, deviceId)
+    await this.revokeDeviceUseCase.execute(user, userDeviceId)
 
-    return response.ok({message: 'Device revoked successfully.'})
+    return response.ok({ message: 'Device revoked successfully.' })
   }
 
   /**
-   * Updates the push token for a user's device using the provided fingerprint hash.
+   * Updates the push token for the authenticated user's device.
    *
-   * @param {Object} context - The HTTP context object containing request, response, auth, and deviceInfo.
-   * @param {Request} context.request - The HTTP request object.
-   * @param {Response} context.response - The HTTP response object.
-   * @param {AuthContract} context.auth - The authentication object providing user information.
-   * @param {Object} context.deviceInfo - Object containing device-related information such as fingerprintHash.
-   * @return {Promise<void>} Resolves successfully when the push token is updated or returns an error response if validation fails.
+   * @param {HttpContext} ctx - The HTTP context containing authentication, response, request parameters, and device information.
+   * @returns {Promise<void>} - A promise that resolves when the operation is complete.
    */
   async updatePushToken({ request, response, auth, deviceInfo }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(updatePushTokenValidator)
     const user = auth.user!
 
-    // Récupérer le fingerprint et deviceUid depuis le header (via middleware device)
     const fingerprintHash = deviceInfo?.fingerprintHash
     const deviceUid = deviceInfo?.deviceUid
 
@@ -76,7 +66,7 @@ export default class DeviceController {
       })
     }
 
-    const device = await this.deviceService.updatePushTokenByFingerprintAndUid(
+    const userDevice = await this.deviceService.updatePushToken(
       fingerprintHash,
       deviceUid,
       payload.pushToken,
@@ -84,8 +74,8 @@ export default class DeviceController {
     )
 
     return response.ok({
-      deviceId: device.id,
-      pushToken: device.pushToken,
+      userDeviceId: userDevice.id,
+      pushToken: userDevice.pushToken,
     })
   }
 }

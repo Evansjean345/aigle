@@ -1,7 +1,9 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
-import { toPaginatedMobileTransactionsResponseDto } from '#features/transactions/application/mapper/mobile_transaction.mapper'
-import { PaginatedMobileTransactionsResponseDTO } from '#features/transactions/application/dto/mobile_transaction.dto'
+import {
+  MobileTransactionResponseDTO,
+  PaginatedMobileTransactionsResponseDTO,
+} from '#features/transactions/application/dto/mobile_transaction.dto'
 
 /**
  * Use case for retrieving a paginated list of transactions for a specific user.
@@ -28,6 +30,6 @@ export default class GetUserTransactionsUseCase {
       page,
       16
     )
-    return toPaginatedMobileTransactionsResponseDto(paginatedTransactionsQuery)
+    return MobileTransactionResponseDTO.fromPaginator(paginatedTransactionsQuery)
   }
 }

@@ -43,7 +43,7 @@ export default class CreateAdminUseCase {
 
     await this.adminRepository.save(admin)
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'TEAM',
       eventAction: 'ADMIN_CREATED',
       actorType: auth ? 'Admin' : 'System',
@@ -71,7 +71,7 @@ export default class CreateAdminUseCase {
       },
     }).toQueue('mail')
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'TEAM',
       eventAction: 'ADMIN_PASSWORD_SETUP_INVITATION_LINK_SENT',
       actorType: 'System',

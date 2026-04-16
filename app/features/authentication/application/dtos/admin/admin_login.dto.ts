@@ -1,14 +1,15 @@
-import { Token } from '#features/authentication/application/use_cases/admin/admin_login_use_case'
+import { type Token } from '#features/authentication/application/use_cases/admin/admin_login_use_case'
+import type Admin from '#features/team/domain/models/admin'
 
 export interface AdminLoginRequestDto {
   email: string
   password: string
 }
 
-export interface AdminLoginResponseDto {
-  access_token: Token
-  refresh_token: Token
-  admin: {
+export class AdminLoginResponseDto {
+  declare access_token: Token
+  declare refresh_token: Token
+  declare admin: {
     id: number
     firstname: string
     lastname: string
@@ -20,6 +21,29 @@ export interface AdminLoginResponseDto {
       permissions: string[]
     }
   }
+
+  static fromAdmin(
+    admin: Admin,
+    accessToken: Token,
+    refreshToken: Token
+  ): AdminLoginResponseDto {
+    const dto = new AdminLoginResponseDto()
+    dto.access_token = accessToken
+    dto.refresh_token = refreshToken
+    dto.admin = {
+      id: admin.id,
+      firstname: admin.firstname,
+      lastname: admin.lastname,
+      email: admin.email,
+      role: {
+        id: admin.role.id,
+        slug: admin.role.slug,
+        name: admin.role.name,
+        permissions: admin.role.permissions.map((p) => p.slug),
+      },
+    }
+    return dto
+  }
 }
 
 export interface AdminRefreshTokenRequestDto {
@@ -30,3 +54,8 @@ export interface AdminRefreshTokenResponseDto {
   access_token: Token
   refresh_token: Token
 }
+
+export const toAdminRefreshTokenResponse = (
+  accessToken: Token,
+  refreshToken: Token
+): AdminRefreshTokenResponseDto => ({ access_token: accessToken, refresh_token: refreshToken })

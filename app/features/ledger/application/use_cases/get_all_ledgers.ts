@@ -1,6 +1,5 @@
 import { inject } from '@adonisjs/core'
 import LedgerRepository from '#features/ledger/domain/interfaces/ledger_repository'
-import LedgerMapper from '#features/ledger/application/mapper/ledger.mapper'
 import { LedgerDto } from '#features/ledger/application/dto/ledger.dto'
 import { LedgerOperationType } from '#features/ledger/domain/ledger_enums'
 
@@ -40,7 +39,7 @@ export default class GetAllLedgersUseCase {
     }
   ): Promise<{ meta: any; data: LedgerDto[] }> {
     const paginatedLedgers = await this.ledgerRepository.findAll(page, perPage, filters)
-    const data = LedgerMapper.toDtoList(paginatedLedgers.all())
+    const data = paginatedLedgers.all().map(LedgerDto.fromLedger)
 
     return {
       meta: paginatedLedgers.getMeta(),

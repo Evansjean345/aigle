@@ -1,7 +1,6 @@
 import { inject } from '@adonisjs/core'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import { UserSearchResponseDto } from '#features/user/application/dtos/admin/user_search.response.dto'
-import { mapUserToSearchDto } from '#features/user/application/mappers/admin/users.mapper'
 
 @inject()
 export default class SearchUserUseCase {
@@ -27,6 +26,6 @@ export default class SearchUserUseCase {
       search
     )
 
-    return paginatedUsers.all().map((user) => mapUserToSearchDto(user))
+    return paginatedUsers.all().map(UserSearchResponseDto.fromUser)
   }
 }

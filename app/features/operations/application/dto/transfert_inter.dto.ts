@@ -1,6 +1,6 @@
 ﻿import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { interTransfertValidator } from '#features/operations/presentation/mobile/validators/transfert_inter_validator'
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import { Exception } from '@adonisjs/core/exceptions'
 import { Infer } from '@vinejs/vine/types'

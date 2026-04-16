@@ -1,4 +1,4 @@
-import KycLevelRepository from '#features/kyc/domain/imterfaces/kyc_level_repository'
+import KycLevelRepository from '#features/kyc/domain/interfaces/kyc_level_repository'
 import KycLevel from '#features/kyc/domain/models/kyc_level'
 import { Exception } from '@adonisjs/core/exceptions'
 

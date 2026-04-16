@@ -8,7 +8,7 @@ const authConfig = defineConfig({
     api: tokensGuard({
       provider: tokensUserProvider({
         tokens: 'accessTokens',
-        model: () => import('#features/users/domain/models/user'),
+        model: () => import('#features/user/domain/models/user'),
       }),
     }),
     admin: tokensGuard({

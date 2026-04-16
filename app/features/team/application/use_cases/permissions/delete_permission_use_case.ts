@@ -30,7 +30,7 @@ export default class DeletePermissionUseCase {
       if (!permission) throw new PermissionNotFoundException()
       await this.permissionRepository.delete(permission)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'TEAM',
         eventAction: 'PERMISSION_DELETED',
         actorId: String(auth.id),
@@ -41,7 +41,7 @@ export default class DeletePermissionUseCase {
         result: AuditResult.SUCCESS,
       })
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'TEAM',
         eventAction: 'PERMISSION_DELETE_FAILED',
         actorId: String(auth.id),

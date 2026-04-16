@@ -29,7 +29,7 @@ export default class DeleteAdminUseCase {
     if (!admin) throw new AdminNotFoundException()
     await this.adminRepository.delete(admin)
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'TEAM',
       eventAction: 'ADMIN_DELETED',
       actorId: String(auth.id),

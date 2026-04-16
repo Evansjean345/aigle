@@ -54,7 +54,7 @@ export default class LedgersController {
       userId,
     })
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'LEDGERS',
       eventAction: 'READ_LEDGERS',
       actorId: auth.user?.id ?? null,
@@ -98,7 +98,7 @@ export default class LedgersController {
 
     const stats = await this.getLedgerStatsUseCase.execute({ walletId, period, startDate, endDate })
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'LEDGERS',
       eventAction: 'READ_STATS',
       actorId: auth.user?.id ?? null,
@@ -129,7 +129,7 @@ export default class LedgersController {
   //
   //   const data = await this.getLedgerChartUseCase.execute({ walletId, period, groupBy })
   //
-  //   await emitter.emit('activity:audit', {
+  //   emitter.emit('activity:audit', {
   //     eventCategory: 'LEDGERS',
   //     eventAction: 'READ_CHART',
   //     actorId: auth.user?.id ?? null,
@@ -185,7 +185,7 @@ export default class LedgersController {
       userId: id,
     })
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'LEDGERS',
       eventAction: 'READ_USER_LEDGERS',
       actorId: auth.user?.id ?? null,
@@ -229,7 +229,7 @@ export default class LedgersController {
     const stats = await this.getUserLedgerStatsUseCase.execute(id, { period, startDate, endDate })
 
     if (!stats) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'LEDGERS',
         eventAction: 'READ_USER_STATS',
         actorId: auth.user?.id ?? null,
@@ -247,7 +247,7 @@ export default class LedgersController {
       return response.notFound({ message: 'User or wallet not found' })
     }
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'LEDGERS',
       eventAction: 'READ_USER_STATS',
       actorId: auth.user?.id ?? null,
@@ -285,7 +285,7 @@ export default class LedgersController {
   //   const data = await this.getUserLedgerChartUseCase.execute(id, { period, groupBy })
   //
   //   if (!data) {
-  //     await emitter.emit('activity:audit', {
+  //     emitter.emit('activity:audit', {
   //       eventCategory: 'LEDGERS',
   //       eventAction: 'READ_USER_CHART',
   //       actorId: auth.user?.id ?? null,
@@ -303,7 +303,7 @@ export default class LedgersController {
   //     return response.notFound({ message: 'User or wallet not found' })
   //   }
   //
-  //   await emitter.emit('activity:audit', {
+  //   emitter.emit('activity:audit', {
   //     eventCategory: 'LEDGERS',
   //     eventAction: 'READ_USER_CHART',
   //     actorId: auth.user?.id ?? null,

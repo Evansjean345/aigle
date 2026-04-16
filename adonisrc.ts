@@ -51,26 +51,27 @@ export default defineConfig({
     () => import('#providers/repository_provider'),
     {
       file: () => import('@adonisjs/redis/redis_provider'),
-      environment: ['web', 'repl', 'console'],
+      environment: ['web', 'repl', 'console', 'test'],
     },
     () => import('#features/notifications/notification_service_provider'),
     () => import('#features/transactions/transaction_provider'),
     () => import('#features/ledger/ledger_provider'),
     {
       file: () => import('@adonisjs/cache/cache_provider'),
-      environment: ['web', 'repl', 'console'],
+      environment: ['web', 'repl', 'console', 'test'],
     },
     {
       file: () => import('@adonisjs/limiter/limiter_provider'),
-      environment: ['web', 'repl', 'console'],
+      environment: ['web', 'repl', 'console', 'test'],
     },
     () => import('@adonisjs/mail/mail_provider'),
     () => import('@adonisjs/core/providers/edge_provider'),
     {
       file: () => import('@adonisjs/queue/queue_provider'),
-      environment: ['web', 'repl', 'console'],
+      environment: ['web', 'repl', 'console', 'test'],
     },
     () => import('@adonisjs/bouncer/bouncer_provider'),
+    () => import('@adonisjs/otel/otel_provider'),
   ],
 
   /*
@@ -90,7 +91,7 @@ export default defineConfig({
     {
       file: () => import('#start/scheduler'),
       environment: ['web'],
-    }
+    },
   ],
 
   /*

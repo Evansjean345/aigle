@@ -12,4 +12,5 @@ export enum LedgerOperationType {
   DEPOSIT_INTER = 'deposit_inter',
   TRANSFERT_INTER_STEP = 'transfert_inter',
   REVERSAL = 'reversal',
+  ADJUSTMENT = 'adjustment',
 }

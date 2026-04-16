@@ -1,80 +1,60 @@
-import Device from '../models/device.js'
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type Device from '#features/device/domain/models/device'
 
 export default abstract class DeviceRepository {
   /**
    * Saves a device entity to the database, optionally within a transaction context.
-   * @param device
-   * @param trx
+   *
+   * @param {Device} device - The device entity to save.
+   * @param trx - Optional transaction context.
    */
   abstract save(device: Device, trx?: TransactionClientContract): Promise<Device>
 
   /**
+   * Find all devices with pagination, filters, and enriched counters.
+   */
+  abstract findAllPaginated(filters: {
+    minAccounts?: number
+    isEmulator?: boolean
+    isRooted?: boolean
+    hasVpn?: boolean
+    platform?: string
+    search?: string
+    sortBy: string
+    order: string
+    page: number
+    perPage: number
+  }): Promise<{
+    data: Device[]
+    meta: { total: number; page: number; perPage: number; lastPage: number }
+  }>
+
+  /**
    * Find a device by its ID.
-   * @param deviceId
+   * @param {string} deviceId - The ID of the device to find.
    */
   abstract findById(deviceId: string): Promise<Device | null>
 
   /**
    * Find a device by its fingerprint hash.
-   * @param fingerprintHash
+   * @param {string} fingerprintHash - The fingerprint hash of the device to find.
    */
   abstract findByFingerprintHash(fingerprintHash: string): Promise<Device | null>
 
   /**
    * Find a device by its device UID.
-   * @param deviceUid
+   * @param {string} deviceUid - The device UID of the device to find.
    */
   abstract findByDeviceUid(deviceUid: string): Promise<Device | null>
 
   /**
-   * Find a device by user ID.
-   * @param userId
-   */
-  abstract findByUserId(userId: string): Promise<Device | null>
-
-  /**
-   * Get all devices for a user.
-   * @param userId
-   */
-  abstract getDevicesByUserId(userId: string): Promise<Device[]>
-
-  /**
-   * Count devices for a user with specific statuses.
-   * @param userId
-   * @param statuses
-   */
-  abstract countDevicesByStatus(userId: string, statuses: string[]): Promise<number>
-
-  /**
-   * Find a device by user ID, fingerprint hash, and device UID.
-   * @param userId
-   * @param fingerprintHash
-   * @param deviceUid
-   */
-  abstract findByUserAndDeviceIdentifiers(
-    userId: string,
-    fingerprintHash: string,
-    deviceUid: string
-  ): Promise<Device | null>
-
-  /**
-   * Count total devices for a user.
-   * @param userId
-   */
-  abstract countByUserId(userId: string): Promise<number>
-
-  /**
    * Delete a device.
-   * @param device
    */
   abstract deleteDevice(device: Device): Promise<void>
 
   /**
    * Atomically finds a device by fingerprint hash and updates it, or creates a new one.
    * Relies on the UNIQUE constraint on fingerprint_hash to prevent race conditions.
-   * @param fingerprintHash - The search key
-   * @param payload - The data to update or create with
    */
   abstract updateOrCreateByFingerprintHash(
     fingerprintHash: string,

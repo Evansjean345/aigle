@@ -12,6 +12,7 @@ import TransactionVolumeCache from '#features/transactions/domain/interfaces/tra
  * management for keys.
  */
 export default class RedisTransactionVolumeCache implements TransactionVolumeCache {
+  private readonly connection = redis.connection('transactions')
   private static ZONE = 'UTC'
 
   /**
@@ -93,11 +94,11 @@ export default class RedisTransactionVolumeCache implements TransactionVolumeCac
     ]
 
     for (const { key, ttl } of keys) {
-      await redis.incrbyfloat(key, amount)
-      const currentTTL = await redis.ttl(key)
+      await this.connection.incrbyfloat(key, amount)
+      const currentTTL = await this.connection.ttl(key)
 
       if (currentTTL < 0) {
-        await redis.expire(key, ttl)
+        await this.connection.expire(key, ttl)
       }
     }
   }
@@ -111,7 +112,7 @@ export default class RedisTransactionVolumeCache implements TransactionVolumeCac
    */
   async getDailyVolume(userId: string, dt?: Date | string | DateTime): Promise<number> {
     const key = this.dayKey(userId, RedisTransactionVolumeCache.normalize(dt))
-    const val = await redis.get(key)
+    const val = await this.connection.get(key)
     return val ? Number(val) : 0
   }
 
@@ -124,7 +125,7 @@ export default class RedisTransactionVolumeCache implements TransactionVolumeCac
    */
   async getMonthlyVolume(userId: string | number, dt?: Date | string | DateTime): Promise<number> {
     const key = this.monthKey(userId, RedisTransactionVolumeCache.normalize(dt))
-    const val = await redis.get(key)
+    const val = await this.connection.get(key)
     return val ? Number(val) : 0
   }
 
@@ -140,7 +141,7 @@ export default class RedisTransactionVolumeCache implements TransactionVolumeCac
     dt?: Date | string | DateTime
   ): Promise<Record<string, number>> {
     const ts = RedisTransactionVolumeCache.normalize(dt)
-    const pipeline = redis.pipeline()
+    const pipeline = this.connection.pipeline()
 
     userIds.forEach((userId) => {
       pipeline.get(this.monthKey(userId, ts))
@@ -165,10 +166,10 @@ export default class RedisTransactionVolumeCache implements TransactionVolumeCac
    */
   async clearVolume(userId: string): Promise<void> {
     const pattern = `tx:vol:user:${userId}:*`
-    const keys = await redis.keys(pattern)
+    const keys = await this.connection.keys(pattern)
 
     if (keys.length > 0) {
-      await redis.del(...keys)
+      await this.connection.del(...keys)
     }
   }
 }

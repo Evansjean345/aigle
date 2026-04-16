@@ -1,6 +1,6 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/infrastructure/repositories/transaction_repository_impl'
-import User from '#features/users/domain/models/user'
+import User from '#features/user/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
@@ -11,9 +11,10 @@ import TransactionSecurityContextRepository from '#features/transactions/domain/
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import TransactionAlreadyFailedException from '#features/transactions/infrastructure/exceptions/transaction_already_failed_exception'
 import TransactionAlreadySuccessfulException from '#features/transactions/infrastructure/exceptions/transaction_already_successful_exception'
+import TransactionAlreadyRefundedException from '#features/transactions/infrastructure/exceptions/transaction_already_refunded_exception'
 import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
 import InvalidStatusTransitionException from '#features/transactions/infrastructure/exceptions/invalid_status_transition_exception'
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 /**
  * Shared TransactionService: creates and manages transaction records.
@@ -255,6 +256,40 @@ export default class TransactionService {
       'TRANSACTION_MARKED_FAILED',
       { transaction: { id: transaction.id } },
       'Transaction marked as failed'
+    )
+    return transaction
+  }
+
+  /**
+   * Marks a transaction as refunded.
+   *
+   * Accepted transitions: PENDING → REFUNDED (auto/webhook reversal), SUCCESS → REFUNDED (admin refund),
+   * FAILED → REFUNDED (late webhook reversal after a prior markFailed).
+   *
+   * @param {number} id - The unique identifier of the transaction.
+   * @param {TransactionClientContract} [trx] - Optional transaction client for database operations.
+   * @return {Promise<Transaction>} The updated transaction.
+   * @throws {TransactionAlreadyRefundedException} If the transaction has already been refunded.
+   */
+  async markRefunded(id: number, trx?: TransactionClientContract): Promise<Transaction> {
+    const transaction = await this.getById(id, trx)
+
+    if (transaction.status === TransactionStatus.REFUNDED) {
+      transactionLog.info(
+        'TRANSACTION_ALREADY_REFUNDED',
+        { transaction: { id: transaction.id } },
+        'Transaction already refunded, skipping'
+      )
+      throw new TransactionAlreadyRefundedException()
+    }
+
+    transaction.status = TransactionStatus.REFUNDED
+    await this.transactionRepository.save(transaction, trx)
+
+    transactionLog.info(
+      'TRANSACTION_MARKED_REFUNDED',
+      { transaction: { id: transaction.id, reference: transaction.reference } },
+      'Transaction marked as refunded'
     )
     return transaction
   }

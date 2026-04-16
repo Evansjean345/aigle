@@ -30,7 +30,7 @@ export default class DeleteRoleUseCase {
       if (!role) throw new RoleNotFoundException()
       await this.roleRepository.delete(role)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'TEAM',
         eventAction: 'ROLE_DELETED',
         actorId: String(auth.id),
@@ -41,7 +41,7 @@ export default class DeleteRoleUseCase {
         result: AuditResult.SUCCESS,
       })
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'TEAM',
         eventAction: 'ROLE_DELETE_FAILED',
         actorId: String(auth.id),

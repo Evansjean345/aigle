@@ -8,15 +8,13 @@ import Payment from '#features/transactions/domain/models/payment'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
 import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
-import LedgerService from '#features/ledger/application/services/ledger_service'
 import WalletService from '#features/wallet/application/services/wallet_service'
+import RefundService from '#features/transactions/application/services/refund_service'
+import TransactionAlreadyRefundedException from '#features/transactions/infrastructure/exceptions/transaction_already_refunded_exception'
 import TransfertTransactionCompleted, {
   TransfertTransactionCompletedPayload,
 } from '#features/webhooks/application/events/transfert/transfert_transaction_completed'
-import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
-import errorLog from '#shared/infrastructure/logging/error_log'
-import WalletAdjustException from '#features/wallet/infrastructure/exceptions/wallet_adjust_exception'
 import BaseWebhookHandler, { WEBHOOK_SUCCESS_RESPONSE } from './base_webhook_handler.js'
 import emitter from '@adonisjs/core/services/emitter'
 
@@ -29,12 +27,13 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
    * @param {TransactionService} transactionService - The service used to manage transaction-related processes.
    * @param {WalletService} walletService - The service managing wallet-related functionality.
    * @param {LedgerService} ledgerService - The service responsible for maintaining ledger management and operations.
+   * @param {RefundService} refundService - The service responsible for handling refund operations.
    */
   constructor(
     protected readonly paymentService: PaymentService,
     protected readonly transactionService: TransactionService,
     private readonly walletService: WalletService,
-    private readonly ledgerService: LedgerService
+    private readonly refundService: RefundService
   ) {
     super()
   }
@@ -81,10 +80,23 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
 
       switch (status) {
         case TransactionStatus.SUCCESS:
-          await this.processSuccessfulTransfer(transaction, payment, wallet, operatorResponse, trx)
+          await this.processSuccessfulTransfer(
+            transaction,
+            payment,
+            wallet,
+            operatorResponse.operatorResponse,
+            trx
+          )
           break
         case TransactionStatus.FAILED:
-          await this.processFailedTransfer(transaction, payment, wallet, operatorResponse, trx)
+          await this.processFailedTransfer(
+            transaction,
+            payment,
+            wallet,
+            operatorResponse.operatorResponse,
+            trx,
+            operatorResponse.error
+          )
           break
         default:
           paymentLog.warn(
@@ -123,23 +135,15 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
     trx: TransactionClientContract
   ): Promise<void> {
     const currentBalance = Number(wallet.balance)
-
     await this.safeMarkPaymentSuccess(payment.id, operatorResponse, trx)
     await this.safeMarkTransactionSuccess(transaction.id, currentBalance, trx)
 
-    const balanceBefore = currentBalance + Number(transaction.amount)
-    await this.ledgerService.recordTransfer(
-      transaction,
-      wallet.id,
-      balanceBefore,
-      currentBalance,
-      trx
-    )
-
-    emitter.emit('activity:transaction-log', {
-      event: 'SUCCESS',
-      transactionId: transaction.reference,
-    })
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'SUCCESS',
+        transactionId: transaction.reference,
+      })
+      .catch(() => {})
 
     await this.dispatchEvent(
       TransfertTransactionCompleted,
@@ -164,6 +168,7 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
    * @param {Wallet} wallet - The wallet object to be credited with the refund.
    * @param {any} operatorResponse - The response object from the operator detailing the failure.
    * @param {TransactionClientContract} trx - The transaction client contract for database operations.
+   * @param {any} error - The errors provided during the transfer failure.
    * @return {Promise<void>} A promise that resolves when the failed transfer has been successfully processed.
    * @throws {WalletAdjustException} If the wallet refund fails during processing.
    */
@@ -172,7 +177,8 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
     payment: Payment,
     wallet: Wallet,
     operatorResponse: any,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    error?: any
   ): Promise<void> {
     paymentLog.info(
       'TRANSFER_FAILURE_PROCESSING_START',
@@ -184,62 +190,27 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
       'Starting to process failed transfer and refund'
     )
 
-    await this.safeMarkTransactionFailed(transaction.id, trx)
-    await this.safeMarkPaymentFailed(payment.id, operatorResponse, trx)
+    await this.safeMarkPaymentFailed(payment.id, operatorResponse, trx, error)
 
-    const refundAmount = Number(transaction.amount || 0)
-    const refunded = await this.walletService.creditBalance(wallet.id, refundAmount, trx)
+    try {
+      await this.refundService.webhookReversal(transaction, wallet, operatorResponse, trx)
 
-    if (!refunded) {
-      errorLog.error(
-        'WALLET_REFUND_FAILED',
-        {
-          wallet: { id: wallet.id, amount: refundAmount, balance: wallet.balance },
-          transaction_id: transaction.id,
-        },
-        'CRITICAL: Wallet refund failed during failure processing'
+      paymentLog.info(
+        'TRANSFER_FAILURE_REFUNDED',
+        { reference: transaction.reference, wallet_id: wallet.id },
+        'Transfer failed via webhook — wallet refunded'
       )
-      throw new WalletAdjustException('Remboursement du portefeuille échoué')
+    } catch (refundErr) {
+      if (refundErr instanceof TransactionAlreadyRefundedException) {
+        paymentLog.info(
+          'TRANSFER_FAILURE_ALREADY_REFUNDED_SKIPPED',
+          { reference: transaction.reference, transaction_id: transaction.id },
+          'Transaction already refunded (race with failure handler) — skipping'
+        )
+        return
+      }
+
+      throw refundErr
     }
-
-    await this.ledgerService.recordReversal(
-      transaction,
-      wallet.id,
-      wallet.balance,
-      refunded.balance,
-      trx
-    )
-
-    emitter.emit('activity:transaction-log', {
-      event: 'WALLET_CREDITED',
-      transactionId: transaction.reference,
-      walletId: String(wallet.id),
-      amount: refundAmount,
-      balanceBefore: Number(wallet.balance),
-      balanceAfter: refunded.balance,
-    })
-
-    emitter.emit('activity:transaction-log', {
-      event: 'REFUND',
-      transactionId: transaction.reference,
-      amount: refundAmount,
-    })
-
-    emitter.emit('activity:transaction-log', {
-      event: 'FAILED',
-      transactionId: transaction.reference,
-      errorMessage: 'Transfer failed via webhook — wallet refunded',
-    })
-
-    transactionLog.info(
-      'WALLET_REFUND_SUCCESS',
-      {
-        wallet_id: wallet.id,
-        amount: refundAmount,
-        new_balance: refunded.balance,
-        transaction_id: transaction.id,
-      },
-      'Wallet refunded successfully after failed transfer'
-    )
   }
 }

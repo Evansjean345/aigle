@@ -1,6 +1,5 @@
 import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
-import { toAdminTransactionResponseDto } from '#features/transactions/application/mapper/admin_transaction.mapper'
 import { AdminTransactionResponseDTO } from '#features/transactions/application/dto/admin_transaction.dto'
 import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
 
@@ -31,7 +30,7 @@ export default class GetTransactionDetailsUseCase {
     const preloads = ['user', 'payment', 'logs', 'securityContext']
 
     if (options.loadLedger) {
-      preloads.push('ledger')
+      preloads.push('ledgers')
     }
 
     let transaction = await this.transactionRepository.findByReference(reference, preloads)
@@ -40,6 +39,6 @@ export default class GetTransactionDetailsUseCase {
       throw new TransactionNotFoundException("Cette transaction n'existe pas")
     }
 
-    return toAdminTransactionResponseDto(transaction)
+    return AdminTransactionResponseDTO.fromTransaction(transaction)
   }
 }

@@ -4,7 +4,7 @@ import { TransactionType } from '#features/transactions/domain/enums/transaction
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
 import Wallet from '#features/wallet/domain/models/wallet'
-import User from '#features/users/domain/models/user'
+import User from '#features/user/domain/models/user'
 import {
   TransferContext,
   TransferMode,

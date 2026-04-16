@@ -1,4 +1,4 @@
-﻿import User from '#features/users/domain/models/user'
+﻿import User from '#features/user/domain/models/user'
 
 export interface ChangePinCodeDTO {
   user: User

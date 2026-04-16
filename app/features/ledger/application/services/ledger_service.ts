@@ -6,7 +6,7 @@ import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { LedgerDirection, LedgerOperationType } from '#features/ledger/domain/ledger_enums'
 import ledgerLog from '#shared/infrastructure/logging/ledger_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
-import emitter from '@adonisjs/core/services/emitter'
+
 
 /**
  * Service for handling ledger-related operations, such as creating ledger entries
@@ -85,21 +85,6 @@ export default class LedgerService {
         },
         'Ledger entry created successfully'
       )
-
-      emitter.emit('activity:transaction-log', {
-        event: 'LEDGER_ENTRY_CREATED' as const,
-        transactionId: params.transaction.reference,
-        walletId: String(params.walletId),
-        direction: params.direction,
-        amountBrut: params.amountBrut,
-        fees: params.fees,
-        totalAmount,
-        balanceBefore: params.balanceBefore,
-        balanceAfter: params.balanceAfter,
-        operationType:
-          (params.operationType as string) ||
-          (params.transaction.operationType as string),
-      })
 
       return entry
     } catch (error) {
@@ -271,6 +256,45 @@ export default class LedgerService {
    * @param {TransactionClientContract} [trx] - Optional transaction client contract to use for the database operation.
    * @return {Promise<Ledger>} A promise that resolves with the created ledger entry for the reversal.
    */
+  /**
+   * Records a wallet adjustment in the ledger.
+   *
+   * @param {Transaction} transaction - The linked transaction (can be a dummy for autonomous adjustments).
+   * @param {number} walletId - The wallet ID being adjusted.
+   * @param {LedgerDirection} direction - CREDIT or DEBIT depending on adjustment type.
+   * @param {number} amount - The adjustment amount.
+   * @param {number} balanceBefore - Balance before the adjustment.
+   * @param {number} balanceAfter - Balance after the adjustment.
+   * @param {string} description - Description of the adjustment.
+   * @param {TransactionClientContract} [trx] - Optional DB transaction client.
+   * @return {Promise<Ledger>}
+   */
+  async recordAdjustment(
+    transaction: Transaction,
+    walletId: number,
+    direction: LedgerDirection,
+    amount: number,
+    balanceBefore: number,
+    balanceAfter: number,
+    description: string,
+    trx?: TransactionClientContract
+  ): Promise<Ledger> {
+    return this.createEntry(
+      {
+        transaction,
+        walletId,
+        direction,
+        operationType: LedgerOperationType.ADJUSTMENT,
+        description,
+        amountBrut: amount,
+        fees: 0,
+        balanceBefore,
+        balanceAfter,
+      },
+      trx
+    )
+  }
+
   async recordReversal(
     transaction: Transaction,
     walletId: number,
@@ -287,7 +311,7 @@ export default class LedgerService {
         operationType: 'reversal',
         description,
         amountBrut: transaction.amount,
-        fees: 0,
+        fees: transaction.fees,
         balanceBefore,
         balanceAfter,
       },

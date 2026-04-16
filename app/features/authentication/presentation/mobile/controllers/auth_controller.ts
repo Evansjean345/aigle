@@ -185,6 +185,10 @@ export default class AuthController {
     const payload = await request.validateUsing(checkPhoneValidator)
     const result = await this.sendOtpUseCase.execute(payload)
 
+    if (!result.sent) {
+      return response.ok(result)
+    }
+
     return response.created(result)
   }
 
@@ -200,6 +204,11 @@ export default class AuthController {
   async forgotPasswordRequest({ response, request }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(checkPhoneValidator)
     const result = await this.sendOtpUseCase.execute(payload)
+
+    if (!result.sent) {
+      return response.ok(result)
+    }
+
     return response.created(result)
   }
 

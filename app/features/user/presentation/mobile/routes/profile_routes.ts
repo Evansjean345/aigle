@@ -2,7 +2,7 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 
 const PinCodeController = () =>
-  import('#features/users/presentation/mobile/controllers/pin_code_controller')
+  import('#features/user/presentation/mobile/controllers/pin_code_controller')
 
 export default function mobileProfileRoutes() {
   return router

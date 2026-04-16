@@ -39,7 +39,7 @@ export default class CreateRoleUseCase {
 
       await this.roleRepository.save(role)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'ROLES',
         eventAction: 'ROLE_CREATED',
         actorId: String(auth.id),
@@ -53,7 +53,7 @@ export default class CreateRoleUseCase {
 
       if (data.permissionIds && data.permissionIds.length > 0) {
         await this.roleRepository.syncPermissions(role, data.permissionIds)
-        await emitter.emit('activity:audit', {
+        emitter.emit('activity:audit', {
           eventCategory: 'ROLE',
           eventAction: 'ROLE_PERMISSIONS_SYNCED',
           actorId: String(auth.id),
@@ -85,7 +85,7 @@ export default class CreateRoleUseCase {
         updatedAt: savedRole!.updatedAt.toJSDate(),
       }
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'ROLES',
         eventAction: 'ROLE_CREATION_FAILED',
         actorId: String(auth.id),

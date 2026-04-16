@@ -6,11 +6,11 @@ import mobileServicesRoutes from '#features/catalogs/presentation/mobile/routes/
 import mobileOperationRoutes from '#features/operations/presentation/mobile/routes/operation_routes'
 import mobileWebhookRoutes from '#features/webhooks/presentation/mobile/routes/webhook_routes'
 import mobileTransactionRoutes from '#features/transactions/presentation/mobile/routes/transaction_routes'
-import userAccountMobileRoutes from '#features/users/presentation/mobile/routes/profile_routes'
+import userAccountMobileRoutes from '#features/user/presentation/mobile/routes/profile_routes'
 import mobileQrRoutes from '#features/qr/presentation/mobile/routes/qr_routes'
 import mobileKycRoutes from '#features/kyc/presentation/mobile/routes/kyc_routes'
 import mobileDeviceRoutes from '#features/device/presentation/mobile/routes/device_routes'
-import mobileDebitPhoneRoutes from '#features/users/presentation/mobile/routes/debit_phone_routes'
+import mobileDebitPhoneRoutes from '#features/user/presentation/mobile/routes/debit_phone_routes'
 import { middleware } from '#start/kernel'
 
 router

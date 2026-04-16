@@ -4,7 +4,7 @@ import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
-import User from '#features/users/domain/models/user'
+import User from '#features/user/domain/models/user'
 import Transaction from '#features/transactions/domain/models/transaction'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
@@ -35,7 +35,7 @@ import AccountValidationService from '#features/user/application/services/accoun
 import WalletUpdateFailedException from '#features/operations/infrastructure/exceptions/wallet_update_failed_exception'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import emitter from '@adonisjs/core/services/emitter'
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 interface BalanceSnapshot {
   senderBefore: number
@@ -162,12 +162,38 @@ export default class WalletToWalletUseCase {
       })
 
       emitter.emit('activity:transaction-log', {
+        event: 'LEDGER_ENTRY_CREATED',
+        transactionId: transferResult.senderTx.reference,
+        walletId: String(senderWallet.id),
+        direction: 'debit',
+        amountBrut: context.total,
+        fees: context.fees,
+        totalAmount: context.total,
+        balanceBefore: balances.senderBefore,
+        balanceAfter: balances.senderAfter,
+        operationType: 'wallet_transfert',
+      })
+
+      emitter.emit('activity:transaction-log', {
         event: 'WALLET_CREDITED',
         transactionId: transferResult.recipientTx.reference,
         walletId: String(recipientWallet.id),
         amount: context.total,
         balanceBefore: balances.recipientBefore,
         balanceAfter: balances.recipientAfter,
+      })
+
+      emitter.emit('activity:transaction-log', {
+        event: 'LEDGER_ENTRY_CREATED',
+        transactionId: transferResult.recipientTx.reference,
+        walletId: String(recipientWallet.id),
+        direction: 'credit',
+        amountBrut: context.total,
+        fees: 0,
+        totalAmount: context.total,
+        balanceBefore: balances.recipientBefore,
+        balanceAfter: balances.recipientAfter,
+        operationType: 'wallet_transfert',
       })
 
       emitter.emit('activity:transaction-log', {

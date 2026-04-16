@@ -1,4 +1,4 @@
-import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
+import KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
 import { inject } from '@adonisjs/core'
 import { KycDocumentStatus } from '#features/kyc/domain/enum/kyc_enum'
 import KycDocumentProcessed from '#features/kyc/application/events/kyc_document_processed'

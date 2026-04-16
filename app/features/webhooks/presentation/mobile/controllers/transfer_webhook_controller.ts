@@ -31,7 +31,7 @@ export default class TransferWebhookController {
       .emit('activity:transaction-log', {
         event: 'WEBHOOK_RECEIVED',
         reference: payload?.data?.reference,
-        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        webhookPayload: (payload?.data ?? {}) as Record<string, any>,
         ipAddress: request.ip(),
       })
       .catch((_) => {})
@@ -47,7 +47,14 @@ export default class TransferWebhookController {
     } catch (error: any) {
       errorLog.error(
         'TRANSFER_SUCCESS_WEBHOOK_ERROR',
-        { err: { message: (error as any)?.message, stack: (error as any)?.stack, code: (error as any)?.code }, reference: payload?.data?.reference },
+        {
+          err: {
+            message: (error as any)?.message,
+            stack: (error as any)?.stack,
+            code: (error as any)?.code,
+          },
+          reference: payload?.data?.reference,
+        },
         'Error while processing transfer success webhook'
       )
       return response.ok({ message: 'received' })
@@ -56,6 +63,9 @@ export default class TransferWebhookController {
 
   async transferFailure({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
+
+    console.log('debugging webhook error failed')
+    console.log(payload)
 
     paymentLog.info(
       'TRANSFER_FAILURE_WEBHOOK_RECEIVED',
@@ -72,7 +82,7 @@ export default class TransferWebhookController {
       .emit('activity:transaction-log', {
         event: 'WEBHOOK_RECEIVED',
         reference: payload?.data?.reference,
-        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        webhookPayload: (payload?.data ?? {}) as Record<string, any>,
         ipAddress: request.ip(),
       })
       .catch((_) => {})
@@ -88,7 +98,14 @@ export default class TransferWebhookController {
     } catch (error: any) {
       errorLog.error(
         'TRANSFER_FAILURE_WEBHOOK_ERROR',
-        { err: { message: (error as any)?.message, stack: (error as any)?.stack, code: (error as any)?.code }, reference: payload?.data?.reference },
+        {
+          err: {
+            message: (error as any)?.message,
+            stack: (error as any)?.stack,
+            code: (error as any)?.code,
+          },
+          reference: payload?.data?.reference,
+        },
         'Error while processing transfer failure webhook'
       )
       return response.ok({ message: 'received' })

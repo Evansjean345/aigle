@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import NotificationService from '#features/notifications/application/services/notificaton_service'
+import NotificationService from '#features/notifications/application/services/notification_service'
 import UserStateChanged from '#features/user/application/events/user_state_changed'
 import { Notification } from '#features/notifications/domain/notification'
 import { NotificationChannelType } from '#features/notifications/domain/notification_channel_type'

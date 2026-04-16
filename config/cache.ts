@@ -5,8 +5,8 @@ const cacheConfig = defineConfig({
   stores: {
     redis: store()
       .useL1Layer(drivers.memory({ maxSize: '100mb' }))
-      .useL2Layer(drivers.redis({ connectionName: 'main' }))
-      .useBus(drivers.redisBus({ connectionName: 'main' })),
+      .useL2Layer(drivers.redis({ connectionName: 'cache' }))
+      .useBus(drivers.redisBus({ connectionName: 'cache' })),
   },
 })
 

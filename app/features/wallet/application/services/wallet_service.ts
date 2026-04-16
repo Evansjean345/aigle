@@ -1,15 +1,14 @@
 ﻿import WalletRepository from '#features/wallet/domain/interfaces/wallet_repository'
 import { inject } from '@adonisjs/core'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { toWalletCreatedResult } from '#features/wallet/application/mappers/wallet.mapper'
-import { WalletCreatedResult } from '#features/wallet/application/dtos/wallet_created_result'
+import { WalletCreatedResult } from '#features/wallet/application/dtos/wallet.dto'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
 import { randomUUID } from 'node:crypto'
 import QrJwtService, { TOKEN_ERRORS } from '#features/qr/application/services/qr_jwt_service'
 import { normalizePhone } from '#shared/utils/utiles'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
-import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
+import { WalletStatus } from '#features/wallet/domain/enums/wallet_status'
 import WalletNotFoundException from '#features/wallet/infrastructure/exceptions/wallet_not_found_exception'
 import InvalidAmountException from '#features/wallet/infrastructure/exceptions/invalid_amount_exception'
 import InsufficientFundsException from '#features/wallet/infrastructure/exceptions/insufficient_funds_exception'
@@ -48,7 +47,7 @@ export default class WalletService {
     trx?: TransactionClientContract
   ): Promise<WalletCreatedResult> {
     const existing = await this.walletRepository.findByUserId(userId)
-    if (existing) return toWalletCreatedResult(existing)
+    if (existing) return WalletCreatedResult.fromWallet(existing)
 
     const walletCreated = await this.walletRepository.create(
       {
@@ -59,7 +58,7 @@ export default class WalletService {
       },
       trx
     )
-    return toWalletCreatedResult(walletCreated)
+    return WalletCreatedResult.fromWallet(walletCreated)
   }
 
   /**
@@ -70,6 +69,16 @@ export default class WalletService {
    * @return {Promise<Wallet>} A promise that resolves to the wallet associated with the given user ID.
    * @throws {Exception} If no wallet is found for the provided user ID, an exception is thrown with a status of 404 and code 'WALLET_NOT_FOUND'.
    */
+  async getWalletById(walletId: number, trx?: TransactionClientContract): Promise<Wallet> {
+    const wallet = await this.walletRepository.findById(walletId, trx)
+
+    if (!wallet) {
+      throw new WalletNotFoundException()
+    }
+
+    return wallet
+  }
+
   async getByUserId(userId: string, trx?: TransactionClientContract): Promise<Wallet> {
     const wallet = await this.walletRepository.findByUserId(userId, trx)
 

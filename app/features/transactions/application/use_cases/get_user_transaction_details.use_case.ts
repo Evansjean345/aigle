@@ -1,6 +1,5 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
-import { toMobileTransactionResponseDto } from '#features/transactions/application/mapper/mobile_transaction.mapper'
 import { MobileTransactionResponseDTO } from '#features/transactions/application/dto/mobile_transaction.dto'
 import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
 
@@ -26,13 +25,14 @@ export default class GetUserTransactionDetailsUseCase {
   async execute(userId: string, transactionRef: string): Promise<MobileTransactionResponseDTO> {
     const transaction = await this.transactionRepository.findByReferenceAndUserId(
       transactionRef,
-      userId
+      userId,
+      ['ledgers']
     )
 
     if (!transaction) {
       throw new TransactionNotFoundException()
     }
 
-    return toMobileTransactionResponseDto(transaction)
+    return MobileTransactionResponseDTO.fromTransaction(transaction)
   }
 }

@@ -1,7 +1,7 @@
 import User from '#features/user/domain/models/user'
 import { UserStatus } from '#features/user/domain/enum'
 import { Exception } from '@adonisjs/core/exceptions'
-import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
+import { WalletStatus } from '#features/wallet/domain/enums/wallet_status'
 import WalletInactiveException from '#features/wallet/infrastructure/exceptions/wallet_inactive_exception'
 import DeviceService from '#features/device/application/services/device_service'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
@@ -18,7 +18,7 @@ import hash from '@adonisjs/core/services/hash'
 import limiter from '@adonisjs/limiter/services/main'
 import { errors as limiterErrors } from '@adonisjs/limiter'
 import InvalidPincodeException from '#features/authentication/infrastructure/exceptions/invalid_pincode_exception'
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 /**
  * Service for validating user account status and associated wallet information.
@@ -32,8 +32,8 @@ export default class AccountValidationService {
    * @param {CheckAppUpdateUseCase} checkAppUpdateUseCase - The use case instance responsible for checking app updates.
    */
   constructor(
-    private deviceService: DeviceService,
-    private checkAppUpdateUseCase: CheckAppUpdateUseCase
+    private readonly deviceService: DeviceService,
+    private readonly checkAppUpdateUseCase: CheckAppUpdateUseCase
   ) {}
 
   /**
@@ -94,9 +94,10 @@ export default class AccountValidationService {
         deviceInfo.appVersion,
         deviceInfo.platform as DeviceType
       )
+
       if (updateCheck.status === UpdateStatus.OBSOLETE) {
         throw new Exception(
-          'Cette version de l’application est obsolète. Veuillez mettre à jour votr application',
+          `Cette version de l’application est obsolète. Veuillez mettre à jour votre application vers la version ${updateCheck.latestVersion}`,
           {
             status: 426,
             code: 'E_APP_OBSOLETE',
@@ -106,18 +107,18 @@ export default class AccountValidationService {
     }
 
     // Utilisation de la méthode optimisée
-    const device = await this.deviceService.getDeviceForValidation(
+    const userDevice = await this.deviceService.getUserDeviceForValidation(
       user.usersUid,
       deviceInfo.fingerprintHash,
       deviceInfo.deviceUid
     )
 
-    if (!device) {
+    if (!userDevice) {
       throw new UnauthenticatedDeviceException()
     }
 
-    // 2. Vérification de l'intégrité (Root / Emulator)
-    if (device.isRooted || device.isEmulator) {
+    // 2. Vérification de l'intégrité (Root / Emulator) via le device hardware
+    if (userDevice.device?.isRooted || userDevice.device?.isEmulator) {
       throw new Exception(
         'Opération impossible sur un appareil non sécurisé (rooté ou émulateur).',
         {
@@ -128,7 +129,11 @@ export default class AccountValidationService {
     }
 
     // 3. Vérification de la cohérence de la plateforme
-    if (deviceInfo.platform && device.platform && deviceInfo.platform !== device.platform) {
+    if (
+      deviceInfo.platform &&
+      userDevice.device?.platform &&
+      deviceInfo.platform !== userDevice.device.platform
+    ) {
       throw new Exception('Incohérence de plateforme détectée pour cet appareil.', {
         status: 403,
         code: 'E_PLATFORM_MISMATCH',
@@ -137,17 +142,17 @@ export default class AccountValidationService {
 
     // 4. Gestion de l'inactivité prolongée
     // Si l'appareil n'a pas été vu depuis plus de 90 jours, on réinitialise son statut
-    if (device.lastSeenAt) {
-      const daysSinceLastSeen = DateTime.now().diff(device.lastSeenAt, 'days').days
+    if (userDevice.lastSeenAt) {
+      const daysSinceLastSeen = DateTime.now().diff(userDevice.lastSeenAt, 'days').days
       if (daysSinceLastSeen > 90) {
-        device.status = DeviceStatus.PENDING
-        await device.save()
+        userDevice.status = DeviceStatus.PENDING
+        await userDevice.save()
         throw new NotTrustedDeviceException() // Forcera une nouvelle validation OTP
       }
     }
 
-    if (device.status !== DeviceStatus.TRUSTED) {
-      if (device.status === DeviceStatus.REVOKED) {
+    if (userDevice.status !== DeviceStatus.TRUSTED) {
+      if (userDevice.status === DeviceStatus.REVOKED) {
         throw new Exception(
           'Cet appareil a été révoqué. Veuillez vous reconnecter ou contacter le support.',
           {
@@ -160,10 +165,10 @@ export default class AccountValidationService {
     }
 
     // Mise à jour silencieuse des traces (ne bloque pas la réponse)
-    this.deviceService.updateDeviceTraces(device, deviceInfo, geoIpLocation).catch((err) => {
+    this.deviceService.updateDeviceTraces(userDevice, deviceInfo, geoIpLocation).catch((err) => {
       appLog.error(
         'ASYNC_DEVICE_UPDATE_FAILED',
-        { deviceId: device.id, error: err.message },
+        { userDeviceId: userDevice.id, error: err.message },
         'Failed to update device traces asynchronously'
       )
     })

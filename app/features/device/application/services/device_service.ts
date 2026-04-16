@@ -1,20 +1,20 @@
 import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
 import DeviceRepository from '#features/device/domain/interfaces/device_repository'
-import Device from '#features/device/domain/models/device'
+import UserDeviceRepository from '#features/device/domain/interfaces/user_device_repository'
+import UserDevice from '#features/device/domain/models/user_device'
 import { DeviceStatus } from '#features/device/domain/enums'
-import { DeviceCommandDTO } from '#features/device/application/dto/device.command.tdo'
+import { DeviceCommandDTO } from '#features/device/application/dto/device.command.dto'
 import NewDeviceDetected from '#features/device/application/events/new_device_detected'
 import { maxDeviceConnectionAllowed } from '#config/app'
 import appLog from '#shared/infrastructure/logging/app_log'
-import FailedToGetDeviceByUserIdException from '#features/device/infrastructure/exceptions/failed_to_get_device_by_user_id_exception'
 import FailedToSaveOrUpdateDeviceException from '#features/device/infrastructure/exceptions/failed_to_save_or_update_device_exception'
 import UnauthenticatedDeviceException from '#features/device/infrastructure/exceptions/unauthenticated_device_exception'
 import FailedToUpdatePushTokenException from '#features/device/infrastructure/exceptions/failed_to_update_push_token_exception'
 import MaxDevicesConnectedException from '#features/device/infrastructure/exceptions/max_devices_connected_exception'
 
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 /**
  * @class DeviceService
@@ -22,47 +22,31 @@ import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
  */
 @inject()
 export default class DeviceService {
-  /**
-   * @constructor
-   * @param deviceRepository
-   */
-  constructor(private readonly deviceRepository: DeviceRepository) {}
+  constructor(
+    private readonly deviceRepository: DeviceRepository,
+    private readonly userDeviceRepository: UserDeviceRepository
+  ) {}
 
   /**
-   * Fetches a list of devices associated with a specific user ID.
-   *
-   * @param {string} userId - The unique identifier of the user whose devices are to be retrieved.
-   * @return {Promise<Device[]>} A promise that resolves to an array of devices associated with the specified user ID.
-   * @throws {FailedToGetDeviceByUserIdException} Throws an exception if the operation fails, containing an error message, status code, and error code.
+   * Récupère les associations actives (avec device preloaded) pour un utilisateur.
    */
-  async getDeviceByUserId(userId: string): Promise<Device[]> {
-    try {
-      return await this.deviceRepository.getDevicesByUserId(userId)
-    } catch (error) {
-      appLog.error('FAILED_TO_GET_DEVICE_BY_USER_ID', { userId }, 'Failed to get device by user id')
-      throw new FailedToGetDeviceByUserIdException()
-    }
+  async getActiveUserDevices(userId: string): Promise<UserDevice[]> {
+    return this.userDeviceRepository.findActiveByUserId(userId)
   }
 
   /**
-   * Retrieves the list of trusted devices associated with a specific user.
-   *
-   * @param {string} userId - The unique identifier of the user whose trusted devices are to be retrieved.
-   * @return {Promise<Device[]>} A promise that resolves to an array of trusted devices for the specified user.
+   * Récupère les associations actives trusted pour un utilisateur.
    */
-  async getTrustedDevices(userId: string): Promise<Device[]> {
-    const devices = await this.getDeviceByUserId(userId)
-    return devices.filter((d) => d.status === DeviceStatus.TRUSTED)
+  async getTrustedDevices(userId: string): Promise<UserDevice[]> {
+    const userDevices = await this.userDeviceRepository.findActiveByUserId(userId)
+    return userDevices.filter((ud) => ud.status === DeviceStatus.TRUSTED)
   }
 
   /**
-   * Checks if the maximum allowed number of device connections for a user has been reached.
-   *
-   * @param {string} userId - The unique identifier of the user.
-   * @return {Promise<boolean>} A promise that resolves to `true` if the maximum number of device connections is reached, otherwise `false`.
+   * Vérifie si le quota max de devices actifs est atteint pour un utilisateur.
    */
   async checkIfMaxConnectionReached(userId: string): Promise<boolean> {
-    const count = await this.deviceRepository.countDevicesByStatus(userId, [
+    const count = await this.userDeviceRepository.countActiveByUserAndStatuses(userId, [
       DeviceStatus.TRUSTED,
       DeviceStatus.PENDING,
     ])
@@ -70,121 +54,107 @@ export default class DeviceService {
   }
 
   /**
-   * Marque un device spécifique comme de confiance en utilisant son fingerprint hash.
-   * Met également à jour l'IP et la date de dernière connexion.
-   * Utilisé après validation OTP réussie.
-   * @param userId - L'ID de l'utilisateur propriétaire du device
-   * @param fingerprintHash - Le hash du fingerprint du device
-   * @param deviceUid - L'UID du device'
-   * @param geoLocation
+   * Marque un device comme trusted pour un utilisateur après validation OTP.
+   * Retourne le UserDevice mis à jour ou null si non trouvé.
    */
-  async trustDeviceByFingerprintAndUid(
+  async trustDevice(
     userId: string,
     fingerprintHash: string,
     deviceUid: string,
     geoLocation?: GeoIpLocation
-  ): Promise<Device | null> {
+  ): Promise<UserDevice | null> {
     const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
 
-    if (device && device.deviceUid === deviceUid) {
-      if (device.userId !== userId) {
-        appLog.warn(
-          'DEVICE_USER_MISMATCH_ON_TRUST',
-          { fingerprintHash, deviceUserId: device.userId, currentUserId: userId },
-          'Device belongs to another user. Reassigning device during trust process.'
-        )
-        device.userId = userId
-      }
-
-      device.status = DeviceStatus.TRUSTED
-      device.lastSeenAt = DateTime.now()
-
-      if (geoLocation) {
-        device.ipLastSeen = geoLocation.ip
-        device.isVpn = geoLocation.isVpn
-        device.lastCountryCode = geoLocation.countryCode
-        device.firstCountryCode = device.firstCountryCode ?? geoLocation.countryCode
-      }
-
-      return this.deviceRepository.save(device)
+    if (!device || device.deviceUid !== deviceUid) {
+      return null
     }
 
-    return null
+    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(userId, device.id)
+
+    if (!userDevice) {
+      return null
+    }
+
+    userDevice.status = DeviceStatus.TRUSTED
+    userDevice.lastSeenAt = DateTime.now()
+
+    if (geoLocation) {
+      userDevice.ipLastSeen = geoLocation.ip
+      userDevice.isVpn = geoLocation.isVpn
+      userDevice.lastCountryCode = geoLocation.countryCode
+      userDevice.firstCountryCode = userDevice.firstCountryCode ?? geoLocation.countryCode
+    }
+
+    return this.userDeviceRepository.save(userDevice)
   }
 
   /**
-   * Saves or updates a device record based on the provided payload and user ID.
-   * If a device with the same fingerprint hash exists, the device record is updated.
-   * Otherwise, a new device record is created and saved.
-   *
-   * @param {DeviceCommandDTO} payload - The data transfer object containing device information.
-   * @param {string} userId - The unique identifier of the user associated with the device.
-   * @return {Promise<Device>} A promise that resolves to the saved or updated device object.
-   * @throws {FailedToSaveOrUpdateDeviceException} Throws an error if the operation fails.
+   * Enregistre ou met à jour un device pour un utilisateur.
+   * - Crée le Device (hardware) s'il n'existe pas
+   * - Crée ou met à jour la liaison UserDevice
+   * - Vérifie le quota
+   * - Émet NewDeviceDetected si nouvelle association
    */
-  async saveDevice(payload: DeviceCommandDTO, userId: string): Promise<Device> {
+  async saveDevice(payload: DeviceCommandDTO, userId: string): Promise<UserDevice> {
     try {
-      // Vérifier d'abord si le device est deja enregistré
-      const existingDevice = await this.deviceRepository.findByFingerprintHash(
-        payload.fingerprintHash
-      )
-
-      const isNewDevice = !existingDevice
-      const deviceBelongsToUser = existingDevice?.userId === userId
-
-      // verifier le quota de l'utilisateur si c'est un nouveau device
-      if (isNewDevice || !deviceBelongsToUser) {
-        await this.ensureMaxDevicesNotReached(userId)
-      }
-
-      // Déterminer si la device est primaire ou non
-      const userDeviceCount = await this.deviceRepository.countByUserId(userId)
-      let shouldBePrimary = false
-
-      if (isNewDevice) {
-        shouldBePrimary = userDeviceCount === 0
-      } else if (deviceBelongsToUser) {
-        shouldBePrimary = userDeviceCount === 1
-      }
-
-      // Construire le payload pour updateOrCreate
-      const deviceData: Partial<Device> = {
-        userId: userId,
-        deviceUid: payload.deviceUid,
-        platform: payload.platform,
-        brand: payload.brand,
-        model: payload.model,
-        osVersion: payload.osVersion,
-        appVersion: payload.appVersion,
-        isEmulator: payload.isEmulator,
-        isRooted: payload.isRooted,
-        ipLastSeen: payload.ipLastSeen,
-        isVpn: payload.isVpn || false,
-        lastCountryCode: payload.lastCountryCode || payload.firstCountryCode,
-        lastSeenAt: DateTime.now(),
-        isPrimary: shouldBePrimary,
-      }
-
-      // Ajouter les champs spécifiques à la création
-      if (isNewDevice) {
-        deviceData.fingerprintHash = payload.fingerprintHash
-        deviceData.ipFirstSeen = payload.ipFirstSeen
-        deviceData.firstCountryCode = payload.firstCountryCode
-        deviceData.status = DeviceStatus.PENDING
-      }
-
-      // Opération atomique : updateOrCreate
+      // 1. Trouver ou créer le device hardware
       const device = await this.deviceRepository.updateOrCreateByFingerprintHash(
         payload.fingerprintHash,
-        deviceData
+        {
+          deviceUid: payload.deviceUid,
+          platform: payload.platform,
+          brand: payload.brand,
+          model: payload.model,
+          osVersion: payload.osVersion,
+          appVersion: payload.appVersion,
+          isEmulator: payload.isEmulator,
+          isRooted: payload.isRooted,
+        }
       )
 
-      // Notification si nouveau device OU device existant d'un autre utilisateur
-      if (isNewDevice || !deviceBelongsToUser) {
-        await NewDeviceDetected.dispatch(userId, device)
+      // 2. Chercher une liaison active existante
+      const existingUserDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
+        userId,
+        device.id
+      )
+
+      if (existingUserDevice) {
+        // Mise à jour de la liaison existante
+        existingUserDevice.lastSeenAt = DateTime.now()
+        existingUserDevice.ipLastSeen = payload.ipLastSeen
+        existingUserDevice.lastCountryCode = payload.lastCountryCode
+        existingUserDevice.isVpn = payload.isVpn || false
+
+        return this.userDeviceRepository.save(existingUserDevice)
       }
 
-      return device
+      // 3. Nouvelle association — vérifier le quota
+      await this.ensureMaxDevicesNotReached(userId)
+
+      // 4. Déterminer si primary
+      const activeCount = await this.userDeviceRepository.countActiveByUserId(userId)
+      const shouldBePrimary = activeCount === 0
+
+      // 5. Créer la nouvelle liaison
+      const userDevice = new UserDevice()
+      userDevice.userId = userId
+      userDevice.deviceId = device.id
+      userDevice.status = DeviceStatus.PENDING
+      userDevice.isPrimary = shouldBePrimary
+      userDevice.ipFirstSeen = payload.ipFirstSeen
+      userDevice.ipLastSeen = payload.ipLastSeen
+      userDevice.isVpn = payload.isVpn || false
+      userDevice.firstCountryCode = payload.firstCountryCode
+      userDevice.lastCountryCode = payload.lastCountryCode
+      userDevice.linkedAt = DateTime.now()
+      userDevice.lastSeenAt = DateTime.now()
+
+      const savedUserDevice = await this.userDeviceRepository.save(userDevice)
+
+      // 6. Notification nouveau device
+      await NewDeviceDetected.dispatch(userId, device)
+
+      return savedUserDevice
     } catch (error) {
       if (error instanceof MaxDevicesConnectedException) {
         throw error
@@ -200,128 +170,142 @@ export default class DeviceService {
   }
 
   /**
-   * Met à jour le push token d'un device en utilisant le fingerprint hash.
-   * Utilisé quand l'utilisateur accepte de recevoir les notifications.
-   * @param fingerprintHash - Le fingerprint hash du device (depuis le header)
-   * @param deviceUid
-   * @param pushToken - Le push token à enregistrer
-   * @param userId - L'identifiant de l'utilisateur associé au device
-   * @returns Le device mis à jour ou null si non trouvé
+   * Met à jour le push token pour une liaison user↔device.
    */
-  async updatePushTokenByFingerprintAndUid(
+  async updatePushToken(
     fingerprintHash: string,
     deviceUid: string,
     pushToken: string,
     userId: string
-  ): Promise<Device> {
+  ): Promise<UserDevice> {
     const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
 
     if (!device || device.deviceUid !== deviceUid) {
       appLog.error(
         'DEVICE_NOT_FOUND_WITH_FINGERPRINT_HASH_AND_UID',
-        { fingerprintHash: fingerprintHash, deviceUid: deviceUid, pushToken: pushToken },
+        { fingerprintHash, deviceUid, pushToken },
         'Device not found with fingerprint hash and UID: ' + fingerprintHash + ' / ' + deviceUid
       )
-
       throw new UnauthenticatedDeviceException()
     }
 
-    if (device.userId !== userId) {
-      appLog.warn(
-        'DEVICE_USER_MISMATCH_ON_PUSH_TOKEN_UPDATE',
-        { fingerprintHash, pushToken, deviceUserId: device.userId, currentUserId: userId },
-        'Device belongs to another user. Reassigning device to current user.'
-      )
-      device.userId = userId
+    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(userId, device.id)
+
+    if (!userDevice) {
+      throw new UnauthenticatedDeviceException()
     }
 
     try {
-      device.pushToken = pushToken
-      device.lastSeenAt = DateTime.now()
+      userDevice.pushToken = pushToken
+      userDevice.lastSeenAt = DateTime.now()
 
-      return this.deviceRepository.save(device)
+      return this.userDeviceRepository.save(userDevice)
     } catch (error) {
       appLog.error(
         'FAILED_TO_UPDATE_PUSH_TOKEN',
-        { fingerprintHash: fingerprintHash, pushToken: pushToken, userId: userId, error: error },
+        { fingerprintHash, pushToken, userId, error },
         `Failed to update push token: ${error.message}`
       )
-
       throw new FailedToUpdatePushTokenException()
     }
   }
 
   /**
-   * Ensures that the maximum number of allowed devices for a user has not been reached.
-   * If the limit is exceeded, an exception is thrown.
-   *
-   * @param {string} userId - The unique identifier of the user whose device connections are being validated.
-   * @return {Promise<void>} A promise that resolves if the maximum device limit has not been exceeded,
-   *                         or rejects with an exception if the limit is reached.
+   * Récupère un UserDevice pour validation (ex: middleware d'authentification).
    */
-  private async ensureMaxDevicesNotReached(userId: string): Promise<void> {
-    const maxReached = await this.checkIfMaxConnectionReached(userId)
-
-    if (maxReached) {
-      throw new MaxDevicesConnectedException()
-    }
-  }
-
-  /**
-   * Retrieves a device associated with the given user ID, fingerprint hash, and device UID for validation purposes.
-   *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {string} fingerprintHash - The hash representing the device fingerprint.
-   * @param {string} deviceUid - The unique identifier of the device.
-   * @return {Promise<Device | null>} A promise that resolves to the device if found, or null if no matching device exists.
-   */
-  async getDeviceForValidation(
+  async getUserDeviceForValidation(
     userId: string,
     fingerprintHash: string,
     deviceUid: string
-  ): Promise<Device | null> {
-    return this.deviceRepository.findByUserAndDeviceIdentifiers(userId, fingerprintHash, deviceUid)
+  ): Promise<UserDevice | null> {
+    const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
+
+    if (!device || device.deviceUid !== deviceUid) {
+      return null
+    }
+
+    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(userId, device.id)
+
+    if (userDevice) {
+      // Attacher le device déjà chargé pour éviter une requête supplémentaire
+      userDevice.$setRelated('device', device)
+    }
+
+    return userDevice
   }
 
   /**
-   * Updates the traces of a device with the latest information such as IP address, location, and device details.
-   * The update occurs only if the IP address has changed or the last interaction was recorded more than an hour ago.
-   *
-   * @param device The device entity containing stored information about the device.
-   * @param deviceInfo Headers information from the device, including application and operating system versions.
-   * @param geoIpLocation Geolocation details of the device, including IP, VPN detection, and country codes.
-   * @return A promise that resolves when the device information has been updated successfully.
+   * Met à jour les traces d'utilisation d'un device (IP, geo, versions).
+   * Mise à jour uniquement si l'IP a changé ou si la dernière vue date de plus d'une heure.
    */
   async updateDeviceTraces(
-    device: Device,
+    userDevice: UserDevice,
     deviceInfo: DeviceHeadersInfo,
     geoIpLocation?: GeoIpLocation
   ): Promise<void> {
     const now = DateTime.now()
 
-    // On ne met à jour que si l'IP a changé ou si la dernière vue date de plus d'une heure
     const shouldUpdate =
-      device.ipLastSeen !== geoIpLocation?.ip ||
-      !device.lastSeenAt ||
-      now.diff(device.lastSeenAt, 'hours').hours >= 1
-
-    console.log('debugging if device usage should change')
-    console.log(shouldUpdate)
-    console.log('=============================== device infos ====================================')
-    console.log(geoIpLocation)
-    console.log(deviceInfo)
+      userDevice.ipLastSeen !== geoIpLocation?.ip ||
+      !userDevice.lastSeenAt ||
+      now.diff(userDevice.lastSeenAt, 'hours').hours >= 1
 
     if (shouldUpdate) {
-      device.merge({
-        ipLastSeen: geoIpLocation?.ip ?? device.ipLastSeen,
-        isVpn: geoIpLocation?.isVpn ?? device.isVpn,
-        lastCountryCode: geoIpLocation?.countryCode ?? device.lastCountryCode,
-        firstCountryCode: device.firstCountryCode ?? geoIpLocation?.countryCode ?? undefined,
+      // Mise à jour de la liaison (IP, geo, lastSeen)
+      userDevice.merge({
+        ipLastSeen: geoIpLocation?.ip ?? userDevice.ipLastSeen,
+        isVpn: geoIpLocation?.isVpn ?? userDevice.isVpn,
+        lastCountryCode: geoIpLocation?.countryCode ?? userDevice.lastCountryCode,
+        firstCountryCode: userDevice.firstCountryCode ?? geoIpLocation?.countryCode ?? undefined,
         lastSeenAt: now,
-        appVersion: deviceInfo.appVersion ?? device.appVersion,
-        osVersion: deviceInfo.osVersion ?? device.osVersion,
       })
-      await this.deviceRepository.save(device)
+      await this.userDeviceRepository.save(userDevice)
+
+      // Mise à jour du device hardware (versions) si preloaded
+      if (userDevice.device) {
+        const device = userDevice.device
+        const deviceChanged =
+          device.appVersion !== deviceInfo.appVersion || device.osVersion !== deviceInfo.osVersion
+
+        if (deviceChanged) {
+          device.merge({
+            appVersion: deviceInfo.appVersion ?? device.appVersion,
+            osVersion: deviceInfo.osVersion ?? device.osVersion,
+          })
+          await this.deviceRepository.save(device)
+        }
+      }
+    }
+  }
+
+  /**
+   * Révoque une liaison user↔device.
+   */
+  async revokeDevice(userId: string, deviceId: string): Promise<UserDevice | null> {
+    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(userId, deviceId)
+
+    if (!userDevice) {
+      return null
+    }
+
+    userDevice.status = DeviceStatus.REVOKED
+    userDevice.unlinkedAt = DateTime.now()
+
+    return this.userDeviceRepository.save(userDevice)
+  }
+
+  /**
+   * Récupère tous les comptes ayant utilisé un device (actifs + historiques).
+   */
+  async getAllUsersByDeviceId(deviceId: string): Promise<UserDevice[]> {
+    return this.userDeviceRepository.findAllByDeviceId(deviceId)
+  }
+
+  private async ensureMaxDevicesNotReached(userId: string): Promise<void> {
+    const maxReached = await this.checkIfMaxConnectionReached(userId)
+
+    if (maxReached) {
+      throw new MaxDevicesConnectedException()
     }
   }
 }

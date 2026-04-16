@@ -21,7 +21,6 @@ export default class TransactionPolicy extends BasePolicy {
    * @return {Promise<boolean>} A promise resolving to true if the user has the required permission, otherwise false.
    */
   async viewTransaction(user: Admin): Promise<boolean> {
-    console.log(user)
     return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionRead)
   }
 
@@ -63,5 +62,12 @@ export default class TransactionPolicy extends BasePolicy {
    */
   async viewLedger(user: Admin): Promise<boolean> {
     return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionLedgerRead)
+  }
+
+  /**
+   * Checks whether the admin is allowed to manually execute a refund on a transaction.
+   */
+  async executeRefund(user: Admin): Promise<boolean> {
+    return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionRefundExecute)
   }
 }

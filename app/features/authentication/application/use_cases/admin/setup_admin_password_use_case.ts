@@ -2,10 +2,10 @@ import { inject } from '@adonisjs/core'
 import AdminRepository from '#features/team/domain/interfaces/admin_repository'
 import InvalidTokenException from '#features/team/infrastructure/exceptions/invalid_token_exception'
 import ExpiredTokenException from '#features/team/infrastructure/exceptions/expired_token_exception'
-import OtpService from '#features/authentication/application/services/otp_service'
+import OtpSendingService from '#features/otp/application/services/otp_sending_service'
 import { SetupAdminPasswordRequestDto } from '#features/authentication/application/dtos/admin/setup_admin_password.dto'
 import { DateTime } from 'luxon'
-import AdminSetupOtpTemplate from '#features/authentication/infrastructure/otp/templates/admin_setup_otp_template'
+import AdminSetupOtpTemplate from '#features/otp/infrastructure/templates/admin_setup_otp_template'
 
 @inject()
 export default class SetupAdminPasswordUseCase {
@@ -13,11 +13,11 @@ export default class SetupAdminPasswordUseCase {
    * Initializes a new instance of the class.
    *
    * @param {AdminRepository} adminRepository - The repository handling admin data operations.
-   * @param {OtpService} otpService - The service managing OTP generation and validation.
+   * @param {OtpSendingService} otpSendingService - The service responsible for sending OTPs.
    */
   constructor(
-    private adminRepository: AdminRepository,
-    private otpService: OtpService
+    private readonly adminRepository: AdminRepository,
+    private readonly otpSendingService: OtpSendingService
   ) {}
 
   /**
@@ -46,7 +46,7 @@ export default class SetupAdminPasswordUseCase {
     admin.invitationExpiresAt = null
     await this.adminRepository.save(admin)
 
-    await this.otpService.sendOtp(admin.email, admin.id.toString(), new AdminSetupOtpTemplate())
+    await this.otpSendingService.send(admin.email, admin.id.toString(), new AdminSetupOtpTemplate())
     return { email: admin.email }
   }
 }

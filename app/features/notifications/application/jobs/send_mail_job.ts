@@ -19,9 +19,13 @@ export default class SendMailJob extends Job<SendMailPayload> {
     const from = payload.from || mailFromEmail || 'no-reply@aiglesend.com'
 
     await mail.send((message) => {
-      if (typeof payload.to === 'string') {
-        message.to(payload.to).from(from).subject(payload.subject)
+      const recipients = Array.isArray(payload.to) ? payload.to : [payload.to]
+
+      for (const recipient of recipients) {
+        message.to(recipient)
       }
+
+      message.from(from).subject(payload.subject)
 
       if (payload.htmlView) {
         message.htmlView(payload.htmlView, payload.viewData || {})

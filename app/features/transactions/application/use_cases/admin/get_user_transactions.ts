@@ -1,7 +1,9 @@
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
 import { inject } from '@adonisjs/core'
-import { PaginatedAdminTransactionsResponseDTO } from '#features/transactions/application/dto/admin_transaction.dto'
-import { toPaginatedAdminTransactionsResponseDto } from '#features/transactions/application/mapper/admin_transaction.mapper'
+import {
+  AdminTransactionResponseDTO,
+  PaginatedAdminTransactionsResponseDTO,
+} from '#features/transactions/application/dto/admin_transaction.dto'
 import InvalidUserIdException from '#features/transactions/infrastructure/exceptions/invalid_user_id_exception'
 
 @inject()
@@ -31,6 +33,6 @@ export default class GetUserTransactionsUseCase {
     }
 
     const paginated = await this.transactionsRepository.getAllByUserId(userId, page, perPage)
-    return toPaginatedAdminTransactionsResponseDto(paginated)
+    return AdminTransactionResponseDTO.fromPaginator(paginated)
   }
 }

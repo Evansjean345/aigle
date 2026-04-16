@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import Transaction from '#features/transactions/domain/models/transaction'
-import NotificationService from '#features/notifications/application/services/notificaton_service'
+import NotificationService from '#features/notifications/application/services/notification_service'
 import WalletToWalletTransactionCompleted from '#features/operations/application/events/wallet_to_wallet_transaction_completed'
 import { Notification } from '#features/notifications/domain/notification'
 import { NotificationChannelType } from '#features/notifications/domain/notification_channel_type'

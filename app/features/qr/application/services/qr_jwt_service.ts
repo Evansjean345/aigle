@@ -2,8 +2,8 @@
 import redis from '@adonisjs/redis/services/main'
 import crypto from 'node:crypto'
 import config from '@adonisjs/core/services/config'
-import User from '#features/users/domain/models/user'
-import UserRepository from '#features/users/domain/interfaces/user_repository'
+import User from '#features/user/domain/models/user'
+import UserRepository from '#features/user/domain/interfaces/user_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
 
@@ -30,6 +30,7 @@ export const TOKEN_ERRORS: Record<string, { status: number; message: string }> =
  */
 @inject()
 export default class QrJwtService {
+  private readonly redisConnection = redis.connection('transactions')
   /**
    * The secret key used for JSON Web Token (JWT) authentication and signing.
    * This value is retrieved from the application configuration settings
@@ -88,7 +89,7 @@ export default class QrJwtService {
     })
 
     // Réserver le nonce dans Redis pour éviter le replay (TTL > durée token)
-    await redis.setex(`qrcode:nonce:${nonce}`, ttl + 30, '1')
+    await this.redisConnection.setex(`qrcode:nonce:${nonce}`, ttl + 30, '1')
     return { token, exp: expAt, nonce }
   }
 
@@ -111,7 +112,7 @@ export default class QrJwtService {
 
       const script =
         "local v=redis.call('GET', KEYS[1]); if v then redis.call('DEL', KEYS[1]); return 1 else return 0 end"
-      const res = await redis.eval(script, 1, key)
+      const res = await this.redisConnection.eval(script, 1, key)
       consumed = res === 1 || res === '1'
 
       if (!consumed) return { ok: false, code: 'TOKEN_REPLAY' }

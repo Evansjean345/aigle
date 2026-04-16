@@ -5,4 +5,6 @@ export interface OtpRequestDto {
 
 export interface OtpResponseDto {
   message: string
+  sent: boolean
+  waitTime?: number
 }

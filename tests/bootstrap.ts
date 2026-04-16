@@ -32,6 +32,11 @@ export const runnerHooks: Required<Pick<Config, 'setup' | 'teardown'>> = {
  * Learn more - https://japa.dev/docs/test-suites#lifecycle-hooks
  */
 export const configureSuite: Config['configureSuite'] = (suite) => {
+  if (suite.name === 'unit') {
+    // Les tests unitaires n'ont pas besoin du serveur HTTP ni de l'app bootée
+    return
+  }
+
   if (['browser', 'functional', 'e2e'].includes(suite.name)) {
     return suite.setup(() => testUtils.httpServer().start())
   }

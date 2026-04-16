@@ -1,4 +1,4 @@
-import { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
+import { type KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
 
 export interface TransactionQuotasResult {
   daily: {

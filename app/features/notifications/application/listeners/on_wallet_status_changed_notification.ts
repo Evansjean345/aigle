@@ -1,9 +1,9 @@
 import { inject } from '@adonisjs/core'
-import NotificationService from '#features/notifications/application/services/notificaton_service'
+import NotificationService from '#features/notifications/application/services/notification_service'
 import WalletStatusChanged from '#features/wallet/application/events/wallet_status_changed'
 import { Notification } from '#features/notifications/domain/notification'
 import { NotificationChannelType } from '#features/notifications/domain/notification_channel_type'
-import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
+import { WalletStatus } from '#features/wallet/domain/enums/wallet_status'
 
 @inject()
 export default class OnWalletStatusChangedNotification {

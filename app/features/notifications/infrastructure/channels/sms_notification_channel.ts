@@ -1,6 +1,6 @@
-import NotificationChannel from '#features/notifications/domain/interfaces/notification_channel'
+import type NotificationChannel from '#features/notifications/domain/interfaces/notification_channel'
 import { NotificationChannelType } from '#features/notifications/domain/notification_channel_type'
-import { Notification } from '#features/notifications/domain/notification'
+import { type Notification } from '#features/notifications/domain/notification'
 import env from '#start/env'
 import notificationLog from '#shared/infrastructure/logging/notification_log'
 import errorLog from '#shared/infrastructure/logging/error_log'

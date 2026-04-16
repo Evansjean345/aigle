@@ -60,7 +60,7 @@ export default class KycController {
       endDate,
     })
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'KYC',
       targetType: 'kyc_document',
       eventAction: 'READ_KYC_DOCUMENTS',
@@ -88,7 +88,7 @@ export default class KycController {
     await bouncer.with(KycPolicy).authorize('viewAny')
     const stats = await this.getKycStatsUseCase.execute()
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'kyc',
       eventAction: 'stats',
       actorId: auth.user?.id ?? null,
@@ -118,7 +118,7 @@ export default class KycController {
         return response.notFound({ message: 'KYC document not found' })
       }
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'kyc',
         eventAction: 'view',
         actorId: auth.user?.id ?? null,
@@ -134,7 +134,7 @@ export default class KycController {
 
       return response.ok(kycDocument)
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'kyc',
         eventAction: 'view',
         actorId: auth.user?.id ?? null,
@@ -183,7 +183,7 @@ export default class KycController {
       (auth.user as any)?.id as number
     )
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'kyc',
       eventAction: payload.status === 'approved' ? 'process.approve' : 'process.reject',
       actorId: auth.user?.id ?? null,
@@ -218,7 +218,7 @@ export default class KycController {
       return response.ok(null)
     }
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'kyc',
       eventAction: 'view_user_kyc',
       actorId: auth.user?.id ?? null,

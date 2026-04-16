@@ -1,6 +1,6 @@
 import type { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
 import { UserKycStatus, type UserStatus } from '#features/user/domain/enum'
-import type User from '#features/users/domain/models/user'
+import type User from '#features/user/domain/models/user'
 
 export class AuthenticatedProfileResponseDto {
   declare accountNumber: string

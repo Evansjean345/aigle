@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
+import KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
 import { KycStatsDto } from '#features/kyc/application/dto/kyc.dto'
 
 @inject()

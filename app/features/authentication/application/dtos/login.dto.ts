@@ -1,5 +1,5 @@
-import type { GeoIpLocation } from '#shared/infrastructure/geoip_service'
-import { DeviceRequestDTO } from '#features/device/application/dto/device.tdo'
+import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
+import { DeviceRequestDTO } from '#features/device/application/dto/device.dto'
 
 export class LoginRequestDto {
   declare phone: string

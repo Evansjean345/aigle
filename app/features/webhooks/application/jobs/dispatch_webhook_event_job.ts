@@ -28,6 +28,7 @@ export default class DispatchWebhookEventJob extends Job<DispatchWebhookEventPay
     const { eventName, eventData, reference } = this.payload
 
     const loader = EVENT_MAP[eventName]
+
     if (!loader) {
       throw new Error(`Unknown webhook event: ${eventName}`)
     }
@@ -51,7 +52,7 @@ export default class DispatchWebhookEventJob extends Job<DispatchWebhookEventPay
         eventName: payload.eventName,
         error: error.message,
       },
-      `Webhook event job failed after all retries: ${payload.eventName}`
+      `Webhook event job failed: ${payload.eventName}`
     )
   }
 }

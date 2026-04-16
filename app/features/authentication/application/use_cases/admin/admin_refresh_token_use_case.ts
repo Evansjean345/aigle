@@ -4,8 +4,8 @@ import AdminAuthService from '#features/authentication/application/services/admi
 import {
   AdminRefreshTokenRequestDto,
   AdminRefreshTokenResponseDto,
+  toAdminRefreshTokenResponse,
 } from '#features/authentication/application/dtos/admin/admin_login.dto'
-import { toAdminRefreshTokenResponse } from '#features/authentication/application/mappers/admin/admin_auth.mapper'
 import { Secret } from '@adonisjs/core/helpers'
 import InvalidRefreshTokenException from '#features/authentication/infrastructure/exceptions/invalid_refresh_token_exception'
 import { DateTime } from 'luxon'

@@ -27,9 +27,6 @@ export default class DepositWebhookController {
   async depositSuccess({ request, response }: HttpContext): Promise<void> {
     const payload = request.all() as WebhookRequestDto
 
-    console.log('payload from webhook')
-    console.log(payload)
-
     paymentLog.info(
       'DEPOSIT_SUCCESS_WEBHOOK_RECEIVED',
       {
@@ -45,7 +42,7 @@ export default class DepositWebhookController {
       .emit('activity:transaction-log', {
         event: 'WEBHOOK_RECEIVED',
         reference: payload?.data?.reference,
-        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        webhookPayload: (payload?.data ?? {}) as Record<string, any>,
         ipAddress: request.ip(),
       })
       .catch((_) => {})
@@ -101,7 +98,7 @@ export default class DepositWebhookController {
       .emit('activity:transaction-log', {
         event: 'WEBHOOK_RECEIVED',
         reference: payload?.data?.reference,
-        webhookPayload: (payload?.data ?? {}) as Record<string, unknown>,
+        webhookPayload: (payload?.data ?? {}) as Record<string, any>,
         ipAddress: request.ip(),
       })
       .catch((_) => {})

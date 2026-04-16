@@ -1,6 +1,6 @@
-﻿import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import Wallet from '#features/wallet/domain/models/wallet'
-import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
+﻿import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type Wallet from '#features/wallet/domain/models/wallet'
+import { type WalletStatus } from '#features/wallet/domain/enums/wallet_status'
 
 export interface AdjustedBalance {
   id: number
@@ -31,6 +31,15 @@ export default abstract class WalletRepository {
    * @return {Promise<Wallet | null>} A promise that resolves to the wallet associated with the given user ID, or null if no wallet is found.
    */
   abstract findByUserId(userId: string, trx?: TransactionClientContract): Promise<Wallet | null>
+
+  /**
+   * Finds a wallet by its primary key ID.
+   *
+   * @param {number} id - The wallet ID.
+   * @param {TransactionClientContract} [trx] - Optional transaction client.
+   * @return {Promise<Wallet | null>}
+   */
+  abstract findById(id: number, trx?: TransactionClientContract): Promise<Wallet | null>
 
   /**
    * Saves the provided wallet instance to the database, optionally using the specified transaction.

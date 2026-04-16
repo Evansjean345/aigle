@@ -1,7 +1,9 @@
 import TransactionRepository from '#features/transactions/domain/interfaces/transaction_repository'
 import { inject } from '@adonisjs/core'
-import { PaginatedAdminTransactionsResponseDTO } from '#features/transactions/application/dto/admin_transaction.dto'
-import { toPaginatedAdminTransactionsResponseDto } from '#features/transactions/application/mapper/admin_transaction.mapper'
+import {
+  AdminTransactionResponseDTO,
+  PaginatedAdminTransactionsResponseDTO,
+} from '#features/transactions/application/dto/admin_transaction.dto'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 
@@ -35,6 +37,6 @@ export default class GetAllTransactionsUseCase {
     }
   ): Promise<PaginatedAdminTransactionsResponseDTO> {
     const transactions = await this.transactionsRepository.all(page, perPage, filters)
-    return toPaginatedAdminTransactionsResponseDto(transactions)
+    return AdminTransactionResponseDTO.fromPaginator(transactions)
   }
 }

@@ -3,7 +3,7 @@
   DepositResponseDto,
 } from '#features/operations/application/dto/deposit.dto'
 import { inject } from '@adonisjs/core'
-import User from '#features/users/domain/models/user'
+import User from '#features/user/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
@@ -203,18 +203,20 @@ export default class DepositUseCase {
       })
       .catch((_) => {})
 
-    emitter.emit('activity:transaction-log', {
-      event: 'CREATED',
-      transactionId: transaction.reference,
-      amount,
-      fees,
-      total,
-      provider: payload.providerCode,
-      paymentMethod: payload.paymentMethodCode,
-      transactionType: TransactionType.DEPOSIT,
-      actorId: user.usersUid,
-      ipAddress: payload.geoIpLocation?.ip,
-    })
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'CREATED',
+        transactionId: transaction.reference,
+        amount,
+        fees,
+        total,
+        provider: payload.providerCode,
+        paymentMethod: payload.paymentMethodCode,
+        transactionType: TransactionType.DEPOSIT,
+        actorId: user.usersUid,
+        ipAddress: payload.geoIpLocation?.ip,
+      })
+      .catch((_) => {})
 
     if (isSyncDepositProvider(payload.providerCode)) {
       const { waveUrl } = await this.syncCheckoutService.checkout({
@@ -227,10 +229,14 @@ export default class DepositUseCase {
         notifyFailureUrl: env.get('NOTIFY_DEPOSIT_FAILURE_URL')!,
         failureOptions: {
           transactionId: transaction.id,
-          webhookEvent: 'DepositTransactionFailed',
-          webhookData: { reference: transaction.reference, amount },
-          paymentId,
           logCode: 'DEPOSIT_SYNC',
+          notification: {
+            webhookEvent: 'DepositTransactionFailed',
+            webhookData: { reference: transaction.reference, amount },
+          },
+          payment: {
+            paymentId,
+          },
         },
       })
 
@@ -259,8 +265,11 @@ export default class DepositUseCase {
       operator: payload.providerCode,
       phone: payload.phone.replaceAll(' ', ''),
       userId: user.usersUid,
+      paymentId,
       pinCode: payload.pinCode,
-    }).toQueue('payment').priority(1)
+    })
+      .toQueue('payment')
+      .priority(1)
 
     transactionLog.info(
       'DEPOSIT_CHECKOUT_SUCCESS',

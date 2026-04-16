@@ -30,10 +30,10 @@ export default class ExpoPushNotificationChannel implements NotificationChannel 
    * @throws {Exception} If no push tokens are found for the recipient.
    */
   async send(notification: Notification): Promise<void> {
-    const devices = await this.deviceService.getTrustedDevices(notification.recipientId)
+    const userDevices = await this.deviceService.getTrustedDevices(notification.recipientId)
 
-    if (devices.length === 0) return
-    const tokens = devices.map((d) => d.pushToken)
+    if (userDevices.length === 0) return
+    const tokens = userDevices.map((ud) => ud.pushToken)
 
     if (!tokens || tokens.length === 0) {
       notificationLog.warn(

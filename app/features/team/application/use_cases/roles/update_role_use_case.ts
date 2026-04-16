@@ -47,7 +47,7 @@ export default class UpdateRoleUseCase {
 
       await this.roleRepository.save(role)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'TEAM',
         eventAction: 'ROLE_UPDATED',
         actorId: String(auth.id),
@@ -61,7 +61,7 @@ export default class UpdateRoleUseCase {
 
       if (data.permissionIds !== undefined) {
         await this.roleRepository.syncPermissions(role, data.permissionIds)
-        await emitter.emit('activity:audit', {
+        emitter.emit('activity:audit', {
           eventCategory: 'TEAM',
           eventAction: 'ROLE_PERMISSIONS_SYNCED',
           actorId: String(auth.id),
@@ -93,7 +93,7 @@ export default class UpdateRoleUseCase {
         updatedAt: updatedRole!.updatedAt.toJSDate(),
       }
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'TEAM',
         eventAction: 'ROLE_UPDATE_FAILED',
         actorId: String(auth.id),

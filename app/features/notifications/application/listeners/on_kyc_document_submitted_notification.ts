@@ -1,4 +1,4 @@
-import NotificationService from '#features/notifications/application/services/notificaton_service'
+import NotificationService from '#features/notifications/application/services/notification_service'
 import KycDocumentSubmitted from '#features/kyc/application/events/kyc_document_submitted'
 import { Notification } from '#features/notifications/domain/notification'
 import { NotificationChannelType } from '#features/notifications/domain/notification_channel_type'

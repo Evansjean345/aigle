@@ -1,5 +1,5 @@
 import redis from '@adonisjs/redis/services/main'
-import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
+import type IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 
 /**
  * A provider implementation that leverages Redis to ensure idempotency in distributed systems
@@ -7,6 +7,7 @@ import IdempotencyProvider from '#features/transactions/domain/interfaces/idempo
  * This class is particularly useful for preventing duplicate processing of requests.
  */
 export default class RedisIdempotencyProvider implements IdempotencyProvider {
+  private readonly connection = redis.connection('transactions')
   private redisKeyPrefix = 'tx:idempotency:'
 
   /**
@@ -20,7 +21,7 @@ export default class RedisIdempotencyProvider implements IdempotencyProvider {
    */
   async checkAndMark(key: string, ttlSeconds: number = 86400): Promise<boolean> {
     const redisKey = `${this.redisKeyPrefix}${key}`
-    const res = await redis.set(redisKey, 'PROCESSING', 'EX', ttlSeconds, 'NX')
+    const res = await this.connection.set(redisKey, 'PROCESSING', 'EX', ttlSeconds, 'NX')
     return res === 'OK'
   }
 
@@ -32,7 +33,7 @@ export default class RedisIdempotencyProvider implements IdempotencyProvider {
    */
   async get(key: string): Promise<string | null> {
     const redisKey = `${this.redisKeyPrefix}${key}`
-    return redis.get(redisKey)
+    return this.connection.get(redisKey)
   }
 
   /**
@@ -45,6 +46,6 @@ export default class RedisIdempotencyProvider implements IdempotencyProvider {
    */
   async update(key: string, value: string, ttlSeconds: number = 86400): Promise<void> {
     const redisKey = `${this.redisKeyPrefix}${key}`
-    await redis.set(redisKey, value, 'EX', ttlSeconds)
+    await this.connection.set(redisKey, value, 'EX', ttlSeconds)
   }
 }

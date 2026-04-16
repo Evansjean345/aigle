@@ -1,5 +1,5 @@
 import redis from '@adonisjs/redis/services/main'
-import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
+import type TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
 import { Exception } from '@adonisjs/core/exceptions'
 
 /**
@@ -10,6 +10,7 @@ import { Exception } from '@adonisjs/core/exceptions'
  * Implements the `TransactionFailureCache` interface.
  */
 export default class RedisTransactionFailureCache implements TransactionFailureCache {
+  private readonly connection = redis.connection('transactions')
   private readonly FAILURE_COUNT_PREFIX = 'tx:failure:count:user:'
   private readonly FAILURE_BLOCK_PREFIX = 'tx:failure:block:user:'
 
@@ -49,12 +50,12 @@ export default class RedisTransactionFailureCache implements TransactionFailureC
    */
   async incrementFailure(userId: string): Promise<void> {
     const countKey = this.getCountKey(userId)
-    const currentCount = await redis.incr(countKey)
+    const currentCount = await this.connection.incr(countKey)
 
-    const currentTtl = await redis.ttl(countKey)
+    const currentTtl = await this.connection.ttl(countKey)
 
     if (currentTtl < 86400) {
-      await redis.expire(countKey, 86400)
+      await this.connection.expire(countKey, 86400)
     }
 
     // On cherche le palier correspondant au nombre d'échecs actuel
@@ -62,7 +63,7 @@ export default class RedisTransactionFailureCache implements TransactionFailureC
 
     if (threshold) {
       // On crée une clé de blocage avec la durée du palier
-      await redis.setex(this.getBlockKey(userId), threshold.duration, 'blocked')
+      await this.connection.setex(this.getBlockKey(userId), threshold.duration, 'blocked')
     }
   }
 
@@ -75,10 +76,10 @@ export default class RedisTransactionFailureCache implements TransactionFailureC
    */
   async verifyNotBlocked(userId: string): Promise<void> {
     const blockKey = this.getBlockKey(userId)
-    const isBlocked = await redis.get(blockKey)
+    const isBlocked = await this.connection.get(blockKey)
 
     if (isBlocked) {
-      const ttl = await redis.ttl(blockKey)
+      const ttl = await this.connection.ttl(blockKey)
       if (ttl > 0) {
         let timeRemaining: string
         if (ttl >= 3600) {
@@ -104,6 +105,6 @@ export default class RedisTransactionFailureCache implements TransactionFailureC
    * @return {Promise<void>} A promise that resolves when the reset operation is complete.
    */
   async resetFailures(userId: string): Promise<void> {
-    await Promise.all([redis.del(this.getCountKey(userId)), redis.del(this.getBlockKey(userId))])
+    await Promise.all([this.connection.del(this.getCountKey(userId)), this.connection.del(this.getBlockKey(userId))])
   }
 }

@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import redis from '@adonisjs/redis/services/main'
-import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
+import type TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
 import TransferThrottleException from '#features/transactions/infrastructure/exceptions/transfer_throttle_exception'
 
 /**
@@ -10,6 +10,8 @@ import TransferThrottleException from '#features/transactions/infrastructure/exc
  * It provides methods to set, retrieve, and verify throttling based on user activity.
  */
 export default class RedisTransactionThrottleCache implements TransactionThrottleCache {
+  private readonly connection = redis.connection('transactions')
+
   /**
    * A constant string used as a prefix for keys in a throttling system.
    * It is typically utilized to uniquely identify and manage throttling rules
@@ -52,7 +54,7 @@ export default class RedisTransactionThrottleCache implements TransactionThrottl
     else if (timestamp instanceof Date) isoDate = DateTime.fromJSDate(timestamp).toISO()!
     else isoDate = timestamp
 
-    await redis.setex(key, this.EXPIRATION_SECONDS, isoDate)
+    await this.connection.setex(key, this.EXPIRATION_SECONDS, isoDate)
   }
 
   /**
@@ -62,7 +64,7 @@ export default class RedisTransactionThrottleCache implements TransactionThrottl
    * @return {Promise<DateTime | null>} A promise that resolves to a DateTime object representing the last success time, or null if no record exists.
    */
   async getLastSuccessTime(userId: string): Promise<DateTime | null> {
-    const val = await redis.get(this.getKey(userId))
+    const val = await this.connection.get(this.getKey(userId))
     return val ? DateTime.fromISO(val) : null
   }
 

@@ -5,8 +5,10 @@ export default abstract class TransactionFailureCache {
   abstract incrementFailure(userId: string): Promise<void>
 
   /**
-   * Vérifie si l'utilisateur est actuellement bloqué suite à trop d'échecs
-   * @throws {TransactionBlockedException} si l'utilisateur est bloqué
+   * Verifies whether the specified user is not blocked.
+   *
+   * @param userId The unique identifier of the user to check.
+   * @return A promise that resolves if the user is not blocked, or rejects if the user is blocked.
    */
   abstract verifyNotBlocked(userId: string): Promise<void>
 

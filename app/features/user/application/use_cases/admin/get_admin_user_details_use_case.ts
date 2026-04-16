@@ -1,7 +1,6 @@
 import { inject } from '@adonisjs/core'
 import { AdminUserDetailsResponseDto } from '#features/user/application/dtos/admin/user_details.response.dto'
 import User from '#features/user/domain/models/user'
-import { mapUserToAdminDetailsDto } from '#features/user/application/mappers/admin/users.mapper'
 
 @inject()
 export default class GetAdminUserDetailsUseCase {
@@ -17,7 +16,12 @@ export default class GetAdminUserDetailsUseCase {
     const user = await User.query()
       .where('usersUid', userId)
       .preload('country')
-      .preload('devices')
+      .preload('debitPhones', (query) => {
+        query.preload('provider')
+      })
+      .preload('userDevices', (query) => {
+        query.whereNull('unlinkedAt').preload('device')
+      })
       .preload('keyLevel')
       .first()
 
@@ -25,6 +29,6 @@ export default class GetAdminUserDetailsUseCase {
       return null
     }
 
-    return mapUserToAdminDetailsDto(user)
+    return AdminUserDetailsResponseDto.fromUser(user)
   }
 }

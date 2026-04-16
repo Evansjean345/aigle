@@ -6,4 +6,6 @@ export const TRANSACTION_PERMISSIONS = {
 
   userTransactionsRead: 'user_transactions.read',
   userTransactionsReportRead: 'user_transactions_report.read',
+
+  transactionRefundExecute: 'transaction_refund.execute',
 }

@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import { Exception } from '@adonisjs/core/exceptions'
-import User from '#features/users/domain/models/user'
+import User from '#features/user/domain/models/user'
 import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_repository'
 import { normalizePhone } from '#shared/utils/utiles'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'

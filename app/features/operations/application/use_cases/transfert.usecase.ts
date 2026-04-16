@@ -3,7 +3,7 @@ import {
   TransfertResponseDto,
 } from '#features/operations/application/dto/transfert.dto'
 import { inject } from '@adonisjs/core'
-import User from '#features/users/domain/models/user'
+import User from '#features/user/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import db from '@adonisjs/lucid/services/db'
@@ -13,6 +13,7 @@ import { TransactionDirection } from '#features/transactions/domain/enums/transa
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import WalletService from '#features/wallet/application/services/wallet_service'
+import LedgerService from '#features/ledger/application/services/ledger_service'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
 import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
 import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
@@ -22,7 +23,7 @@ import AccountValidationService from '#features/user/application/services/accoun
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 import InsufficientFundsException from '#features/operations/infrastructure/exceptions/insufficient_funds_exception'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import Transaction from '#features/transactions/domain/models/transaction'
@@ -36,6 +37,7 @@ export default class TransfertUseCase {
     private readonly transactionService: TransactionService,
     private readonly paymentService: PaymentService,
     private readonly walletService: WalletService,
+    private readonly ledgerService: LedgerService,
     private readonly serviceTypeRepository: ServiceTypeRepository,
     private readonly feeCalculatorService: FeeCalculatorService,
     private readonly accountValidationService: AccountValidationService,
@@ -71,8 +73,6 @@ export default class TransfertUseCase {
       'Starting transfer process'
     )
 
-    // V?rifier les ?checs et temps de transactions effectu?s par l'utilisateur.
-    // Rejeter la transaction si une des r?gles est viol?e
     await Promise.all([
       this.failureCache.verifyNotBlocked(user.usersUid),
       this.throttleCache.verifyThrottle(user.usersUid),
@@ -108,17 +108,14 @@ export default class TransfertUseCase {
       }
     )
 
-    // Application des r?gles de verification de la limite de transaction.
     await this.transactionLimitValidationService.validateTransactionLimit({
       user,
       amount,
       transactionType: TransactionType.TRANSFERT,
     })
 
-    // V?rifier que l'utilisateur a les fonds suffisants
     this.assertSufficientBalance(wallet.balance, amount)
 
-    // persister la transaction, le debit du portefeuille et le paiement en base de donn?es
     const { transaction } = await this.persistTransfer(
       payload,
       user,
@@ -140,10 +137,12 @@ export default class TransfertUseCase {
       operator: payload.providerCode,
       phone: payload.phone.replaceAll(' ', ''),
       userId: user.usersUid,
-    }).toQueue('payment').priority(1)
+    })
+      .toQueue('payment')
+      .priority(1)
 
     const result: TransfertResponseDto = {
-      message: 'transfert initi?',
+      message: 'transfert initié',
       data: {
         transactionReference: transaction.reference,
         status: transaction.status,
@@ -233,6 +232,14 @@ export default class TransfertUseCase {
         trx
       )
 
+      await this.ledgerService.recordTransfer(
+        transaction,
+        walletId,
+        Number(balanceBefore),
+        updatedWallet.balance,
+        trx
+      )
+
       await trx.commit()
 
       emitter
@@ -277,6 +284,21 @@ export default class TransfertUseCase {
           amount: billing.amount,
           balanceBefore: Number(balanceBefore),
           balanceAfter: updatedWallet.balance,
+        })
+        .catch((_) => {})
+
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'LEDGER_ENTRY_CREATED',
+          transactionId: transaction.reference,
+          walletId: String(walletId),
+          direction: 'debit',
+          amountBrut: billing.amount,
+          fees: billing.fees,
+          totalAmount: billing.total,
+          balanceBefore: Number(balanceBefore),
+          balanceAfter: updatedWallet.balance,
+          operationType: serviceType.code,
         })
         .catch((_) => {})
 

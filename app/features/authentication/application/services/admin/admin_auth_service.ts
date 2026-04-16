@@ -35,7 +35,7 @@ export default class AdminAuthService {
 
       await admin.save()
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'AUTH',
         eventAction: 'LOGIN_SUCCESS',
         actorId: String(admin.id),
@@ -49,7 +49,7 @@ export default class AdminAuthService {
 
       return { admin, tokens }
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'AUTH',
         eventAction: 'LOGIN_FAILED',
         actorId: null,

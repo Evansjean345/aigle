@@ -2,8 +2,8 @@
 import { BaseModel, beforeSave, belongsTo, column } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import { v4 as uuidv4 } from 'uuid'
-import User from '#features/users/domain/models/user'
-import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
+import User from '#features/user/domain/models/user'
+import { WalletStatus } from '#features/wallet/domain/enums/wallet_status'
 
 export default class Wallet extends BaseModel {
   @column({ isPrimary: true })

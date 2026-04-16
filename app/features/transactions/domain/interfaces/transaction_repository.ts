@@ -57,7 +57,7 @@ export default abstract class TransactionRepository {
    * @param {string} userId - The unique identifier of the user associated with the transaction.
    * @return {Promise<Transaction | null>} A promise that resolves to the transaction if found, or null if no matching transaction exists.
    */
-  abstract findByReferenceAndUserId(reference: string, userId: string): Promise<Transaction | null>
+  abstract findByReferenceAndUserId(reference: string, userId: string, preloads?: string[]): Promise<Transaction | null>
 
   /**
    * Retrieves the latest transactions for a specific user, up to a specified limit.

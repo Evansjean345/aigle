@@ -4,7 +4,6 @@ import {
   AdminLoginRequestDto,
   AdminLoginResponseDto,
 } from '#features/authentication/application/dtos/admin/admin_login.dto'
-import { toAdminLoginResponse } from '#features/authentication/application/mappers/admin/admin_auth.mapper'
 export interface Token {
   type: 'bearer'
   value: string
@@ -29,7 +28,7 @@ export default class AdminLoginUseCase {
    */
   async execute(data: AdminLoginRequestDto, ip: string): Promise<AdminLoginResponseDto> {
     const { admin, tokens } = await this.adminAuthService.login(data.email, data.password, ip)
-    return toAdminLoginResponse(
+    return AdminLoginResponseDto.fromAdmin(
       admin,
       this.adminAuthService.formatToken(tokens.access),
       this.adminAuthService.formatToken(tokens.refresh)

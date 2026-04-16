@@ -1,8 +1,7 @@
 import { inject } from '@adonisjs/core'
 import AdminRepository from '#features/team/domain/interfaces/admin_repository'
-import OtpService from '#features/authentication/application/services/otp_service'
+import OtpVerificationService from '#features/otp/application/services/otp_verification_service'
 import AdminAuthService from '#features/authentication/application/services/admin/admin_auth_service'
-import { toAdminLoginResponse } from '#features/authentication/application/mappers/admin/admin_auth.mapper'
 import { AdminLoginResponseDto } from '#features/authentication/application/dtos/admin/admin_login.dto'
 import AdminNotFoundException from '#features/team/infrastructure/exceptions/admin_not_found_exception'
 import emitter from '@adonisjs/core/services/emitter'
@@ -18,7 +17,7 @@ export interface VerifyAdminOtpRequestDto {
 export default class VerifyAdminOtpUseCase {
   constructor(
     private adminRepository: AdminRepository,
-    private otpService: OtpService,
+    private otpVerificationService: OtpVerificationService,
     private adminAuthService: AdminAuthService
   ) {}
 
@@ -28,7 +27,7 @@ export default class VerifyAdminOtpUseCase {
       throw new AdminNotFoundException()
     }
 
-    await this.otpService.verifyOtp({ identifier: admin.email, enteredOtp: data.otp })
+    await this.otpVerificationService.verify({ identifier: admin.email, enteredOtp: data.otp })
 
     admin.isActive = true
     admin.invitationToken = null
@@ -36,7 +35,7 @@ export default class VerifyAdminOtpUseCase {
     await this.adminRepository.save(admin)
 
     await admin.load('role')
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'AUTH',
       eventAction: 'OTP_VERIFIED',
       actorId: String(admin.id),
@@ -55,7 +54,7 @@ export default class VerifyAdminOtpUseCase {
       query.preload('permissions')
     })
 
-    return toAdminLoginResponse(
+    return AdminLoginResponseDto.fromAdmin(
       admin,
       this.adminAuthService.formatToken(tokens.access),
       this.adminAuthService.formatToken(tokens.refresh)

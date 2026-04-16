@@ -3,7 +3,7 @@ import errorLog from '#shared/infrastructure/logging/error_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import env from '#start/env'
 import app from '@adonisjs/core/services/app'
-import HttpClient from '#shared/infrastructure/http_client_service'
+import HttpClient from '#shared/infrastructure/services/http_client_service'
 import TransactionFailureHandler from '#features/transactions/application/services/transaction_failure_handler'
 import config from '@adonisjs/core/services/config'
 import emitter from '@adonisjs/core/services/emitter'
@@ -83,6 +83,7 @@ export default class InitiateInterTransferJob extends Job<InitiateInterTransferP
           { reference: transactionReference, error: result.error },
           'Checkout API call failed for inter-transfer'
         )
+
         await this.handleFailure(payload)
         return
       }
@@ -115,36 +116,14 @@ export default class InitiateInterTransferJob extends Job<InitiateInterTransferP
     await failureHandler.handle({
       transactionId: payload.transactionId,
       transactionReference: payload.transactionReference,
-      webhookEvent: 'TransfertInterTransactionFailed',
-      webhookData: {
-        reference: payload.transactionReference,
-        amount: payload.totalAmount,
-      },
       logCode: 'INTER_TRANSFER',
-    })
-  }
-
-  async failed(error: Error): Promise<void> {
-    const payload = this.payload
-
-    emitter
-      .emit('activity:transaction-log', {
-        event: 'RETRY',
-        transactionId: payload.transactionReference,
-        attempt: this.context.attempt,
-      })
-      .catch((_) => {})
-
-    errorLog.error(
-      'INTER_TRANSFER_JOB_EXHAUSTED',
-      {
-        reference: payload.transactionReference,
-        transactionId: payload.transactionId,
-        error: error.message,
+      notification: {
+        webhookEvent: 'TransfertInterTransactionFailed',
+        webhookData: {
+          reference: payload.transactionReference,
+          amount: payload.totalAmount,
+        },
       },
-      'Inter-transfer job failed after all retries'
-    )
-
-    await this.handleFailure(payload)
+    })
   }
 }

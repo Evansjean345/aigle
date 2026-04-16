@@ -4,11 +4,15 @@ import { middleware } from '#start/kernel'
 const AdminTransactionController = () =>
   import('#features/transactions/presentation/admin/controllers/transactions_controller')
 
+const AdminRefundController = () =>
+  import('#features/transactions/presentation/admin/controllers/admin_refund_controller')
+
 export default function adminTransactionRoutes() {
   return router
     .group(() => {
       router.get('/', [AdminTransactionController, 'getAllTransactions'])
       router.get('/stats', [AdminTransactionController, 'getTransactionsStats'])
+      router.post('/refunds', [AdminRefundController, 'execute'])
       router.get('/:reference', [AdminTransactionController, 'findTransaction'])
     })
     .prefix('transactions')

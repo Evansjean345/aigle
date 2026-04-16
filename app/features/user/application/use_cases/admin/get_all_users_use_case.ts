@@ -1,7 +1,9 @@
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import { inject } from '@adonisjs/core'
-import { AdminUsersListResponseDto } from '#features/user/application/dtos/admin/users.response.dto'
-import { mapUserToAdminListItemDto } from '#features/user/application/mappers/admin/users.mapper'
+import {
+  AdminUserListItemResponseDto,
+  AdminUsersListResponseDto,
+} from '#features/user/application/dtos/admin/users.response.dto'
 import TransactionVolumeCache from '#features/transactions/domain/interfaces/transaction_volume_cache'
 import { DateTime } from 'luxon'
 
@@ -47,18 +49,13 @@ export default class GetAllUsersUseCase {
     const items = paginatedUsers.all()
     const userIds = items.map((user) => user.usersUid)
 
-    // Si une date spécifique est fournie (startDate), on pourrait vouloir les volumes pour cette période.
-    // Mais le cache est optimisé pour le mois en cours.
-    // Pour l'instant, on garde le volume mensuel actuel ou celui du mois de startDate.
     const dt = startDate ? DateTime.fromISO(startDate) : undefined
     const volumes = await this.transactionVolumeCache.getMonthlyVolumesForUsers(userIds, dt)
 
     const data = items.map((user) => {
-      user['transactionVolumes'] = {
-        monthly: volumes[user.usersUid] || 0,
-      }
-
-      return mapUserToAdminListItemDto(user)
+      return AdminUserListItemResponseDto.fromUser(user, {
+        monthlyVolume: volumes[user.usersUid] || 0,
+      })
     })
 
     return {

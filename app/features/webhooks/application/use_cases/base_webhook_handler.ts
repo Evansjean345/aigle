@@ -1,16 +1,20 @@
 import { Exception } from '@adonisjs/core/exceptions'
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
+import emitter from '@adonisjs/core/services/emitter'
 import Transaction from '#features/transactions/domain/models/transaction'
-import Payment from '#features/transactions/domain/models/payment'
-import Wallet from '#features/wallet/domain/models/wallet'
+import type Payment from '#features/transactions/domain/models/payment'
+import type Wallet from '#features/wallet/domain/models/wallet'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
-import { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
-import { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
-import PaymentService from '#features/transactions/application/services/payment_service'
-import TransactionService from '#features/transactions/application/services/transaction_service'
-import WalletService from '#features/wallet/application/services/wallet_service'
+import type { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
+import type { WebhookResponseDto } from '#features/webhooks/application/dto/webhook_response.dto'
+import type PaymentService from '#features/transactions/application/services/payment_service'
+import type TransactionService from '#features/transactions/application/services/transaction_service'
+import type WalletService from '#features/wallet/application/services/wallet_service'
+import ProviderErrorService from '#shared/infrastructure/services/provider_error_service'
+import { AdminAction, ErrorSeverity, ErrorCategory } from '#shared/enums/provider_error_enums'
+import { PROVIDER_SEVERITY_MAP } from '#shared/enums/provider_error_severity_map'
 import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
 import PaymentNotFoundException from '#features/transactions/infrastructure/exceptions/payment_not_found_exception'
 import WalletNotFoundException from '#features/wallet/infrastructure/exceptions/wallet_not_found_exception'
@@ -19,7 +23,7 @@ import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import DispatchWebhookEventJob from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
 import type { WebhookEventName } from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
-import { WebhookEventCode } from '#features/webhooks/type'
+import type { WebhookEventCode } from '#features/webhooks/type'
 
 export const WEBHOOK_SUCCESS_RESPONSE: WebhookResponseDto = {
   status: 200,
@@ -85,10 +89,7 @@ export default abstract class BaseWebhookHandler {
     trx: TransactionClientContract
   ): Promise<{ transaction: Transaction; payments: Payment[] }> {
     const transaction = await this.loadTransaction(reference, trx)
-    const payments = await this.paymentService.findByTransaction(
-      transaction.transactionsUid || transaction.id,
-      trx
-    )
+    const payments = await this.paymentService.findByTransaction(transaction.transactionsUid, trx)
 
     if (payments.length === 0) {
       throw new PaymentNotFoundException('Paiement introuvable pour cette transaction')
@@ -108,6 +109,7 @@ export default abstract class BaseWebhookHandler {
 
   /**
    * Loads the wallet associated with the given transaction.
+   *
    * @param walletService
    * @param transaction
    * @param trx
@@ -122,7 +124,6 @@ export default abstract class BaseWebhookHandler {
       return await walletService.getByUserId(transaction.usersUid, trx)
     } catch (error) {
       if (error instanceof WalletNotFoundException) {
-        //TODO: send critical email to admin
         errorLog.error(
           'WEBHOOK_WALLET_NOT_FOUND',
           {
@@ -132,6 +133,23 @@ export default abstract class BaseWebhookHandler {
           },
           'Critical: Wallet not found for user associated with transaction'
         )
+
+        emitter
+          .emit('alert:provider-error', {
+            severity: ErrorSeverity.AMBIGUOUS,
+            category: ErrorCategory.INTERNAL,
+            adminAction: AdminAction.ESCALATE,
+            adminMessage:
+              'Wallet introuvable pour un utilisateur avec une transaction en cours. Intervention manuelle requise.',
+            errorCode: 'WALLET_NOT_FOUND',
+            transactionReference: transaction.reference,
+            provider: 'internal',
+            context: {
+              transactionId: transaction.id,
+              userUid: transaction.usersUid,
+            },
+          })
+          .catch(() => {})
       }
       throw error
     }
@@ -194,20 +212,44 @@ export default abstract class BaseWebhookHandler {
   protected async safeMarkPaymentFailed(
     paymentId: number,
     operatorResponse: any,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    error?: any
   ): Promise<void> {
     try {
-      await this.paymentService.markFailed(paymentId, operatorResponse, trx)
-    } catch (error: any) {
-      if (BaseWebhookHandler.TERMINAL_STATE_CODES.has(error?.code)) {
+      const errorCode = operatorResponse?.code || error?.code
+      const definition = errorCode ? ProviderErrorService.resolve(errorCode) : undefined
+
+      await this.paymentService.markFailed(paymentId, { definition, operatorResponse }, trx)
+
+      if (definition && definition.adminAction !== AdminAction.NONE) {
+        const severity = PROVIDER_SEVERITY_MAP[definition.code]
+        emitter
+          .emit('alert:provider-error', {
+            severity,
+            category: definition.category,
+            adminAction: definition.adminAction,
+            adminMessage: definition.adminMessage,
+            errorCode: definition.code,
+            transactionReference: operatorResponse?.reference || String(paymentId),
+            provider: operatorResponse?.operator || 'unknown',
+            context: {
+              paymentId,
+              operatorResponse,
+              error,
+            },
+          })
+          .catch(() => {})
+      }
+    } catch (err: any) {
+      if (BaseWebhookHandler.TERMINAL_STATE_CODES.has(err?.code)) {
         paymentLog.warn(
           'PAYMENT_MARK_FAILED_SKIPPED',
-          { payment: { id: paymentId }, reason: error.code },
+          { payment: { id: paymentId }, reason: err.code },
           'Payment already in terminal state, skipping'
         )
         return
       }
-      throw error
+      throw err
     }
   }
 
@@ -294,7 +336,13 @@ export default abstract class BaseWebhookHandler {
     }
   }
 
-  protected buildOperatorResponse(payload: WebhookRequestDto): { operator_response: any } {
-    return { operator_response: payload.data }
+  protected buildOperatorResponse(payload: WebhookRequestDto): {
+    operatorResponse: any
+    error: any
+  } {
+    return {
+      operatorResponse: payload.data,
+      error: payload.error || payload.data?.error || null,
+    }
   }
 }

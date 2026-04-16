@@ -3,11 +3,11 @@ import { Exception } from '@adonisjs/core/exceptions'
 import { DateTime } from 'luxon'
 import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_repository'
 import ProviderRepository from '#features/catalogs/domain/interfaces/provider_repository'
-import OtpService from '#features/authentication/application/services/otp_service'
+import OtpSendingService from '#features/otp/application/services/otp_sending_service'
 import DebitPhone from '#features/user/domain/models/debit_phone'
 import { normalizePhone } from '#shared/utils/utiles'
 import securityLog from '#shared/infrastructure/logging/security_log'
-import DebitPhoneOtpTemplate from '#features/authentication/infrastructure/otp/templates/debit_phone_otp_template'
+import DebitPhoneOtpTemplate from '#features/otp/infrastructure/templates/debit_phone_otp_template'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import Provider from '#features/catalogs/domain/models/provider'
 
@@ -26,7 +26,7 @@ export default class AddDebitPhoneUseCase {
   constructor(
     private debitPhoneRepository: DebitPhoneRepository,
     private providerRepository: ProviderRepository,
-    private otpService: OtpService,
+    private otpSendingService: OtpSendingService,
     private userRepository: UserRepository
   ) {}
 
@@ -87,7 +87,7 @@ export default class AddDebitPhoneUseCase {
       existingForProvider.verifiedAt = null
       await this.debitPhoneRepository.save(existingForProvider)
 
-      await this.otpService.sendOtp(normalizedPhone, userId, new DebitPhoneOtpTemplate())
+      await this.otpSendingService.send(normalizedPhone, userId, new DebitPhoneOtpTemplate())
 
       securityLog.info(
         'DEBIT_PHONE_UPDATE_OTP_SENT',
@@ -125,7 +125,7 @@ export default class AddDebitPhoneUseCase {
       await this.debitPhoneRepository.save(debitPhone)
     }
 
-    await this.otpService.sendOtp(normalizedPhone, userId, new DebitPhoneOtpTemplate())
+    await this.otpSendingService.send(normalizedPhone, userId, new DebitPhoneOtpTemplate())
     return { message: 'Un code OTP a été envoyé au numéro fourni. Veuillez le valider.' }
   }
 

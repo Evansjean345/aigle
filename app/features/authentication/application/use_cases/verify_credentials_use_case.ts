@@ -1,8 +1,8 @@
 ﻿import { inject } from '@adonisjs/core'
 import { LoginRequestDto, LoginResult } from '#features/authentication/application/dtos/login.dto'
-import OtpService from '#features/authentication/application/services/otp_service'
+import OtpSendingService from '#features/otp/application/services/otp_sending_service'
 import DeviceService from '#features/device/application/services/device_service'
-import { DeviceCommandDTO } from '#features/device/application/dto/device.command.tdo'
+import { DeviceCommandDTO } from '#features/device/application/dto/device.command.dto'
 import { bypassEnabled, appPhoneNumberReview } from '#config/app'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber, maskPhone } from '#shared/utils/utiles'
@@ -22,7 +22,7 @@ export default class VerifyCredentialsUseCase {
    */
   constructor(
     protected countryRepository: CountryRepository,
-    private otpService: OtpService,
+    private otpSendingService: OtpSendingService,
     private deviceService: DeviceService
   ) {}
 
@@ -62,7 +62,7 @@ export default class VerifyCredentialsUseCase {
       return { message: 'Bypass OTP activé pour ce numéro' }
     }
 
-    await this.otpService.sendOtp(user.phone, user.usersUid)
+    await this.otpSendingService.send(user.phone, user.usersUid)
     return { message: 'OTP sent successfully' }
   }
 }

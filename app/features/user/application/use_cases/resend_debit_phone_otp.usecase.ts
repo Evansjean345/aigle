@@ -2,17 +2,17 @@ import { inject } from '@adonisjs/core'
 import { Exception } from '@adonisjs/core/exceptions'
 import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_repository'
 import ProviderRepository from '#features/catalogs/domain/interfaces/provider_repository'
-import OtpService from '#features/authentication/application/services/otp_service'
+import OtpSendingService from '#features/otp/application/services/otp_sending_service'
 import { normalizePhone } from '#shared/utils/utiles'
 import securityLog from '#shared/infrastructure/logging/security_log'
-import DebitPhoneOtpTemplate from '#features/authentication/infrastructure/otp/templates/debit_phone_otp_template'
+import DebitPhoneOtpTemplate from '#features/otp/infrastructure/templates/debit_phone_otp_template'
 
 @inject()
 export default class ResendDebitPhoneOtpUseCase {
   constructor(
     private debitPhoneRepository: DebitPhoneRepository,
     private providerRepository: ProviderRepository,
-    private otpService: OtpService
+    private otpSendingService: OtpSendingService
   ) {}
 
   /**
@@ -44,7 +44,7 @@ export default class ResendDebitPhoneOtpUseCase {
       })
     }
 
-    const { sent, waitTime } = await this.otpService.sendOtp(
+    const { sent, waitTime } = await this.otpSendingService.send(
       normalizedPhone,
       userId,
       new DebitPhoneOtpTemplate()

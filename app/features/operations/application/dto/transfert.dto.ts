@@ -1,6 +1,6 @@
 ﻿import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { TransfertValidator } from '#features/operations/presentation/mobile/validators/transfert_validator'
-import { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import { Exception } from '@adonisjs/core/exceptions'
 

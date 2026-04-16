@@ -1,5 +1,5 @@
-export interface AdminUserWalletStatsDto {
-  wallet: {
+export class AdminUserWalletStatsDto {
+  declare wallet: {
     balance: number
     currency: string
     status: string
@@ -8,7 +8,7 @@ export interface AdminUserWalletStatsDto {
     limitMonthly: number
     balanceLimit: number
   }
-  activity: {
+  declare activity: {
     todayTxCount: number
     todayVolume: number
     monthVolume: number

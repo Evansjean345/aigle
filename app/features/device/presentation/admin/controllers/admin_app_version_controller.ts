@@ -41,7 +41,7 @@ export default class AdminAppVersionController {
   async index({ response, auth, request }: HttpContext): Promise<void> {
     const versions = await this.getAllAppVersionsUseCase.execute()
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'APP_VERSION',
       eventAction: 'READ_VERSIONS',
       actorId: auth.user?.id ?? null,
@@ -69,7 +69,7 @@ export default class AdminAppVersionController {
       const data = await request.validateUsing(createAppVersionValidator)
       const version = await this.createAppVersionUseCase.execute(data)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'APP_VERSION',
         eventAction: 'CREATE_VERSION',
         actorId: auth.user?.id ?? null,
@@ -86,7 +86,7 @@ export default class AdminAppVersionController {
 
       return response.created(version)
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'APP_VERSION',
         eventAction: 'CREATE_VERSION',
         actorId: auth.user?.id ?? null,
@@ -114,7 +114,7 @@ export default class AdminAppVersionController {
     try {
       const version = await this.getAppVersionDetailsUseCase.execute(params.id)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'APP_VERSION',
         eventAction: 'VIEW_VERSION_DETAILS',
         actorId: auth.user?.id ?? null,
@@ -130,7 +130,7 @@ export default class AdminAppVersionController {
 
       return response.ok(version)
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'APP_VERSION',
         eventAction: 'VIEW_VERSION_DETAILS',
         actorId: auth.user?.id ?? null,
@@ -164,7 +164,7 @@ export default class AdminAppVersionController {
 
       const version = await this.updateAppVersionUseCase.execute(params.id, data)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'APP_VERSION',
         eventAction: 'UPDATE_VERSION',
         actorId: auth.user?.id ?? null,
@@ -181,7 +181,7 @@ export default class AdminAppVersionController {
 
       return response.ok(version)
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'APP_VERSION',
         eventAction: 'UPDATE_VERSION',
         actorId: auth.user?.id ?? null,
@@ -211,7 +211,7 @@ export default class AdminAppVersionController {
     try {
       await this.deleteAppVersionUseCase.execute(params.id)
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'APP_VERSION',
         eventAction: 'DELETE_VERSION',
         actorId: auth.user?.id ?? null,
@@ -227,7 +227,7 @@ export default class AdminAppVersionController {
 
       return response.noContent()
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'APP_VERSION',
         eventAction: 'DELETE_VERSION',
         actorId: auth.user?.id ?? null,

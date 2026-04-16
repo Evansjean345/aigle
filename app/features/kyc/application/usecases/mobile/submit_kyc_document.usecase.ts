@@ -1,10 +1,10 @@
-import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
+import KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
 import { inject } from '@adonisjs/core'
 import {
   KycDocumentRequestDto,
   KycDocumentResponseDto,
 } from '#features/kyc/application/dto/kyc.dto'
-import FileStorageService from '#shared/infrastructure/file_storage_service'
+import FileStorageService from '#shared/infrastructure/services/file_storage_service'
 import { KycDocumentNextAction, KycDocumentStatus } from '#features/kyc/domain/enum/kyc_enum'
 import KycDocument from '#features/kyc/domain/models/kyc_document'
 import KycDocumentSubmitted from '#features/kyc/application/events/kyc_document_submitted'

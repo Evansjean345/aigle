@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import WalletService from '#features/wallet/application/services/wallet_service'
-import { UpdateWalletStatusCommand } from '#features/wallet/application/dtos/admin/update_wallet_status.command'
+import { type UpdateWalletStatusCommand } from '#features/wallet/application/dtos/admin/admin_wallet.dto'
 import Wallet from '#features/wallet/domain/models/wallet'
 
 @inject()

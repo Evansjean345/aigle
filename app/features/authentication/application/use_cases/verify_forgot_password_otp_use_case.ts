@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import OtpService from '#features/authentication/application/services/otp_service'
+import OtpVerificationService from '#features/otp/application/services/otp_verification_service'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import ResetPasswordTokenProvider from '#features/authentication/domain/interfaces/reset_password_token_provider'
@@ -16,13 +16,13 @@ export default class VerifyForgotPasswordOtpUseCase {
    * Constructs an instance of the class with the required dependencies.
    *
    * @param {UserRepository} userRepository - The repository used for managing user data.
-   * @param {OtpService} otpService - The service used for generating and validating OTPs.
+   * @param otpVerificationService
    * @param {CountryRepository} countryRepository - The repository used for accessing country-specific data.
    * @param {ResetPasswordTokenProvider} resetPasswordTokenProvider - The provider used for managing reset password tokens.
    */
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly otpService: OtpService,
+    private readonly otpVerificationService: OtpVerificationService,
     private readonly countryRepository: CountryRepository,
     private readonly resetPasswordTokenProvider: ResetPasswordTokenProvider
   ) {}
@@ -47,11 +47,11 @@ export default class VerifyForgotPasswordOtpUseCase {
     }
 
     if (!this.shouldBypassOtpVerification(user)) {
-      await this.otpService.verifyOtp({ identifier: user.phone, enteredOtp: payload.otp })
+      await this.otpVerificationService.verify({ identifier: user.phone, enteredOtp: payload.otp })
     }
 
     const resetToken = randomUUID()
-    await this.resetPasswordTokenProvider.store(user.phone, resetToken, 30) // 30 seconds TTL
+    await this.resetPasswordTokenProvider.store(user.phone, resetToken, 600) // 10 seconds TTL
 
     return { reset_token: resetToken }
   }

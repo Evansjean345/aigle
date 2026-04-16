@@ -1,5 +1,5 @@
 import { ApplicationService } from '@adonisjs/core/types'
-import GeoIpService from '#shared/infrastructure/geoip_service'
+import GeoIpService from '#shared/infrastructure/services/geoip_service'
 
 export default class AppProvider {
   constructor(protected app: ApplicationService) {}

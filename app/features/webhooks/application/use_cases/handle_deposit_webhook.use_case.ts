@@ -82,10 +82,22 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
 
       switch (status) {
         case TransactionStatus.SUCCESS:
-          await this.processSuccessfulDeposit(transaction, payment, wallet, operatorResponse, trx)
+          await this.processSuccessfulDeposit(
+            transaction,
+            payment,
+            wallet,
+            operatorResponse.operatorResponse,
+            trx
+          )
           break
         case TransactionStatus.FAILED:
-          await this.processFailedDeposit(transaction, payment, operatorResponse, trx)
+          await this.processFailedDeposit(
+            transaction,
+            payment,
+            operatorResponse.operatorResponse,
+            trx,
+            operatorResponse.error
+          )
           break
         default:
           paymentLog.warn(
@@ -164,6 +176,19 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
     })
 
     emitter.emit('activity:transaction-log', {
+      event: 'LEDGER_ENTRY_CREATED',
+      transactionId: transaction.reference,
+      walletId: String(wallet.id),
+      direction: 'credit',
+      amountBrut: Number(transaction.totalAmount),
+      fees: Number(transaction.fees),
+      totalAmount: creditAmount,
+      balanceBefore: Number(wallet.balance),
+      balanceAfter: updatedWallet.balance!,
+      operationType: transaction.operationType,
+    })
+
+    emitter.emit('activity:transaction-log', {
       event: 'SUCCESS',
       transactionId: transaction.reference,
     })
@@ -189,13 +214,15 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
    * @param {Payment} payment - The payment object associated with the failed deposit.
    * @param {any} operatorResponse - The response received from the payment operator.
    * @param {TransactionClientContract} trx - The transaction client contract used for database operations.
+   * @param error
    * @return {Promise<void>} A promise that resolves once the failed deposit has been fully processed.
    */
   private async processFailedDeposit(
     transaction: Transaction,
     payment: Payment,
     operatorResponse: any,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    error?: any
   ): Promise<void> {
     paymentLog.info(
       'DEPOSIT_FAILURE_PROCESSING',
@@ -204,7 +231,7 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
     )
 
     await this.safeMarkTransactionFailed(transaction.id, trx)
-    await this.safeMarkPaymentFailed(payment.id, operatorResponse, trx)
+    await this.safeMarkPaymentFailed(payment.id, operatorResponse, trx, error)
 
     emitter.emit('activity:transaction-log', {
       event: 'FAILED',

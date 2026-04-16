@@ -3,7 +3,7 @@ import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import WalletRepository, {
   AdjustedBalance,
 } from '#features/wallet/domain/interfaces/wallet_repository'
-import { WalletStatus } from '#features/wallet/domain/enum/wallet_status'
+import { WalletStatus } from '#features/wallet/domain/enums/wallet_status'
 
 /**
  * Implementation of the `WalletRepository` interface, providing
@@ -51,6 +51,14 @@ export default class WalletRepositoryImpl implements WalletRepository {
    * @param trx - Optional transaction client to perform the operation within a transaction.
    * @return {Promise<Wallet | null>} A promise that resolves to the wallet associated with the given user ID, or null if no wallet is found.
    */
+  async findById(id: number, trx?: TransactionClientContract): Promise<Wallet | null> {
+    const query = Wallet.query({ client: trx }).where('id', id)
+    if (trx) {
+      query.forUpdate()
+    }
+    return await query.first()
+  }
+
   async findByUserId(userId: string, trx?: TransactionClientContract): Promise<Wallet | null> {
     const query = Wallet.query({ client: trx }).where('userId', userId)
 

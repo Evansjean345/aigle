@@ -1,47 +1,92 @@
-import DeviceRepository from '#features/device/domain/interfaces/device_repository'
+import type DeviceRepository from '#features/device/domain/interfaces/device_repository'
 import Device from '#features/device/domain/models/device'
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 
-/**
- * DeviceRepositoryImpl is an implementation of the DeviceRepository interface.
- * It provides methods to interact with the database for operations related to device entities.
- */
 export default class DeviceRepositoryImpl implements DeviceRepository {
-  /**
-   * Finds a device by its ID.
-   *
-   * @param {string} deviceId - The unique identifier of the device to be retrieved.
-   * @return {Promise<Device | null>} A promise that resolves to the device, or null if not found.
-   */
+  async findAllPaginated(filters: {
+    minAccounts?: number
+    isEmulator?: boolean
+    isRooted?: boolean
+    hasVpn?: boolean
+    platform?: string
+    search?: string
+    sortBy: string
+    order: string
+    page: number
+    perPage: number
+  }) {
+    const query = Device.query()
+      .select('devices.*')
+      .withCount('sessions', (q) => q.as('account_count'))
+      .withAggregate('sessions', (q) => q.max('last_seen_at').as('last_activity'))
+
+    // Filtres sur le device hardware
+    if (filters.isEmulator !== undefined) {
+      query.where('isEmulator', filters.isEmulator)
+    }
+    if (filters.isRooted !== undefined) {
+      query.where('isRooted', filters.isRooted)
+    }
+    if (filters.platform) {
+      query.where('platform', filters.platform)
+    }
+    if (filters.search) {
+      const term = `%${filters.search}%`
+      query.where((q) => {
+        q.whereILike('fingerprintHash', term)
+          .orWhereILike('deviceUid', term)
+          .orWhereILike('brand', term)
+          .orWhereILike('model', term)
+      })
+    }
+
+    // Filtre hasVpn : device ayant au moins une association avec isVpn = true
+    if (filters.hasVpn === true) {
+      query.whereHas('sessions', (q) => {
+        q.where('isVpn', true)
+      })
+    }
+
+    // Filtre minAccounts : exclure les devices avec moins de N comptes actifs
+    if (filters.minAccounts !== undefined && filters.minAccounts > 0) {
+      query.whereHas(
+        'sessions',
+        (q) => {
+          q.whereNull('unlinkedAt')
+        },
+        '>=',
+        filters.minAccounts
+      )
+    }
+
+    // Tri
+    const sortColumn =
+      filters.sortBy === 'accountCount'
+        ? 'account_count'
+        : filters.sortBy === 'lastSeenAt'
+          ? 'last_activity'
+          : 'created_at'
+    const sortOrder = filters.order as 'asc' | 'desc'
+    query.orderBy(sortColumn, sortOrder)
+
+    const result = await query.paginate(filters.page, filters.perPage)
+    const serialized = result.toJSON()
+
+    return {
+      data: result.all(),
+      meta: {
+        total: serialized.meta.total as number,
+        page: serialized.meta.currentPage as number,
+        perPage: serialized.meta.perPage as number,
+        lastPage: serialized.meta.lastPage as number,
+      },
+    }
+  }
+
   findById(deviceId: string): Promise<Device | null> {
     return Device.find(deviceId)
   }
 
-  /**
-   * Finds a device associated with the specified userId.
-   *
-   * @param {string} userId - The unique identifier of the user whose device is to be retrieved.
-   * @return {Promise<Device | null>} A promise that resolves to the device associated with the given userId, or null if no device is found.
-   */
-  findByUserId(userId: string): Promise<Device | null> {
-    return Device.findBy('userId', userId)
-  }
-
-  /**
-   * Retrieves a list of devices associated with a specific user based on their user ID.
-   *
-   * @param {string} userId - The unique identifier of the user whose devices need to be fetched.
-   * @return {Promise<Device[]>} A promise that resolves to an array of Device objects associated with the given user ID.
-   */
-  getDevicesByUserId(userId: string): Promise<Device[]> {
-    return Device.query().where('userId', userId)
-  }
-
-  /**
-   * Save a device entity to the database, optionally within a transaction context.
-   * @param device
-   * @param trx
-   */
   async save(device: Device, trx?: TransactionClientContract) {
     if (trx) {
       return await device.useTransaction(trx).save()
@@ -50,98 +95,21 @@ export default class DeviceRepositoryImpl implements DeviceRepository {
     return await device.save()
   }
 
-  /**
-   * Atomically finds a device by fingerprint hash and updates it, or creates a new one.
-   * Uses Lucid's updateOrCreate which translates to a single atomic DB operation,
-   * preventing race conditions when combined with the UNIQUE constraint on fingerprint_hash.
-   *
-   * @param {string} fingerprintHash - The fingerprint hash to search for.
-   * @param {Partial<Device>} payload - The data to update or create with.
-   * @return {Promise<Device>} The device and whether it was newly created.
-   */
   async updateOrCreateByFingerprintHash(
     fingerprintHash: string,
     payload: Partial<Device>
   ): Promise<Device> {
-    return await Device.updateOrCreate(
-      { fingerprintHash }, // search key
-      payload // data to update or create
-    )
+    return await Device.updateOrCreate({ fingerprintHash }, payload)
   }
 
-  /**
-   * Finds a device by the provided fingerprint hash.
-   *
-   * @param {string} fingerprintHash - The fingerprint hash associated with the device to be retrieved.
-   * @return {Promise<Device | null>} A promise that resolves to the device if found, or null if no device is associated with the given fingerprint hash.
-   */
   async findByFingerprintHash(fingerprintHash: string): Promise<Device | null> {
     return Device.findBy('fingerprintHash', fingerprintHash)
   }
 
-  /**
-   * Finds a device by the provided device UID.
-   *
-   * @param {string} deviceUid - The device UID associated with the device to be retrieved.
-   * @return {Promise<Device | null>} A promise that resolves to the device if found, or null if no device is associated with the given device UID.
-   */
   async findByDeviceUid(deviceUid: string): Promise<Device | null> {
     return Device.findBy('deviceUid', deviceUid)
   }
 
-  /**
-   * Counts the number of devices associated with a specific user and having specific statuses.
-   *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {string[]} statuses - An array of statuses to filter by.
-   * @return {Promise<number>} A promise that resolves to the count of devices.
-   */
-  async countDevicesByStatus(userId: string, statuses: string[]): Promise<number> {
-    const result = await Device.query()
-      .where('userId', userId)
-      .whereIn('status', statuses)
-      .count('* as total')
-
-    return Number(result[0].$extras.total)
-  }
-
-  /**
-   * Finds a device by user ID, fingerprint hash, and device UID.
-   *
-   * @param {string} userId
-   * @param {string} fingerprintHash
-   * @param {string} deviceUid
-   * @return {Promise<Device | null>}
-   */
-  async findByUserAndDeviceIdentifiers(
-    userId: string,
-    fingerprintHash: string,
-    deviceUid: string
-  ): Promise<Device | null> {
-    return Device.query()
-      .where('userId', userId)
-      .where('fingerprintHash', fingerprintHash)
-      .where('deviceUid', deviceUid)
-      .first()
-  }
-
-  /**
-   * Counts the total number of devices associated with a specific user.
-   *
-   * @param {string} userId - The unique identifier of the user.
-   * @return {Promise<number>} A promise that resolves to the count of devices.
-   */
-  async countByUserId(userId: string): Promise<number> {
-    const result = await Device.query().where('userId', userId).count('* as total')
-    return Number(result[0].$extras.total)
-  }
-
-  /**
-   * Deletes a device entity from the database.
-   *
-   * @param {Device} device - The device entity to be deleted.
-   * @return {Promise<void>} A promise that resolves when the device has been successfully deleted.
-   */
   async deleteDevice(device: Device): Promise<void> {
     await device.delete()
   }

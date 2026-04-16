@@ -1,6 +1,6 @@
 import { Job } from '@adonisjs/queue'
 import env from '#start/env'
-import HttpClient from '#shared/infrastructure/http_client_service'
+import HttpClient from '#shared/infrastructure/services/http_client_service'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import { maskPhone } from '#shared/utils/utiles'
@@ -64,7 +64,6 @@ export default class InitiateInterTransferSecondStepJob extends Job<InitiateInte
         },
         'Second inter-transfer step initiated via job'
       )
-
     } catch (err) {
       errorLog.error(
         'INTER_TRANSFER_SECOND_INIT_FAILED',
@@ -79,22 +78,24 @@ export default class InitiateInterTransferSecondStepJob extends Job<InitiateInte
     }
   }
 
-  private async handleFailure(
-    payload: InitiateInterTransferSecondStepPayload
-  ): Promise<void> {
+  private async handleFailure(payload: InitiateInterTransferSecondStepPayload): Promise<void> {
     const failureHandler = await app.container.make(TransactionFailureHandler)
 
     await failureHandler.handle({
       transactionId: payload.transactionId,
       transactionReference: payload.transactionReference,
-      webhookEvent: 'TransfertInterTransactionFailed',
-      webhookData: {
-        reference: payload.transactionReference,
-        amount: payload.totalAmount,
-        beneficiaryPhone: payload.phone,
-      },
-      paymentId: payload.secondPaymentId,
       logCode: 'INTER_TRANSFER_SECOND_STEP',
+      notification: {
+        webhookEvent: 'TransfertInterTransactionFailed',
+        webhookData: {
+          reference: payload.transactionReference,
+          amount: payload.totalAmount,
+          beneficiaryPhone: payload.phone,
+        },
+      },
+      payment: {
+        paymentId: payload.secondPaymentId,
+      },
     })
   }
 
@@ -107,7 +108,7 @@ export default class InitiateInterTransferSecondStepJob extends Job<InitiateInte
         transactionId: payload.transactionId,
         error: error.message,
       },
-      'Inter-transfer second step job failed after all retries'
+      'Inter-transfer second step job failed'
     )
 
     await this.handleFailure(payload)

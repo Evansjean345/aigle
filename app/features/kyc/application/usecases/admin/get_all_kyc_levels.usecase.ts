@@ -1,4 +1,4 @@
-import KycLevelRepository from '#features/kyc/domain/imterfaces/kyc_level_repository'
+import KycLevelRepository from '#features/kyc/domain/interfaces/kyc_level_repository'
 import { inject } from '@adonisjs/core'
 import { KycLevelResponseDto } from '#features/kyc/application/dto/kyc_level.dto'
 
@@ -11,16 +11,6 @@ export default class GetAllKycLevelsUseCase {
    */
   async execute(): Promise<KycLevelResponseDto[]> {
     const kycLevels = await this.kycLevelRepository.findAll()
-    return kycLevels.map((level) => ({
-      id: level.id,
-      level: level.level,
-      singleLimit: level.singleLimit,
-      dailyLimit: level.dailyLimit,
-      monthlyLimit: level.monthlyLimit,
-      balanceLimit: level.balanceLimit,
-      isActive: level.isActive,
-      createdAt: level.createdAt?.toISO() || '',
-      updatedAt: level.updatedAt?.toISO() || '',
-    }))
+    return kycLevels.map(KycLevelResponseDto.fromKycLevel)
   }
 }

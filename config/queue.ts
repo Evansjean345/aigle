@@ -5,7 +5,7 @@ export default defineConfig({
   default: env.get('QUEUE_DRIVER', 'redis'),
   adapters: {
     redis: drivers.redis({
-      connectionName: 'main',
+      connectionName: 'queue',
     }),
     sync: drivers.sync(),
   },

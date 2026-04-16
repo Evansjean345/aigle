@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import ProcessKycDocumentUseCase from '#features/kyc/application/usecases/admin/process_kyc_document.usecase'
-import KycDocumentRepository from '#features/kyc/domain/imterfaces/kyc_document_repository'
+import KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
 import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
 import KycDocument from '#features/kyc/domain/models/kyc_document'
 import KycDocumentNotFoundException from '#features/kyc/infrastructure/exceptions/kyc_document_not_found_exception'

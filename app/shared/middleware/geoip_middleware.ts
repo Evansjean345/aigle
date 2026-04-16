@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import app from '@adonisjs/core/services/app'
-import type { GeoIpLocation } from '#shared/infrastructure/geoip_service'
+import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 declare module '@adonisjs/core/http' {
   // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -21,7 +21,7 @@ export default class GeoIpMiddleware {
    */
   async handle(ctx: HttpContext, next: NextFn): Promise<void> {
     const geoIpService = await app.container.make('GeoIpService')
-    const ip = ctx.request.header('X-Ip-Test') || ctx.request.ip()
+    const ip = ctx.request.ip()
 
     ctx.geoLocation = await geoIpService.getLocation(ip)
 

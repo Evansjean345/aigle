@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import User from '#features/users/domain/models/user'
+import User from '#features/user/domain/models/user'
 import Wallet from '#features/wallet/domain/models/wallet'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
@@ -83,7 +83,6 @@ export default class WalletTransferContextService {
     )
 
     await recipientWallet.load('user')
-
     const amountRaw = this.parseAndValidateAmount(payload.amount)
 
     const { amount, fees, total } = await this.feeCalculatorService.calculateForService(

@@ -57,7 +57,7 @@ export default class TransactionsController {
       userId,
     })
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'TRANSACTIONS',
       eventAction: 'READ_TRANSACTIONS',
       actorId: auth.user?.id ?? null,
@@ -90,7 +90,7 @@ export default class TransactionsController {
 
       const transaction = await this.getTransactionDetailsUseCase.execute(reference, { loadLedger })
 
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'TRANSACTIONS',
         eventAction: 'VIEW_TRANSACTION_DETAILS',
         actorId: auth.user?.id ?? null,
@@ -106,7 +106,7 @@ export default class TransactionsController {
 
       return response.ok(transaction)
     } catch (error) {
-      await emitter.emit('activity:audit', {
+      emitter.emit('activity:audit', {
         eventCategory: 'TRANSACTIONS',
         eventAction: 'VIEW_TRANSACTION_DETAILS',
         actorId: auth.user?.id ?? null,
@@ -164,7 +164,7 @@ export default class TransactionsController {
       userId: id,
     })
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'TRANSACTIONS',
       eventAction: 'READ_USER_TRANSACTIONS',
       actorId: auth.user?.id ?? null,
@@ -194,7 +194,7 @@ export default class TransactionsController {
     const endDate = request.input('endDate')
     const stats = await this.getGlobalTransactionsStatsUseCase.execute(startDate, endDate)
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'TRANSACTIONS',
       eventAction: 'READ_GLOBAL_STATS',
       actorId: auth.user?.id ?? null,
@@ -232,7 +232,7 @@ export default class TransactionsController {
     const endDate = request.input('endDate')
     const stats = await this.getUserTransactionsStatsUseCase.execute(id, startDate, endDate)
 
-    await emitter.emit('activity:audit', {
+    emitter.emit('activity:audit', {
       eventCategory: 'TRANSACTIONS',
       eventAction: 'READ_USER_STATS',
       actorId: auth.user?.id ?? null,

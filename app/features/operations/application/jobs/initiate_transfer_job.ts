@@ -3,7 +3,7 @@ import errorLog from '#shared/infrastructure/logging/error_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import env from '#start/env'
 import app from '@adonisjs/core/services/app'
-import HttpClient from '#shared/infrastructure/http_client_service'
+import HttpClient from '#shared/infrastructure/services/http_client_service'
 import { maskPhone } from '#shared/utils/utiles'
 import TransactionFailureHandler from '#features/transactions/application/services/transaction_failure_handler'
 import emitter from '@adonisjs/core/services/emitter'
@@ -72,6 +72,7 @@ export default class InitiateTransferJob extends Job<InitiateTransferPayload> {
           { reference: transactionReference, error: result.error },
           'External transfer API call failed'
         )
+
         await this.handleFailure(payload)
         return
       }
@@ -105,41 +106,16 @@ export default class InitiateTransferJob extends Job<InitiateTransferPayload> {
     await failureHandler.handle({
       transactionId: payload.transactionId,
       transactionReference: payload.transactionReference,
-      webhookEvent: 'TransfertTransactionFailed',
-      webhookData: {
-        reference: payload.transactionReference,
-        amount: payload.totalAmount,
-        beneficiaryPhone: payload.phone,
-      },
-      compensation: {
-        walletId: payload.walletId,
-        amount: payload.amount,
-      },
       logCode: 'TRANSFER',
-    })
-  }
-
-  async failed(error: Error): Promise<void> {
-    const payload = this.payload
-
-    emitter
-      .emit('activity:transaction-log', {
-        event: 'RETRY',
-        transactionId: payload.transactionReference,
-        attempt: this.context.attempt,
-      })
-      .catch((_) => {})
-
-    errorLog.error(
-      'TRANSFER_JOB_EXHAUSTED',
-      {
-        reference: payload.transactionReference,
-        transactionId: payload.transactionId,
-        error: error.message,
+      walletId: payload.walletId,
+      notification: {
+        webhookEvent: 'TransfertTransactionFailed',
+        webhookData: {
+          reference: payload.transactionReference,
+          amount: payload.totalAmount,
+          beneficiaryPhone: payload.phone,
+        },
       },
-      'Transfer job failed after all retries'
-    )
-
-    await this.handleFailure(payload)
+    })
   }
 }

@@ -48,13 +48,15 @@ const OnWalletStatusChangedNotification = () =>
 const HandleTransactionFailure = () =>
   import('#features/transactions/application/listeners/handle_transaction_failure')
 
-import { AuditRecordInput } from '#shared/infrastructure/logging/audit_service'
-import { TransactionLogEventData } from '#features/transactions/application/types/transaction_log_event_data'
+import { type AuditRecordInput } from '#shared/infrastructure/logging/audit_service'
+import { type TransactionLogEventData } from '#features/transactions/application/types/transaction_log_event_data'
+import { type AdminProviderErrorAlertEvent } from '#features/notifications/domain/events/admin_alert_events'
 
 declare module '@adonisjs/core/types' {
   interface EventsList {
     'activity:audit': AuditRecordInput
     'activity:transaction-log': TransactionLogEventData
+    'alert:provider-error': AdminProviderErrorAlertEvent
   }
 }
 
@@ -85,5 +87,9 @@ emitter.listen(TransfertInterTransactionFailed, [HandleTransactionFailure])
 const TransactionLogListener = () =>
   import('#features/transactions/application/listeners/transaction_log_listener')
 
+const OnProviderErrorAlert = () =>
+  import('#features/notifications/application/listeners/on_provider_error_alert')
+
 emitter.on('activity:audit', [AuditListener])
 emitter.on('activity:transaction-log', [TransactionLogListener])
+emitter.on('alert:provider-error', [OnProviderErrorAlert])

@@ -149,7 +149,11 @@ export default class HandleTransfertInterSecondWebhookUseCase extends BaseWebhoo
     trx: TransactionClientContract
   ): Promise<void> {
     if (status === TransactionStatus.SUCCESS) {
-      await this.safeMarkPaymentSuccess(secondPayment.id, operatorResponse, trx)
+      await this.safeMarkPaymentSuccess(
+        secondPayment.id,
+        operatorResponse.operatorResponse,
+        trx
+      )
       await this.safeMarkTransactionSuccess(transaction.id, wallet.balance, trx)
 
       await this.ledgerService.recordExternalTransfer(
@@ -159,6 +163,19 @@ export default class HandleTransfertInterSecondWebhookUseCase extends BaseWebhoo
         wallet.balance,
         trx
       )
+
+      emitter.emit('activity:transaction-log', {
+        event: 'LEDGER_ENTRY_CREATED',
+        transactionId: transaction.reference,
+        walletId: String(wallet.id),
+        direction: 'external',
+        amountBrut: Number(transaction.totalAmount),
+        fees: Number(transaction.fees),
+        totalAmount: Number(transaction.totalAmount),
+        balanceBefore: Number(wallet.balance),
+        balanceAfter: Number(wallet.balance),
+        operationType: transaction.operationType,
+      })
 
       emitter.emit('activity:transaction-log', {
         event: 'SUCCESS',
@@ -177,7 +194,12 @@ export default class HandleTransfertInterSecondWebhookUseCase extends BaseWebhoo
         'Marking second payment and transaction as failed'
       )
 
-      await this.safeMarkPaymentFailed(secondPayment.id, operatorResponse, trx)
+      await this.safeMarkPaymentFailed(
+        secondPayment.id,
+        operatorResponse.operatorResponse,
+        trx,
+        operatorResponse.error
+      )
       await this.safeMarkTransactionFailed(transaction.id, trx)
 
       emitter.emit('activity:transaction-log', {

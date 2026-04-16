@@ -1,24 +1,36 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
+import emitter from '@adonisjs/core/services/emitter'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
-import WalletService from '#features/wallet/application/services/wallet_service'
+import RefundService from '#features/transactions/application/services/refund_service'
 import DispatchWebhookEventJob from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
 import type { WebhookEventName } from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
+import ProviderErrorService from '#shared/infrastructure/services/provider_error_service'
+import type { ClassifiedError } from '#shared/infrastructure/services/error_classifier'
+import { ErrorSeverity, ErrorCategory, AdminAction } from '#shared/enums/provider_error_enums'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
+import TransactionAlreadyFailedException from '#features/transactions/infrastructure/exceptions/transaction_already_failed_exception'
+import TransactionAlreadyRefundedException from '#features/transactions/infrastructure/exceptions/transaction_already_refunded_exception'
+import PaymentAlreadyFailedException from '#features/transactions/infrastructure/exceptions/payment_already_failed_exception'
+import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 export interface TransactionFailureOptions {
   transactionId: number
   transactionReference: string
-  webhookEvent: WebhookEventName
-  webhookData: Record<string, any>
-  compensation?: {
-    walletId: number
-    amount: number
-  }
-  paymentId?: number
   logCode: string
+  walletId?: number
+  notification?: {
+    webhookEvent: WebhookEventName
+    webhookData: Record<string, any>
+  }
+  payment?: {
+    paymentId: number
+    providerErrorCode?: string
+    classifiedError?: ClassifiedError
+    operatorResponse?: any
+  }
 }
 
 @inject()
@@ -26,99 +38,190 @@ export default class TransactionFailureHandler {
   constructor(
     private readonly transactionService: TransactionService,
     private readonly paymentService: PaymentService,
-    private readonly walletService: WalletService
+    private readonly refundService: RefundService
   ) {}
 
-  /**
-   * Handles a failed transaction by updating relevant records, triggering compensations if applicable,
-   * and dispatching events to notify the concerned parties. Rolls back changes in case of an error
-   * and logs the failure for manual intervention if necessary.
-   *
-   * @param {TransactionFailureOptions} options - The options required to handle the transaction failure.
-   * @param {string} options.transactionId - The unique identifier of the transaction to be marked as failed.
-   * @param {string} options.transactionReference - The reference identifier associated with the transaction.
-   * @param {string} options.logCode - A code used for logging purposes.
-   * @param {Object} [options.compensation] - An optional object containing compensation details.
-   * @param {string} options.compensation.walletId - The wallet ID to credit as part of compensation.
-   * @param {number} options.compensation.amount - The compensation amount to be credited.
-   * @param {string} [options.paymentId] - The unique identifier of the payment to be marked as failed.
-   * @param {string} options.webhookEvent - The webhook event name to be dispatched.
-   * @param {Object} options.webhookData - Additional data to include when dispatching the webhook event.
-   *
-   * @return {Promise<void>} Resolves once the transaction failure has been successfully handled.
-   * @throws Will throw an error if the transaction failure handling encounters an issue.
-   */
   async handle(options: TransactionFailureOptions): Promise<void> {
     const { transactionId, transactionReference, logCode } = options
-
     const trx = await db.transaction()
 
     try {
-      if (options.compensation) {
-        await this.walletService.creditBalance(
-          options.compensation.walletId,
-          options.compensation.amount,
-          trx
-        )
-      }
-
-      const transaction = await this.transactionService.markFailed(transactionId, trx)
-
-      if (options.paymentId) {
-        await this.paymentService.markFailed(options.paymentId, {}, trx)
-      }
-
+      const usersUid = await this.resolveFailure(options, trx)
+      await this.markPaymentFailed(options, trx)
       await trx.commit()
 
-      await DispatchWebhookEventJob.dispatch({
-        eventName: options.webhookEvent,
-        eventData: {
-          ...options.webhookData,
-          userId: transaction.usersUid,
-        },
-        reference: transactionReference,
-      })
+      await this.dispatchNotification(options, usersUid)
 
       paymentLog.info(
         `${logCode}_MARKED_FAILED`,
         { reference: transactionReference, transactionId },
-        'Transaction marked as failed and failure event dispatched'
+        'Transaction failure handled and event dispatched'
       )
-    } catch (markErr) {
-      if (!trx.isCompleted) await trx.rollback()
+    } catch (error) {
+      await this.safeRollback(trx)
+
+      if (this.isAlreadyHandled(error)) {
+        paymentLog.info(
+          `${logCode}_ALREADY_FAILED_SKIPPED`,
+          { reference: transactionReference, transactionId },
+          'Transaction or payment already failed, skipping handling'
+        )
+        return
+      }
 
       errorLog.error(
         `${logCode}_MARK_FAILED_CRITICAL`,
         {
           reference: transactionReference,
           transactionId,
-          error: markErr instanceof Error ? markErr.message : 'Unknown error',
+          error: this.extractMessage(error),
         },
         'CRITICAL: Failed to handle transaction failure - manual intervention required'
       )
 
-      await this.sendAdminAlert(options, markErr)
-      throw markErr
+      this.sendAdminAlert(options, error)
+      throw error
     }
   }
 
+  // ──────────────────────────────────────────────
+  //  Private helpers
+  // ──────────────────────────────────────────────
+
   /**
-   * Sends an administrative alert email in case of a transaction failure that requires manual intervention.
-   *
-   * @param {TransactionFailureOptions} options - Object containing details about the failed transaction, including a log code, reference, and transaction ID.
-   * @param {unknown} error - The error encountered during the transaction process. This could be an instance of `Error` or any unknown object.
-   * @return {void} No value is returned by this method.
+   * Either auto-reverses a debited wallet or simply marks the transaction FAILED.
+   * Returns the `usersUid` for downstream notification.
    */
+  private async resolveFailure(
+    options: TransactionFailureOptions,
+    trx: TransactionClientContract
+  ): Promise<string | null> {
+    const { transactionId, transactionReference, logCode, walletId } = options
+
+    if (walletId === undefined) {
+      const transaction = await this.transactionService.markFailed(transactionId, trx)
+      return transaction.usersUid
+    }
+
+    try {
+      const refund = await this.refundService.autoReversal(transactionId, walletId, trx)
+      paymentLog.info(
+        `${logCode}_AUTO_REVERSAL_DONE`,
+        { reference: transactionReference, transactionId, refundUid: refund.refundUid },
+        'Auto-reversal executed successfully'
+      )
+    } catch (err) {
+      if (!(err instanceof TransactionAlreadyRefundedException)) throw err
+
+      paymentLog.info(
+        `${logCode}_ALREADY_REFUNDED_SKIPPED`,
+        { reference: transactionReference, transactionId },
+        'Transaction already refunded, skipping auto-reversal'
+      )
+    }
+
+    // Single getById call regardless of reversal outcome
+    const tx = await this.transactionService.getById(transactionId, trx)
+    return tx.usersUid
+  }
+
+  private async markPaymentFailed(
+    options: TransactionFailureOptions,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    if (!options.payment) return
+
+    const { paymentId, providerErrorCode, classifiedError, operatorResponse } = options.payment
+
+    const definition = providerErrorCode
+      ? ProviderErrorService.resolve(providerErrorCode)
+      : classifiedError
+        ? this.classifiedErrorToDefinition(classifiedError)
+        : undefined
+
+    await this.paymentService.markFailed(paymentId, { definition, operatorResponse }, trx)
+  }
+
+  private async dispatchNotification(
+    options: TransactionFailureOptions,
+    usersUid: string | null
+  ): Promise<void> {
+    if (!options.notification) return
+
+    await DispatchWebhookEventJob.dispatch({
+      eventName: options.notification.webhookEvent,
+      eventData: {
+        ...options.notification.webhookData,
+        userId: usersUid,
+      },
+      reference: options.transactionReference,
+    })
+  }
+
+  private classifiedErrorToDefinition(classified: ClassifiedError) {
+    return {
+      code: 'HTTP_ERROR' as any,
+      category: classified.category,
+      isFinal: !classified.retryable,
+      adminAction: classified.adminAction,
+      userMessage:
+        'Une erreur technique est survenue. Veuillez réessayer plus tard ou contacter le support.',
+      adminMessage: classified.adminMessage,
+    }
+  }
+
+  private isAlreadyHandled(error: unknown): boolean {
+    return (
+      error instanceof TransactionAlreadyFailedException ||
+      error instanceof PaymentAlreadyFailedException
+    )
+  }
+
+  private async safeRollback(trx: TransactionClientContract): Promise<void> {
+    if (trx.isCompleted) return
+
+    try {
+      await trx.rollback()
+    } catch (rollbackErr) {
+      errorLog.error(
+        'TRX_ROLLBACK_FAILED',
+        { error: this.extractMessage(rollbackErr) },
+        'Failed to rollback transaction'
+      )
+    }
+  }
+
+  private extractMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error'
+  }
+
   private sendAdminAlert(options: TransactionFailureOptions, error: unknown): void {
-    // TODO: Send admin alert email
     errorLog.error(
       `${options.logCode}_ADMIN_ALERT`,
       {
         reference: options.transactionReference,
         transactionId: options.transactionId,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: this.extractMessage(error),
       },
       'ADMIN ALERT: Transaction failure handling failed - manual intervention required'
     )
+
+    emitter
+      .emit('alert:provider-error', {
+        severity: ErrorSeverity.AMBIGUOUS,
+        category: ErrorCategory.INTERNAL,
+        adminAction: AdminAction.ESCALATE,
+        adminMessage:
+          "Echec critique lors du traitement d'une transaction échouée. Intervention manuelle requise.",
+        errorCode: 'FAILURE_HANDLER_ERROR',
+        transactionReference: options.transactionReference,
+        provider: 'internal',
+        context: {
+          transactionId: options.transactionId,
+          logCode: options.logCode,
+          error: this.extractMessage(error),
+        },
+      })
+      .catch(() => {})
   }
 }
