@@ -19,7 +19,8 @@ yarn-error.log
 logs
 
 docker-compose.yml
-Dockerfile
+monitoring
+docs
 
 *.sql
 *.md
@@ -29,12 +30,14 @@ insert_tables.sql
 
 country.json
 
-m
 # Editors specific
 .fleet
 .idea
 .vscode
 .claude
+.junie
+.adonisjs
+geo-database.rar
 
 # Platform specific
 .DS_Store
