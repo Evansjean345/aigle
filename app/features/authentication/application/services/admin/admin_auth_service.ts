@@ -1,17 +1,24 @@
 import Admin from '#features/team/domain/models/admin'
-import { AccessToken } from '@adonisjs/auth/access_tokens'
+import { type AccessToken } from '@adonisjs/auth/access_tokens'
 import { Exception } from '@adonisjs/core/exceptions'
-import { Token } from '#features/authentication/application/use_cases/admin/admin_login_use_case'
+import { inject } from '@adonisjs/core'
+import { type Token } from '#features/authentication/application/use_cases/admin/admin_login_use_case'
 import AdminNotFoundException from '#features/team/infrastructure/exceptions/admin_not_found_exception'
+import AdminAccountBlockedException from '#features/team/infrastructure/exceptions/admin_account_blocked_exception'
+import AdminTemporarilyBlockedException from '#features/team/infrastructure/exceptions/admin_temporarily_blocked_exception'
 import { DateTime } from 'luxon'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
+import AdminAttemptGuard from '#features/authentication/application/services/admin/admin_attempt_guard'
 
 /**
  * Provides authentication services for admin users, including token generation
  * and token formatting.
  */
+@inject()
 export default class AdminAuthService {
+  constructor(private readonly attemptGuard: AdminAttemptGuard) {}
+
   /**
    * Performs the complete login process for an admin user.
    *
@@ -27,7 +34,12 @@ export default class AdminAuthService {
     requestIp: string
   ): Promise<{ admin: Admin; tokens: { access: AccessToken; refresh: AccessToken } }> {
     try {
+      await this.attemptGuard.assertNotBlocked(email)
       const admin = await this.verifyCredentials(email, password)
+
+      await this.attemptGuard.assertAdminActive(admin)
+      await this.attemptGuard.recordSuccess(email)
+
       const tokens = await this.generateTokens(admin)
 
       admin.lastLoginAt = DateTime.now()
@@ -35,36 +47,55 @@ export default class AdminAuthService {
 
       await admin.save()
 
-      emitter.emit('activity:audit', {
-        eventCategory: 'AUTH',
-        eventAction: 'LOGIN_SUCCESS',
-        actorId: String(admin.id),
-        actorType: 'Admin',
-        actorRole: admin.role.name,
-        targetType: 'Member',
-        targetId: String(admin.id),
-        result: AuditResult.SUCCESS,
-        metadata: { ip: requestIp },
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'LOGIN_SUCCESS',
+          actorId: String(admin.id),
+          actorType: 'Admin',
+          actorRole: admin.role.name,
+          targetType: 'Member',
+          targetId: String(admin.id),
+          result: AuditResult.SUCCESS,
+          ipAddress: requestIp,
+          metadata: { ip: requestIp },
+        })
+        .catch(() => {})
 
       return { admin, tokens }
     } catch (error) {
-      emitter.emit('activity:audit', {
-        eventCategory: 'AUTH',
-        eventAction: 'LOGIN_FAILED',
-        actorId: null,
-        actorType: 'Admin',
-        actorRole: null,
-        initiatedByType: 'Admin',
-        initiatedById: null,
-        targetType: 'Member',
-        targetId: null,
-        result: AuditResult.FAILURE,
-        ipAddress: requestIp,
-        metadata: { email },
-        errorCode: 'INVALID_CREDENTIALS',
-        errorMessage: (error as Error)?.message ?? 'Login failed',
-      })
+      const isBlockError =
+        error instanceof AdminTemporarilyBlockedException ||
+        error instanceof AdminAccountBlockedException
+
+      if (error instanceof AdminNotFoundException) {
+        await this.attemptGuard.recordFailure(email, requestIp)
+      }
+
+      const blockedCode =
+        (error as AdminTemporarilyBlockedException | AdminAccountBlockedException)?.code ??
+        'BLOCKED'
+      const errorCode = isBlockError ? blockedCode : 'INVALID_CREDENTIALS'
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'LOGIN_FAILED',
+          actorId: email,
+          actorType: 'Admin',
+          actorRole: null,
+          initiatedByType: 'Admin',
+          initiatedById: null,
+          targetType: 'Member',
+          targetId: null,
+          result: AuditResult.FAILURE,
+          ipAddress: requestIp,
+          metadata: { email },
+          errorCode,
+          errorMessage: (error as Error)?.message ?? 'Login failed',
+        })
+        .catch(() => {})
+
       throw error
     }
   }

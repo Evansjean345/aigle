@@ -21,9 +21,11 @@ services:
     restart: always
     ports:
       - "6378:6379"
+    environment:
+      - REDIS_PASSWORD=Rolanddev@1995
     volumes:
       - aiglesend_redis_data:/data/
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass Rolanddev@1995
     networks:
       - aiglesend-network
 

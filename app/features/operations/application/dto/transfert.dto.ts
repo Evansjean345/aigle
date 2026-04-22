@@ -16,11 +16,15 @@ export class TransfertRequestDto {
   declare include_fees?: boolean
   declare deviceInfo: DeviceHeadersInfo
   declare geoIpLocation: GeoIpLocation
+  declare ipAddress?: string | null
+  declare userAgent?: string | null
+  declare requestId?: string | null
 
   static fromRequest(
     payload: TransfertValidator,
     deviceInfos?: DeviceHeadersInfo,
-    geoIpLocation?: GeoIpLocation
+    geoIpLocation?: GeoIpLocation,
+    context?: { ipAddress?: string | null; userAgent?: string | null; requestId?: string | null }
   ): TransfertRequestDto {
     const dto = new TransfertRequestDto()
 
@@ -49,6 +53,9 @@ export class TransfertRequestDto {
     dto.include_fees = payload.include_fees
     dto.deviceInfo = deviceInfos
     dto.geoIpLocation = geoIpLocation
+    dto.ipAddress = context?.ipAddress ?? geoIpLocation?.ip ?? null
+    dto.userAgent = context?.userAgent ?? null
+    dto.requestId = context?.requestId ?? null
     return dto
   }
 }

@@ -5,6 +5,9 @@ import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_r
 import OtpVerificationService from '#features/otp/application/services/otp_verification_service'
 import { normalizePhone } from '#shared/utils/utiles'
 import securityLog from '#shared/infrastructure/logging/security_log'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
+import type { AuditContext } from '#features/user/application/use_cases/add_debit_phone.usecase'
 
 @inject()
 export default class VerifyDebitPhoneUseCase {
@@ -28,7 +31,12 @@ export default class VerifyDebitPhoneUseCase {
    * @return {Promise<{ message: string }>} A promise that resolves with a message confirming the successful verification of the phone number.
    * @throws {Exception} Throws an exception if the phone number is not registered or if the OTP verification fails.
    */
-  async execute(userId: string, phone: string, otpCode: string): Promise<{ message: string }> {
+  async execute(
+    userId: string,
+    phone: string,
+    otpCode: string,
+    auditContext?: AuditContext
+  ): Promise<{ message: string }> {
     const normalizedPhone = normalizePhone(phone)
     const debitPhone = await this.debitPhoneRepository.findByUserAndPhone(userId, normalizedPhone)
 
@@ -61,6 +69,22 @@ export default class VerifyDebitPhoneUseCase {
       { userId, phone: normalizedPhone },
       'Numéro débiteur vérifié avec succès'
     )
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'USER_SECURITY',
+        eventAction: 'DEBIT_PHONE_VERIFIED',
+        actorId: userId,
+        actorType: 'User',
+        targetType: 'DebitPhone',
+        targetId: String(debitPhone.id),
+        result: AuditResult.SUCCESS,
+        ipAddress: auditContext?.ipAddress ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+        requestId: auditContext?.requestId ?? null,
+        metadata: { phone: normalizedPhone },
+      })
+      .catch((_) => {})
 
     return { message: 'Numéro débiteur vérifié avec succès.' }
   }

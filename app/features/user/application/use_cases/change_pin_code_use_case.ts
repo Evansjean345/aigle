@@ -5,6 +5,8 @@ import { Exception } from '@adonisjs/core/exceptions'
 import { ChangePinCodeDTO } from '#features/user/application/dtos/change_pin_code.dto'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 /**
  * Class representing the use case for changing a user's password.
@@ -54,6 +56,26 @@ export default class ChangePinCodeUseCase {
     const isValid = await hash.verify(user.pincode, input.oldPincode)
 
     if (!isValid) {
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'USER_SECURITY',
+          eventAction: 'PIN_CHANGED',
+          actorId: String(user.id),
+          actorType: 'User',
+          targetType: 'User',
+          targetId: String(user.id),
+          result: AuditResult.FAILURE,
+          ipAddress: input.ipAddress ?? null,
+          userAgent: input.userAgent ?? null,
+          requestId: input.requestId ?? null,
+          metadata: {
+            reason: 'INVALID_OLD_PIN',
+            geoCountry: input.geoLocation?.countryCode ?? null,
+            geoCity: input.geoLocation?.city ?? null,
+            isVpn: input.geoLocation?.isVpn ?? null,
+          },
+        })
+        .catch((_) => {})
       throw new Exception('Ancien code pin invalide', { status: 400, code: 'INVALID_OLD_PIN' })
     }
 
@@ -66,6 +88,27 @@ export default class ChangePinCodeUseCase {
 
     user.pincode = input.newPincode
     await this.userRepository.save(user)
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'USER_SECURITY',
+        eventAction: 'PIN_CHANGED',
+        actorId: String(user.id),
+        actorType: 'User',
+        targetType: 'User',
+        targetId: String(user.id),
+        result: AuditResult.SUCCESS,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
+        requestId: input.requestId ?? null,
+        metadata: {
+          usersUid: user.usersUid,
+          geoCountry: input.geoLocation?.countryCode ?? null,
+          geoCity: input.geoLocation?.city ?? null,
+          isVpn: input.geoLocation?.isVpn ?? null,
+        },
+      })
+      .catch((_) => {})
 
     // Optionally revoke current token for security (keep user logged in on next login)
     // try {

@@ -2,6 +2,9 @@ import { inject } from '@adonisjs/core'
 import { Exception } from '@adonisjs/core/exceptions'
 import { DateTime } from 'luxon'
 import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_repository'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
+import type { AuditContext } from '#features/user/application/use_cases/add_debit_phone.usecase'
 
 const MIN_DAYS_BEFORE_CHANGE = 15
 
@@ -22,7 +25,11 @@ export default class DeleteDebitPhoneUseCase {
    * @return {Promise<{ message: string }>} A promise that resolves to an object containing a success message.
    * @throws {Exception} If the debit phone number is not found or if the deletion is attempted before the allowed modification period.
    */
-  async execute(debitPhoneId: number, userId: string): Promise<{ message: string }> {
+  async execute(
+    debitPhoneId: number,
+    userId: string,
+    auditContext?: AuditContext
+  ): Promise<{ message: string }> {
     const debitPhone = await this.debitPhoneRepository.findById(debitPhoneId, userId)
 
     if (!debitPhone) {
@@ -49,6 +56,23 @@ export default class DeleteDebitPhoneUseCase {
     }
 
     await this.debitPhoneRepository.delete(debitPhoneId, userId)
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'USER_SECURITY',
+        eventAction: 'DEBIT_PHONE_DELETED',
+        actorId: userId,
+        actorType: 'User',
+        targetType: 'DebitPhone',
+        targetId: String(debitPhoneId),
+        result: AuditResult.SUCCESS,
+        ipAddress: auditContext?.ipAddress ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+        requestId: auditContext?.requestId ?? null,
+        metadata: { phone: debitPhone.phone, providerId: debitPhone.providerId },
+      })
+      .catch((_) => {})
+
     return { message: 'Numéro débiteur supprimé avec succès.' }
   }
 }

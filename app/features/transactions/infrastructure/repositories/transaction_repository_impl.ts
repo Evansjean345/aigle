@@ -103,7 +103,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       .if(preloads?.includes('user'), (q) => {
         q.preload('user', (userQuery) => {
           userQuery.preload('wallet', (walletQuery) => {
-            walletQuery.select('balance')
+            walletQuery.select(['id', 'balance'])
           })
         })
       })
@@ -120,6 +120,13 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       })
       .if(preloads?.includes('securityContext'), (q) => {
         q.preload('securityContext', (subQuery) => subQuery.preload('device'))
+      })
+      .if(preloads?.includes('refund'), (q) => {
+        q.preload('refund', (refundQuery) => {
+          refundQuery.preload('admin', (adminQuery) => {
+            adminQuery.select(['id', 'firstname', 'lastname', 'email'])
+          })
+        })
       })
 
     return await query.where('reference', reference).first()

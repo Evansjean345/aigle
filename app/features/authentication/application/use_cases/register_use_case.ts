@@ -16,17 +16,19 @@ import securityLog from '#shared/infrastructure/logging/security_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import { DeviceCommandDTO } from '#features/device/application/dto/device.command.dto'
 import DeviceService from '#features/device/application/services/device_service'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class RegisterUseCase {
   /**
-   * Constructs an instance of the class.
+   * Creates an instance of the class with required service and repository dependencies.
    *
-   * @param {UserRepository} userRepository - The repository for user data management.
-   * @param {CountryRepository} countryRepository - The repository for country data management.
-   * @param {WalletService} walletService - The wallet service used for managing wallet-related functionality.
-   * @param otpService
-   * @param deviceService
+   * @param {UserRepository} userRepository - The repository used for managing user data.
+   * @param {CountryRepository} countryRepository - The repository used for managing country data.
+   * @param {WalletService} walletService - The service used for managing wallet operations.
+   * @param {OtpSendingService} otpSendingService - The service used for sending OTPs.
+   * @param {DeviceService} deviceService - The service used for managing device-related operations.
    */
   constructor(
     protected userRepository: UserRepository,
@@ -54,6 +56,30 @@ export default class RegisterUseCase {
         { phone: formattedPhone },
         'Registration failed: user already exists'
       )
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'USER_REGISTRATION_FAILED',
+          actorId: null,
+          actorType: 'User',
+          targetType: 'User',
+          targetId: null,
+          result: AuditResult.FAILURE,
+          errorCode: 'USER_ALREADY_EXISTS',
+          errorMessage: 'Registration failed: user already exists',
+          ipAddress: data.ipAddress ?? null,
+          userAgent: data.userAgent ?? null,
+          requestId: data.requestId ?? null,
+          metadata: {
+            phone: maskPhone(formattedPhone),
+            geoCountry: data.geoLocation?.countryCode ?? null,
+            geoCity: data.geoLocation?.city ?? null,
+            isVpn: data.geoLocation?.isVpn ?? null,
+          },
+        })
+        .catch(() => {})
+
       throw new UserAlreadyExistsException()
     }
 
@@ -85,9 +111,32 @@ export default class RegisterUseCase {
         'User successfully registered (inactive status)'
       )
 
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'USER_REGISTERED',
+          actorId: String(userCreated.id),
+          actorType: 'User',
+          targetType: 'User',
+          targetId: String(userCreated.id),
+          result: AuditResult.SUCCESS,
+          ipAddress: data.ipAddress ?? null,
+          userAgent: data.userAgent ?? null,
+          requestId: data.requestId ?? null,
+          metadata: {
+            phone: maskPhone(userCreated.phone),
+            countryId: country.id,
+            hasEmail: Boolean(data.email),
+            geoCountry: data.geoLocation?.countryCode ?? null,
+            geoCity: data.geoLocation?.city ?? null,
+            isVpn: data.geoLocation?.isVpn ?? null,
+          },
+        })
+        .catch(() => {})
+
       await this.otpSendingService.send(userCreated.phone, userCreated.usersUid)
       return {
-        message: 'Un code de v�rification a �t� envoy� � ce num�ro',
+        message: 'Un code de vérification a été envoyé à ce numéro',
         phone: userCreated.phone,
       }
     } catch (error) {
@@ -100,6 +149,30 @@ export default class RegisterUseCase {
         },
         'Error during user registration'
       )
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'USER_REGISTRATION_FAILED',
+          actorId: null,
+          actorType: 'User',
+          targetType: 'User',
+          targetId: null,
+          result: AuditResult.FAILURE,
+          errorCode: 'REGISTRATION_ERROR',
+          errorMessage: (error as Error).message,
+          ipAddress: data.ipAddress ?? null,
+          userAgent: data.userAgent ?? null,
+          requestId: data.requestId ?? null,
+          metadata: {
+            phone: maskPhone(formattedPhone),
+            geoCountry: data.geoLocation?.countryCode ?? null,
+            geoCity: data.geoLocation?.city ?? null,
+            isVpn: data.geoLocation?.isVpn ?? null,
+          },
+        })
+        .catch(() => {})
+
       throw error
     }
   }

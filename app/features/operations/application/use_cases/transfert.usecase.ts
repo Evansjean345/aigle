@@ -30,6 +30,7 @@ import Transaction from '#features/transactions/domain/models/transaction'
 import InitiateTransferJob from '#features/operations/application/jobs/initiate_transfer_job'
 import emitter from '@adonisjs/core/services/emitter'
 import { Exception } from '@adonisjs/core/exceptions'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class TransfertUseCase {
@@ -273,6 +274,32 @@ export default class TransfertUseCase {
           transactionType: TransactionType.TRANSFERT,
           actorId: user.usersUid,
           ipAddress: payload.geoIpLocation.ip,
+        })
+        .catch((_) => {})
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'TRANSACTION',
+          eventAction: 'TRANSFER_INITIATED',
+          actorId: String(user.id),
+          actorType: 'User',
+          targetType: 'Transaction',
+          targetId: String(transaction.id),
+          result: AuditResult.SUCCESS,
+          ipAddress: payload.ipAddress ?? payload.geoIpLocation?.ip ?? null,
+          userAgent: payload.userAgent ?? null,
+          requestId: payload.requestId ?? null,
+          metadata: {
+            reference: transaction.reference,
+            amount: billing.amount,
+            fees: billing.fees,
+            total: billing.total,
+            provider: payload.providerCode,
+            paymentMethod: payload.paymentMethodCode,
+            geoCountry: payload.geoIpLocation?.countryCode ?? null,
+            geoCity: payload.geoIpLocation?.city ?? null,
+            isVpn: payload.geoIpLocation?.isVpn ?? null,
+          },
         })
         .catch((_) => {})
 

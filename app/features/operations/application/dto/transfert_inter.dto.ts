@@ -25,11 +25,15 @@ export class InterTransfertRequestDto {
 
   declare deviceInfo: DeviceHeadersInfo
   declare geoIpLocation: GeoIpLocation
+  declare ipAddress?: string | null
+  declare userAgent?: string | null
+  declare requestId?: string | null
 
   static fromRequest(
     payload: Infer<typeof interTransfertValidator>,
     deviceInfos?: DeviceHeadersInfo,
-    geoIpLocation?: GeoIpLocation
+    geoIpLocation?: GeoIpLocation,
+    context?: { ipAddress?: string | null; userAgent?: string | null; requestId?: string | null }
   ): InterTransfertRequestDto {
     const dto = new InterTransfertRequestDto()
 
@@ -67,6 +71,9 @@ export class InterTransfertRequestDto {
 
     dto.deviceInfo = deviceInfos
     dto.geoIpLocation = geoIpLocation
+    dto.ipAddress = context?.ipAddress ?? geoIpLocation?.ip ?? null
+    dto.userAgent = context?.userAgent ?? null
+    dto.requestId = context?.requestId ?? null
 
     return dto
   }

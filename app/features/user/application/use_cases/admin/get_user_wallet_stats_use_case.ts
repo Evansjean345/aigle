@@ -61,6 +61,7 @@ export default class GetUserWalletStatsUseCase {
 
     return {
       wallet: {
+        id: wallet.id,
         balance: wallet.balance,
         currency: wallet.currencySymbol || 'FCFA',
         status: wallet.status,

@@ -14,15 +14,17 @@ import AccountBlockedException from '#features/authentication/infrastructure/exc
 import securityLog from '#shared/infrastructure/logging/security_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class VerifyAndAuthenticateUserAccountUseCase {
   /**
-   * Initializes a new instance of the class with the specified dependencies.
+   * Constructs an instance of the class with the specified dependencies.
    *
-   * @param {UserRepository} userRepository - The repository used for user data management.
-   * @param {OtpVerificationService} otpVerificationService - The service used for OTP verification.
-   * @param {CountryRepository} countryRepository - The repository used for accessing and managing country-related data.
+   * @param {UserRepository} userRepository - The repository responsible for managing user-related data.
+   * @param {OtpVerificationService} otpVerificationService - The service used for handling OTP verification processes.
+   * @param {CountryRepository} countryRepository - The repository for accessing country-related information.
    * @param {DeviceService} deviceService - The service used for managing device-related operations.
    */
   constructor(
@@ -33,15 +35,14 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
   ) {}
 
   /**
-   * Executes the authentication process for a user, including OTP verification, device trust validation,
-   * and token generation. Handles both "register" and "login" authentication types.
+   * Executes the account verification and authentication process based on the provided payload and type.
    *
-   * @param {VerifyAccountRequestDto} payload - The payload containing authentication details such as phone number and OTP.
-   * @param {'register' | 'login'} type - Specifies the type of authentication process (either "register" or "login").
-   * @return {Promise<AuthenticatedProfileAndTokenResponseDto>} Returns a promise that resolves to the authenticated user profile and token response.
-   * @throws {PhoneNotFoundException} Throws an exception if the phone number is not found in the system.
-   * @throws {AccountBlockedException} Throws an exception if the user's account status is blocked.
-   * @throws {Error} Rethrows other errors encountered in the authentication process.
+   * @param {VerifyAccountRequestDto} payload - The payload containing account verification details such as country ID, phone number, OTP, and device info.
+   * @param {'register' | 'login'} type - Specifies the type of operation being performed: "register" for user registration or "login" for user authentication.
+   * @return {Promise<AuthenticatedProfileAndTokenResponseDto>} A promise that resolves to the authenticated user's profile and token details.
+   * @throws {PhoneNotFoundException} If the user could not be found by the provided phone number.
+   * @throws {AccountBlockedException} If the user's account is blocked and cannot proceed with authentication.
+   * @throws {Error} If an error occurs during OTP verification or any other part of the process.
    */
   async execute(
     payload: VerifyAccountRequestDto,
@@ -61,6 +62,29 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
         { userId: user.id, phone: formattedPhone },
         'Blocked account authentication attempt'
       )
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'USER_OTP_FAILED',
+          actorId: String(user.id),
+          actorType: 'User',
+          targetType: 'User',
+          targetId: String(user.id),
+          result: AuditResult.FAILURE,
+          errorCode: 'ACCOUNT_BLOCKED',
+          errorMessage: 'Blocked account authentication attempt',
+          ipAddress: payload.ipAddress ?? null,
+          userAgent: payload.userAgent ?? null,
+          requestId: payload.requestId ?? null,
+          metadata: {
+            geoCountry: payload.geoLocation?.countryCode ?? null,
+            geoCity: payload.geoLocation?.city ?? null,
+            isVpn: payload.geoLocation?.isVpn ?? null,
+          },
+        })
+        .catch(() => {})
+
       throw new AccountBlockedException()
     }
 
@@ -103,6 +127,29 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
         'User successfully authenticated'
       )
 
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'USER_OTP_VERIFIED',
+          actorId: String(user.id),
+          actorType: 'User',
+          actorRole: 'User',
+          targetType: 'User',
+          targetId: String(user.id),
+          result: AuditResult.SUCCESS,
+          ipAddress: payload.ipAddress ?? null,
+          userAgent: payload.userAgent ?? null,
+          requestId: payload.requestId ?? null,
+          metadata: {
+            type,
+            userDeviceId: userDevice?.id ?? null,
+            geoCountry: payload.geoLocation?.countryCode ?? null,
+            geoCity: payload.geoLocation?.city ?? null,
+            isVpn: payload.geoLocation?.isVpn ?? null,
+          },
+        })
+        .catch(() => {})
+
       await user.load('country')
       await user.load('wallet')
       await user.load('kycDocument')
@@ -118,16 +165,34 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
         },
         'Error during authentication execution'
       )
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'USER_OTP_FAILED',
+          actorId: String(user.id),
+          actorType: 'User',
+          targetType: 'User',
+          targetId: String(user.id),
+          result: AuditResult.FAILURE,
+          errorCode: 'INVALID_OTP',
+          errorMessage: error.message,
+          ipAddress: payload.ipAddress ?? null,
+          userAgent: payload.userAgent ?? null,
+          requestId: payload.requestId ?? null,
+          metadata: {
+            type,
+            geoCountry: payload.geoLocation?.countryCode ?? null,
+            geoCity: payload.geoLocation?.city ?? null,
+            isVpn: payload.geoLocation?.isVpn ?? null,
+          },
+        })
+        .catch(() => {})
+
       throw error
     }
   }
 
-  /**
-   * Determines whether the OTP verification process should be bypassed for a given user.
-   *
-   * @param user - The user object containing details about the user.
-   * @return A boolean value indicating whether the OTP verification should be bypassed.
-   */
   private shouldBypassOtpVerification(user: User): boolean {
     return Boolean(bypassEnabled && appPhoneNumberReview && user.phone === appPhoneNumberReview)
   }

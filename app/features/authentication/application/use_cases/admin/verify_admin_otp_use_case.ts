@@ -15,12 +15,26 @@ export interface VerifyAdminOtpRequestDto {
 
 @inject()
 export default class VerifyAdminOtpUseCase {
+  /**
+   * Creates an instance of the class.
+   *
+   * @param {AdminRepository} adminRepository - The repository used to manage admin data.
+   * @param {OtpVerificationService} otpVerificationService - The service used for verifying one-time passwords.
+   * @param {AdminAuthService} adminAuthService - The service used for managing admin authentication.
+   */
   constructor(
     private adminRepository: AdminRepository,
     private otpVerificationService: OtpVerificationService,
     private adminAuthService: AdminAuthService
   ) {}
 
+  /**
+   * Executes the OTP verification process for an admin and generates authentication tokens upon success.
+   *
+   * @param {VerifyAdminOtpRequestDto} data - The data object containing the admin's email and the OTP entered for verification.
+   * @return {Promise<AdminLoginResponseDto>} A promise that resolves with an AdminLoginResponseDto containing the admin's information and authentication tokens.
+   * @throws {AdminNotFoundException} If no admin exists with the provided email.
+   */
   async execute(data: VerifyAdminOtpRequestDto): Promise<AdminLoginResponseDto> {
     const admin = await this.adminRepository.findByEmail(data.email)
     if (!admin) {
@@ -35,17 +49,20 @@ export default class VerifyAdminOtpUseCase {
     await this.adminRepository.save(admin)
 
     await admin.load('role')
-    emitter.emit('activity:audit', {
-      eventCategory: 'AUTH',
-      eventAction: 'OTP_VERIFIED',
-      actorId: String(admin.id),
-      actorType: 'Admin',
-      actorRole: admin.role.name,
-      targetType: 'Member',
-      targetId: String(admin.id),
-      result: AuditResult.SUCCESS,
-      metadata: { email: admin.email },
-    })
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'AUTH',
+        eventAction: 'OTP_VERIFIED',
+        actorId: String(admin.id),
+        actorType: 'Admin',
+        actorRole: admin.role.name,
+        targetType: 'Member',
+        targetId: String(admin.id),
+        result: AuditResult.SUCCESS,
+        metadata: { email: admin.email },
+      })
+      .catch(() => {})
 
     const tokens = await this.adminAuthService.generateTokens(admin)
 

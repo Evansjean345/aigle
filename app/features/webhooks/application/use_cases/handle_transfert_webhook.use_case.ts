@@ -17,6 +17,7 @@ import TransfertTransactionCompleted, {
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import BaseWebhookHandler, { WEBHOOK_SUCCESS_RESPONSE } from './base_webhook_handler.js'
 import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
@@ -145,6 +146,27 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
       })
       .catch(() => {})
 
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'TRANSACTION',
+        eventAction: 'TRANSFER_COMPLETED',
+        actorId: 'system',
+        actorType: 'System',
+        targetType: 'Transaction',
+        targetId: String(transaction.id),
+        result: AuditResult.SUCCESS,
+        ipAddress: null,
+        userAgent: null,
+        requestId: null,
+        metadata: {
+          reference: transaction.reference,
+          amount: Number(transaction.amount),
+          status: TransactionStatus.SUCCESS,
+          userId: transaction.usersUid,
+        },
+      })
+      .catch((_) => {})
+
     await this.dispatchEvent(
       TransfertTransactionCompleted,
       <TransfertTransactionCompletedPayload>{
@@ -192,6 +214,28 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
 
     await this.safeMarkPaymentFailed(payment.id, operatorResponse, trx, error)
 
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'TRANSACTION',
+        eventAction: 'TRANSFER_FAILED',
+        actorId: 'system',
+        actorType: 'System',
+        targetType: 'Transaction',
+        targetId: String(transaction.id),
+        result: AuditResult.FAILURE,
+        ipAddress: null,
+        userAgent: null,
+        requestId: null,
+        metadata: {
+          reference: transaction.reference,
+          amount: Number(transaction.amount),
+          status: TransactionStatus.FAILED,
+          userId: transaction.usersUid,
+          error: error?.message ?? null,
+        },
+      })
+      .catch((_) => {})
+
     try {
       await this.refundService.webhookReversal(transaction, wallet, operatorResponse, trx)
 
@@ -200,6 +244,27 @@ export default class HandleTransfertWebhookUseCase extends BaseWebhookHandler {
         { reference: transaction.reference, wallet_id: wallet.id },
         'Transfer failed via webhook — wallet refunded'
       )
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'TRANSACTION',
+          eventAction: 'TRANSFER_REFUNDED',
+          actorId: 'system',
+          actorType: 'System',
+          targetType: 'Transaction',
+          targetId: String(transaction.id),
+          result: AuditResult.SUCCESS,
+          ipAddress: null,
+          userAgent: null,
+          requestId: null,
+          metadata: {
+            reference: transaction.reference,
+            amount: Number(transaction.amount),
+            walletId: wallet.id,
+            userId: transaction.usersUid,
+          },
+        })
+        .catch((_) => {})
     } catch (refundErr) {
       if (refundErr instanceof TransactionAlreadyRefundedException) {
         paymentLog.info(

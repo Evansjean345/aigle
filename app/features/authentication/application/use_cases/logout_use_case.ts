@@ -1,26 +1,46 @@
-﻿import { inject } from '@adonisjs/core'
+import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
 import LogoutException from '#features/authentication/infrastructure/exceptions/logout_exception'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
-/**
- * Handles the use case for logging out an authenticated user.
- */
+export type LogoutContext = {
+  ipAddress?: string | null
+  userAgent?: string | null
+  requestId?: string | null
+}
+
 @inject()
 export default class LogoutUseCase {
   /**
-   * Executes the logout process by invalidating the current access token
-   * of the authenticated user.
+   * Logs out the authenticated user by deleting their active access token and emitting an audit event.
    *
-   * @param {any} authenticatedUser - The authenticated user whose access token will be invalidated.
-   * @return {Promise<boolean>} Returns a promise that resolves to `true` if the logout process is successful.
-   * @throws {LogoutException} Throws if an error occurs while attempting to invalidate the access token.
+   * @param {any} authenticatedUser - The authenticated user object containing user information and current access token details.
+   * @param {LogoutContext} [context={}] - Optional context object containing logout-related metadata, such as IP address, user agent, and request ID.
+   * @return {Promise<boolean>} A promise that resolves to `true` if the logout operation is successful.
+   * @throws {LogoutException} If an error occurs during the logout process.
    */
-  async execute(authenticatedUser: any): Promise<boolean> {
+  async execute(authenticatedUser: any, context: LogoutContext = {}): Promise<boolean> {
     try {
       await User.accessTokens.delete(
         authenticatedUser as User,
         authenticatedUser.currentAccessToken.identifier
       )
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'USER_LOGOUT',
+          actorId: String(authenticatedUser.id),
+          actorType: 'User',
+          targetType: 'User',
+          targetId: String(authenticatedUser.id),
+          result: AuditResult.SUCCESS,
+          ipAddress: context.ipAddress ?? null,
+          userAgent: context.userAgent ?? null,
+          requestId: context.requestId ?? null,
+        })
+        .catch(() => {})
 
       return true
     } catch (error) {

@@ -28,6 +28,7 @@ export default class AdminLoginUseCase {
    */
   async execute(data: AdminLoginRequestDto, ip: string): Promise<AdminLoginResponseDto> {
     const { admin, tokens } = await this.adminAuthService.login(data.email, data.password, ip)
+
     return AdminLoginResponseDto.fromAdmin(
       admin,
       this.adminAuthService.formatToken(tokens.access),

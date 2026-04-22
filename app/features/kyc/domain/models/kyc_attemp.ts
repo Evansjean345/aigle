@@ -47,6 +47,9 @@ export class KycAttemp extends BaseModel {
   @column()
   declare agentId?: number
 
+  @column.dateTime()
+  declare validUntil?: DateTime
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

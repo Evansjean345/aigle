@@ -28,7 +28,10 @@ export default class TransfertInterController {
     const idempotencyKey = request.header('X-Idempotency-Key')
     const payload = await request.validateUsing(interTransfertValidator)
     const result = await this.interTransfertUseCase.execute(
-      InterTransfertRequestDto.fromRequest(payload, deviceInfo, geoLocation),
+      InterTransfertRequestDto.fromRequest(payload, deviceInfo, geoLocation, {
+        userAgent: request.header('user-agent') ?? null,
+        requestId: request.header('x-request-id') ?? null,
+      }),
       user,
       idempotencyKey
     )

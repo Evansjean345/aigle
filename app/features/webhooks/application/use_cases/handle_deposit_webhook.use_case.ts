@@ -19,6 +19,7 @@ import WalletService from '#features/wallet/application/services/wallet_service'
 import WalletAdjustException from '#features/wallet/infrastructure/exceptions/wallet_adjust_exception'
 import BaseWebhookHandler, { WEBHOOK_SUCCESS_RESPONSE } from './base_webhook_handler.js'
 import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
@@ -166,32 +167,60 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
       trx
     )
 
-    emitter.emit('activity:transaction-log', {
-      event: 'WALLET_CREDITED',
-      transactionId: transaction.reference,
-      walletId: String(wallet.id),
-      amount: creditAmount,
-      balanceBefore: Number(wallet.balance),
-      balanceAfter: updatedWallet.balance!,
-    })
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'WALLET_CREDITED',
+        transactionId: transaction.reference,
+        walletId: String(wallet.id),
+        amount: creditAmount,
+        balanceBefore: Number(wallet.balance),
+        balanceAfter: updatedWallet.balance!,
+      })
+      .catch((_) => {})
 
-    emitter.emit('activity:transaction-log', {
-      event: 'LEDGER_ENTRY_CREATED',
-      transactionId: transaction.reference,
-      walletId: String(wallet.id),
-      direction: 'credit',
-      amountBrut: Number(transaction.totalAmount),
-      fees: Number(transaction.fees),
-      totalAmount: creditAmount,
-      balanceBefore: Number(wallet.balance),
-      balanceAfter: updatedWallet.balance!,
-      operationType: transaction.operationType,
-    })
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'LEDGER_ENTRY_CREATED',
+        transactionId: transaction.reference,
+        walletId: String(wallet.id),
+        direction: 'credit',
+        amountBrut: Number(transaction.totalAmount),
+        fees: Number(transaction.fees),
+        totalAmount: creditAmount,
+        balanceBefore: Number(wallet.balance),
+        balanceAfter: updatedWallet.balance!,
+        operationType: transaction.operationType,
+      })
+      .catch((_) => {})
 
-    emitter.emit('activity:transaction-log', {
-      event: 'SUCCESS',
-      transactionId: transaction.reference,
-    })
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'SUCCESS',
+        transactionId: transaction.reference,
+      })
+      .catch((_) => {})
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'TRANSACTION',
+        eventAction: 'DEPOSIT_COMPLETED',
+        actorId: 'system',
+        actorType: 'System',
+        targetType: 'Transaction',
+        targetId: String(transaction.id),
+        result: AuditResult.SUCCESS,
+        ipAddress: null,
+        userAgent: null,
+        requestId: null,
+        metadata: {
+          reference: transaction.reference,
+          amount: Number(transaction.amount),
+          totalAmount: creditAmount,
+          status: TransactionStatus.SUCCESS,
+          userId: transaction.usersUid,
+        },
+      })
+      .catch((_) => {})
 
     await this.dispatchEvent(
       DepositTransactionCompleted,
@@ -233,11 +262,35 @@ export default class HandleDepositWebhookUseCase extends BaseWebhookHandler {
     await this.safeMarkTransactionFailed(transaction.id, trx)
     await this.safeMarkPaymentFailed(payment.id, operatorResponse, trx, error)
 
-    emitter.emit('activity:transaction-log', {
-      event: 'FAILED',
-      transactionId: transaction.reference,
-      errorMessage: 'Payment failed via webhook',
-    })
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'FAILED',
+        transactionId: transaction.reference,
+        errorMessage: 'Payment failed via webhook',
+      })
+      .catch((_) => {})
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'TRANSACTION',
+        eventAction: 'DEPOSIT_FAILED',
+        actorId: 'system',
+        actorType: 'System',
+        targetType: 'Transaction',
+        targetId: String(transaction.id),
+        result: AuditResult.FAILURE,
+        ipAddress: null,
+        userAgent: null,
+        requestId: null,
+        metadata: {
+          reference: transaction.reference,
+          amount: Number(transaction.amount),
+          status: TransactionStatus.FAILED,
+          userId: transaction.usersUid,
+          error: error?.message ?? null,
+        },
+      })
+      .catch((_) => {})
 
     await this.dispatchEvent(
       DepositTransactionFailed,

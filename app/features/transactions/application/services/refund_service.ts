@@ -84,31 +84,28 @@ export default class RefundService {
    * Webhook reversal: called by HandleTransfertWebhookUseCase when the operator
    * posts a FAILED callback on a pending transaction.
    *
+   * Note: the full operator response is already persisted on the Payment record
+   * (Payment.adminError.operatorResponse). No need to duplicate it in the refund
+   * comment — keep that field human-readable.
+   *
    * @param {Transaction} transaction
    * @param {Wallet} wallet
-   * @param {any} operatorResponse
+   * @param {unknown} _operatorResponse - kept for signature compatibility with existing callers
    * @param {TransactionClientContract} trx
    */
   async webhookReversal(
     transaction: Transaction,
     wallet: Wallet,
-    operatorResponse: any,
+    _operatorResponse: unknown,
     trx: TransactionClientContract
   ): Promise<Refund> {
-    const opSerialized = (() => {
-      try {
-        return JSON.stringify(operatorResponse).substring(0, 500)
-      } catch {
-        return String(operatorResponse).substring(0, 500)
-      }
-    })()
-
     return this.processRefund({
       transaction,
       walletId: wallet.id,
       type: RefundType.WEBHOOK_REVERSE,
       reason: RefundReason.OPERATOR_FAILURE,
-      comment: `Reversal suite à callback opérateur échoué. Response: ${opSerialized}`,
+      comment:
+        "Reversal automatique suite à un callback d'échec de l'opérateur. Voir les détails du paiement pour la réponse complète.",
       adminId: null,
       trx,
     })
@@ -241,7 +238,12 @@ export default class RefundService {
   }
 
   /**
-   * Assert that a transaction is refundable
+   * Assert that a transaction is refundable.
+   *
+   * Only debit-from-wallet operations (TRANSFERT, TRANSFERT_INTER) are eligible:
+   * the refund flow credits the wallet back for the amount that was taken.
+   * DEPOSIT credits the wallet on success, so a "refund" would double-credit.
+   * WALLET_TRANSFERT is settled internally and reversed via a counter-transfer.
    *
    * @param {Transaction} transaction
    * @param {RefundType} refundType
@@ -252,9 +254,26 @@ export default class RefundService {
       throw new TransactionAlreadyRefundedException()
     }
 
-    if (transaction.operationType === TransactionType.WALLET_TRANSFERT) {
+    const refundableOperationTypes: TransactionType[] = [
+      TransactionType.TRANSFERT,
+      TransactionType.TRANSFERT_INTER,
+    ]
+
+    if (!refundableOperationTypes.includes(transaction.operationType)) {
+      if (transaction.operationType === TransactionType.WALLET_TRANSFERT) {
+        throw new TransactionNotRefundableException(
+          'Les transferts wallet-to-wallet ne sont pas remboursables via ce système'
+        )
+      }
+
+      if (transaction.operationType === TransactionType.DEPOSIT) {
+        throw new TransactionNotRefundableException(
+          "Les dépôts ne sont pas remboursables via ce flux : un cash-out de correction doit être initié pour renvoyer les fonds à l'opérateur"
+        )
+      }
+
       throw new TransactionNotRefundableException(
-        'Les transferts wallet-to-wallet ne sont pas remboursables via ce système'
+        `Le type d'opération "${transaction.operationType}" n'est pas éligible au remboursement`
       )
     }
 

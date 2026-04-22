@@ -13,10 +13,12 @@ export default class OnTransfertSuccessNotification {
   constructor(private readonly notificationService: NotificationService) {}
 
   /**
-   * Handle the event.
-   * @param event
+   * Handles the event triggered when a transfer transaction is completed.
+   *
+   * @param {TransfertTransactionCompleted} event - The event containing data about the completed transfer transaction.
+   * @return {Promise<void>} A promise that resolves when the notification has been successfully sent.
    */
-  async handle(event: TransfertTransactionCompleted) {
+  async handle(event: TransfertTransactionCompleted): Promise<void> {
     const notification = new Notification(
       event.data.userId,
       'Transfert effectué avec succès',

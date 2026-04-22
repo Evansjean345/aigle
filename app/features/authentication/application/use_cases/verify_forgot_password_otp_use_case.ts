@@ -9,6 +9,8 @@ import PhoneNotFoundException from '#features/authentication/infrastructure/exce
 import { randomUUID } from 'node:crypto'
 import { bypassEnabled, appPhoneNumberReview } from '#config/app'
 import User from '#features/user/domain/models/user'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class VerifyForgotPasswordOtpUseCase {
@@ -46,12 +48,61 @@ export default class VerifyForgotPasswordOtpUseCase {
       throw new PhoneNotFoundException()
     }
 
-    if (!this.shouldBypassOtpVerification(user)) {
-      await this.otpVerificationService.verify({ identifier: user.phone, enteredOtp: payload.otp })
+    try {
+      if (!this.shouldBypassOtpVerification(user)) {
+        await this.otpVerificationService.verify({
+          identifier: user.phone,
+          enteredOtp: payload.otp,
+        })
+      }
+    } catch (error) {
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'USER_FORGOT_PASSWORD_OTP_FAILED',
+          actorId: String(user.id),
+          actorType: 'User',
+          targetType: 'User',
+          targetId: String(user.id),
+          result: AuditResult.FAILURE,
+          errorCode: 'INVALID_OTP',
+          errorMessage: (error as Error).message,
+          ipAddress: payload.ipAddress ?? null,
+          userAgent: payload.userAgent ?? null,
+          requestId: payload.requestId ?? null,
+          metadata: {
+            geoCountry: payload.geoLocation?.countryCode ?? null,
+            geoCity: payload.geoLocation?.city ?? null,
+            isVpn: payload.geoLocation?.isVpn ?? null,
+          },
+        })
+        .catch(() => {})
+
+      throw error
     }
 
     const resetToken = randomUUID()
     await this.resetPasswordTokenProvider.store(user.phone, resetToken, 600) // 10 seconds TTL
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'AUTH',
+        eventAction: 'USER_FORGOT_PASSWORD_OTP_VERIFIED',
+        actorId: String(user.id),
+        actorType: 'User',
+        targetType: 'User',
+        targetId: String(user.id),
+        result: AuditResult.SUCCESS,
+        ipAddress: payload.ipAddress ?? null,
+        userAgent: payload.userAgent ?? null,
+        requestId: payload.requestId ?? null,
+        metadata: {
+          geoCountry: payload.geoLocation?.countryCode ?? null,
+          geoCity: payload.geoLocation?.city ?? null,
+          isVpn: payload.geoLocation?.isVpn ?? null,
+        },
+      })
+      .catch(() => {})
 
     return { reset_token: resetToken }
   }

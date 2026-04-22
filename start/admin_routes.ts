@@ -8,6 +8,7 @@ import adminAppVersionRoutes from '#features/device/presentation/admin/routes/ap
 import adminDeviceRoutes from '#features/device/presentation/admin/routes/admin_device_routes'
 import adminWalletRoutes from '#features/wallet/presentation/admin/routes/admin_wallet_routes'
 import adminAuthRoutes from '#features/authentication/presentation/admin/routes/admin_auth_routes'
+import adminAuditRoutes from '#features/audit/presentation/admin/routes/admin_audit_routes'
 import teamRoutes from '#features/team/presentation/routes/team_routes'
 
 router
@@ -22,5 +23,6 @@ router
     router.group(adminDeviceRoutes)
     router.group(adminAppVersionRoutes)
     router.group(adminWalletRoutes)
+    router.group(adminAuditRoutes)
   })
   .prefix('/api/admin')

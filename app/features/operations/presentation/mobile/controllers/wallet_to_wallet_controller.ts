@@ -34,7 +34,10 @@ export default class WalletToWalletController {
     const idempotencyKey = request.header('X-Idempotency-Key')
     const mode = payload.token ? TransferMode.BY_QRCODE : TransferMode.BY_PHONE
 
-    const dto = WalletToWalletRequestDto.fromRequest(payload, deviceInfo, geoLocation)
+    const dto = WalletToWalletRequestDto.fromRequest(payload, deviceInfo, geoLocation, {
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    })
 
     const result = await this.walletToWalletUseCase.execute(dto, user, mode, idempotencyKey)
     return response.ok(result)

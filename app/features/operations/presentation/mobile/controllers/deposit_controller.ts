@@ -28,7 +28,10 @@ export default class DepositController {
 
     const payload = await request.validateUsing(depositValidator)
     const result = await this.depositUseCase.execute(
-      DepositRequestDto.fromRequest(payload, deviceInfo, geoLocation),
+      DepositRequestDto.fromRequest(payload, deviceInfo, geoLocation, {
+        userAgent: request.header('user-agent') ?? null,
+        requestId: request.header('x-request-id') ?? null,
+      }),
       user,
       idempotencyKey
     )

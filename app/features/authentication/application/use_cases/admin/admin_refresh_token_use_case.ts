@@ -9,6 +9,8 @@ import {
 import { Secret } from '@adonisjs/core/helpers'
 import InvalidRefreshTokenException from '#features/authentication/infrastructure/exceptions/invalid_refresh_token_exception'
 import { DateTime } from 'luxon'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class AdminRefreshTokenUseCase {
@@ -34,6 +36,21 @@ export default class AdminRefreshTokenUseCase {
     const existingToken = await Admin.refreshToken.verify(new Secret(data.refresh_token))
 
     if (!existingToken) {
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'AUTH',
+          eventAction: 'ADMIN_TOKEN_REFRESH_FAILED',
+          actorId: null,
+          actorType: 'Admin',
+          targetType: 'Member',
+          targetId: null,
+          result: AuditResult.FAILURE,
+          errorCode: 'INVALID_REFRESH_TOKEN',
+          errorMessage: 'Invalid or expired refresh token',
+          ipAddress: ip,
+        })
+        .catch(() => {})
+
       throw new InvalidRefreshTokenException()
     }
 
@@ -47,6 +64,19 @@ export default class AdminRefreshTokenUseCase {
     admin.lastLoginIp = ip
     admin.lastLoginAt = DateTime.now()
     await admin.save()
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'AUTH',
+        eventAction: 'ADMIN_TOKEN_REFRESH',
+        actorId: String(admin.id),
+        actorType: 'Admin',
+        targetType: 'Member',
+        targetId: String(admin.id),
+        result: AuditResult.SUCCESS,
+        ipAddress: ip,
+      })
+      .catch(() => {})
 
     return toAdminRefreshTokenResponse(
       this.adminAuthService.formatToken(access),

@@ -50,7 +50,7 @@ export default class TransactionPolicy extends BasePolicy {
    * @param {Admin} user - The admin user requesting to view the user transactions report.
    * @return {Promise<boolean>} A promise that resolves to true if the admin has permission to view the report, otherwise false.
    */
-  async viewUserTansactionsReport(user: Admin): Promise<boolean> {
+  async viewUserTransactionsReport(user: Admin): Promise<boolean> {
     return adminHasPermission(user, TRANSACTION_PERMISSIONS.userTransactionsReportRead)
   }
 
@@ -65,9 +65,21 @@ export default class TransactionPolicy extends BasePolicy {
   }
 
   /**
-   * Checks whether the admin is allowed to manually execute a refund on a transaction.
+   * Determines whether the given admin user has permission to execute a refund.
+   *
+   * @param {Admin} user - The admin user to check refund execution permissions for.
+   * @return {Promise<boolean>} A promise resolving to true if the user has transaction refund execute permission, false otherwise.
    */
   async executeRefund(user: Admin): Promise<boolean> {
     return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionRefundExecute)
+  }
+
+  /**
+   * Checks whether the specified admin user has permission to view refunds.
+   * @param {Admin} user - The admin user whose permissions are being checked.
+   * @return {Promise<boolean>} A promise that resolves to true if the user has permission to view refunds, false otherwise.
+   */
+  async viewRefunds(user: Admin): Promise<boolean> {
+    return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionsRefundsRead)
   }
 }

@@ -22,7 +22,7 @@ const adminKycRoutes = () => {
       router.post('/:id/process', [KycController, 'process'])
     })
     .prefix('/kyc')
-    .use(middleware.auth({ guards: ['admin'] }))
+    .use([middleware.auth({ guards: ['admin'] }), middleware.geoip()])
 }
 
 export default adminKycRoutes

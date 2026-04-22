@@ -2,10 +2,12 @@ import KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_
 import { inject } from '@adonisjs/core'
 import { KycDocumentStatus } from '#features/kyc/domain/enum/kyc_enum'
 import KycDocumentProcessed from '#features/kyc/application/events/kyc_document_processed'
+import type { KycAuditContext } from '#features/kyc/application/events/kyc_document_submitted'
 import { KycAttemp } from '#features/kyc/domain/models/kyc_attemp'
 import KycDocumentNotFoundException from '#features/kyc/infrastructure/exceptions/kyc_document_not_found_exception'
 import kycLog from '#shared/infrastructure/logging/kyc_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
+import { DateTime } from 'luxon'
 
 @inject()
 export default class ProcessKycDocumentUseCase {
@@ -24,6 +26,8 @@ export default class ProcessKycDocumentUseCase {
    * @param {KycDocumentStatus} status - The new status to assign to the KYC document.
    * @param {string} [comment] - An optional comment providing additional context for the update.
    * @param {number} agentId - The unique identifier of the agent who initiated the update.
+   * @param {KycAuditContext} auditContext
+   * @param {string} validUntil -
    * @return {Promise<void>} Resolves once the execution process is completed successfully.
    * @throws {KycDocumentNotFoundException} Thrown if the KYC document with the specified ID is not found.
    */
@@ -31,7 +35,9 @@ export default class ProcessKycDocumentUseCase {
     id: number,
     status: KycDocumentStatus,
     comment: string | undefined,
-    agentId: number
+    agentId: number,
+    auditContext?: KycAuditContext,
+    validUntil?: string | null
   ): Promise<void> {
     const kycDocument = await this.kycDocumentRepository.findById(id)
 
@@ -45,6 +51,10 @@ export default class ProcessKycDocumentUseCase {
       kycDocument.status = status
       kycDocument.comment = comment
       kycDocument.agentId = agentId
+      if (validUntil) {
+        kycDocument.validUntil = DateTime.fromISO(validUntil)
+      }
+
       await this.kycDocumentRepository.saveKycDocument(kycDocument)
 
       // Création d'une tentative pour l'historique
@@ -67,6 +77,10 @@ export default class ProcessKycDocumentUseCase {
       decisionAttempt.comment = comment
       decisionAttempt.agentId = agentId
 
+      if (validUntil) {
+        decisionAttempt.validUntil = DateTime.fromISO(validUntil)
+      }
+
       await this.kycDocumentRepository.saveAttempt(decisionAttempt)
 
       kycLog.info(
@@ -80,7 +94,7 @@ export default class ProcessKycDocumentUseCase {
         `KYC document ${status} successfully`
       )
 
-      await KycDocumentProcessed.dispatch(kycDocument.userId, status, comment)
+      await KycDocumentProcessed.dispatch(kycDocument.userId, status, comment, auditContext)
     } catch (error) {
       errorLog.error(
         'KYC_PROCESS_ERROR',

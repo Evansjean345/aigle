@@ -1,9 +1,14 @@
 import vine from '@vinejs/vine'
 
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/
+
+const strongPassword = () =>
+  vine.string().trim().minLength(8).maxLength(128).regex(STRONG_PASSWORD_REGEX)
+
 export const adminLoginValidator = vine.compile(
   vine.object({
     email: vine.string().trim().email(),
-    password: vine.string().trim().minLength(8),
+    password: vine.string().trim().minLength(8).maxLength(128),
   })
 )
 
@@ -16,7 +21,7 @@ export const adminRefreshTokenValidator = vine.compile(
 export const setupAdminPasswordValidator = vine.compile(
   vine.object({
     token: vine.string().trim(),
-    password: vine.string().trim().minLength(8),
+    password: strongPassword(),
   })
 )
 

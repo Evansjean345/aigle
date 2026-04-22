@@ -27,7 +27,7 @@ export default class GetTransactionDetailsUseCase {
     reference: string,
     options: { loadLedger?: boolean } = {}
   ): Promise<AdminTransactionResponseDTO> {
-    const preloads = ['user', 'payment', 'logs', 'securityContext']
+    const preloads = ['user', 'payment', 'logs', 'securityContext', 'refund']
 
     if (options.loadLedger) {
       preloads.push('ledgers')

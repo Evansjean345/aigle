@@ -36,6 +36,13 @@ import WalletUpdateFailedException from '#features/operations/infrastructure/exc
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import emitter from '@adonisjs/core/services/emitter'
 import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
+import { AuditResult } from '#features/audit/domain/enums'
+
+interface AuditContext {
+  ipAddress?: string | null
+  userAgent?: string | null
+  requestId?: string | null
+}
 
 interface BalanceSnapshot {
   senderBefore: number
@@ -111,23 +118,36 @@ export default class WalletToWalletUseCase {
     const context = await this.contextFactory.create(payload, currentUser, mode)
     await this.walletTransferValidationService.validate(context, mode, payload.recipientPhone)
 
-    return this.executeTransfer(context, payload.deviceInfo, payload.geoIpLocation, idempotencyKey)
+    return this.executeTransfer(
+      context,
+      payload.deviceInfo,
+      payload.geoIpLocation,
+      {
+        ipAddress: payload.ipAddress ?? payload.geoIpLocation?.ip ?? null,
+        userAgent: payload.userAgent ?? null,
+        requestId: payload.requestId ?? null,
+      },
+      idempotencyKey
+    )
   }
 
   /**
-   * Executes a wallet-to-wallet transfer between the sender and recipient wallets.
+   * Executes a wallet-to-wallet transfer, handling all necessary operations such as balance updates,
+   * transaction logging, auditing, and emitting relevant events.
    *
-   * @param {TransferContext} context - The context of the transfer, including sender and recipient wallet details, amount, and user context.
-   * @param {DeviceHeadersInfo} deviceInfo - Metadata about the device from which the transfer is initiated.
-   * @param {GeoIpLocation} geoIpLocation - GeoIP location information of the user initiating the transfer.
-   * @param {string} [idempotencyKey] - An optional key to ensure idempotency of the transfer operation.
-   * @return {Promise<WalletToWalletResponseDto>} A promise resolving with the response details of the wallet-to-wallet transfer, which includes the transaction reference and status.
-   * @throws {Error} Throws an error if the transfer fails during the process.
+   * @param {TransferContext} context - The context of the transfer, including information about the sender, recipient, and the amount.
+   * @param {DeviceHeadersInfo} deviceInfo - Information about the device initiating the transfer.
+   * @param {GeoIpLocation} geoIpLocation - GeoIP data for tracking the location of the transfer request.
+   * @param {AuditContext} auditContext - Information for auditing purposes, such as user agent and request ID.
+   * @param {string} [idempotencyKey] - Optional unique key for ensuring idempotency of the transfer operation.
+   * @return {Promise<WalletToWalletResponseDto>} A promise that resolves to the result of the transfer operation,
+   * including details such as transaction reference and status.
    */
   private async executeTransfer(
     context: TransferContext,
     deviceInfo: DeviceHeadersInfo,
     geoIpLocation: GeoIpLocation,
+    auditContext: AuditContext,
     idempotencyKey?: string
   ): Promise<WalletToWalletResponseDto> {
     const { senderWallet, recipientWallet } = context
@@ -152,54 +172,90 @@ export default class WalletToWalletUseCase {
       )
       await trx.commit()
 
-      emitter.emit('activity:transaction-log', {
-        event: 'WALLET_DEBITED',
-        transactionId: transferResult.senderTx.reference,
-        walletId: String(senderWallet.id),
-        amount: context.total,
-        balanceBefore: balances.senderBefore,
-        balanceAfter: balances.senderAfter,
-      })
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'WALLET_DEBITED',
+          transactionId: transferResult.senderTx.reference,
+          walletId: String(senderWallet.id),
+          amount: context.total,
+          balanceBefore: balances.senderBefore,
+          balanceAfter: balances.senderAfter,
+        })
+        .catch(() => {})
 
-      emitter.emit('activity:transaction-log', {
-        event: 'LEDGER_ENTRY_CREATED',
-        transactionId: transferResult.senderTx.reference,
-        walletId: String(senderWallet.id),
-        direction: 'debit',
-        amountBrut: context.total,
-        fees: context.fees,
-        totalAmount: context.total,
-        balanceBefore: balances.senderBefore,
-        balanceAfter: balances.senderAfter,
-        operationType: 'wallet_transfert',
-      })
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'LEDGER_ENTRY_CREATED',
+          transactionId: transferResult.senderTx.reference,
+          walletId: String(senderWallet.id),
+          direction: 'debit',
+          amountBrut: context.total,
+          fees: context.fees,
+          totalAmount: context.total,
+          balanceBefore: balances.senderBefore,
+          balanceAfter: balances.senderAfter,
+          operationType: 'wallet_transfert',
+        })
+        .catch(() => {})
 
-      emitter.emit('activity:transaction-log', {
-        event: 'WALLET_CREDITED',
-        transactionId: transferResult.recipientTx.reference,
-        walletId: String(recipientWallet.id),
-        amount: context.total,
-        balanceBefore: balances.recipientBefore,
-        balanceAfter: balances.recipientAfter,
-      })
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'WALLET_CREDITED',
+          transactionId: transferResult.recipientTx.reference,
+          walletId: String(recipientWallet.id),
+          amount: context.total,
+          balanceBefore: balances.recipientBefore,
+          balanceAfter: balances.recipientAfter,
+        })
+        .catch(() => {})
 
-      emitter.emit('activity:transaction-log', {
-        event: 'LEDGER_ENTRY_CREATED',
-        transactionId: transferResult.recipientTx.reference,
-        walletId: String(recipientWallet.id),
-        direction: 'credit',
-        amountBrut: context.total,
-        fees: 0,
-        totalAmount: context.total,
-        balanceBefore: balances.recipientBefore,
-        balanceAfter: balances.recipientAfter,
-        operationType: 'wallet_transfert',
-      })
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'LEDGER_ENTRY_CREATED',
+          transactionId: transferResult.recipientTx.reference,
+          walletId: String(recipientWallet.id),
+          direction: 'credit',
+          amountBrut: context.total,
+          fees: 0,
+          totalAmount: context.total,
+          balanceBefore: balances.recipientBefore,
+          balanceAfter: balances.recipientAfter,
+          operationType: 'wallet_transfert',
+        })
+        .catch(() => {})
 
-      emitter.emit('activity:transaction-log', {
-        event: 'SUCCESS',
-        transactionId: transferResult.senderTx.reference,
-      })
+      emitter
+        .emit('activity:transaction-log', {
+          event: 'SUCCESS',
+          transactionId: transferResult.senderTx.reference,
+        })
+        .catch(() => {})
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'TRANSACTION',
+          eventAction: 'W2W_INITIATED',
+          actorId: String(context.currentUser.id),
+          actorType: 'User',
+          targetType: 'Transaction',
+          targetId: String(transferResult.senderTx.id),
+          result: AuditResult.SUCCESS,
+          ipAddress: auditContext.ipAddress ?? geoIpLocation?.ip ?? null,
+          userAgent: auditContext.userAgent ?? null,
+          requestId: auditContext.requestId ?? null,
+          metadata: {
+            senderReference: transferResult.senderTx.reference,
+            recipientReference: transferResult.recipientTx.reference,
+            amount: context.amount,
+            fees: context.fees,
+            total: context.total,
+            recipientPhone: recipientWallet.user.phone,
+            geoCountry: geoIpLocation?.countryCode ?? null,
+            geoCity: geoIpLocation?.city ?? null,
+            isVpn: geoIpLocation?.isVpn ?? null,
+          },
+        })
+        .catch((_) => {})
 
       const responseResult = {
         message: 'Transfert wallet-to-wallet effectué avec succès',

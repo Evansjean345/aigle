@@ -27,6 +27,7 @@ import { isSyncDepositProvider } from '#features/operations/application/constant
 import SyncCheckoutService from '#features/operations/application/services/sync_checkout_service'
 import Transaction from '#features/transactions/domain/models/transaction'
 import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 /**
  * Handles the deposit use case, including the calculation of fees based on a given deposit request payload.
@@ -215,6 +216,32 @@ export default class DepositUseCase {
         transactionType: TransactionType.DEPOSIT,
         actorId: user.usersUid,
         ipAddress: payload.geoIpLocation?.ip,
+      })
+      .catch((_) => {})
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'TRANSACTION',
+        eventAction: 'DEPOSIT_INITIATED',
+        actorId: String(user.id),
+        actorType: 'User',
+        targetType: 'Transaction',
+        targetId: String(transaction.id),
+        result: AuditResult.SUCCESS,
+        ipAddress: payload.ipAddress ?? payload.geoIpLocation?.ip ?? null,
+        userAgent: payload.userAgent ?? null,
+        requestId: payload.requestId ?? null,
+        metadata: {
+          reference: transaction.reference,
+          amount,
+          fees,
+          total,
+          provider: payload.providerCode,
+          paymentMethod: payload.paymentMethodCode,
+          geoCountry: payload.geoIpLocation?.countryCode ?? null,
+          geoCity: payload.geoIpLocation?.city ?? null,
+          isVpn: payload.geoIpLocation?.isVpn ?? null,
+        },
       })
       .catch((_) => {})
 

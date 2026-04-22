@@ -1,4 +1,5 @@
 import router from '@adonisjs/core/services/router'
+import { middleware } from '#start/kernel'
 
 const AdminWalletController = () =>
   import('#features/wallet/presentation/admin/controllers/admin_wallet_controller')
@@ -10,7 +11,9 @@ export default function adminWalletRoutes() {
     .group(() => {
       router.put('/:userId/activate', [AdminWalletController, 'activate'])
       router.put('/:userId/deactivate', [AdminWalletController, 'deactivate'])
+      router.get('/adjustments', [AdminWalletAdjustmentController, 'list'])
       router.post('/adjustments', [AdminWalletAdjustmentController, 'execute'])
     })
     .prefix('wallets')
+    .use(middleware.auth({ guards: ['admin'] }))
 }

@@ -48,12 +48,18 @@ export default class KycLevelController {
    * @param {Object} HttpContext.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves to the created KYC level data sent in the HTTP response.
    */
-  async store({ request, response }: HttpContext): Promise<void> {
+  async store({ request, response, auth }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(createKycLevelValidator, {
       messagesProvider: new SimpleMessagesProvider(kycLevelErrorMessages),
     })
 
-    const kycLevel = await this.createKycLevelUseCase.execute(payload)
+    const kycLevel = await this.createKycLevelUseCase.execute(payload, {
+      actorId: String((auth.user as any)?.id ?? 'unknown'),
+      actorType: 'Admin',
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    })
     return response.created(kycLevel)
   }
 
@@ -66,12 +72,18 @@ export default class KycLevelController {
    * @param {Object} context.params The route parameters, including the ID of the entity to update.
    * @return {Promise<Object>} The updated KYC level data.
    */
-  async update({ request, response, params }: HttpContext): Promise<void> {
+  async update({ request, response, params, auth }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(updateKycLevelValidator, {
       messagesProvider: new SimpleMessagesProvider(kycLevelErrorMessages),
     })
 
-    const kycLevel = await this.updateKycLevelUseCase.execute(params.id, payload)
+    const kycLevel = await this.updateKycLevelUseCase.execute(params.id, payload, {
+      actorId: String((auth.user as any)?.id ?? 'unknown'),
+      actorType: 'Admin',
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    })
     return response.ok(kycLevel)
   }
 
@@ -84,8 +96,14 @@ export default class KycLevelController {
    * @param {string} HttpContext.params.id - The ID of the KYC level to be deleted.
    * @return {Object} A JSON response confirming the deletion of the specified KYC level.
    */
-  async destroy({ response, params }: HttpContext) {
-    await this.deleteKycLevelUseCase.execute(params.id)
+  async destroy({ response, params, request, auth }: HttpContext) {
+    await this.deleteKycLevelUseCase.execute(params.id, {
+      actorId: String((auth.user as any)?.id ?? 'unknown'),
+      actorType: 'Admin',
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    })
     return response.ok({ message: 'Niveau KYC supprimé avec succès ✅' })
   }
 }

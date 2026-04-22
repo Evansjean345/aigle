@@ -25,7 +25,20 @@ export default class OnUserKycStatusUpdate {
   async handle(event: KycDocumentSubmitted | KycDocumentProcessed) {
     if (event instanceof KycDocumentSubmitted) {
       if (event.status === KycDocumentStatus.PENDING) {
-        await this.updateUserKycStatus.execute(event.userId, UserKycStatus.PENDING_IN_REVIEW)
+        await this.updateUserKycStatus.execute(
+          event.userId,
+          UserKycStatus.PENDING_IN_REVIEW,
+          undefined,
+          undefined,
+          {
+            actorId: event.userId,
+            actorType: 'User',
+            ipAddress: event.auditContext?.ipAddress ?? null,
+            userAgent: event.auditContext?.userAgent ?? null,
+            requestId: event.auditContext?.requestId ?? null,
+            geoLocation: event.auditContext?.geoLocation,
+          }
+        )
       }
     }
 
@@ -38,7 +51,19 @@ export default class OnUserKycStatusUpdate {
       const kycLevel =
         event.status === KycDocumentStatus.APPROVED ? KycLevelState.KYC_VERIFIED : undefined
 
-      await this.updateUserKycStatus.execute(event.userId, newUserStatus, kycLevel, event.comment)
+      await this.updateUserKycStatus.execute(
+        event.userId,
+        newUserStatus,
+        kycLevel,
+        event.comment,
+        {
+          actorType: 'Admin',
+          ipAddress: event.auditContext?.ipAddress ?? null,
+          userAgent: event.auditContext?.userAgent ?? null,
+          requestId: event.auditContext?.requestId ?? null,
+          geoLocation: event.auditContext?.geoLocation,
+        }
+      )
     }
   }
 }

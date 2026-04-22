@@ -1,5 +1,5 @@
 import { type DateTime } from 'luxon'
-import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
+import { type TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { PaymentResponseDTO } from '#features/transactions/application/dto/payment.dto'
 import type Transaction from '#features/transactions/domain/models/transaction'
 import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
@@ -23,6 +23,7 @@ export class AdminTransactionResponseDTO {
     firstname: string
     lastname: string
     wallet: {
+      id: number
       balance: number
     }
   }
@@ -63,6 +64,29 @@ export class AdminTransactionResponseDTO {
     actorType: string | null
     createdAt: DateTime
   }[]
+  declare refund?: {
+    id: number
+    refundUid: string
+    walletId: number
+    type: string
+    reason: string
+    status: string
+    amount: number
+    feesRefunded: number
+    totalRefunded: number
+    comment: string
+    adminId: number | null
+    admin: {
+      id: number
+      firstname: string
+      lastname: string
+      email: string
+    } | null
+    balanceBefore: number
+    balanceAfter: number
+    executedAt: DateTime
+    createdAt: DateTime
+  } | null
 
   static fromTransaction(transaction: Transaction): AdminTransactionResponseDTO {
     const dto = new AdminTransactionResponseDTO()
@@ -91,6 +115,7 @@ export class AdminTransactionResponseDTO {
           firstname: transaction.user.firstname,
           lastname: transaction.user.lastname,
           wallet: {
+            id: Number(transaction.user?.wallet?.id),
             balance: Number(transaction.user?.wallet?.balance),
           },
         }
@@ -135,6 +160,33 @@ export class AdminTransactionResponseDTO {
       actorType: log.actorType,
       createdAt: log.createdAt,
     }))
+    dto.refund = transaction.refund
+      ? {
+          id: transaction.refund.id,
+          refundUid: transaction.refund.refundUid,
+          walletId: transaction.refund.walletId,
+          type: transaction.refund.type,
+          reason: transaction.refund.reason,
+          status: transaction.refund.status,
+          amount: Number(transaction.refund.amount),
+          feesRefunded: Number(transaction.refund.feesRefunded),
+          totalRefunded: Number(transaction.refund.totalRefunded),
+          comment: transaction.refund.comment,
+          adminId: transaction.refund.adminId,
+          admin: transaction.refund.admin
+            ? {
+                id: transaction.refund.admin.id,
+                firstname: transaction.refund.admin.firstname,
+                lastname: transaction.refund.admin.lastname,
+                email: transaction.refund.admin.email,
+              }
+            : null,
+          balanceBefore: Number(transaction.refund.balanceBefore),
+          balanceAfter: Number(transaction.refund.balanceAfter),
+          executedAt: transaction.refund.executedAt,
+          createdAt: transaction.refund.createdAt,
+        }
+      : null
 
     return dto
   }

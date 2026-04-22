@@ -11,6 +11,8 @@ import {
   updateServiceProviderMethodValidator,
 } from '#features/catalogs/presentation/admin/validators/service_provider_method_validator'
 import { SimpleMessagesProvider } from '@vinejs/vine'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class ServiceProviderMethodsController {
@@ -73,27 +75,139 @@ export default class ServiceProviderMethodsController {
     return response.ok(item)
   }
 
-  async store({ request, response }: HttpContext) {
+  async store({ request, response, auth }: HttpContext) {
     const payload = await request.validateUsing(createServiceProviderMethodValidator, {
       messagesProvider: new SimpleMessagesProvider(serviceProviderMethodValidatorMessage),
     })
 
-    const created = await this.createUseCase.execute(payload)
-    return response.created(created)
+    try {
+      const created = await this.createUseCase.execute(payload)
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'CATALOG',
+          eventAction: 'SPM_CREATED',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'ServiceProviderMethod',
+          targetId: String((created as any)?.id ?? ''),
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          newValues: payload,
+          result: AuditResult.SUCCESS,
+        })
+        .catch((_) => {})
+
+      return response.created(created)
+    } catch (error) {
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'CATALOG',
+          eventAction: 'SPM_CREATED',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'ServiceProviderMethod',
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.FAILURE,
+          errorMessage: (error as Error)?.message,
+        })
+        .catch((_) => {})
+      throw error
+    }
   }
 
-  async update({ params, request, response }: HttpContext) {
+  async update({ params, request, response, auth }: HttpContext) {
     const payload = await request.validateUsing(updateServiceProviderMethodValidator, {
       messagesProvider: new SimpleMessagesProvider(serviceProviderMethodValidatorMessage),
       meta: { spmId: Number(params.id) },
     })
 
-    const item = await this.updateUseCase.execute(Number(params.id), payload)
-    return response.ok(item)
+    try {
+      const item = await this.updateUseCase.execute(Number(params.id), payload)
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'CATALOG',
+          eventAction: 'SPM_UPDATED',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'ServiceProviderMethod',
+          targetId: String(params.id),
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          newValues: payload,
+          result: AuditResult.SUCCESS,
+        })
+        .catch((_) => {})
+
+      return response.ok(item)
+    } catch (error) {
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'CATALOG',
+          eventAction: 'SPM_UPDATED',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'ServiceProviderMethod',
+          targetId: String(params.id),
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.FAILURE,
+          errorMessage: (error as Error)?.message,
+        })
+        .catch((_) => {})
+      throw error
+    }
   }
 
-  async destroy({ params, response }: HttpContext) {
-    await this.deleteUseCase.execute(Number(params.id))
-    return response.noContent()
+  async destroy({ params, request, response, auth }: HttpContext) {
+    try {
+      await this.deleteUseCase.execute(Number(params.id))
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'CATALOG',
+          eventAction: 'SPM_DELETED',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'ServiceProviderMethod',
+          targetId: String(params.id),
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.SUCCESS,
+        })
+        .catch((_) => {})
+
+      return response.noContent()
+    } catch (error) {
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'CATALOG',
+          eventAction: 'SPM_DELETED',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'ServiceProviderMethod',
+          targetId: String(params.id),
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.FAILURE,
+          errorMessage: (error as Error)?.message,
+        })
+        .catch((_) => {})
+      throw error
+    }
   }
 }

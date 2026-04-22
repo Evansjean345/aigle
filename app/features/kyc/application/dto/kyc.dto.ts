@@ -1,11 +1,16 @@
 import { KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
 import type KycDocument from '#features/kyc/domain/models/kyc_document'
+import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 export interface KycDocumentRequestDto {
   documentType: KycDocumentType
   documentRectoUrl: any
   documentVersoUrl: any
   documentsSelfieUrl: any
+  ipAddress?: string | null
+  userAgent?: string | null
+  requestId?: string | null
+  geoLocation?: GeoIpLocation
 }
 
 export interface KycDocumentResponseDto {
@@ -22,6 +27,7 @@ export class AdminKycListDto {
   declare selfieUrl?: string
   declare status: string
   declare comment?: string
+  declare validUntil?: string
   declare createdAt: string
   declare agent?: {
     id: number
@@ -50,6 +56,7 @@ export class AdminKycListDto {
     dto.selfieUrl = kyc.selfieUrl
     dto.status = kyc.status
     dto.comment = kyc.comment
+    dto.validUntil = kyc.validUntil?.toISODate() ?? undefined
     dto.createdAt = kyc.createdAt?.toISO() || kyc.createdAt?.toString() || ''
     dto.agent = kyc.agent
       ? {

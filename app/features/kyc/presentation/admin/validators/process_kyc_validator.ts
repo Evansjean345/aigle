@@ -10,6 +10,7 @@ export const processKycValidator = vine.compile(
       .minLength(3)
       .optional()
       .requiredWhen('status', '=', KycDocumentStatus.REJECTED),
+    validUntil: vine.string().optional(),
   })
 )
 

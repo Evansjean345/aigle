@@ -3,6 +3,9 @@ import { inject } from '@adonisjs/core'
 import { KycLevelResponseDto, UpdateKycLevelDto } from '#features/kyc/application/dto/kyc_level.dto'
 import KycLevelNotFoundException from '#features/kyc/infrastructure/exceptions/kyc_level_not_found_exception'
 import KycLevelAlreadyExistsException from '#features/kyc/infrastructure/exceptions/kyc_level_already_exists_exception'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
+import type { AdminAuditContext } from '#features/kyc/application/usecases/admin/create_kyc_level.usecase'
 
 @inject()
 export default class UpdateKycLevelUseCase {
@@ -21,11 +24,24 @@ export default class UpdateKycLevelUseCase {
    * @return {Promise<KycLevelResponseDto>} A promise that resolves to the updated KYC level response DTO.
    * @throws {Exception} Throws an exception if the KYC level is not found or if there is a conflict with an existing level.
    */
-  async execute(id: number, data: UpdateKycLevelDto): Promise<KycLevelResponseDto> {
+  async execute(
+    id: number,
+    data: UpdateKycLevelDto,
+    auditContext?: AdminAuditContext
+  ): Promise<KycLevelResponseDto> {
     const kycLevel = await this.kycLevelRepository.findById(id)
 
     if (!kycLevel) {
       throw new KycLevelNotFoundException()
+    }
+
+    const before = {
+      level: kycLevel.level,
+      singleLimit: kycLevel.singleLimit,
+      dailyLimit: kycLevel.dailyLimit,
+      monthlyLimit: kycLevel.monthlyLimit,
+      balanceLimit: kycLevel.balanceLimit,
+      isActive: kycLevel.isActive,
     }
 
     if (data.level !== undefined) {
@@ -45,6 +61,34 @@ export default class UpdateKycLevelUseCase {
     if (data.isActive !== undefined) kycLevel.isActive = data.isActive
 
     await this.kycLevelRepository.save(kycLevel)
+
+    if (auditContext) {
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'CONFIGURATION',
+          eventAction: 'KYC_LEVEL_UPDATED',
+          actorId: auditContext.actorId,
+          actorType: auditContext.actorType ?? 'Admin',
+          targetType: 'KycLevel',
+          targetId: String(kycLevel.id),
+          result: AuditResult.SUCCESS,
+          ipAddress: auditContext.ipAddress ?? null,
+          userAgent: auditContext.userAgent ?? null,
+          requestId: auditContext.requestId ?? null,
+          metadata: {
+            before,
+            after: {
+              level: kycLevel.level,
+              singleLimit: kycLevel.singleLimit,
+              dailyLimit: kycLevel.dailyLimit,
+              monthlyLimit: kycLevel.monthlyLimit,
+              balanceLimit: kycLevel.balanceLimit,
+              isActive: kycLevel.isActive,
+            },
+          },
+        })
+        .catch((_) => {})
+    }
 
     return KycLevelResponseDto.fromKycLevel(kycLevel)
   }

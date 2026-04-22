@@ -3,6 +3,7 @@ import { DateTime } from 'luxon'
 import { v4 as uuidv4 } from 'uuid'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import Transaction from '#features/transactions/domain/models/transaction'
+import Admin from '#features/team/domain/models/admin'
 import { RefundReason, RefundStatus, RefundType } from '#features/transactions/domain/enums/refund'
 
 export default class Refund extends BaseModel {
@@ -59,6 +60,9 @@ export default class Refund extends BaseModel {
 
   @belongsTo(() => Transaction)
   declare transaction: BelongsTo<typeof Transaction>
+
+  @belongsTo(() => Admin, { foreignKey: 'adminId' })
+  declare admin: BelongsTo<typeof Admin>
 
   @beforeCreate()
   static assignUid(refund: Refund) {

@@ -38,6 +38,10 @@ import KycLevelRepository from '#features/kyc/domain/interfaces/kyc_level_reposi
 import KycLevelRepositoryImpl from '#features/kyc/infrastructure/repositories/kyc_level_repository_impl'
 import ResetPasswordTokenProvider from '#features/authentication/domain/interfaces/reset_password_token_provider'
 import RedisResetPasswordTokenProvider from '#features/authentication/infrastructure/redis_reset_password_token_provider'
+import SlidingWindowCounter from '#shared/domain/cache/sliding_window_counter'
+import RedisSlidingWindowCounter from '#shared/infrastructure/cache/redis_sliding_window_counter'
+import TimedFlag from '#shared/domain/cache/timed_flag'
+import RedisTimedFlag from '#shared/infrastructure/cache/redis_timed_flag'
 import AdminRepository from '#features/team/domain/interfaces/admin_repository'
 import AdminRepositoryImpl from '#features/team/infrastructure/repositories/admin_repository_impl'
 import RoleRepository from '#features/team/domain/interfaces/role_repository'
@@ -48,6 +52,8 @@ import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_r
 import DebitPhoneRepositoryImpl from '#features/user/infrastructure/repositories/debit_phone_repository_impl'
 import WalletAdjustmentRepository from '#features/wallet/domain/interfaces/wallet_adjustment_repository'
 import WalletAdjustmentRepositoryImpl from '#features/wallet/infrastructure/repositories/wallet_adjustment_repository_impl'
+import AuditLogRepository from '#features/audit/domain/interfaces/audit_log_repository'
+import AuditLogRepositoryImpl from '#features/audit/infrastructure/repositories/audit_log_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -74,11 +80,14 @@ export default class RepositoryProvider {
       [KycDocumentRepository, KycDocumentRepositoryImpl],
       [KycLevelRepository, KycLevelRepositoryImpl],
       [ResetPasswordTokenProvider, RedisResetPasswordTokenProvider],
+      [SlidingWindowCounter, RedisSlidingWindowCounter],
+      [TimedFlag, RedisTimedFlag],
       [AdminRepository, AdminRepositoryImpl],
       [RoleRepository, RoleRepositoryImpl],
       [PermissionRepository, PermissionRepositoryImpl],
       [DebitPhoneRepository, DebitPhoneRepositoryImpl],
       [WalletAdjustmentRepository, WalletAdjustmentRepositoryImpl],
+      [AuditLogRepository, AuditLogRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {

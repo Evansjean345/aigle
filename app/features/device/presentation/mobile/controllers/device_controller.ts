@@ -37,11 +37,15 @@ export default class DeviceController {
    * @param {HttpContext} ctx - The HTTP context containing authentication, response, and request parameters.
    * @returns {Promise<void>} - A promise that resolves when the operation is complete.
    */
-  async revokeDevice({ auth, response, params }: HttpContext): Promise<void> {
+  async revokeDevice({ auth, response, params, request }: HttpContext): Promise<void> {
     const user = auth.user!
     const userDeviceId = params.id
 
-    await this.revokeDeviceUseCase.execute(user, userDeviceId)
+    await this.revokeDeviceUseCase.execute(user, userDeviceId, {
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    })
 
     return response.ok({ message: 'Device revoked successfully.' })
   }

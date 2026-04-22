@@ -10,6 +10,14 @@ import securityLog from '#shared/infrastructure/logging/security_log'
 import DebitPhoneOtpTemplate from '#features/otp/infrastructure/templates/debit_phone_otp_template'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import Provider from '#features/catalogs/domain/models/provider'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
+
+export interface AuditContext {
+  ipAddress?: string | null
+  userAgent?: string | null
+  requestId?: string | null
+}
 
 const MIN_DAYS_BEFORE_CHANGE = 3
 
@@ -48,7 +56,8 @@ export default class AddDebitPhoneUseCase {
     userId: string,
     phone: string,
     providerCode: string,
-    label?: string
+    label?: string,
+    auditContext?: AuditContext
   ): Promise<{ message: string }> {
     const normalizedPhone = normalizePhone(phone)
 
@@ -126,6 +135,23 @@ export default class AddDebitPhoneUseCase {
     }
 
     await this.otpSendingService.send(normalizedPhone, userId, new DebitPhoneOtpTemplate())
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'USER_SECURITY',
+        eventAction: 'DEBIT_PHONE_ADDED',
+        actorId: userId,
+        actorType: 'User',
+        targetType: 'DebitPhone',
+        targetId: normalizedPhone,
+        result: AuditResult.SUCCESS,
+        ipAddress: auditContext?.ipAddress ?? null,
+        userAgent: auditContext?.userAgent ?? null,
+        requestId: auditContext?.requestId ?? null,
+        metadata: { phone: normalizedPhone, providerCode, providerName: provider.name },
+      })
+      .catch((_) => {})
+
     return { message: 'Un code OTP a été envoyé au numéro fourni. Veuillez le valider.' }
   }
 

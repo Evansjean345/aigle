@@ -16,9 +16,7 @@ import WalletStatusChanged from '#features/wallet/application/events/wallet_stat
 const AuditListener = () => import('#features/audit/application/listeners/audit_listener')
 
 const WalletToWalletTransactionPushNotificationListener = () =>
-  import(
-    '#features/notifications/application/listeners/on_wallet_to_wallet_transaction_notification'
-  )
+  import('#features/notifications/application/listeners/on_wallet_to_wallet_transaction_notification')
 
 const PersistUserTransactionsVolumeListener = () =>
   import('#features/transactions/application/listeners/persist_user_transactions_volume')
@@ -51,12 +49,14 @@ const HandleTransactionFailure = () =>
 import { type AuditRecordInput } from '#shared/infrastructure/logging/audit_service'
 import { type TransactionLogEventData } from '#features/transactions/application/types/transaction_log_event_data'
 import { type AdminProviderErrorAlertEvent } from '#features/notifications/domain/events/admin_alert_events'
+import { type SecurityAlertEvent } from '#features/audit/application/types/security_alert_event'
 
 declare module '@adonisjs/core/types' {
   interface EventsList {
     'activity:audit': AuditRecordInput
     'activity:transaction-log': TransactionLogEventData
     'alert:provider-error': AdminProviderErrorAlertEvent
+    'alert:security': SecurityAlertEvent
   }
 }
 
@@ -90,6 +90,14 @@ const TransactionLogListener = () =>
 const OnProviderErrorAlert = () =>
   import('#features/notifications/application/listeners/on_provider_error_alert')
 
+const OnSecurityAlert = () =>
+  import('#features/notifications/application/listeners/on_security_alert')
+
+const SecurityAlertDetectorListener = () =>
+  import('#features/audit/application/services/security_alert_detector')
+
 emitter.on('activity:audit', [AuditListener])
+emitter.on('activity:audit', [SecurityAlertDetectorListener])
 emitter.on('activity:transaction-log', [TransactionLogListener])
 emitter.on('alert:provider-error', [OnProviderErrorAlert])
+emitter.on('alert:security', [OnSecurityAlert])

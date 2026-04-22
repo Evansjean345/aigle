@@ -1,6 +1,5 @@
 import vine from '@vinejs/vine'
-import { Infer } from '@vinejs/vine/types'
-import { RefundReason } from '#features/transactions/domain/enums/refund'
+import { RefundReason, RefundType } from '#features/transactions/domain/enums/refund'
 
 const schema = vine.object({
   reference: vine.string().trim().minLength(1),
@@ -9,4 +8,20 @@ const schema = vine.object({
 })
 
 export const adminRefundValidator = vine.compile(schema)
-export type AdminRefundValidator = Infer<typeof schema>
+
+const transactionsRefundListSchema = vine.object({
+  page: vine.number().positive().optional(),
+  perPage: vine.number().positive().max(200).optional(),
+  walletId: vine.number().positive().optional(),
+  userId: vine.string().trim().uuid().optional(),
+  adminId: vine.number().positive().optional(),
+  type: vine.enum(Object.values(RefundType)).optional(),
+  reason: vine.enum(Object.values(RefundReason)).optional(),
+  search: vine.string().trim().minLength(1).maxLength(200).optional(),
+  minAmount: vine.number().min(0).optional(),
+  maxAmount: vine.number().min(0).optional(),
+  startDate: vine.string().trim().optional(),
+  endDate: vine.string().trim().optional(),
+})
+
+export const transactionsRefundListValidator = vine.compile(transactionsRefundListSchema)

@@ -12,6 +12,7 @@ export default function adminTransactionRoutes() {
     .group(() => {
       router.get('/', [AdminTransactionController, 'getAllTransactions'])
       router.get('/stats', [AdminTransactionController, 'getTransactionsStats'])
+      router.get('/refunds', [AdminRefundController, 'list'])
       router.post('/refunds', [AdminRefundController, 'execute'])
       router.get('/:reference', [AdminTransactionController, 'findTransaction'])
     })

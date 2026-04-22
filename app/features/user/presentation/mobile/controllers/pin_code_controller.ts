@@ -24,7 +24,13 @@ export default class ProfileController {
    *
    * @return {Promise<void>} Resolves when the password change is successfully completed.
    */
-  async changePinCode({ request, response, auth, deviceInfo }: HttpContext): Promise<void> {
+  async changePinCode({
+    request,
+    response,
+    auth,
+    deviceInfo,
+    geoLocation,
+  }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(changePasswordValidator)
     const user = auth.user!! as User
 
@@ -33,6 +39,10 @@ export default class ProfileController {
         user: user,
         oldPincode: payload.old_pincode,
         newPincode: payload.new_pincode,
+        ipAddress: geoLocation?.ip ?? request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        requestId: request.header('x-request-id') ?? null,
+        geoLocation,
       },
       deviceInfo
     )

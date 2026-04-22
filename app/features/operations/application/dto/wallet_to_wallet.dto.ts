@@ -11,11 +11,15 @@ export class WalletToWalletRequestDto {
   declare includeFees?: boolean
   declare deviceInfo: DeviceHeadersInfo
   declare geoIpLocation: GeoIpLocation
+  declare ipAddress?: string | null
+  declare userAgent?: string | null
+  declare requestId?: string | null
 
   static fromRequest(
     payload: Record<string, any>,
     deviceInfo?: DeviceHeadersInfo,
-    geoIpLocation?: GeoIpLocation
+    geoIpLocation?: GeoIpLocation,
+    context?: { ipAddress?: string | null; userAgent?: string | null; requestId?: string | null }
   ): WalletToWalletRequestDto {
     const dto = new WalletToWalletRequestDto()
 
@@ -39,6 +43,9 @@ export class WalletToWalletRequestDto {
     dto.pincode = payload.pincode
     dto.deviceInfo = deviceInfo
     dto.geoIpLocation = geoIpLocation
+    dto.ipAddress = context?.ipAddress ?? geoIpLocation?.ip ?? null
+    dto.userAgent = context?.userAgent ?? null
+    dto.requestId = context?.requestId ?? null
 
     return dto
   }

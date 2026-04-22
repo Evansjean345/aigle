@@ -1,10 +1,10 @@
 import { test } from '@japa/runner'
 import { v4 as uuidv4 } from 'uuid'
 import SubmitKycDocumentUsecase from '#features/kyc/application/usecases/mobile/submit_kyc_document.usecase'
-import KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
-import FileStorageService from '#shared/infrastructure/services/file_storage_service'
+import type KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
+import type FileStorageService from '#shared/infrastructure/services/file_storage_service'
 import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
-import KycDocument from '#features/kyc/domain/models/kyc_document'
+import type KycDocument from '#features/kyc/domain/models/kyc_document'
 import KycAlreadySubmittedException from '#features/kyc/infrastructure/exceptions/kyc_already_submitted_exception'
 import MissingKycDocumentsException from '#features/kyc/infrastructure/exceptions/missing_kyc_documents_exception'
 

@@ -2,15 +2,69 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import emitter from '@adonisjs/core/services/emitter'
 import ExecuteWalletAdjustmentUseCase from '#features/wallet/application/use_cases/admin/execute_wallet_adjustment_use_case'
+import ListWalletAdjustmentsUseCase from '#features/wallet/application/use_cases/admin/list_wallet_adjustments_use_case'
 import WalletPolicy from '#features/wallet/presentation/admin/policies/wallet_policy'
-import { walletAdjustmentValidator } from '#features/wallet/presentation/admin/validators/wallet_adjustment_validator'
-import { AdjustmentType } from '#features/wallet/domain/enums/wallet_adjustment'
+import {
+  walletAdjustmentValidator,
+  walletAdjustmentListValidator,
+} from '#features/wallet/presentation/admin/validators/wallet_adjustment_validator'
+import { AdjustmentType, AdjustmentReason } from '#features/wallet/domain/enums/wallet_adjustment'
 import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class AdminWalletAdjustmentController {
-  constructor(private readonly executeWalletAdjustmentUseCase: ExecuteWalletAdjustmentUseCase) {}
+  /**
+   * Constructs a new instance with the required wallet adjustment use cases.
+   * @param {ExecuteWalletAdjustmentUseCase} executeWalletAdjustmentUseCase - The use case for executing wallet adjustments.
+   * @param {ListWalletAdjustmentsUseCase} listWalletAdjustmentsUseCase - The use case for listing wallet adjustments.
+   */
+  constructor(
+    private readonly executeWalletAdjustmentUseCase: ExecuteWalletAdjustmentUseCase,
+    private readonly listWalletAdjustmentsUseCase: ListWalletAdjustmentsUseCase
+  ) {}
 
+  /**
+   * Lists wallet adjustments based on the provided query parameters.
+   * Authorizes the request using the WalletPolicy and validates the query string
+   * before delegating to the listWalletAdjustmentsUseCase.
+   *
+   * @param {HttpContext} context - The HTTP context containing request, response, bouncer, and auth.
+   * @return {Promise<void>}
+   */
+  async list({ request, response, bouncer, auth }: HttpContext): Promise<void> {
+    await bouncer.with(WalletPolicy).authorize('viewAdjustments' as never)
+
+    const query = await walletAdjustmentListValidator.validate(request.qs())
+
+    const result = await this.listWalletAdjustmentsUseCase.execute({
+      page: query.page,
+      perPage: query.perPage,
+      walletId: query.walletId,
+      userId: query.userId,
+      adminId: query.adminId,
+      type: query.type as AdjustmentType | undefined,
+      reason: query.reason as AdjustmentReason | undefined,
+      search: query.search,
+      minAmount: query.minAmount,
+      maxAmount: query.maxAmount,
+      startDate: query.startDate,
+      endDate: query.endDate,
+    })
+
+    return response.ok(result)
+  }
+
+  /**
+   * Executes a wallet adjustment operation. Validates the input payload, authorizes the operation,
+   * performs the wallet adjustment, and emits audit logs for success or failure.
+   *
+   * @param {Object} HttpContext - The HTTP context object containing various request and utility properties.
+   * @param {Object} HttpContext.request - The HTTP request object containing the payload to be processed.
+   * @param {Object} HttpContext.response - The HTTP response object used to send the resulting output.
+   * @param {Object} HttpContext.bouncer - The authorization layer for enforcing access policies.
+   * @param {Object} HttpContext.auth - The authentication object for retrieving the authenticated admin user.
+   * @return {Promise<void>} Resolves when the wallet adjustment operation completes successfully or throws an error.
+   */
   async execute({ request, response, bouncer, auth }: HttpContext): Promise<void> {
     await bouncer.with(WalletPolicy).authorize('executeAdjustment' as never)
 

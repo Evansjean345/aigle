@@ -14,6 +14,8 @@ import paymentLog from '#shared/infrastructure/logging/payment_log'
 import BaseWebhookHandler, {
   WEBHOOK_SUCCESS_RESPONSE,
 } from '#features/webhooks/application/use_cases/base_webhook_handler'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class HandleTransfertInterFirstWebhookUseCase extends BaseWebhookHandler {
@@ -99,6 +101,31 @@ export default class HandleTransfertInterFirstWebhookUseCase extends BaseWebhook
               code: 'INVALID_TRANSACTION_STATUS',
             })
         }
+
+        emitter
+          .emit('activity:audit', {
+            eventCategory: 'TRANSACTION',
+            eventAction:
+              status === TransactionStatus.SUCCESS
+                ? 'INTER_TRANSFER_FIRST_LEG_COMPLETED'
+                : 'INTER_TRANSFER_FIRST_LEG_FAILED',
+            actorId: 'system',
+            actorType: 'System',
+            targetType: 'Transaction',
+            targetId: String(txn.id),
+            result:
+              status === TransactionStatus.SUCCESS ? AuditResult.SUCCESS : AuditResult.FAILURE,
+            ipAddress: null,
+            userAgent: null,
+            requestId: null,
+            metadata: {
+              reference: txn.reference,
+              amount: Number(txn.amount),
+              status,
+              userId: txn.usersUid,
+            },
+          })
+          .catch((_) => {})
 
         paymentLog.info(
           'INTER_TRANSFER_FIRST_PROCESSED',

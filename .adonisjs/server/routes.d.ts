@@ -48,6 +48,8 @@ export type ScannedRoutes = {
     'admin_company_contacts.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_transaction.get_all_transactions': { paramsTuple?: []; params?: {} }
     'admin_transaction.get_transactions_stats': { paramsTuple?: []; params?: {} }
+    'admin_refund.list': { paramsTuple?: []; params?: {} }
+    'admin_refund.execute': { paramsTuple?: []; params?: {} }
     'admin_transaction.find_transaction': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'users.index': { paramsTuple?: []; params?: {} }
     'users.search': { paramsTuple?: []; params?: {} }
@@ -71,8 +73,13 @@ export type ScannedRoutes = {
     'kyc.stats': { paramsTuple?: []; params?: {} }
     'kyc.kyc_details': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyc.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_device.get_devices': { paramsTuple?: []; params?: {} }
     'admin_device.get_user_devices': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'admin_device.revoke_device': { paramsTuple: [ParamValue,ParamValue]; params: {'userId': ParamValue,'deviceId': ParamValue} }
+    'admin_device.get_device_details': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
+    'admin_device.get_device_accounts': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
+    'admin_device.get_transaction_summary': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
+    'admin_device.get_device_transactions': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
     'admin_app_version.index': { paramsTuple?: []; params?: {} }
     'admin_app_version.store': { paramsTuple?: []; params?: {} }
     'admin_app_version.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -80,6 +87,10 @@ export type ScannedRoutes = {
     'admin_app_version.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_wallet.activate': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'admin_wallet.deactivate': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
+    'admin_wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
+    'admin_audit.list': { paramsTuple?: []; params?: {} }
+    'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'auth.check_phone': { paramsTuple?: []; params?: {} }
     'auth.register': { paramsTuple?: []; params?: {} }
     'auth.verify_credentials': { paramsTuple?: []; params?: {} }
@@ -89,6 +100,7 @@ export type ScannedRoutes = {
     'auth.forgot_password_verify': { paramsTuple?: []; params?: {} }
     'auth.forgot_password_reset': { paramsTuple?: []; params?: {} }
     'auth.user_auth': { paramsTuple?: []; params?: {} }
+    'auth.session_status': { paramsTuple?: []; params?: {} }
     'auth.logout': { paramsTuple?: []; params?: {} }
     'auth.check_pin_code': { paramsTuple?: []; params?: {} }
     'wallet_over_view': { paramsTuple?: []; params?: {} }
@@ -144,6 +156,7 @@ export type ScannedRoutes = {
     'admin_company_contacts.index': { paramsTuple?: []; params?: {} }
     'admin_transaction.get_all_transactions': { paramsTuple?: []; params?: {} }
     'admin_transaction.get_transactions_stats': { paramsTuple?: []; params?: {} }
+    'admin_refund.list': { paramsTuple?: []; params?: {} }
     'admin_transaction.find_transaction': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'users.index': { paramsTuple?: []; params?: {} }
     'users.search': { paramsTuple?: []; params?: {} }
@@ -161,10 +174,19 @@ export type ScannedRoutes = {
     'kyc.index': { paramsTuple?: []; params?: {} }
     'kyc.stats': { paramsTuple?: []; params?: {} }
     'kyc.kyc_details': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_device.get_devices': { paramsTuple?: []; params?: {} }
     'admin_device.get_user_devices': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'admin_device.get_device_details': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
+    'admin_device.get_device_accounts': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
+    'admin_device.get_transaction_summary': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
+    'admin_device.get_device_transactions': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
     'admin_app_version.index': { paramsTuple?: []; params?: {} }
     'admin_app_version.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
+    'admin_audit.list': { paramsTuple?: []; params?: {} }
+    'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'auth.user_auth': { paramsTuple?: []; params?: {} }
+    'auth.session_status': { paramsTuple?: []; params?: {} }
     'wallet_over_view': { paramsTuple?: []; params?: {} }
     'services.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'services.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
@@ -196,6 +218,7 @@ export type ScannedRoutes = {
     'admin_company_contacts.index': { paramsTuple?: []; params?: {} }
     'admin_transaction.get_all_transactions': { paramsTuple?: []; params?: {} }
     'admin_transaction.get_transactions_stats': { paramsTuple?: []; params?: {} }
+    'admin_refund.list': { paramsTuple?: []; params?: {} }
     'admin_transaction.find_transaction': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'users.index': { paramsTuple?: []; params?: {} }
     'users.search': { paramsTuple?: []; params?: {} }
@@ -213,10 +236,19 @@ export type ScannedRoutes = {
     'kyc.index': { paramsTuple?: []; params?: {} }
     'kyc.stats': { paramsTuple?: []; params?: {} }
     'kyc.kyc_details': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_device.get_devices': { paramsTuple?: []; params?: {} }
     'admin_device.get_user_devices': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'admin_device.get_device_details': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
+    'admin_device.get_device_accounts': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
+    'admin_device.get_transaction_summary': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
+    'admin_device.get_device_transactions': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
     'admin_app_version.index': { paramsTuple?: []; params?: {} }
     'admin_app_version.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
+    'admin_audit.list': { paramsTuple?: []; params?: {} }
+    'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'auth.user_auth': { paramsTuple?: []; params?: {} }
+    'auth.session_status': { paramsTuple?: []; params?: {} }
     'wallet_over_view': { paramsTuple?: []; params?: {} }
     'services.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'services.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
@@ -241,9 +273,11 @@ export type ScannedRoutes = {
     'payment_methods.store': { paramsTuple?: []; params?: {} }
     'providers.store': { paramsTuple?: []; params?: {} }
     'service_provider_methods.store': { paramsTuple?: []; params?: {} }
+    'admin_refund.execute': { paramsTuple?: []; params?: {} }
     'kyc_level.store': { paramsTuple?: []; params?: {} }
     'kyc.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_app_version.store': { paramsTuple?: []; params?: {} }
+    'admin_wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
     'auth.check_phone': { paramsTuple?: []; params?: {} }
     'auth.register': { paramsTuple?: []; params?: {} }
     'auth.verify_credentials': { paramsTuple?: []; params?: {} }

@@ -31,37 +31,41 @@ export default class AdminWalletController {
         status: WalletStatus.Active,
       })
 
-      emitter.emit('activity:audit', {
-        eventCategory: 'WALLET',
-        eventAction: 'ACTIVATE_WALLET',
-        actorId: auth.user?.id ?? null,
-        actorType: 'admin',
-        actorRole: (auth.user as any)?.role?.slug ?? null,
-        targetType: 'user',
-        targetId: userId,
-        requestId: request.header('x-request-id') ?? null,
-        ipAddress: request.ip(),
-        userAgent: request.header('user-agent') ?? null,
-        newValues: { status: WalletStatus.Active },
-        result: AuditResult.SUCCESS,
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'WALLET',
+          eventAction: 'ACTIVATE_WALLET',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: userId,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          newValues: { status: WalletStatus.Active },
+          result: AuditResult.SUCCESS,
+        })
+        .catch(() => {})
 
       return response.ok({ message: 'Wallet activated successfully' })
     } catch (error) {
-      emitter.emit('activity:audit', {
-        eventCategory: 'WALLET',
-        eventAction: 'ACTIVATE_WALLET',
-        actorId: auth.user?.id ?? null,
-        actorType: 'admin',
-        actorRole: (auth.user as any)?.role?.slug ?? null,
-        targetType: 'user',
-        targetId: userId,
-        requestId: request.header('x-request-id') ?? null,
-        ipAddress: request.ip(),
-        userAgent: request.header('user-agent') ?? null,
-        result: AuditResult.FAILURE,
-        errorMessage: (error as Error)?.message,
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'WALLET',
+          eventAction: 'ACTIVATE_WALLET',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: userId,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.FAILURE,
+          errorMessage: (error as Error)?.message,
+        })
+        .catch(() => {})
       throw error
     }
   }

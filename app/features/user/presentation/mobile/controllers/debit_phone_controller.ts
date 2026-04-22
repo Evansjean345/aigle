@@ -63,7 +63,12 @@ export default class DebitPhoneController {
       user.usersUid,
       payload.phone,
       payload.providerCode,
-      payload.label
+      payload.label,
+      {
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        requestId: request.header('x-request-id') ?? null,
+      }
     )
     return response.ok(result)
   }
@@ -80,7 +85,12 @@ export default class DebitPhoneController {
     const result = await this.verifyDebitPhoneUseCase.execute(
       user.usersUid,
       payload.phone,
-      payload.codeOtp
+      payload.codeOtp,
+      {
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        requestId: request.header('x-request-id') ?? null,
+      }
     )
     return response.ok(result)
   }
@@ -97,7 +107,12 @@ export default class DebitPhoneController {
     const result = await this.resendDebitPhoneOtpUseCase.execute(
       user.usersUid,
       payload.phone,
-      payload.providerCode
+      payload.providerCode,
+      {
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        requestId: request.header('x-request-id') ?? null,
+      }
     )
     return response.ok(result)
   }

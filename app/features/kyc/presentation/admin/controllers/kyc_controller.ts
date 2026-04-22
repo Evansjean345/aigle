@@ -163,7 +163,14 @@ export default class KycController {
    * @param {Auth} context.auth - The authentication instance, containing information about the currently authenticated user.
    * @return {Promise<void>} Resolves after successfully processing the KYC document and emitting the audit event.
    */
-  async process({ request, response, params, bouncer, auth }: HttpContext): Promise<void> {
+  async process({
+    request,
+    response,
+    params,
+    bouncer,
+    auth,
+    geoLocation,
+  }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(processKycValidator, {
       messagesProvider: new SimpleMessagesProvider(processKycErrorMessages),
     })
@@ -176,11 +183,17 @@ export default class KycController {
       await bouncer.with(KycPolicy).authorize('reject')
     }
 
+    const ipAddress = geoLocation?.ip ?? request.ip()
+    const userAgent = request.header('user-agent') ?? null
+    const requestId = request.header('x-request-id') ?? null
+
     await this.processKycDocumentUseCase.execute(
       params.id,
       payload.status,
       payload.comment,
-      (auth.user as any)?.id as number
+      (auth.user as any)?.id as number,
+      { ipAddress, userAgent, requestId, geoLocation },
+      payload.validUntil
     )
 
     emitter.emit('activity:audit', {
@@ -191,11 +204,16 @@ export default class KycController {
       actorRole: (auth.user as any)?.role?.slug ?? null,
       targetType: 'kyc_document',
       targetId: String(params.id),
-      requestId: request.header('x-request-id') ?? null,
-      ipAddress: request.ip(),
-      userAgent: request.header('user-agent') ?? null,
-      newValues: { status: payload.status, comment: payload.comment },
+      requestId,
+      ipAddress,
+      userAgent,
+      newValues: { status: payload.status, comment: payload.comment, validUntil: payload.validUntil },
       result: AuditResult.SUCCESS,
+      metadata: {
+        geoCountry: geoLocation?.countryCode ?? null,
+        geoCity: geoLocation?.city ?? null,
+        isVpn: geoLocation?.isVpn ?? null,
+      },
     })
 
     return response.ok({ message: `Document KYC ${payload.status} avec succès ✅` })

@@ -44,11 +44,15 @@ export default class TransfertController {
     const payload = await request.validateUsing(transfertValidator)
 
     const paymentMethod = payload.payment_method_code
+    const context = {
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    }
 
     switch (paymentMethod) {
       case PaymentMethod.MOBILE_MONEY:
         const result = await this.transfertUseCase.execute(
-          TransfertRequestDto.fromRequest(payload, deviceInfo, geoLocation),
+          TransfertRequestDto.fromRequest(payload, deviceInfo, geoLocation, context),
           user,
           idempotencyKey
         )
@@ -62,7 +66,7 @@ export default class TransfertController {
         }
 
         const walletToWalletResult = await this.walletToWalletUseCase.execute(
-          WalletToWalletRequestDto.fromRequest(data, deviceInfo, geoLocation),
+          WalletToWalletRequestDto.fromRequest(data, deviceInfo, geoLocation, context),
           user,
           TransferMode.BY_PHONE,
           idempotencyKey

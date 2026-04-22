@@ -8,15 +8,17 @@ import ResetPasswordTokenProvider from '#features/authentication/domain/interfac
 import InvalidResetTokenException from '#features/authentication/infrastructure/exceptions/invalid_reset_token_exception'
 import User from '#features/user/domain/models/user'
 import { AuthenticatedProfileAndTokenResponseDto } from '#features/authentication/application/dtos/profile.dto'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class ResetPasswordUseCase {
   /**
-   * Initializes a new instance of the class.
+   * Constructs an instance of the class with the provided dependencies.
    *
-   * @param {UserRepository} userRepository - The repository used for user data operations.
-   * @param {CountryRepository} countryRepository - The repository used for country data operations.
-   * @param {ResetPasswordTokenProvider} resetPasswordTokenProvider - The provider responsible for generating and managing reset password tokens.
+   * @param {UserRepository} userRepository - The repository responsible for managing user data.
+   * @param {CountryRepository} countryRepository - The repository responsible for managing country data.
+   * @param {ResetPasswordTokenProvider} resetPasswordTokenProvider - The provider responsible for handling reset password tokens.
    */
   constructor(
     protected userRepository: UserRepository,
@@ -25,13 +27,12 @@ export default class ResetPasswordUseCase {
   ) {}
 
   /**
-   * Executes the reset password process for a user. Validates the reset token, updates the user's pincode,
-   * and generates an authentication token upon successful completion.
+   * Executes the reset password operation.
    *
-   * @param {ResetPasswordRequestDto} data - The DTO containing reset password request details, including country ID, phone number, reset token, and new pincode.
-   * @return {Promise<AuthenticatedProfileAndTokenResponseDto>} A promise resolving to an object containing the authenticated user's profile and a token.
+   * @param {ResetPasswordRequestDto} data - The data required to reset the user's password, including the user's phone number, reset token, and new pincode.
+   * @return {Promise<AuthenticatedProfileAndTokenResponseDto>} A promise that resolves to an object containing the authenticated user's profile and a new access token.
    * @throws {UserAccountNotFoundException} If no user is found with the provided phone number.
-   * @throws {InvalidResetTokenException} If the reset token provided is invalid.
+   * @throws {InvalidResetTokenException} If the provided reset token is invalid.
    */
   async execute(data: ResetPasswordRequestDto): Promise<AuthenticatedProfileAndTokenResponseDto> {
     const country = await this.countryRepository.findCountryBy('id', data.country_id)
@@ -57,6 +58,26 @@ export default class ResetPasswordUseCase {
     await user.load('country')
     await user.load('wallet')
     await user.load('kycDocument')
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'AUTH',
+        eventAction: 'PASSWORD_RESET',
+        actorId: String(user.id),
+        actorType: 'User',
+        targetType: 'User',
+        targetId: String(user.id),
+        result: AuditResult.SUCCESS,
+        ipAddress: data.ipAddress ?? null,
+        userAgent: data.userAgent ?? null,
+        requestId: data.requestId ?? null,
+        metadata: {
+          geoCountry: data.geoLocation?.countryCode ?? null,
+          geoCity: data.geoLocation?.city ?? null,
+          isVpn: data.geoLocation?.isVpn ?? null,
+        },
+      })
+      .catch(() => {})
 
     return AuthenticatedProfileAndTokenResponseDto.from(user, token.value!.release())
   }

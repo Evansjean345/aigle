@@ -15,6 +15,8 @@ import MissingKycDocumentsException from '#features/kyc/infrastructure/exception
 import KycDocumentNotFoundException from '#features/kyc/infrastructure/exceptions/kyc_document_not_found_exception'
 import kycLog from '#shared/infrastructure/logging/kyc_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 /**
  *
@@ -69,6 +71,8 @@ export default class SubmitKycDocumentUsecase {
         existingKyc.documentVersoUrl = versoUrl
         existingKyc.selfieUrl = selfiUrl
         existingKyc.status = KycDocumentStatus.PENDING
+        existingKyc.comment = undefined
+        existingKyc.agentId = undefined
 
         await this.kycDocumentRepository.saveKycDocument(existingKyc)
       } else {
@@ -118,7 +122,35 @@ export default class SubmitKycDocumentUsecase {
         'KYC documents submitted successfully'
       )
 
-      await KycDocumentSubmitted.dispatch(userId, KycDocumentStatus.PENDING)
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'KYC',
+          eventAction: 'DOCUMENT_SUBMITTED',
+          actorId: userId,
+          actorType: 'User',
+          targetType: 'KycDocument',
+          targetId: String(currentKyc.id),
+          result: AuditResult.SUCCESS,
+          ipAddress: kycDocument.ipAddress ?? null,
+          userAgent: kycDocument.userAgent ?? null,
+          requestId: kycDocument.requestId ?? null,
+          metadata: {
+            documentType: kycDocument.documentType,
+            attemptNumber,
+            status: KycDocumentStatus.PENDING,
+            geoCountry: kycDocument.geoLocation?.countryCode ?? null,
+            geoCity: kycDocument.geoLocation?.city ?? null,
+            isVpn: kycDocument.geoLocation?.isVpn ?? null,
+          },
+        })
+        .catch((_) => {})
+
+      await KycDocumentSubmitted.dispatch(userId, KycDocumentStatus.PENDING, {
+        ipAddress: kycDocument.ipAddress ?? null,
+        userAgent: kycDocument.userAgent ?? null,
+        requestId: kycDocument.requestId ?? null,
+        geoLocation: kycDocument.geoLocation,
+      })
 
       return {
         message: 'Documents Kyc soumis avec succès 📄',

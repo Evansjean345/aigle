@@ -30,6 +30,31 @@ export default class extends BaseSeeder {
         name: 'Accès Support',
         description: 'Accès aux outils de support client',
       },
+      {
+        slug: 'wallet_adjustment.execute',
+        name: 'Exécuter ajustements wallet',
+        description: 'Créditer/débiter un portefeuille pour rapprochement comptable',
+      },
+      {
+        slug: 'wallet_adjustment.read',
+        name: 'Voir ajustements wallet',
+        description: 'Consulter l\'historique des ajustements de portefeuille',
+      },
+      {
+        slug: 'transaction_refund.execute',
+        name: 'Exécuter remboursements',
+        description: 'Rembourser une transaction manuellement',
+      },
+      {
+        slug: 'transactions_refunds.read',
+        name: 'Voir remboursements',
+        description: 'Consulter l\'historique des remboursements (auto, webhook, manuel)',
+      },
+      {
+        slug: 'audit.read',
+        name: 'Voir le journal d\'audit',
+        description: 'Consulter les logs d\'activité administrative et système',
+      },
     ])
 
     const pMap = Object.fromEntries(permissions.map((p) => [p.slug, p.id]))
@@ -74,7 +99,15 @@ export default class extends BaseSeeder {
       { slug: 'finance_admin' },
       { name: 'Administrateur Finance', description: 'Responsable du suivi des flux financiers' }
     )
-    await financeAdmin.related('permissions').sync([pMap['finance.view']])
+    await financeAdmin
+      .related('permissions')
+      .sync([
+        pMap['finance.view'],
+        pMap['wallet_adjustment.execute'],
+        pMap['wallet_adjustment.read'],
+        pMap['transaction_refund.execute'],
+        pMap['transactions_refunds.read'],
+      ])
 
     const supportAgent = await Role.updateOrCreate(
       { slug: 'support_agent' },

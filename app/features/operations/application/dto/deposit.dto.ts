@@ -16,11 +16,15 @@ export class DepositRequestDto {
   declare pinCode?: string
   declare deviceInfo: DeviceHeadersInfo
   declare geoIpLocation: GeoIpLocation
+  declare ipAddress?: string | null
+  declare userAgent?: string | null
+  declare requestId?: string | null
 
   static fromRequest(
     payload: Infer<typeof depositValidator>,
     deviceInfos?: DeviceHeadersInfo,
-    geoIpLocation?: GeoIpLocation
+    geoIpLocation?: GeoIpLocation,
+    context?: { ipAddress?: string | null; userAgent?: string | null; requestId?: string | null }
   ): DepositRequestDto {
     const dto = new DepositRequestDto()
 
@@ -48,6 +52,9 @@ export class DepositRequestDto {
     dto.pinCode = payload.pincode
     dto.deviceInfo = deviceInfos
     dto.geoIpLocation = geoIpLocation
+    dto.ipAddress = context?.ipAddress ?? geoIpLocation?.ip ?? null
+    dto.userAgent = context?.userAgent ?? null
+    dto.requestId = context?.requestId ?? null
     return dto
   }
 }

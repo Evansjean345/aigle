@@ -16,6 +16,7 @@ import paymentLog from '#shared/infrastructure/logging/payment_log'
 import TransfertInterTransactionFailed from '#features/webhooks/application/events/transfert_inter/transfert_inter_transaction_failed'
 import BaseWebhookHandler, { WEBHOOK_SUCCESS_RESPONSE } from './base_webhook_handler.js'
 import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 @inject()
 export default class HandleTransfertInterSecondWebhookUseCase extends BaseWebhookHandler {
@@ -181,6 +182,28 @@ export default class HandleTransfertInterSecondWebhookUseCase extends BaseWebhoo
         event: 'SUCCESS',
         transactionId: transaction.reference,
       })
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'TRANSACTION',
+          eventAction: 'INTER_TRANSFER_SECOND_LEG_COMPLETED',
+          actorId: 'system',
+          actorType: 'System',
+          targetType: 'Transaction',
+          targetId: String(transaction.id),
+          result: AuditResult.SUCCESS,
+          ipAddress: null,
+          userAgent: null,
+          requestId: null,
+          metadata: {
+            reference: transaction.reference,
+            amount: Number(transaction.amount),
+            status: TransactionStatus.SUCCESS,
+            userId: transaction.usersUid,
+          },
+        })
+        .catch((_) => {})
+
       return
     }
 
@@ -207,6 +230,28 @@ export default class HandleTransfertInterSecondWebhookUseCase extends BaseWebhoo
         transactionId: transaction.reference,
         errorMessage: 'Inter-transfer second step failed via webhook',
       })
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'TRANSACTION',
+          eventAction: 'INTER_TRANSFER_SECOND_LEG_FAILED',
+          actorId: 'system',
+          actorType: 'System',
+          targetType: 'Transaction',
+          targetId: String(transaction.id),
+          result: AuditResult.FAILURE,
+          ipAddress: null,
+          userAgent: null,
+          requestId: null,
+          metadata: {
+            reference: transaction.reference,
+            amount: Number(transaction.amount),
+            status: TransactionStatus.FAILED,
+            userId: transaction.usersUid,
+            error: operatorResponse?.error?.message ?? null,
+          },
+        })
+        .catch((_) => {})
 
       const beneficiaryPhone = this.paymentService.extractBeneficiaryPhone(secondPayment)
 

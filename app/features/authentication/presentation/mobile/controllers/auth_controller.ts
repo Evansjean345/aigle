@@ -23,6 +23,7 @@ import { LoginRequestDto } from '#features/authentication/application/dtos/login
 import { RegisterRequestDto } from '#features/authentication/application/dtos/register.dto'
 import { VerifyAccountRequestDto } from '#features/authentication/application/dtos/verify_account.dto'
 import VerifyCredentialsUseCase from '#features/authentication/application/use_cases/verify_credentials_use_case'
+import GetSessionStatusUseCase from '#features/authentication/application/use_cases/get_session_status_use_case'
 
 /**
  * AuthController is responsible for managing user authentication-related operations such as
@@ -43,6 +44,7 @@ export default class AuthController {
    * @param {LogoutUseCase} logoutUseCase - Handles user logout operations.
    * @param {CheckPhoneUseCase} checkPhoneUseCase - Verifies the existence or validity of a user's phone number.
    * @param {ResetPasswordUseCase} resetPasswordUseCase - Handles resetting a user's password.
+   * @param getSessionStatusUseCase
    */
   constructor(
     private verifyCredentialsUseCase: VerifyCredentialsUseCase,
@@ -54,7 +56,8 @@ export default class AuthController {
     private getUserProfileUseCase: GetUserProfileUseCase,
     private logoutUseCase: LogoutUseCase,
     private checkPhoneUseCase: CheckPhoneUseCase,
-    private resetPasswordUseCase: ResetPasswordUseCase
+    private resetPasswordUseCase: ResetPasswordUseCase,
+    private getSessionStatusUseCase: GetSessionStatusUseCase
   ) {}
 
   /**
@@ -67,7 +70,10 @@ export default class AuthController {
    */
   async register({ response, request, geoLocation }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(registerValidator)
-    const registerRequestDto = RegisterRequestDto.fromPayload(payload, geoLocation)
+    const registerRequestDto = RegisterRequestDto.fromPayload(payload, geoLocation, {
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    })
     const user = await this.registerUseCase.execute(registerRequestDto)
     return response.created(user)
   }
@@ -83,7 +89,10 @@ export default class AuthController {
   async verifyCredentials({ response, request, geoLocation }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(loginValidator)
     const result = await this.verifyCredentialsUseCase.execute(
-      LoginRequestDto.fromPayload(payload, geoLocation)
+      LoginRequestDto.fromPayload(payload, geoLocation, {
+        userAgent: request.header('user-agent') ?? null,
+        requestId: request.header('x-request-id') ?? null,
+      })
     )
 
     return response.created(result)
@@ -111,9 +120,13 @@ export default class AuthController {
    * @param {Object} context.auth - The authentication object containing the currently authenticated user.
    * @return {Promise<void>} Resolves with no content response once the logout process is completed.
    */
-  async logout({ response, auth }: HttpContext): Promise<void> {
+  async logout({ response, auth, request }: HttpContext): Promise<void> {
     const authenticatedUser = auth.user!!
-    await this.logoutUseCase.execute(authenticatedUser)
+    await this.logoutUseCase.execute(authenticatedUser, {
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    })
     return response.noContent()
   }
 
@@ -125,16 +138,34 @@ export default class AuthController {
    * @param {Object} HttpContext.request - The request object containing the input data.
    * @return {Promise<void>} Returns a Promise that resolves to a response with the state of the PIN code validation.
    */
-  async checkPinCode({ response, request, auth }: HttpContext): Promise<void> {
+  async checkPinCode({ response, request, auth, geoLocation }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(checkPinValidator)
     const user = auth.user!! as User
 
     const result = await this.checkPinUseCase.execute({
       phone: user.phone,
       pincode: payload.pincode,
+      ipAddress: geoLocation?.ip ?? request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      geoLocation,
     })
 
     return response.created({ isValid: result })
+  }
+
+  /**
+   * Returns the current lock state of the authenticated user's account.
+   * Used by the mobile client to validate a local biometric unlock against
+   * server-side lockout rules (account blocked, temporary PIN lockout).
+   *
+   * @param {HttpContext} context
+   * @return {Promise<void>}
+   */
+  async sessionStatus({ response, auth }: HttpContext): Promise<void> {
+    const user = auth.user!! as User
+    const status = await this.getSessionStatusUseCase.execute(user)
+    return response.ok(status)
   }
 
   /**
@@ -152,7 +183,10 @@ export default class AuthController {
     geoLocation,
   }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(verifyUserAccountValidator)
-    const dto = VerifyAccountRequestDto.fromPayload(payload, deviceInfo, geoLocation)
+    const dto = VerifyAccountRequestDto.fromPayload(payload, deviceInfo, geoLocation, {
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    })
 
     const authenticatedUser = await this.verifyAndAuthenticateUseCase.execute(dto, 'register')
     return response.created(authenticatedUser)
@@ -181,9 +215,15 @@ export default class AuthController {
    * @param {Object} context.request - The HTTP request instance.
    * @return {Promise<void>} A Promise that resolves to a created HTTP response containing the result of the OTP operation.
    */
-  async sendOtp({ response, request }: HttpContext): Promise<void> {
+  async sendOtp({ response, request, geoLocation }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(checkPhoneValidator)
-    const result = await this.sendOtpUseCase.execute(payload)
+    const result = await this.sendOtpUseCase.execute({
+      ...payload,
+      ipAddress: geoLocation?.ip ?? null,
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      geoLocation,
+    })
 
     if (!result.sent) {
       return response.ok(result)
@@ -201,9 +241,15 @@ export default class AuthController {
    * @param {Object} HttpContext.request - The request object.
    * @return {Promise<void>} Resolves when the OTP is successfully sent and the response is created.
    */
-  async forgotPasswordRequest({ response, request }: HttpContext): Promise<void> {
+  async forgotPasswordRequest({ response, request, geoLocation }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(checkPhoneValidator)
-    const result = await this.sendOtpUseCase.execute(payload)
+    const result = await this.sendOtpUseCase.execute({
+      ...payload,
+      ipAddress: geoLocation?.ip ?? null,
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      geoLocation,
+    })
 
     if (!result.sent) {
       return response.ok(result)
@@ -222,9 +268,13 @@ export default class AuthController {
    * @param {Object} HttpContext.request - The HTTP request object containing request data.
    * @return {Promise<void>} A Promise that resolves when the verification and response creation processes are complete.
    */
-  async forgotPasswordVerify({ response, request }: HttpContext): Promise<void> {
+  async forgotPasswordVerify({ response, request, geoLocation }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(verifyUserAccountValidator)
-    const result = await this.verifyForgotPasswordOtpUseCase.execute(payload)
+    const dto = VerifyAccountRequestDto.fromPayload(payload, undefined, geoLocation, {
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    })
+    const result = await this.verifyForgotPasswordOtpUseCase.execute(dto)
     return response.created(result)
   }
 
@@ -237,9 +287,15 @@ export default class AuthController {
    * @param {Object} context.response - The outgoing response object used to send the reset result.
    * @return {Promise<void>} Resolves when the reset operation is successfully completed and a response is sent.
    */
-  async forgotPasswordReset({ response, request }: HttpContext): Promise<void> {
+  async forgotPasswordReset({ response, request, geoLocation }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(forgotPasswordResetValidator)
-    const result = await this.resetPasswordUseCase.execute(payload)
+    const result = await this.resetPasswordUseCase.execute({
+      ...payload,
+      ipAddress: geoLocation?.ip ?? null,
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      geoLocation,
+    })
     return response.created(result)
   }
 }

@@ -1,6 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
-import { pinCodeCheckThrottle, otpThrottle } from '#start/limiter'
+import { otpThrottle } from '#start/limiter'
 
 const AuthController = () =>
   import('#features/authentication/presentation/mobile/controllers/auth_controller')
@@ -34,10 +34,11 @@ export default function mobileAuthRoutes() {
       router
         .group(() => {
           router.get('profile', [AuthController, 'userAuth'])
+          router.get('session-status', [AuthController, 'sessionStatus'])
           router.post('logout', [AuthController, 'logout'])
-          router.post('check-pin', [AuthController, 'checkPinCode']).use(pinCodeCheckThrottle)
+          router.post('check-pin', [AuthController, 'checkPinCode'])
         })
-        .use([middleware.auth(), middleware.device()])
+        .use([middleware.auth(), middleware.device(), middleware.geoip()])
     })
     .prefix('mobile/auth')
 }

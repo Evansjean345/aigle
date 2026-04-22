@@ -67,7 +67,12 @@ export default class AdminManagementController {
    */
   async setupPassword({ request, response }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(setupAdminPasswordValidator)
-    const data = await this.setupAdminPasswordUseCase.execute(payload)
+    const data = await this.setupAdminPasswordUseCase.execute({
+      ...payload,
+      ipAddress: request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+    })
     return response.ok(data)
   }
 

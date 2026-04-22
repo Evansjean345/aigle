@@ -4,6 +4,7 @@ import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import { v4 as uuidv4 } from 'uuid'
 import Wallet from '#features/wallet/domain/models/wallet'
 import Transaction from '#features/transactions/domain/models/transaction'
+import Admin from '#features/team/domain/models/admin'
 import {
   AdjustmentType,
   AdjustmentReason,
@@ -66,6 +67,9 @@ export default class WalletAdjustment extends BaseModel {
 
   @belongsTo(() => Transaction)
   declare transaction: BelongsTo<typeof Transaction>
+
+  @belongsTo(() => Admin, { foreignKey: 'adminId' })
+  declare admin: BelongsTo<typeof Admin>
 
   @beforeCreate()
   static generateUid(adjustment: WalletAdjustment) {

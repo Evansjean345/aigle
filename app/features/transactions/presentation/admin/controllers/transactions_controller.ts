@@ -57,18 +57,20 @@ export default class TransactionsController {
       userId,
     })
 
-    emitter.emit('activity:audit', {
-      eventCategory: 'TRANSACTIONS',
-      eventAction: 'READ_TRANSACTIONS',
-      actorId: auth.user?.id ?? null,
-      actorType: 'admin',
-      actorRole: (auth.user as any)?.role?.slug ?? null,
-      requestId: request.header('x-request-id') ?? null,
-      ipAddress: request.ip(),
-      userAgent: request.header('user-agent') ?? null,
-      metadata: { page, perPage, type, status, search, startDate, endDate, userId },
-      result: AuditResult.SUCCESS,
-    })
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'TRANSACTION',
+        eventAction: 'READ_TRANSACTIONS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        metadata: { page, perPage, type, status, search, startDate, endDate, userId },
+        result: AuditResult.SUCCESS,
+      })
+      .catch(() => {})
 
     return response.ok(transactions)
   }
@@ -90,36 +92,40 @@ export default class TransactionsController {
 
       const transaction = await this.getTransactionDetailsUseCase.execute(reference, { loadLedger })
 
-      emitter.emit('activity:audit', {
-        eventCategory: 'TRANSACTIONS',
-        eventAction: 'VIEW_TRANSACTION_DETAILS',
-        actorId: auth.user?.id ?? null,
-        actorType: 'admin',
-        actorRole: (auth.user as any)?.role?.slug ?? null,
-        targetType: 'transaction',
-        targetId: reference,
-        requestId: request.header('x-request-id') ?? null,
-        ipAddress: request.ip(),
-        userAgent: request.header('user-agent') ?? null,
-        result: AuditResult.SUCCESS,
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'TRANSACTION',
+          eventAction: 'VIEW_TRANSACTION_DETAILS',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'transaction',
+          targetId: reference,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.SUCCESS,
+        })
+        .catch(() => {})
 
       return response.ok(transaction)
     } catch (error) {
-      emitter.emit('activity:audit', {
-        eventCategory: 'TRANSACTIONS',
-        eventAction: 'VIEW_TRANSACTION_DETAILS',
-        actorId: auth.user?.id ?? null,
-        actorType: 'admin',
-        actorRole: (auth.user as any)?.role?.slug ?? null,
-        targetType: 'transaction',
-        targetId: params.reference,
-        requestId: request.header('x-request-id') ?? null,
-        ipAddress: request.ip(),
-        userAgent: request.header('user-agent') ?? null,
-        result: AuditResult.FAILURE,
-        errorMessage: (error as Error)?.message ?? 'Transaction not found',
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'TRANSACTION',
+          eventAction: 'VIEW_TRANSACTION_DETAILS',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'transaction',
+          targetId: params.reference,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.FAILURE,
+          errorMessage: (error as Error)?.message ?? 'Transaction not found',
+        })
+        .catch(() => {})
       throw error
     }
   }
@@ -165,7 +171,7 @@ export default class TransactionsController {
     })
 
     emitter.emit('activity:audit', {
-      eventCategory: 'TRANSACTIONS',
+      eventCategory: 'TRANSACTION',
       eventAction: 'READ_USER_TRANSACTIONS',
       actorId: auth.user?.id ?? null,
       actorType: 'admin',
@@ -195,7 +201,7 @@ export default class TransactionsController {
     const stats = await this.getGlobalTransactionsStatsUseCase.execute(startDate, endDate)
 
     emitter.emit('activity:audit', {
-      eventCategory: 'TRANSACTIONS',
+      eventCategory: 'TRANSACTION',
       eventAction: 'READ_GLOBAL_STATS',
       actorId: auth.user?.id ?? null,
       actorType: 'admin',
@@ -233,7 +239,7 @@ export default class TransactionsController {
     const stats = await this.getUserTransactionsStatsUseCase.execute(id, startDate, endDate)
 
     emitter.emit('activity:audit', {
-      eventCategory: 'TRANSACTIONS',
+      eventCategory: 'TRANSACTION',
       eventAction: 'READ_USER_STATS',
       actorId: auth.user?.id ?? null,
       actorType: 'admin',

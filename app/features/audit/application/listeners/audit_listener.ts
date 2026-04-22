@@ -1,16 +1,23 @@
 import { inject } from '@adonisjs/core'
 import { AuditRecordInput } from '#shared/infrastructure/logging/audit_service'
 import auditService from '#shared/infrastructure/logging/audit_service'
+import ledgerLog from '#shared/infrastructure/logging/ledger_log'
 
 @inject()
 export default class AuditListener {
-  /**
-   * Handles the provided audit event by recording it via the audit service.
-   *
-   * @param {AuditRecordInput} data - The audit event data containing details for logging.
-   * @return {Promise<void>} A promise that resolves when the event data is successfully recorded.
-   */
   async handle(data: AuditRecordInput): Promise<void> {
-    await auditService.record(data)
+    try {
+      await auditService.record(data)
+    } catch (error) {
+      ledgerLog.error(
+        'AUDIT_DB_FALLBACK',
+        {
+          ...data,
+          fallback: true,
+          error: (error as Error).message,
+        },
+        'Audit DB write failed, fallback to ledger_log'
+      )
+    }
   }
 }

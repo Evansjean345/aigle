@@ -1,5 +1,6 @@
 export class AdminUserWalletStatsDto {
   declare wallet: {
+    id: number
     balance: number
     currency: string
     status: string
