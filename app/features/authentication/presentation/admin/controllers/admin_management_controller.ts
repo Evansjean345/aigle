@@ -88,7 +88,10 @@ export default class AdminManagementController {
    */
   async verifyOtp({ request, response }: HttpContext): Promise<void> {
     const data = await request.validateUsing(verifyAdminOtpValidator)
-    const result = await this.verifyAdminOtpUseCase.execute(data)
+    const result = await this.verifyAdminOtpUseCase.execute({
+      ...data,
+      ipAddress: request.ip(),
+    })
     return response.ok(result)
   }
 }

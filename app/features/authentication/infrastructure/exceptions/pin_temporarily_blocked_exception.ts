@@ -8,10 +8,14 @@ export default class PinTemporarilyBlockedException extends Exception {
 
   constructor(retryAfterSeconds: number) {
     const minutes = Math.ceil(retryAfterSeconds / 60)
-    super(`Compte temporairement verrouillé. Réessayez dans ${minutes} minute(s).`, {
-      status: PinTemporarilyBlockedException.status,
-      code: PinTemporarilyBlockedException.code,
-    })
+
+    super(
+      `Pour des raisons de sécurité votre compte est temporairement vérrouillé. Réessayez dans ${minutes} minute(s).`,
+      {
+        status: PinTemporarilyBlockedException.status,
+        code: PinTemporarilyBlockedException.code,
+      }
+    )
     this.retryAfterSeconds = retryAfterSeconds
   }
 }

@@ -20,19 +20,21 @@ export default class AdminAuthService {
   constructor(private readonly attemptGuard: AdminAttemptGuard) {}
 
   /**
-   * Performs the complete login process for an admin user.
+   * First leg of the 2FA login: validates credentials and account state, but
+   * does NOT issue tokens. The caller is expected to dispatch an OTP and only
+   * call `completeLoginAfterOtp` once the OTP is verified.
    *
    * @param {string} email - The email address of the admin user.
    * @param {string} password - The password associated with the admin user's account.
    * @param {string} requestIp - The IP address of the requester.
-   * @return {Promise<{ admin: Admin; tokens: { access: AccessToken; refresh: AccessToken } }>}
+   * @return {Promise<Admin>} The verified admin (without tokens).
    * @throws {AdminNotFoundException} If the credentials are invalid.
    */
-  async login(
+  async verifyCredentialsForChallenge(
     email: string,
     password: string,
     requestIp: string
-  ): Promise<{ admin: Admin; tokens: { access: AccessToken; refresh: AccessToken } }> {
+  ): Promise<Admin> {
     try {
       await this.attemptGuard.assertNotBlocked(email)
       const admin = await this.verifyCredentials(email, password)
@@ -40,29 +42,7 @@ export default class AdminAuthService {
       await this.attemptGuard.assertAdminActive(admin)
       await this.attemptGuard.recordSuccess(email)
 
-      const tokens = await this.generateTokens(admin)
-
-      admin.lastLoginAt = DateTime.now()
-      admin.lastLoginIp = requestIp
-
-      await admin.save()
-
-      emitter
-        .emit('activity:audit', {
-          eventCategory: 'AUTH',
-          eventAction: 'LOGIN_SUCCESS',
-          actorId: String(admin.id),
-          actorType: 'Admin',
-          actorRole: admin.role.name,
-          targetType: 'Member',
-          targetId: String(admin.id),
-          result: AuditResult.SUCCESS,
-          ipAddress: requestIp,
-          metadata: { ip: requestIp },
-        })
-        .catch(() => {})
-
-      return { admin, tokens }
+      return admin
     } catch (error) {
       const isBlockError =
         error instanceof AdminTemporarilyBlockedException ||
@@ -98,6 +78,39 @@ export default class AdminAuthService {
 
       throw error
     }
+  }
+
+  /**
+   * Second leg of the 2FA login: issues tokens, updates last-login metadata
+   * and emits the LOGIN_SUCCESS audit event. To be called only after the OTP
+   * has been verified.
+   */
+  async completeLoginAfterOtp(
+    admin: Admin,
+    requestIp: string
+  ): Promise<{ access: AccessToken; refresh: AccessToken }> {
+    const tokens = await this.generateTokens(admin)
+
+    admin.lastLoginAt = DateTime.now()
+    admin.lastLoginIp = requestIp
+    await admin.save()
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'AUTH',
+        eventAction: 'LOGIN_SUCCESS',
+        actorId: String(admin.id),
+        actorType: 'Admin',
+        actorRole: admin.role.name,
+        targetType: 'Member',
+        targetId: String(admin.id),
+        result: AuditResult.SUCCESS,
+        ipAddress: requestIp,
+        metadata: { ip: requestIp, mfa: 'email_otp' },
+      })
+      .catch(() => {})
+
+    return tokens
   }
 
   /**

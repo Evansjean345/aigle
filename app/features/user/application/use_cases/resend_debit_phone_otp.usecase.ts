@@ -3,6 +3,9 @@ import { Exception } from '@adonisjs/core/exceptions'
 import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_repository'
 import ProviderRepository from '#features/catalogs/domain/interfaces/provider_repository'
 import OtpSendingService from '#features/otp/application/services/otp_sending_service'
+import UserRepository from '#features/user/domain/interfaces/user_repository'
+import UserOtpAttemptGuard from '#features/authentication/application/services/user_otp_attempt_guard'
+import UserAccountNotFoundException from '#features/authentication/infrastructure/exceptions/user_account_not_found_exception'
 import { normalizePhone } from '#shared/utils/utiles'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import DebitPhoneOtpTemplate from '#features/otp/infrastructure/templates/debit_phone_otp_template'
@@ -15,7 +18,9 @@ export default class ResendDebitPhoneOtpUseCase {
   constructor(
     private debitPhoneRepository: DebitPhoneRepository,
     private providerRepository: ProviderRepository,
-    private otpSendingService: OtpSendingService
+    private otpSendingService: OtpSendingService,
+    private userRepository: UserRepository,
+    private otpAttemptGuard: UserOtpAttemptGuard
   ) {}
 
   /**
@@ -52,6 +57,10 @@ export default class ResendDebitPhoneOtpUseCase {
         code: 'DEBIT_PHONE_ALREADY_VERIFIED',
       })
     }
+
+    const user = await this.userRepository.findById(userId)
+    if (!user) throw new UserAccountNotFoundException()
+    await this.otpAttemptGuard.assertNotBlocked(user)
 
     const { sent, waitTime } = await this.otpSendingService.send(
       normalizedPhone,

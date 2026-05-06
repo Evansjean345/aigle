@@ -11,6 +11,8 @@ import { bypassEnabled, appPhoneNumberReview } from '#config/app'
 import PhoneNotFoundException from '#features/authentication/infrastructure/exceptions/phone_not_found_exception'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import AccountBlockedException from '#features/authentication/infrastructure/exceptions/account_blocked_exception'
+import UserOtpAttemptGuard from '#features/authentication/application/services/user_otp_attempt_guard'
+import OtpLockedException from '#features/otp/infrastructure/exceptions/otp_locked_exception'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
@@ -26,12 +28,14 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
    * @param {OtpVerificationService} otpVerificationService - The service used for handling OTP verification processes.
    * @param {CountryRepository} countryRepository - The repository for accessing country-related information.
    * @param {DeviceService} deviceService - The service used for managing device-related operations.
+   * @param {UserOtpAttemptGuard} otpAttemptGuard
    */
   constructor(
     private readonly userRepository: UserRepository,
     private readonly otpVerificationService: OtpVerificationService,
     private readonly countryRepository: CountryRepository,
-    private readonly deviceService: DeviceService
+    private readonly deviceService: DeviceService,
+    private readonly otpAttemptGuard: UserOtpAttemptGuard
   ) {}
 
   /**
@@ -88,12 +92,30 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
       throw new AccountBlockedException()
     }
 
+    if (!this.shouldBypassOtpVerification(user)) {
+      await this.otpAttemptGuard.assertNotBlocked(user)
+    }
+
     try {
       if (!this.shouldBypassOtpVerification(user)) {
-        await this.otpVerificationService.verify({
-          identifier: user.phone,
-          enteredOtp: payload.otp,
-        })
+        try {
+          await this.otpVerificationService.verify({
+            identifier: user.phone,
+            enteredOtp: payload.otp,
+          })
+        } catch (otpError) {
+          // Only count fully-exhausted OTPs as brute-force attempts at the
+          // user scope. A typo (`InvalidOtpException`) is already throttled
+          // by `OtpVerificationService.maxAttempts=5` on the OTP itself;
+          // counting each typo would double-lock a fat-fingering user. The
+          // guard catches the cross-OTP attack: regenerate + retry loops.
+          if (otpError instanceof OtpLockedException) {
+            await this.otpAttemptGuard.recordFailure(user, payload.ipAddress ?? null)
+          }
+          throw otpError
+        }
+
+        await this.otpAttemptGuard.recordSuccess(user.id)
       }
 
       if (type === 'register' && user.status === UserStatus.INACTIVE) {
@@ -193,6 +215,11 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
     }
   }
 
+  /**
+   *
+   * @param user
+   * @private
+   */
   private shouldBypassOtpVerification(user: User): boolean {
     return Boolean(bypassEnabled && appPhoneNumberReview && user.phone === appPhoneNumberReview)
   }

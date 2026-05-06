@@ -6,6 +6,21 @@ export interface AdminLoginRequestDto {
   password: string
 }
 
+export class AdminLoginChallengeDto {
+  readonly requiresOtp = true as const
+  declare email: string
+  declare message: string
+
+  static build(email: string): AdminLoginChallengeDto {
+    const dto = new AdminLoginChallengeDto()
+    dto.email = email
+    dto.message = 'Un code de vérification a été envoyé à votre adresse email.'
+    return dto
+  }
+}
+
+export type AdminLoginResult = AdminLoginChallengeDto | AdminLoginResponseDto
+
 export class AdminLoginResponseDto {
   declare access_token: Token
   declare refresh_token: Token

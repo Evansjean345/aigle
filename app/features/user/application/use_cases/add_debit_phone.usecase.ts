@@ -9,6 +9,8 @@ import { normalizePhone } from '#shared/utils/utiles'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import DebitPhoneOtpTemplate from '#features/otp/infrastructure/templates/debit_phone_otp_template'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
+import UserOtpAttemptGuard from '#features/authentication/application/services/user_otp_attempt_guard'
+import UserAccountNotFoundException from '#features/authentication/infrastructure/exceptions/user_account_not_found_exception'
 import Provider from '#features/catalogs/domain/models/provider'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
@@ -35,7 +37,8 @@ export default class AddDebitPhoneUseCase {
     private debitPhoneRepository: DebitPhoneRepository,
     private providerRepository: ProviderRepository,
     private otpSendingService: OtpSendingService,
-    private userRepository: UserRepository
+    private userRepository: UserRepository,
+    private otpAttemptGuard: UserOtpAttemptGuard
   ) {}
 
   /**
@@ -60,6 +63,13 @@ export default class AddDebitPhoneUseCase {
     auditContext?: AuditContext
   ): Promise<{ message: string }> {
     const normalizedPhone = normalizePhone(phone)
+
+    // Block if the user is currently rate-limited on the OTP surface — keeps
+    // both `existingForProvider` (resubmit) and the new-debit-phone branches
+    // covered with a single guard call before any SMS dispatch.
+    const user = await this.userRepository.findById(userId)
+    if (!user) throw new UserAccountNotFoundException()
+    await this.otpAttemptGuard.assertNotBlocked(user)
 
     await this.isPrincipalPhoneNumber(userId, normalizedPhone)
     const provider = await this.ensureIsMobileMoneyProvider(providerCode)

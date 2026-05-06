@@ -1,9 +1,15 @@
 import { inject } from '@adonisjs/core'
 import AdminAuthService from '#features/authentication/application/services/admin/admin_auth_service'
+import AdminOtpAttemptGuard from '#features/authentication/application/services/admin/admin_otp_attempt_guard'
+import OtpSendingService from '#features/otp/application/services/otp_sending_service'
+import AdminLoginOtpTemplate from '#features/otp/infrastructure/templates/admin_login_otp_template'
 import {
   AdminLoginRequestDto,
-  AdminLoginResponseDto,
+  AdminLoginChallengeDto,
 } from '#features/authentication/application/dtos/admin/admin_login.dto'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
+
 export interface Token {
   type: 'bearer'
   value: string
@@ -12,27 +18,48 @@ export interface Token {
 
 @inject()
 export default class AdminLoginUseCase {
-  /**
-   * Creates an instance of the class with dependencies injected.
-   *
-   * @param {AdminAuthService} adminAuthService - The service responsible for admin authentication and authorization.
-   */
-  constructor(private adminAuthService: AdminAuthService) {}
+  constructor(
+    private adminAuthService: AdminAuthService,
+    private otpSendingService: OtpSendingService,
+    private otpAttemptGuard: AdminOtpAttemptGuard
+  ) {}
 
   /**
-   * Authenticates an admin user by verifying their credentials and generates access and refresh tokens.
+   * First step of the admin 2FA login flow.
    *
-   * @param {AdminLoginRequestDto} data - The data containing the admin credentials (email and password).
-   * @param {string} ip - The IP address of the client making the request.
-   * @return {Promise<AdminLoginResponseDto>} A promise that resolves to the response containing the admin details and authentication tokens.
+   * Verifies credentials, then dispatches a one-time email OTP. Tokens are
+   * issued only on the second step (`VerifyAdminOtpUseCase`) once the OTP is
+   * confirmed. No token leaks if the password is correct but the OTP is not.
    */
-  async execute(data: AdminLoginRequestDto, ip: string): Promise<AdminLoginResponseDto> {
-    const { admin, tokens } = await this.adminAuthService.login(data.email, data.password, ip)
-
-    return AdminLoginResponseDto.fromAdmin(
-      admin,
-      this.adminAuthService.formatToken(tokens.access),
-      this.adminAuthService.formatToken(tokens.refresh)
+  async execute(data: AdminLoginRequestDto, ip: string): Promise<AdminLoginChallengeDto> {
+    const admin = await this.adminAuthService.verifyCredentialsForChallenge(
+      data.email,
+      data.password,
+      ip
     )
+
+    // Block at the dispatch boundary too — without this, an admin locked by
+    // the verify-side OTP guard could keep regenerating email OTPs by
+    // re-submitting valid credentials.
+    await this.otpAttemptGuard.assertNotBlocked(admin.email)
+
+    await this.otpSendingService.send(admin.email, admin.id.toString(), new AdminLoginOtpTemplate())
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'AUTH',
+        eventAction: 'LOGIN_OTP_SENT',
+        actorId: String(admin.id),
+        actorType: 'Admin',
+        actorRole: admin.role?.name ?? null,
+        targetType: 'Member',
+        targetId: String(admin.id),
+        result: AuditResult.SUCCESS,
+        ipAddress: ip,
+        metadata: { email: admin.email, mfa: 'email_otp' },
+      })
+      .catch(() => {})
+
+    return AdminLoginChallengeDto.build(admin.email)
   }
 }

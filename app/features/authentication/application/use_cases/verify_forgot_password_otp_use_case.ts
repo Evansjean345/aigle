@@ -9,6 +9,8 @@ import PhoneNotFoundException from '#features/authentication/infrastructure/exce
 import { randomUUID } from 'node:crypto'
 import { bypassEnabled, appPhoneNumberReview } from '#config/app'
 import User from '#features/user/domain/models/user'
+import UserOtpAttemptGuard from '#features/authentication/application/services/user_otp_attempt_guard'
+import OtpLockedException from '#features/otp/infrastructure/exceptions/otp_locked_exception'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 
@@ -26,7 +28,8 @@ export default class VerifyForgotPasswordOtpUseCase {
     private readonly userRepository: UserRepository,
     private readonly otpVerificationService: OtpVerificationService,
     private readonly countryRepository: CountryRepository,
-    private readonly resetPasswordTokenProvider: ResetPasswordTokenProvider
+    private readonly resetPasswordTokenProvider: ResetPasswordTokenProvider,
+    private readonly otpAttemptGuard: UserOtpAttemptGuard
   ) {}
 
   /**
@@ -48,12 +51,29 @@ export default class VerifyForgotPasswordOtpUseCase {
       throw new PhoneNotFoundException()
     }
 
+    if (!this.shouldBypassOtpVerification(user)) {
+      // Block before probing — prevents an attacker from testing codes
+      // during a temporary lockout window.
+      await this.otpAttemptGuard.assertNotBlocked(user)
+    }
+
     try {
       if (!this.shouldBypassOtpVerification(user)) {
-        await this.otpVerificationService.verify({
-          identifier: user.phone,
-          enteredOtp: payload.otp,
-        })
+        try {
+          await this.otpVerificationService.verify({
+            identifier: user.phone,
+            enteredOtp: payload.otp,
+          })
+        } catch (otpError) {
+          // Only count fully-exhausted OTPs as brute-force attempts at the
+          // user scope; typos are already throttled per-OTP.
+          if (otpError instanceof OtpLockedException) {
+            await this.otpAttemptGuard.recordFailure(user, payload.ipAddress ?? null)
+          }
+          throw otpError
+        }
+
+        await this.otpAttemptGuard.recordSuccess(user.id)
       }
     } catch (error) {
       emitter

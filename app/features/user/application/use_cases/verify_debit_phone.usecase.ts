@@ -3,6 +3,10 @@ import { Exception } from '@adonisjs/core/exceptions'
 import { DateTime } from 'luxon'
 import DebitPhoneRepository from '#features/user/domain/interfaces/debit_phone_repository'
 import OtpVerificationService from '#features/otp/application/services/otp_verification_service'
+import UserRepository from '#features/user/domain/interfaces/user_repository'
+import UserOtpAttemptGuard from '#features/authentication/application/services/user_otp_attempt_guard'
+import OtpLockedException from '#features/otp/infrastructure/exceptions/otp_locked_exception'
+import UserAccountNotFoundException from '#features/authentication/infrastructure/exceptions/user_account_not_found_exception'
 import { normalizePhone } from '#shared/utils/utiles'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import emitter from '@adonisjs/core/services/emitter'
@@ -19,7 +23,9 @@ export default class VerifyDebitPhoneUseCase {
    */
   constructor(
     private debitPhoneRepository: DebitPhoneRepository,
-    private otpVerificationService: OtpVerificationService
+    private otpVerificationService: OtpVerificationService,
+    private userRepository: UserRepository,
+    private otpAttemptGuard: UserOtpAttemptGuard
   ) {}
 
   /**
@@ -54,10 +60,28 @@ export default class VerifyDebitPhoneUseCase {
       })
     }
 
-    await this.otpVerificationService.verify({
-      identifier: normalizedPhone,
-      enteredOtp: otpCode,
-    })
+    // Load the user to gate the OTP attempt against the user-scoped guard:
+    // an attacker probing a debit phone OTP should be blocked at the user
+    // level (not the debit phone), otherwise they could reset the counter
+    // by adding fresh debit numbers to the same account.
+    const user = await this.userRepository.findById(userId)
+    if (!user) throw new UserAccountNotFoundException()
+
+    await this.otpAttemptGuard.assertNotBlocked(user)
+
+    try {
+      await this.otpVerificationService.verify({
+        identifier: normalizedPhone,
+        enteredOtp: otpCode,
+      })
+    } catch (otpError) {
+      if (otpError instanceof OtpLockedException) {
+        await this.otpAttemptGuard.recordFailure(user, auditContext?.ipAddress ?? null)
+      }
+      throw otpError
+    }
+
+    await this.otpAttemptGuard.recordSuccess(user.id)
 
     debitPhone.isVerified = true
     debitPhone.isActive = true

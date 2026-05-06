@@ -3,6 +3,7 @@ import AdminRepository from '#features/team/domain/interfaces/admin_repository'
 import InvalidTokenException from '#features/team/infrastructure/exceptions/invalid_token_exception'
 import ExpiredTokenException from '#features/team/infrastructure/exceptions/expired_token_exception'
 import OtpSendingService from '#features/otp/application/services/otp_sending_service'
+import AdminOtpAttemptGuard from '#features/authentication/application/services/admin/admin_otp_attempt_guard'
 import { SetupAdminPasswordRequestDto } from '#features/authentication/application/dtos/admin/setup_admin_password.dto'
 import { DateTime } from 'luxon'
 import AdminSetupOtpTemplate from '#features/otp/infrastructure/templates/admin_setup_otp_template'
@@ -19,7 +20,8 @@ export default class SetupAdminPasswordUseCase {
    */
   constructor(
     private readonly adminRepository: AdminRepository,
-    private readonly otpSendingService: OtpSendingService
+    private readonly otpSendingService: OtpSendingService,
+    private readonly otpAttemptGuard: AdminOtpAttemptGuard
   ) {}
 
   /**
@@ -65,6 +67,10 @@ export default class SetupAdminPasswordUseCase {
         metadata: { email: admin.email },
       })
       .catch(() => {})
+
+    // Block at the dispatch boundary too — without this, an admin locked by
+    // the verify-side OTP guard could keep regenerating setup OTPs.
+    await this.otpAttemptGuard.assertNotBlocked(admin.email)
 
     await this.otpSendingService.send(admin.email, admin.id.toString(), new AdminSetupOtpTemplate())
     return { email: admin.email }

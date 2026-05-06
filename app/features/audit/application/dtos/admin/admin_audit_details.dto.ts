@@ -38,6 +38,7 @@ export class AuditLogDetailsResponseDTO {
   ): AuditLogDetailsResponseDTO {
     const dto = new AuditLogDetailsResponseDTO()
     const metadata = (log.metadata ?? {}) as Record<string, unknown>
+
     dto.id = log.id
     dto.eventCategory = log.eventCategory
     dto.eventAction = log.eventAction

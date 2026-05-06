@@ -5,6 +5,7 @@ import { OtpRequestDto, OtpResponseDto } from '#features/authentication/applicat
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { concartPhoneNumber } from '#shared/utils/utiles'
 import PhoneNotFoundException from '#features/authentication/infrastructure/exceptions/phone_not_found_exception'
+import UserOtpAttemptGuard from '#features/authentication/application/services/user_otp_attempt_guard'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 
@@ -20,7 +21,8 @@ export default class SendOtpUseCase {
   constructor(
     protected userRepository: UserRepository,
     protected otpSendingService: OtpSendingService,
-    protected countryRepository: CountryRepository
+    protected countryRepository: CountryRepository,
+    protected otpAttemptGuard: UserOtpAttemptGuard
   ) {}
 
   /**
@@ -45,6 +47,11 @@ export default class SendOtpUseCase {
     if (!user) {
       throw new PhoneNotFoundException('Numéro de téléphone introuvable')
     }
+
+    // Block at the dispatch boundary too — without this, an attacker locked
+    // by the verify-side guard could keep regenerating SMS OTPs (cost +
+    // harassment of the legitimate user).
+    await this.otpAttemptGuard.assertNotBlocked(user)
 
     const response = await this.otpSendingService.send(user.phone, user.usersUid)
 

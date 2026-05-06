@@ -7,6 +7,7 @@ import { bypassEnabled, appPhoneNumberReview } from '#config/app'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import UserRepository from '#features/user/domain/interfaces/user_repository'
 import PinAttemptGuard from '#features/authentication/application/services/pin_attempt_guard'
+import UserOtpAttemptGuard from '#features/authentication/application/services/user_otp_attempt_guard'
 import AccountBlockedException from '#features/authentication/infrastructure/exceptions/account_blocked_exception'
 import PhoneNotFoundException from '#features/authentication/infrastructure/exceptions/phone_not_found_exception'
 import InvalidPincodeException from '#features/authentication/infrastructure/exceptions/invalid_pincode_exception'
@@ -32,7 +33,8 @@ export default class VerifyCredentialsUseCase {
     private otpSendingService: OtpSendingService,
     private deviceService: DeviceService,
     private userRepository: UserRepository,
-    private pinAttemptGuard: PinAttemptGuard
+    private pinAttemptGuard: PinAttemptGuard,
+    private otpAttemptGuard: UserOtpAttemptGuard
   ) {}
 
   /**
@@ -152,6 +154,11 @@ export default class VerifyCredentialsUseCase {
     if (bypassEnabled && appPhoneNumberReview && user.phone === appPhoneNumberReview) {
       return { message: 'Bypass OTP activé pour ce numéro' }
     }
+
+    // Block at the dispatch boundary too — without this, an attacker locked
+    // by the verify-side guard could keep regenerating SMS OTPs by submitting
+    // valid credentials repeatedly (cost + harassment of the legitimate user).
+    await this.otpAttemptGuard.assertNotBlocked(user)
 
     await this.otpSendingService.send(user.phone, user.usersUid)
     return { message: 'OTP sent successfully' }
