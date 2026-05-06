@@ -4,11 +4,26 @@ build
 tmp
 geo-database
 
-# Secrets
+# Secrets — environment files
 .env
-.env.local
-.env.production.local
-.env.development.local
+.env.*
+!.env.example
+!.env.test.example
+
+# Secrets — keys and credentials
+gcs_key.json
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets/
+
+# Backups (jamais commiter)
+backups/
+*.sql.gz
+*.dump
+*.rdb
 
 # Frontend assets compiled code
 public/assets
@@ -18,7 +33,10 @@ npm-debug.log
 yarn-error.log
 logs
 
+# Compose et stack runtime (jamais commiter — la version repo est dans deploy/)
 docker-compose.yml
+docker-compose.*.yml
+!docker-compose.dev.yml
 monitoring
 docs
 

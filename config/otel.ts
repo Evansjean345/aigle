@@ -9,7 +9,7 @@ export default defineConfig({
 
   destinations: {
     collector: destinations.otlp({
-      endpoint: 'http://localhost:4318',
+      endpoint: env.get('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4318'),
       signals: 'all',
     }),
   },

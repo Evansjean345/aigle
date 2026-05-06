@@ -121,5 +121,14 @@ export default await Env.create(new URL('../', import.meta.url), {
   */
   ALERT_EMAIL_TECH_TEAM: Env.schema.string.optional(),
   ALERT_EMAIL_OPS_TEAM: Env.schema.string.optional(),
-  ALERT_EMAIL_FINANCE_TEAM: Env.schema.string.optional()
+  ALERT_EMAIL_FINANCE_TEAM: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for OpenTelemetry export (traces, metrics, logs)
+  |----------------------------------------------------------
+  | En Docker : http://otel-collector:4318 (résolution DNS du network).
+  | En dev local hors Docker : http://localhost:4318.
+  */
+  OTEL_EXPORTER_OTLP_ENDPOINT: Env.schema.string.optional()
 })

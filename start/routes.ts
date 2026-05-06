@@ -1,5 +1,7 @@
 import router from '@adonisjs/core/services/router'
 
+const HealthController = () => import('#shared/infrastructure/controllers/health_controller')
+
 import mobileAuthRoutes from '#features/authentication/presentation/mobile/routes/auth_routes'
 import mobileWalletRoutes from '#features/wallet/presentation/mobile/routes/wallet_routes'
 import mobileServicesRoutes from '#features/catalogs/presentation/mobile/routes/services_routes'
@@ -11,7 +13,6 @@ import mobileQrRoutes from '#features/qr/presentation/mobile/routes/qr_routes'
 import mobileKycRoutes from '#features/kyc/presentation/mobile/routes/kyc_routes'
 import mobileDeviceRoutes from '#features/device/presentation/mobile/routes/device_routes'
 import mobileDebitPhoneRoutes from '#features/user/presentation/mobile/routes/debit_phone_routes'
-import { middleware } from '#start/kernel'
 
 router
   .group(() => {
@@ -28,3 +29,5 @@ router
     router.group(mobileDebitPhoneRoutes)
   })
   .prefix('/api')
+
+router.get('/health', [HealthController, 'handle'])
