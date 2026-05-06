@@ -43,7 +43,6 @@ export default class GetToPaymentOptionsByServiceTypeUseCase {
 
     const spms = await ServiceProviderMethod.query()
       .where('service_type_id', st.id)
-      .andWhere('is_active', true)
       .andWhere('provider_from_id', fromProvider.id)
       .preload('paymentMethod')
       .preload('providerFrom')
@@ -68,6 +67,7 @@ export default class GetToPaymentOptionsByServiceTypeUseCase {
           fromProviderCode?: string
           fromProviderName?: string
           fromProviderId?: number
+          isActive: boolean
         }[]
       }
     > = {}
@@ -110,6 +110,7 @@ export default class GetToPaymentOptionsByServiceTypeUseCase {
           fromProviderCode: fromCode,
           fromProviderName: fromName,
           fromProviderId: fromProvider.id,
+          isActive: spm.isActive,
         })
       }
     }

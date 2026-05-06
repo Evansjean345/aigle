@@ -1,7 +1,7 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import InterTransfertUseCase from '#features/operations/application/use_cases/transfert_inter.usecase'
-import { InterTransfertRequestDto } from '#features/operations/application/dto/transfert_inter.dto'
+import { InterTransfertRequestDto } from '#features/operations/application/dtos/operation.dto'
 import { interTransfertValidator } from '#features/operations/presentation/mobile/validators/transfert_inter_validator'
 import User from '#features/user/domain/models/user'
 

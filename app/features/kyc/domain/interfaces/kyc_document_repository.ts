@@ -1,4 +1,5 @@
 import KycDocument from '#features/kyc/domain/models/kyc_document'
+import { KycDocumentStatus } from '#features/kyc/domain/enum/kyc_enum'
 
 export default abstract class KycDocumentRepository {
   /**
@@ -53,4 +54,9 @@ export default abstract class KycDocumentRepository {
    * Save a KYC attempt
    */
   abstract saveAttempt(attempt: any): Promise<void>
+
+  /**
+   * Count KYC documents by status
+   */
+  abstract countByStatus(status: KycDocumentStatus): Promise<number>
 }

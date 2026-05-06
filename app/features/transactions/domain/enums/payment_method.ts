@@ -1,5 +1,5 @@
 export enum PaymentMethod {
-  MOBILE_MONEY = 'mobile_money',
+  MOBILE_MONEY = 'mobile-money',
   WALLET = 'wallet',
   INTERNAL = 'internal',
 }

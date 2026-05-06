@@ -1,7 +1,7 @@
 ﻿import {
   DepositRequestDto,
-  DepositResponseDto,
-} from '#features/operations/application/dto/deposit.dto'
+  DepositResponseDTO,
+} from '#features/operations/application/dtos/operation.dto'
 import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
@@ -69,18 +69,18 @@ export default class DepositUseCase {
    * @param {DepositRequestDto} payload - The details of the deposit request, including the service type, amount, provider, and payment method.
    * @param {User} user - The user initiating the deposit, including their identification and related details.
    * @param {string} [idempotencyKey] - An optional key used to ensure idempotency in the transaction process.
-   * @return {Promise<DepositResponseDto>} A promise that resolves with the details of the deposit transaction, including its status and reference.
+   * @return {Promise<DepositResponseDTO>} A promise that resolves with the details of the deposit transaction, including its status and reference.
    */
   async execute(
     payload: DepositRequestDto,
     user: User,
     idempotencyKey?: string
-  ): Promise<DepositResponseDto> {
+  ): Promise<DepositResponseDTO> {
     transactionLog.info(
       'DEPOSIT_START',
       {
         user: { id: user.id, uid: user.usersUid },
-        payload: { ...payload, pinCode: payload.pinCode ? '****' : undefined },
+        payload: { ...payload },
       },
       'Starting deposit process'
     )
@@ -135,8 +135,6 @@ export default class DepositUseCase {
         operator: payload.providerCode,
         phone: payload.phone.replaceAll(' ', ''),
       }
-
-      if (payload.pinCode) paymentDetails.pincode = payload.pinCode
 
       const payment = await this.paymentService.createPayment(
         {
@@ -246,7 +244,7 @@ export default class DepositUseCase {
       .catch((_) => {})
 
     if (isSyncDepositProvider(payload.providerCode)) {
-      const { waveUrl } = await this.syncCheckoutService.checkout({
+      const { redirectUrl, type } = await this.syncCheckoutService.checkout({
         operationType: payload.paymentMethodCode,
         amount,
         provider: payload.providerCode,
@@ -267,12 +265,13 @@ export default class DepositUseCase {
         },
       })
 
-      const result: DepositResponseDto = {
+      const result: DepositResponseDTO = {
         message: 'transaction initiated',
         data: {
           transactionReference: transaction.reference,
           status: transaction.status,
-          wave_url: waveUrl,
+          redirectUrl,
+          type,
         },
       }
 
@@ -293,7 +292,6 @@ export default class DepositUseCase {
       phone: payload.phone.replaceAll(' ', ''),
       userId: user.usersUid,
       paymentId,
-      pinCode: payload.pinCode,
     })
       .toQueue('payment')
       .priority(1)
@@ -304,7 +302,7 @@ export default class DepositUseCase {
       'Checkout API call successful for deposit'
     )
 
-    const result: DepositResponseDto = {
+    const result: DepositResponseDTO = {
       message: 'transaction initiated',
       data: {
         transactionReference: transaction.reference,

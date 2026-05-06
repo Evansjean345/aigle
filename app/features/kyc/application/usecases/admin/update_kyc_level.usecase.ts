@@ -42,6 +42,7 @@ export default class UpdateKycLevelUseCase {
       monthlyLimit: kycLevel.monthlyLimit,
       balanceLimit: kycLevel.balanceLimit,
       isActive: kycLevel.isActive,
+      isArchive: kycLevel.isArchived,
     }
 
     if (data.level !== undefined) {
@@ -59,6 +60,7 @@ export default class UpdateKycLevelUseCase {
     if (data.monthlyLimit !== undefined) kycLevel.monthlyLimit = data.monthlyLimit
     if (data.balanceLimit !== undefined) kycLevel.balanceLimit = data.balanceLimit
     if (data.isActive !== undefined) kycLevel.isActive = data.isActive
+    if (data.isArchived !== undefined) kycLevel.isArchived = data.isArchived
 
     await this.kycLevelRepository.save(kycLevel)
 

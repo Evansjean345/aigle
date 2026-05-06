@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine'
-import { Infer } from '@vinejs/vine/types'
+import { type Infer } from '@vinejs/vine/types'
 
 const schema = vine.object({
   amount: vine.number(),
@@ -27,8 +27,7 @@ const schema = vine.object({
       db.from('payment_methods').select('id').where('id', value).first()
     ),
   phone: vine.string().trim(),
-  pincode: vine.string().optional().requiredWhen('provider_code', '=', 'orange'),
 })
 
-export const depositValidator = vine.compile(schema)
+export const depositValidator = vine.create(schema)
 export type DepositValidator = Infer<typeof schema>

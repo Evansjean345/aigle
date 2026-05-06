@@ -23,7 +23,7 @@ export default class InitiateDepositJob extends BaseAggregatorJob<InitiateDeposi
 
   protected buildRequestData(payload: InitiateDepositPayload): Record<string, any> {
     const data: Record<string, any> = {
-      operation_type: payload.paymentMethod,
+      channel: payload.paymentMethod,
       amount: payload.amount,
       provider: payload.operator,
       number: payload.phone,

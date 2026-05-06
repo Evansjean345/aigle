@@ -1,29 +1,58 @@
-﻿import { inject } from '@adonisjs/core'
+import { inject } from '@adonisjs/core'
 import { Exception } from '@adonisjs/core/exceptions'
+import ProviderRepository from '#features/catalogs/domain/interfaces/provider_repository'
 import {
-  ProviderCreateDto,
-  ProviderUpdateDto,
-} from '#features/catalogs/application/dtos/providers.dto'
-import ProviderRepository, {
-  ListProvidersParams,
-} from '#features/catalogs/domain/interfaces/provider_repository'
-import { ProviderType } from '#features/catalogs/domain/models/provider'
+  type CreateProviderRequestDto,
+  type UpdateProviderRequestDto,
+  type ListProvidersRequestDto,
+  type ProviderStatus,
+  type ProviderType,
+  ProviderResponseDTO,
+  ProviderListResponseDTO,
+} from '#features/catalogs/application/dtos/admin/admin_providers.dto'
 
-export const allowedProviderType: ProviderType[] = ['mobile_money', 'bank', 'credit-card']
+export const allowedProviderType: ProviderType[] = ['mobile_money', 'bank', 'wallet']
+export const allowedProviderStatus: ProviderStatus[] = ['active', 'inactive']
 
 @inject()
 export default class ProvidersUseCase {
+  /**
+   * Initializes a new instance of the class.
+   *
+   * @param {ProviderRepository} repository - The provider repository.
+   * @return The new class instance.
+   */
   constructor(private readonly repository: ProviderRepository) {}
 
-  list(params: ListProvidersParams) {
-    return this.repository.paginate(params)
+  /**
+   * Retrieves a paginated list of providers.
+   *
+   * @param {ListProvidersRequestDto} params - The parameters used for filtering and paginating the providers.
+   * @return The paginated result containing the list of providers.
+   */
+  async list(params: ListProvidersRequestDto) {
+    const paginator = await this.repository.paginate(params)
+    return ProviderListResponseDTO.fromPaginator(paginator)
   }
 
-  get(id: number) {
-    return this.repository.findByIdOrFail(id)
+  /**
+   * Retrieves an entity by its unique identifier.
+   *
+   * @param {number} id The unique identifier of the entity to retrieve.
+   * @return The entity matching the given identifier.
+   */
+  async get(id: number) {
+    const provider = await this.repository.findByIdOrFail(id)
+    return ProviderResponseDTO.fromProvider(provider)
   }
 
-  async create(data: ProviderCreateDto) {
+  /**
+   * Creates a new provider after validating required fields and provider type.
+   *
+   * @param {CreateProviderRequestDto} data - The provider data transfer object.
+   * @return {Promise<ProviderResponseDTO>} The created provider entity.
+   */
+  async create(data: CreateProviderRequestDto): Promise<ProviderResponseDTO> {
     if (!data.code || !data.name || !data.type) {
       throw new Exception('code, name and type are required', {
         status: 400,
@@ -38,17 +67,59 @@ export default class ProvidersUseCase {
       })
     }
 
-    return this.repository.create({ code: data.code, name: data.name, type: data.type })
+    const provider = await this.repository.create({
+      code: data.code,
+      name: data.name,
+      type: data.type,
+      logo: data.logo,
+    })
+
+    return ProviderResponseDTO.fromProvider(provider)
   }
 
-  async update(id: number, data: ProviderUpdateDto) {
+  /**
+   * Updates an existing provider.
+   *
+   * @param {number} id - The unique identifier of the provider.
+   * @param {UpdateProviderRequestDto} data - The provider data transfer object.
+   * @return {Promise<ProviderResponseDTO>} The updated provider entity.
+   */
+  async update(id: number, data: UpdateProviderRequestDto): Promise<ProviderResponseDTO> {
     if (data.type && !allowedProviderType.includes(data.type)) {
-      throw new Error(`type must be one of: ${allowedProviderType.join(', ')}`)
+      throw new Exception(`type must be one of: ${allowedProviderType.join(', ')}`, {
+        status: 400,
+        code: 'E_VALIDATION_ERROR',
+      })
     }
-    return this.repository.update(id, data)
+    const provider = await this.repository.update(id, data)
+    return ProviderResponseDTO.fromProvider(provider)
   }
 
-  delete(id: number) {
+  /**
+   * Sets the status of a provider.
+   * @param {number} id - The unique identifier of the provider.
+   * @param {ProviderStatus} status - The new status to set for the provider. Must be one of the allowed provider statuses.
+   * @return {Promise<ProviderResponseDTO>} The result of the repository status update operation.
+   * @throws {Exception} If the provided status is not an allowed provider status.
+   */
+  async setStatus(id: number, status: ProviderStatus): Promise<ProviderResponseDTO> {
+    if (!allowedProviderStatus.includes(status)) {
+      throw new Exception(`status must be one of: ${allowedProviderStatus.join(', ')}`, {
+        status: 400,
+        code: 'E_VALIDATION_ERROR',
+      })
+    }
+    const provider = await this.repository.setStatus(id, status)
+    return ProviderResponseDTO.fromProvider(provider)
+  }
+
+  /**
+   * Deletes a provider.
+   *
+   * @param {number} id - The unique identifier of the provider.
+   * @return {Promise<void>}
+   */
+  delete(id: number): Promise<void> {
     return this.repository.delete(id)
   }
 }

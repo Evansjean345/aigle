@@ -3,7 +3,7 @@ import { inject } from '@adonisjs/core'
 import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
 import { walletToWalletValidator } from '#features/operations/presentation/mobile/validators/wallet_to_wallet_validator'
 import { TransferMode } from '#features/operations/application/services/wallet_transfer_context_service'
-import { WalletToWalletRequestDto } from '#features/operations/application/dto/wallet_to_wallet.dto'
+import { WalletToWalletRequestDto } from '#features/operations/application/dtos/operation.dto'
 import User from '#features/user/domain/models/user'
 
 /**

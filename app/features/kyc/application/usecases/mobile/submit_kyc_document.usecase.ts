@@ -5,7 +5,7 @@ import {
   KycDocumentResponseDto,
 } from '#features/kyc/application/dto/kyc.dto'
 import FileStorageService from '#shared/infrastructure/services/file_storage_service'
-import { KycDocumentNextAction, KycDocumentStatus } from '#features/kyc/domain/enum/kyc_enum'
+import { KycDocumentStatus } from '#features/kyc/domain/enum/kyc_enum'
 import KycDocument from '#features/kyc/domain/models/kyc_document'
 import KycDocumentSubmitted from '#features/kyc/application/events/kyc_document_submitted'
 import { KycAttemp } from '#features/kyc/domain/models/kyc_attemp'
@@ -154,7 +154,6 @@ export default class SubmitKycDocumentUsecase {
 
       return {
         message: 'Documents Kyc soumis avec succès 📄',
-        nextAction: KycDocumentNextAction.SELFIE,
       }
     } catch (error) {
       errorLog.error(

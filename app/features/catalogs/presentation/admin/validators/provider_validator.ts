@@ -1,6 +1,5 @@
 import vine from '@vinejs/vine'
-import { allowedProviderType } from '#features/catalogs/application/services/providers.service'
-
+import { allowedProviderType } from '#features/catalogs/application/use_cases/providers.use_case'
 /**
  * A validator for creating a service type object. The `createServiceTypeValidator`
  * ensures that the data structure for a service type complies with the defined schema.

@@ -1,4 +1,4 @@
-import KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
+import type KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
 import KycDocument from '#features/kyc/domain/models/kyc_document'
 import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
 import db from '@adonisjs/lucid/services/db'
@@ -84,7 +84,7 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
       query.withScopes((scopes) => scopes.filterByDateRange(filters.startDate, filters.endDate))
     }
 
-    return query.orderBy('created_at', 'desc').paginate(page, perPage)
+    return query.orderBy('updated_at', 'desc').paginate(page, perPage)
   }
 
   /**
@@ -103,29 +103,53 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
    *   - `PERMIT_CONDUIT` (number): Count of documents with type "PERMIT_CONDUIT".
    */
   async getStats(): Promise<any> {
-    const stats = await KycDocument.query()
-      .select(
-        db.raw('COUNT(*) as total'),
-        db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pending`, [
-          KycDocumentStatus.PENDING,
-        ]),
-        db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as approved`, [
-          KycDocumentStatus.APPROVED,
-        ]),
-        db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as rejected`, [
-          KycDocumentStatus.REJECTED,
-        ]),
-        db.raw(`SUM(CASE WHEN document_type = ? THEN 1 ELSE 0 END) as cni`, [KycDocumentType.CNI]),
-        db.raw(`SUM(CASE WHEN document_type = ? THEN 1 ELSE 0 END) as passport`, [
-          KycDocumentType.PASSPORT,
-        ]),
-        db.raw(`SUM(CASE WHEN document_type = ? THEN 1 ELSE 0 END) as permit`, [
-          KycDocumentType.PERMIT_CONDUIT,
-        ])
-      )
-      .first()
+    const [allTime, today] = await Promise.all([
+      KycDocument.query()
+        .select(
+          db.raw('COUNT(*) as total'),
+          db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pending`, [
+            KycDocumentStatus.PENDING,
+          ]),
+          db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as approved`, [
+            KycDocumentStatus.APPROVED,
+          ]),
+          db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as rejected`, [
+            KycDocumentStatus.REJECTED,
+          ]),
+          db.raw(`SUM(CASE WHEN document_type = ? THEN 1 ELSE 0 END) as cni`, [
+            KycDocumentType.CNI,
+          ]),
+          db.raw(`SUM(CASE WHEN document_type = ? THEN 1 ELSE 0 END) as passport`, [
+            KycDocumentType.PASSPORT,
+          ]),
+          db.raw(`SUM(CASE WHEN document_type = ? THEN 1 ELSE 0 END) as permit`, [
+            KycDocumentType.PERMIT_CONDUIT,
+          ])
+        )
+        .first(),
 
-    const extras = stats?.$extras || {}
+      KycAttemp.query()
+        .whereRaw('DATE(created_at) = CURDATE()')
+        .select(
+          db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as today_submitted`, [
+            KycDocumentStatus.PENDING,
+          ]),
+          db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as today_approved`, [
+            KycDocumentStatus.APPROVED,
+          ]),
+          db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as today_rejected`, [
+            KycDocumentStatus.REJECTED,
+          ])
+        )
+        .first(),
+    ])
+
+    const extras = allTime?.$extras || {}
+    const todayExtras = today?.$extras || {}
+
+    const todaySubmitted = Number(todayExtras.today_submitted || 0)
+    const todayApproved = Number(todayExtras.today_approved || 0)
+    const todayRejected = Number(todayExtras.today_rejected || 0)
 
     return {
       total: Number(extras.total || 0),
@@ -136,6 +160,12 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
         CNI: Number(extras.cni || 0),
         PASSPORT: Number(extras.passport || 0),
         PERMIT_CONDUIT: Number(extras.permit || 0),
+      },
+      today: {
+        submitted: todaySubmitted,
+        approved: todayApproved,
+        rejected: todayRejected,
+        processed: todayApproved + todayRejected,
       },
     }
   }
@@ -182,5 +212,16 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
    */
   async saveAttempt(attempt: KycAttemp): Promise<void> {
     await attempt.save()
+  }
+
+  /**
+   * Returns the number of KYC documents currently in the given status.
+   *
+   * @param {KycDocumentStatus} status - The status to count.
+   * @return {Promise<number>} A promise resolving to the total number of documents with that status.
+   */
+  async countByStatus(status: KycDocumentStatus): Promise<number> {
+    const result = await KycDocument.query().where('status', status).count('* as total').first()
+    return Number((result as any)?.$extras?.total ?? 0)
   }
 }

@@ -1,9 +1,13 @@
-﻿import Provider, { ProviderType } from '#features/catalogs/domain/models/provider'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
-import ProviderRepository, {
-  ListProvidersParams,
-} from '#features/catalogs/domain/interfaces/provider_repository'
+﻿import Provider from '#features/catalogs/domain/models/provider'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import type ProviderRepository from '#features/catalogs/domain/interfaces/provider_repository'
 import { Exception } from '@adonisjs/core/exceptions'
+import {
+  type ListProvidersRequestDto,
+  type CreateProviderCommand,
+  type UpdateProviderCommand,
+  type ProviderStatus,
+} from '#features/catalogs/application/dtos/admin/admin_providers.dto'
 
 /**
  * Repository class for managing providers, implementing the `Provider_repository_impl` interface.
@@ -13,15 +17,15 @@ export default class ProviderRepositoryImpl implements ProviderRepository {
   /**
    * Retrieves paginated and filtered results of providers based on specified query parameters.
    *
-   * @param {ListProvidersParams} params - Object containing query parameters for pagination and filtering.
+   * @param {ListProvidersRequestDto} params - Object containing query parameters for pagination and filtering.
    * @param {number} [params.page=1] - The page number to retrieve.
    * @param {number} [params.limit=20] - The number of items per page.
    * @param {string} [params.q] - A search query to filter by `code` or `name`.
    * @param {string} [params.type] - A provider type to further filter the results.
    * @return {Promise<object>} - A promise resolving to the paginated results, including metadata about pagination.
    */
-  async paginate(params: ListProvidersParams): Promise<ModelPaginatorContract<Provider>> {
-    const { page = 1, limit = 20, q, type } = params
+  async paginate(params: ListProvidersRequestDto): Promise<ModelPaginatorContract<Provider>> {
+    const { page = 1, limit = 20, q, type, status } = params
     const query = Provider.query().orderBy('id', 'desc')
     if (q) {
       query.where((builder) => {
@@ -30,6 +34,9 @@ export default class ProviderRepositoryImpl implements ProviderRepository {
     }
     if (type) {
       query.andWhere('type', String(type))
+    }
+    if (status) {
+      query.andWhere('status', String(status))
     }
     return query.paginate(Number(page), Number(limit))
   }
@@ -67,13 +74,10 @@ export default class ProviderRepositoryImpl implements ProviderRepository {
   /**
    * Creates a new provider with the specified data.
    *
-   * @param {Object} data - The data for the provider to be created.
-   * @param {string} data.code - The unique code identifying the provider.
-   * @param {string} data.name - The name of the provider.
-   * @param {ProviderType} data.type - The type of the provider.
+   * @param {CreateProviderCommand} data - The data for the provider to be created.
    * @return {Promise<Provider>} A promise that resolves to the created provider.
    */
-  async create(data: { code: string; name: string; type: ProviderType }): Promise<Provider> {
+  async create(data: CreateProviderCommand): Promise<Provider> {
     return Provider.create(data as any)
   }
 
@@ -81,15 +85,26 @@ export default class ProviderRepositoryImpl implements ProviderRepository {
    * Updates an existing provider with the provided data.
    *
    * @param {number} id - The unique identifier of the provider to update.
-   * @param {Partial<{ code: string; name: string; type: ProviderType }>} data - The partial data object containing the fields to update.
+   * @param {UpdateProviderCommand} data - The data object containing the fields to update.
    * @return {Promise<Provider>} A promise that resolves to the updated provider.
    */
-  async update(
-    id: number,
-    data: Partial<{ code: string; name: string; type: ProviderType }>
-  ): Promise<Provider> {
+  async update(id: number, data: UpdateProviderCommand): Promise<Provider> {
     const item = await Provider.findOrFail(id)
     item.merge(data)
+    await item.save()
+    return item
+  }
+
+  /**
+   * Updates the status of a provider (active/inactive).
+   *
+   * @param {number} id - The unique identifier of the provider.
+   * @param {ProviderStatus} status - The new status to apply.
+   * @return {Promise<Provider>} A promise resolving to the updated provider.
+   */
+  async setStatus(id: number, status: ProviderStatus): Promise<Provider> {
+    const item = await Provider.findOrFail(id)
+    item.status = status
     await item.save()
     return item
   }

@@ -43,14 +43,23 @@ export default class ServiceProviderMethodsController {
    */
   async index({ request, response }: HttpContext): Promise<void> {
     const qs = request.qs()
+
+    const isActive =
+      qs.is_active !== undefined || qs.isActive !== undefined
+        ? String(qs.is_active ?? qs.isActive) === 'true' ||
+          String(qs.is_active ?? qs.isActive) === '1'
+        : undefined
+
+    // Déterminer le filtre réseau (inter/intra)
+    const networkType =
+      qs.network_type || qs.networkType
+        ? (String(qs.network_type ?? qs.networkType) as 'inter' | 'intra')
+        : undefined
+
     const result = await this.listUseCase.execute({
       page: Number(qs.page ?? 1),
       limit: Number(qs.limit ?? 100),
-      isActive:
-        qs.is_active !== undefined || qs.isActive !== undefined
-          ? String(qs.is_active ?? qs.isActive) === 'true' ||
-            String(qs.is_active ?? qs.isActive) === '1'
-          : undefined,
+      isActive,
       serviceTypeId: qs.service_type_id
         ? Number(qs.service_type_id)
         : qs.serviceTypeId
@@ -66,6 +75,12 @@ export default class ServiceProviderMethodsController {
         : qs.providerFromId
           ? Number(qs.providerFromId)
           : undefined,
+      providerToId: qs.provider_to_id
+        ? Number(qs.provider_to_id)
+        : qs.providerToId
+          ? Number(qs.providerToId)
+          : undefined,
+      networkType,
     })
     return response.ok(result)
   }
@@ -91,11 +106,11 @@ export default class ServiceProviderMethodsController {
           actorType: 'admin',
           actorRole: (auth.user as any)?.role?.slug ?? null,
           targetType: 'ServiceProviderMethod',
-          targetId: String((created as any)?.id ?? ''),
+          targetId: String(created.id ?? ''),
           requestId: request.header('x-request-id') ?? null,
           ipAddress: request.ip(),
           userAgent: request.header('user-agent') ?? null,
-          newValues: payload,
+          newValues: payload as unknown as Record<string, unknown>,
           result: AuditResult.SUCCESS,
         })
         .catch((_) => {})
@@ -110,9 +125,11 @@ export default class ServiceProviderMethodsController {
           actorType: 'admin',
           actorRole: (auth.user as any)?.role?.slug ?? null,
           targetType: 'ServiceProviderMethod',
+          targetId: null,
           requestId: request.header('x-request-id') ?? null,
           ipAddress: request.ip(),
           userAgent: request.header('user-agent') ?? null,
+          newValues: payload as unknown as Record<string, unknown>,
           result: AuditResult.FAILURE,
           errorMessage: (error as Error)?.message,
         })
@@ -126,6 +143,9 @@ export default class ServiceProviderMethodsController {
       messagesProvider: new SimpleMessagesProvider(serviceProviderMethodValidatorMessage),
       meta: { spmId: Number(params.id) },
     })
+
+    // Récupérer les valeurs avant modification pour l'audit
+    const oldValues = await this.getUseCase.execute(Number(params.id))
 
     try {
       const item = await this.updateUseCase.execute(Number(params.id), payload)
@@ -142,7 +162,8 @@ export default class ServiceProviderMethodsController {
           requestId: request.header('x-request-id') ?? null,
           ipAddress: request.ip(),
           userAgent: request.header('user-agent') ?? null,
-          newValues: payload,
+          oldValues: oldValues as unknown as Record<string, unknown>,
+          newValues: payload as unknown as Record<string, unknown>,
           result: AuditResult.SUCCESS,
         })
         .catch((_) => {})
@@ -161,6 +182,8 @@ export default class ServiceProviderMethodsController {
           requestId: request.header('x-request-id') ?? null,
           ipAddress: request.ip(),
           userAgent: request.header('user-agent') ?? null,
+          oldValues: oldValues as unknown as Record<string, unknown>,
+          newValues: payload as unknown as Record<string, unknown>,
           result: AuditResult.FAILURE,
           errorMessage: (error as Error)?.message,
         })
@@ -170,6 +193,9 @@ export default class ServiceProviderMethodsController {
   }
 
   async destroy({ params, request, response, auth }: HttpContext) {
+    // Récupérer les valeurs avant suppression pour l'audit
+    const oldValues = await this.getUseCase.execute(Number(params.id))
+
     try {
       await this.deleteUseCase.execute(Number(params.id))
 
@@ -185,6 +211,7 @@ export default class ServiceProviderMethodsController {
           requestId: request.header('x-request-id') ?? null,
           ipAddress: request.ip(),
           userAgent: request.header('user-agent') ?? null,
+          oldValues: oldValues as unknown as Record<string, unknown>,
           result: AuditResult.SUCCESS,
         })
         .catch((_) => {})
@@ -203,6 +230,7 @@ export default class ServiceProviderMethodsController {
           requestId: request.header('x-request-id') ?? null,
           ipAddress: request.ip(),
           userAgent: request.header('user-agent') ?? null,
+          oldValues: oldValues as unknown as Record<string, unknown>,
           result: AuditResult.FAILURE,
           errorMessage: (error as Error)?.message,
         })

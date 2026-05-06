@@ -1,7 +1,7 @@
 import {
   TransfertRequestDto,
-  TransfertResponseDto,
-} from '#features/operations/application/dto/transfert.dto'
+  TransfertResponseDTO,
+} from '#features/operations/application/dtos/operation.dto'
 import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
 import TransactionService from '#features/transactions/application/services/transaction_service'
@@ -55,13 +55,13 @@ export default class TransfertUseCase {
    * @param {TransfertRequestDto} payload - Data for the transfer operation, including amount, provider, and service type.
    * @param {User} user - The user initiating the transfer, containing user identification details.
    * @param {string} [idempotencyKey] - Optional idempotency key to ensure repeated requests result in the same operation.
-   * @return {Promise<TransfertResponseDto>} A promise resolving to the transfer response, including transaction status and reference.
+   * @return {Promise<TransfertResponseDTO>} A promise resolving to the transfer response, including transaction status and reference.
    */
   async execute(
     payload: TransfertRequestDto,
     user: User,
     idempotencyKey?: string
-  ): Promise<TransfertResponseDto> {
+  ): Promise<TransfertResponseDTO> {
     const deviceInfo = payload.deviceInfo
     const geoIpLocation = payload.geoIpLocation
 
@@ -142,7 +142,7 @@ export default class TransfertUseCase {
       .toQueue('payment')
       .priority(1)
 
-    const result: TransfertResponseDto = {
+    const result: TransfertResponseDTO = {
       message: 'transfert initié',
       data: {
         transactionReference: transaction.reference,

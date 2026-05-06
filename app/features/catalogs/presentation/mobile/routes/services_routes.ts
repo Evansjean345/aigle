@@ -20,5 +20,5 @@ export default function mobileServicesRoutes() {
       router.get('company-contacts', [CompanyContactsController, 'index'])
     })
     .prefix('mobile/services')
-    .use(middleware.device())
+  // .use(middleware.device())
 }

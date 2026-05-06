@@ -2,8 +2,7 @@ import { DateTime } from 'luxon'
 import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import ServiceProviderMethod from '#features/catalogs/domain/models/service_provider_method'
-
-export type ProviderType = 'mobile_money' | 'bank' | 'wallet'
+import type { ProviderType, ProviderStatus } from '#features/catalogs/application/dtos/admin/admin_providers.dto'
 
 export default class Provider extends BaseModel {
   public static table = 'providers'
@@ -22,6 +21,9 @@ export default class Provider extends BaseModel {
 
   @column()
   declare logo?: string | null
+
+  @column()
+  declare status: ProviderStatus
 
   @hasMany(() => ServiceProviderMethod, {
     foreignKey: 'providerFromId',

@@ -39,6 +39,7 @@ export const createServiceProviderMethodValidator = vine.compile(
     feeFixed: vine.number().min(0).optional(),
     feePercent: vine.number().min(0).max(100).optional(),
     currency: vine.string().minLength(2).maxLength(6).optional(),
+    minAmount: vine.number().min(0).optional(),
     isActive: vine.boolean().optional(),
   })
 )
@@ -86,6 +87,7 @@ export const updateServiceProviderMethodValidator = vine.compile(
     feeFixed: vine.number().min(0).optional(),
     feePercent: vine.number().min(0).max(100).optional(),
     currency: vine.string().minLength(2).maxLength(6).optional(),
+    minAmount: vine.number().min(0).optional(),
     isActive: vine.boolean().optional(),
   })
 )
@@ -114,5 +116,7 @@ export const serviceProviderMethodValidatorMessage = {
   'currency.string': 'La devise doit être une chaîne',
   'currency.minLength': 'La devise est trop courte',
   'currency.maxLength': 'La devise est trop longue',
+  'minAmount.number': 'Le montant minimum doit être un nombre',
+  'minAmount.min': 'Le montant minimum ne peut pas être négatif',
   'isActive.boolean': "Le champ 'isActive' doit être un booléen",
 }

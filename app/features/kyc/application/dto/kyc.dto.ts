@@ -15,7 +15,6 @@ export interface KycDocumentRequestDto {
 
 export interface KycDocumentResponseDto {
   message: string
-  nextAction: string
 }
 
 export class AdminKycListDto {
@@ -101,5 +100,11 @@ export class KycStatsDto {
     CNI: number
     PASSPORT: number
     PERMIT_CONDUIT: number
+  }
+  declare today: {
+    submitted: number
+    approved: number
+    rejected: number
+    processed: number
   }
 }

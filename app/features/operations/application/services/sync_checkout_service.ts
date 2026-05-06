@@ -5,8 +5,9 @@ import config from '@adonisjs/core/services/config'
 import HttpClient from '#shared/infrastructure/services/http_client_service'
 import TransactionFailureHandler from '#features/transactions/application/services/transaction_failure_handler'
 import type { TransactionFailureOptions } from '#features/transactions/application/services/transaction_failure_handler'
-import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import emitter from '@adonisjs/core/services/emitter'
+import ErrorClassifier from '#shared/infrastructure/services/error_classifier'
+import ProviderErrorReporter from '#shared/infrastructure/services/provider_error_reporter'
 
 export interface SyncCheckoutParams {
   operationType: string
@@ -22,7 +23,8 @@ export interface SyncCheckoutParams {
 }
 
 export interface SyncCheckoutResult {
-  waveUrl?: string
+  redirectUrl?: string
+  type?: string
 }
 
 @inject()
@@ -50,8 +52,15 @@ export default class SyncCheckoutService {
    * @throws {Exception} Throws an exception if the checkout operation fails, with details about the error and a status code.
    */
   async checkout(params: SyncCheckoutParams): Promise<SyncCheckoutResult> {
+    const deepLink = (() => {
+      const url = new URL(config.get('app.mobileDeviceDeepLink') as string)
+      url.searchParams.set('reference', params.reference)
+      url.searchParams.set('provider', params.provider)
+      return url.toString()
+    })()
+
     const dataSend: Record<string, any> = {
-      operation_type: params.operationType,
+      channel: params.operationType,
       amount: params.amount,
       provider: params.provider,
       number: params.phone,
@@ -60,8 +69,8 @@ export default class SyncCheckoutService {
       reference: params.reference,
       notify_success_url: params.notifySuccessUrl,
       notify_failure_url: params.notifyFailureUrl,
-      success_url: config.get('app.mobileDeviceDeepLink'),
-      error_url: config.get('app.mobileDeviceDeepLink'),
+      success_url: deepLink,
+      error_url: deepLink,
     }
 
     const response = await this.httpClient.post(env.get('API_CHECKOUT_URL')!, dataSend)
@@ -86,16 +95,28 @@ export default class SyncCheckoutService {
       .catch((_) => {})
 
     if (!response.success) {
+      const classified = ErrorClassifier.classify({
+        httpStatus: response.error?.statusCode,
+        message: response.error?.message,
+        networkCode: response.error?.code,
+      })
+
       const failureOpts: TransactionFailureOptions = {
         ...params.failureOptions,
         transactionReference: params.reference,
       }
 
-      transactionLog.error(
-        `${failureOpts.logCode}_CHECKOUT_FAILED`,
-        { reference: params.reference, error: response.error },
-        'Sync checkout API call failed'
-      )
+      // Pipeline log + alerte uniformisé avec celui des jobs (cf.
+      // BaseAggregatorJob). Avant ce refactor, la branche sync ne
+      // logguait qu'en `error` indistinctement et n'émettait aucune
+      // alerte monitoring.
+      ProviderErrorReporter.report(classified, response.error ?? {}, {
+        logPrefix: failureOpts.logCode,
+        transactionReference: params.reference,
+        provider: params.provider,
+        paymentMethod: params.operationType,
+        operationType: failureOpts.logCode,
+      })
 
       await this.failureHandler.handle(failureOpts)
 
@@ -105,8 +126,12 @@ export default class SyncCheckoutService {
       })
     }
 
+    console.log('response')
+    console.log(response)
+
     return {
-      waveUrl: response.data?.payment_details?.wave_launch_url,
+      type: response.data?.payment_details?.type,
+      redirectUrl: response.data?.payment_details?.redirect_url,
     }
   }
 }

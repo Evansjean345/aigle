@@ -51,19 +51,13 @@ export default class OnUserKycStatusUpdate {
       const kycLevel =
         event.status === KycDocumentStatus.APPROVED ? KycLevelState.KYC_VERIFIED : undefined
 
-      await this.updateUserKycStatus.execute(
-        event.userId,
-        newUserStatus,
-        kycLevel,
-        event.comment,
-        {
-          actorType: 'Admin',
-          ipAddress: event.auditContext?.ipAddress ?? null,
-          userAgent: event.auditContext?.userAgent ?? null,
-          requestId: event.auditContext?.requestId ?? null,
-          geoLocation: event.auditContext?.geoLocation,
-        }
-      )
+      await this.updateUserKycStatus.execute(event.userId, newUserStatus, kycLevel, event.comment, {
+        actorType: 'Admin',
+        ipAddress: event.auditContext?.ipAddress ?? null,
+        userAgent: event.auditContext?.userAgent ?? null,
+        requestId: event.auditContext?.requestId ?? null,
+        geoLocation: event.auditContext?.geoLocation,
+      })
     }
   }
 }

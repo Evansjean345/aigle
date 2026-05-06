@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine'
-import { Infer } from '@vinejs/vine/types'
+import { type Infer } from '@vinejs/vine/types'
 
 const schema = vine.object({
   amount: vine.number(),
@@ -31,5 +31,5 @@ const schema = vine.object({
   pincode: vine.string().trim().minLength(5).maxLength(5),
 })
 
-export const transfertValidator = vine.compile(schema)
+export const transfertValidator = vine.create(schema)
 export type TransfertValidator = Infer<typeof schema>

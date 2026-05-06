@@ -1,5 +1,4 @@
 import { Job } from '@adonisjs/queue'
-import errorLog from '#shared/infrastructure/logging/error_log'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import app from '@adonisjs/core/services/app'
 import HttpClient from '#shared/infrastructure/services/http_client_service'
@@ -7,7 +6,7 @@ import emitter from '@adonisjs/core/services/emitter'
 import ErrorClassifier, {
   type ClassifiedError,
 } from '#shared/infrastructure/services/error_classifier'
-import { ErrorSeverity, AdminAction } from '#shared/enums/provider_error_enums'
+import ProviderErrorReporter from '#shared/infrastructure/services/provider_error_reporter'
 
 export interface BaseAggregatorPayload {
   transactionId: number
@@ -75,8 +74,7 @@ export default abstract class BaseAggregatorJob<T extends BaseAggregatorPayload>
           networkCode: result.error?.code,
         })
 
-        this.logByClassifiedError(classified, result.error)
-        this.emitAlertIfNeeded(classified, result.error)
+        ProviderErrorReporter.report(classified, result.error ?? {}, this.buildReporterContext())
         await this.onClassifiedError(this.payload, classified, result.error)
         return
       }
@@ -87,47 +85,24 @@ export default abstract class BaseAggregatorJob<T extends BaseAggregatorPayload>
         `${this.jobName} initiated via job`
       )
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-
       const classified = ErrorClassifier.classify({
-        message: errorMessage,
+        message: err instanceof Error ? err.message : 'Unknown error',
         networkCode: (err as any)?.code,
       })
 
-      errorLog.error(
-        `${this.logPrefix}_INIT_ERROR`,
-        { reference: transactionReference, error: errorMessage, severity: classified.severity },
-        `Failed to initiate ${this.jobName}`
-      )
-
-      this.emitAlertIfNeeded(classified, { message: errorMessage, code: (err as any)?.code })
+      ProviderErrorReporter.reportNetworkException(classified, err, this.buildReporterContext())
       await this.onUnexpectedError(this.payload, err)
     }
   }
 
-  private emitAlertIfNeeded(classified: ClassifiedError, error?: any): void {
-    if (classified.adminAction === AdminAction.NONE) return
-
-    const { transactionReference, operator, paymentMethod } = this.payload
-
-    emitter
-      .emit('alert:provider-error', {
-        severity: classified.severity,
-        category: classified.category,
-        adminAction: classified.adminAction,
-        adminMessage: classified.adminMessage,
-        errorCode: 'HTTP_ERROR',
-        transactionReference,
-        provider: operator,
-        context: {
-          operationType: this.jobName,
-          paymentMethod,
-          httpStatus: error?.statusCode,
-          message: error?.message,
-          details: error?.details,
-        },
-      })
-      .catch(() => {})
+  private buildReporterContext() {
+    return {
+      logPrefix: this.logPrefix,
+      transactionReference: this.payload.transactionReference,
+      provider: this.payload.operator,
+      paymentMethod: this.payload.paymentMethod,
+      operationType: this.jobName,
+    }
   }
 
   private emitTransactionLog(event: string, extra: Record<string, any>): void {
@@ -138,43 +113,5 @@ export default abstract class BaseAggregatorJob<T extends BaseAggregatorPayload>
         ...extra,
       })
       .catch(() => {})
-  }
-
-  private logByClassifiedError(classified: ClassifiedError, error: any): void {
-    const ref = this.payload.transactionReference
-
-    switch (classified.severity) {
-      case ErrorSeverity.CONFIGURATION:
-        paymentLog.error(
-          `${this.logPrefix}_CONFIG_ERROR`,
-          { reference: ref, error, severity: 'CONFIGURATION' },
-          'Aggregator rejected due to configuration issue'
-        )
-        break
-
-      case ErrorSeverity.RETRYABLE:
-        paymentLog.warn(
-          `${this.logPrefix}_RETRYABLE`,
-          { reference: ref, error, severity: 'RETRYABLE' },
-          'Checkout failed — retryable, will retry'
-        )
-        break
-
-      case ErrorSeverity.AMBIGUOUS:
-        paymentLog.warn(
-          `${this.logPrefix}_AMBIGUOUS`,
-          { reference: ref, error, severity: 'AMBIGUOUS' },
-          'Checkout failed — ambiguous error, needs investigation'
-        )
-        break
-
-      case ErrorSeverity.DEFINITIVE:
-        paymentLog.error(
-          `${this.logPrefix}_DEFINITIVE`,
-          { reference: ref, error, severity: 'DEFINITIVE' },
-          'Checkout failed — definitive error'
-        )
-        break
-    }
   }
 }

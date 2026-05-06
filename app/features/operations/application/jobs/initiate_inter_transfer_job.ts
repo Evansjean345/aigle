@@ -32,7 +32,7 @@ export default class InitiateInterTransferJob extends Job<InitiateInterTransferP
     )
 
     const dataSend: Record<string, any> = {
-      operation_type: paymentMethod,
+      channel: paymentMethod,
       amount: amount,
       provider: operator,
       number: phone,
@@ -43,15 +43,16 @@ export default class InitiateInterTransferJob extends Job<InitiateInterTransferP
       notify_failure_url: env.get('NOTIFY_TRANSFERT_INTER_FAILURE_URL'),
     }
 
-    // Orange Money specific: OTP
-    if (operator === 'orange' && payload.pinCode) {
-      dataSend.otp = payload.pinCode
-    }
-
-    // Wave specific: redirect URLs
-    if (operator === 'wave') {
-      dataSend.success_url = config.get('app.mobileDeviceDeepLink')
-      dataSend.error_url = config.get('app.mobileDeviceDeepLink')
+    // Wave/Orange specific: redirect URLs
+    if (['wave', 'orange'].includes(payload.operator)) {
+      const deepLink = (() => {
+        const url = new URL(config.get('app.mobileDeviceDeepLink') as string)
+        url.searchParams.set('reference', transactionReference)
+        url.searchParams.set('provider', operator)
+        return url.toString()
+      })()
+      dataSend.success_url = deepLink
+      dataSend.error_url = deepLink
     }
 
     try {

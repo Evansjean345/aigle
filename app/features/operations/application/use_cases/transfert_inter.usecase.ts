@@ -1,7 +1,7 @@
 ﻿import {
   InterTransfertRequestDto,
-  InterTransfertResponseDto,
-} from '#features/operations/application/dto/transfert_inter.dto'
+  InterTransfertResponseDTO,
+} from '#features/operations/application/dtos/operation.dto'
 import ServiceType from '#features/catalogs/domain/models/service_type'
 import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
@@ -22,7 +22,6 @@ import { TransactionDirection } from '#features/transactions/domain/enums/transa
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
-import OrangeMoneyCodeRequiredException from '#features/operations/infrastructure/exceptions/orange_money_code_required_exception'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import SyncCheckoutService from '#features/operations/application/services/sync_checkout_service'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
@@ -77,13 +76,13 @@ export default class InterTransfertUseCase {
    * @param {InterTransfertRequestDto} payload - The data transfer object containing request details for the transaction.
    * @param {User} user - The user initiating the transaction, including necessary user details.
    * @param idempotencyKey - Optional idempotency key to ensure the transaction is processed only once in case of retries.
-   * @return {Promise<InterTransfertResponseDto>} A promise that resolves with the response data transfer object containing the transaction outcome.
+   * @return {Promise<InterTransfertResponseDTO>} A promise that resolves with the response data transfer object containing the transaction outcome.
    */
   async execute(
     payload: InterTransfertRequestDto,
     user: User,
     idempotencyKey?: string
-  ): Promise<InterTransfertResponseDto> {
+  ): Promise<InterTransfertResponseDTO> {
     transactionLog.info(
       'INTER_TRANSFER_START',
       {
@@ -92,7 +91,6 @@ export default class InterTransfertUseCase {
       },
       'Starting inter-network transfer process'
     )
-    this.validateOrangeMoneyRequirements(payload)
 
     await Promise.all([
       this.failureCache.verifyNotBlocked(user.usersUid),
@@ -244,7 +242,7 @@ export default class InterTransfertUseCase {
       .catch((_) => {})
 
     if (isSyncDepositProvider(payload.providerFromCode)) {
-      const { waveUrl } = await this.syncCheckoutService.checkout({
+      const { redirectUrl, type } = await this.syncCheckoutService.checkout({
         operationType: payload.paymentMethodDepositCode,
         amount,
         provider: payload.providerFromCode,
@@ -265,12 +263,13 @@ export default class InterTransfertUseCase {
         },
       })
 
-      const result: InterTransfertResponseDto = {
+      const result: InterTransfertResponseDTO = {
         message: 'Initialisation du dépot inter effectuée',
         data: {
           transactionReference: transaction.reference,
           status: transaction.status,
-          wave_url: waveUrl,
+          redirectUrl,
+          type,
         },
       }
 
@@ -307,7 +306,7 @@ export default class InterTransfertUseCase {
       'Inter-transfer checkout job dispatched'
     )
 
-    const result: InterTransfertResponseDto = {
+    const result: InterTransfertResponseDTO = {
       message: 'Initialisation du dépot inter effectuée',
       data: {
         transactionReference: transaction.reference,
@@ -326,18 +325,6 @@ export default class InterTransfertUseCase {
     }
 
     return result
-  }
-
-  /**
-   * Validates the requirements for Orange Money transactions.
-   *
-   * @param {InterTransfertRequestDto} payload - The data transfer object containing the transaction details. Must include a providerFromCode and pinCode when the provider is 'orange'.
-   * @return {void} This method does not return a value but throws an exception if the requirements are not met.
-   */
-  private validateOrangeMoneyRequirements(payload: InterTransfertRequestDto): void {
-    if (payload.providerFromCode === 'orange' && !payload.pinCode) {
-      throw new OrangeMoneyCodeRequiredException()
-    }
   }
 
   /**
@@ -412,10 +399,6 @@ export default class InterTransfertUseCase {
     const paymentDetails: Record<string, any> = {
       operator: payload.providerFromCode,
       phone: payload.debiteurPhone.replaceAll(' ', ''),
-    }
-
-    if (payload.pinCode) {
-      paymentDetails.pincode = payload.pinCode
     }
 
     return this.paymentService.createPayment(

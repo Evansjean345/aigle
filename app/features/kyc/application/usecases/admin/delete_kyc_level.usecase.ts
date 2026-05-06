@@ -4,6 +4,8 @@ import KycLevelNotFoundException from '#features/kyc/infrastructure/exceptions/k
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 import type { AdminAuditContext } from '#features/kyc/application/usecases/admin/create_kyc_level.usecase'
+import User from '#features/user/domain/models/user'
+import { Exception } from '@adonisjs/core/exceptions'
 
 @inject()
 export default class DeleteKycLevelUseCase {
@@ -15,6 +17,22 @@ export default class DeleteKycLevelUseCase {
       throw new KycLevelNotFoundException()
     }
 
+    const usersCount = await User.query()
+      .where('kyc_level', kycLevel.level)
+      .count('* as total')
+      .first()
+
+    const total = Number(usersCount?.$extras?.total ?? 0)
+
+    if (total > 0) {
+      throw new Exception(
+        `Impossible de supprimer ce niveau KYC : ${total} compte(s) utilisateur(s) y sont liés.`,
+        {
+          status: 409,
+          code: 'E_KYC_LEVEL_IN_USE',
+        }
+      )
+    }
     const snapshot = {
       id: kycLevel.id,
       level: kycLevel.level,

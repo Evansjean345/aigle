@@ -27,7 +27,6 @@ export default class GetPaymentOptionsByServiceTypeUseCase {
 
     const spms = await ServiceProviderMethod.query()
       .where('service_type_id', st.id)
-      .andWhere('is_active', true)
       .preload('paymentMethod')
       .preload('providerFrom')
 
@@ -42,6 +41,7 @@ export default class GetPaymentOptionsByServiceTypeUseCase {
           id: number
           code: string
           name: string
+          isActive: boolean
           logo?: string
           feeFixed: number
           feePercent: number
@@ -88,6 +88,7 @@ export default class GetPaymentOptionsByServiceTypeUseCase {
           currency: spm.currency ?? undefined,
           minAmount: spm.minAmount ?? undefined,
           applyFees: spm.applyFeeds,
+          isActive: spm.isActive,
         })
       }
     }

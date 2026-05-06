@@ -40,6 +40,7 @@ export default class UpdateUserKycStatus {
    * @param {UserKycStatus} status - The KYC (Know Your Customer) status associated with the user.
    * @param {KycLevelState} kycLevel - The KYC level associated with the user.
    * @param {string} comment - An optional comment.
+   * @param auditContext
    * @return {Promise<void>} A promise that resolves when the operation is completed.
    * @throws {UserAccountNotFoundException} If the user does not exist, it throws a UserAccountNotFoundException.
    */
@@ -85,7 +86,7 @@ export default class UpdateUserKycStatus {
 
       emitter
         .emit('activity:audit', {
-          eventCategory: 'USER_KYC',
+          eventCategory: 'KYC',
           eventAction: 'USER_KYC_STATUS_CHANGED',
           actorId: auditContext?.actorId ?? 'system',
           actorType: auditContext?.actorType ?? 'System',

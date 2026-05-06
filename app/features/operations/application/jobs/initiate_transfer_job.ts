@@ -32,7 +32,7 @@ export default class InitiateTransferJob extends Job<InitiateTransferPayload> {
     )
 
     const dataSend = {
-      operation_type: paymentMethod,
+      channel: paymentMethod,
       amount: totalAmount,
       provider: operator,
       number: phone,

@@ -1,15 +1,18 @@
 import { inject } from '@adonisjs/core'
-import { ServiceProviderMethodCreateDto } from '#features/catalogs/application/dtos/service_provider_methods.dto'
 import ServiceProviderMethodRepository from '#features/catalogs/domain/interfaces/service_provider_method_repository'
 import ServiceType from '#features/catalogs/domain/models/service_type'
 import PaymentMethod from '#features/catalogs/domain/models/payment_method'
 import Provider from '#features/catalogs/domain/models/provider'
+import {
+  type CreateServiceProviderMethodRequestDto,
+  ServiceProviderMethodResponseDTO,
+} from '#features/catalogs/application/dtos/admin/admin_service_provider_methods.dto'
 
 @inject()
 export default class CreateSpmUseCase {
   constructor(private readonly repository: ServiceProviderMethodRepository) {}
 
-  async execute(data: ServiceProviderMethodCreateDto) {
+  async execute(data: CreateServiceProviderMethodRequestDto) {
     // Basic validation
     for (const key of ['serviceTypeId', 'paymentMethodId', 'providerFromId'] as const) {
       if (!data[key]) {
@@ -30,6 +33,18 @@ export default class CreateSpmUseCase {
     if (!pf) throw new Error('Invalid providerFromId')
     if (data.providerToId && !pt) throw new Error('Invalid providerToId')
 
-    return this.repository.create(data as any)
+    const created = await this.repository.create({
+      serviceTypeId: data.serviceTypeId,
+      paymentMethodId: data.paymentMethodId,
+      providerFromId: data.providerFromId,
+      providerToId: data.providerToId,
+      feeFixed: data.feeFixed,
+      feePercent: data.feePercent,
+      minAmount: data.minAmount,
+      currency: data.currency,
+      isActive: data.isActive,
+    })
+
+    return ServiceProviderMethodResponseDTO.fromServiceProviderMethod(created)
   }
 }

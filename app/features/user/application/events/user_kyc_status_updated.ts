@@ -1,6 +1,6 @@
 import { BaseEvent } from '@adonisjs/core/events'
-import { UserKycStatus } from '#features/user/domain/enum'
-import { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
+import { type UserKycStatus } from '#features/user/domain/enum'
+import { type KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
 
 export default class UserKycStatusUpdated extends BaseEvent {
   constructor(

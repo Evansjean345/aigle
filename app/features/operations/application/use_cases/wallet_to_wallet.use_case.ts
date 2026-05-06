@@ -14,8 +14,8 @@ import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import { PaymentMethod } from '#features/transactions/domain/enums/payment_method'
 import {
   WalletToWalletRequestDto,
-  WalletToWalletResponseDto,
-} from '#features/operations/application/dto/wallet_to_wallet.dto'
+  WalletToWalletResponseDTO,
+} from '#features/operations/application/dtos/operation.dto'
 import Wallet from '#features/wallet/domain/models/wallet'
 import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
 import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
@@ -100,7 +100,7 @@ export default class WalletToWalletUseCase {
     currentUser: User,
     mode: TransferMode,
     idempotencyKey?: string
-  ): Promise<WalletToWalletResponseDto> {
+  ): Promise<WalletToWalletResponseDTO> {
     this.logTransferStart(currentUser, mode, payload)
 
     await this.failureCache.verifyNotBlocked(currentUser.usersUid)
@@ -140,7 +140,7 @@ export default class WalletToWalletUseCase {
    * @param {GeoIpLocation} geoIpLocation - GeoIP data for tracking the location of the transfer request.
    * @param {AuditContext} auditContext - Information for auditing purposes, such as user agent and request ID.
    * @param {string} [idempotencyKey] - Optional unique key for ensuring idempotency of the transfer operation.
-   * @return {Promise<WalletToWalletResponseDto>} A promise that resolves to the result of the transfer operation,
+   * @return {Promise<WalletToWalletResponseDTO>} A promise that resolves to the result of the transfer operation,
    * including details such as transaction reference and status.
    */
   private async executeTransfer(
@@ -149,7 +149,7 @@ export default class WalletToWalletUseCase {
     geoIpLocation: GeoIpLocation,
     auditContext: AuditContext,
     idempotencyKey?: string
-  ): Promise<WalletToWalletResponseDto> {
+  ): Promise<WalletToWalletResponseDTO> {
     const { senderWallet, recipientWallet } = context
 
     const balances: BalanceSnapshot = {

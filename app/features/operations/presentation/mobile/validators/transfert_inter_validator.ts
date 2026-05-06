@@ -1,5 +1,4 @@
 import vine from '@vinejs/vine'
-import { Infer } from '@vinejs/vine/types'
 
 const operationSchema = vine.object({
   phone: vine.string().trim(),
@@ -33,7 +32,6 @@ const schema = vine.object({
   include_fees: vine.boolean().optional(),
   debitaire: vine.object({
     ...operationSchema.getProperties(),
-    pincode: vine.string().optional().requiredWhen('provider_code', '=', 'orange'),
   }),
 
   beneficiaire: vine.object({
@@ -41,5 +39,4 @@ const schema = vine.object({
   }),
 })
 
-export const interTransfertValidator = vine.compile(schema)
-export type InterTransfertValidator = Infer<typeof schema>
+export const interTransfertValidator = vine.create(schema)

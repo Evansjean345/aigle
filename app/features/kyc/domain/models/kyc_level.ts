@@ -28,6 +28,9 @@ export default class KycLevel extends BaseModel {
   @column()
   declare isActive: boolean
 
+  @column()
+  declare isArchived: boolean
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

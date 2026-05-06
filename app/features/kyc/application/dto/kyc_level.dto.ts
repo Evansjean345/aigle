@@ -1,4 +1,4 @@
-import { KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
+import { type KycLevelState } from '#features/kyc/domain/enum/kyc_enum'
 import type KycLevel from '#features/kyc/domain/models/kyc_level'
 
 export class CreateKycLevelDto {
@@ -8,6 +8,7 @@ export class CreateKycLevelDto {
   declare monthlyLimit: number
   declare balanceLimit: number
   declare isActive?: boolean
+  declare isArchived?: boolean
 }
 
 export class UpdateKycLevelDto {
@@ -17,6 +18,7 @@ export class UpdateKycLevelDto {
   declare monthlyLimit?: number
   declare balanceLimit?: number
   declare isActive?: boolean
+  declare isArchived?: boolean
 }
 
 export class KycLevelResponseDto {
@@ -27,6 +29,7 @@ export class KycLevelResponseDto {
   declare monthlyLimit: number
   declare balanceLimit: number
   declare isActive: boolean
+  declare isArchived: boolean
   declare createdAt: string
   declare updatedAt: string
 
@@ -39,6 +42,7 @@ export class KycLevelResponseDto {
     dto.monthlyLimit = kycLevel.monthlyLimit
     dto.balanceLimit = kycLevel.balanceLimit
     dto.isActive = kycLevel.isActive
+    dto.isArchived = kycLevel.isArchived
     dto.createdAt = kycLevel.createdAt?.toISO() || ''
     dto.updatedAt = kycLevel.updatedAt?.toISO() || ''
     return dto

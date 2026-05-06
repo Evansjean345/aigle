@@ -32,6 +32,8 @@ export default function adminServicesManagementRoutes() {
       router.get('providers/:id', [ProvidersController, 'show'])
       router.post('providers', [ProvidersController, 'store'])
       router.put('providers/:id', [ProvidersController, 'update'])
+      router.put('providers/:id/activate', [ProvidersController, 'activate'])
+      router.put('providers/:id/deactivate', [ProvidersController, 'deactivate'])
       router.delete('providers/:id', [ProvidersController, 'destroy'])
 
       router.get('service-provider-methods', [ServiceProviderMethodsController, 'index'])
