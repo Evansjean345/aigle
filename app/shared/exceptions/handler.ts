@@ -41,11 +41,19 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       return
     }
 
-    ctx.response.status(error.status || 500).send({
+    const payload: Record<string, unknown> = {
       message: error.message,
       status: error.status || 500,
       code: error.code,
-    })
+    }
+
+    // Surface retry hints emitted by rate-limit / brute-force guards so the
+    // client can render an accurate countdown (PIN, admin OTP, user OTP).
+    if (typeof error.retryAfterSeconds === 'number') {
+      payload.retryAfterSeconds = error.retryAfterSeconds
+    }
+
+    ctx.response.status(error.status || 500).send(payload)
 
     return
   }

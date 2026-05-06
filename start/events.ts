@@ -36,6 +36,12 @@ const OnKycDocumentSubmittedNotification = () =>
 const OnKycDocumentProcessedNotification = () =>
   import('#features/notifications/application/listeners/on_kyc_document_processed_notification')
 
+const OnKycSubmittedAdminBroadcast = () =>
+  import('#features/kyc/application/listeners/on_kyc_submitted_admin_broadcast')
+
+const OnKycProcessedAdminBroadcast = () =>
+  import('#features/kyc/application/listeners/on_kyc_processed_admin_broadcast')
+
 const OnNewDeviceDetectedNotification = () =>
   import('#features/notifications/application/listeners/on_new_device_detected_notification')
 
@@ -72,8 +78,12 @@ emitter.listen(WalletToWalletTransactionCompleted, [
   PersistUserTransactionsVolumeListener,
   WalletToWalletTransactionPushNotificationListener,
 ])
-emitter.listen(KycDocumentSubmitted, [OnUserKycStatusUpdate, OnKycDocumentSubmittedNotification])
-emitter.listen(KycDocumentProcessed, [OnUserKycStatusUpdate])
+emitter.listen(KycDocumentSubmitted, [
+  OnUserKycStatusUpdate,
+  OnKycDocumentSubmittedNotification,
+  OnKycSubmittedAdminBroadcast,
+])
+emitter.listen(KycDocumentProcessed, [OnUserKycStatusUpdate, OnKycProcessedAdminBroadcast])
 emitter.listen(UserKycStatusUpdated, [OnKycDocumentProcessedNotification])
 emitter.listen(NewDeviceDetected, [OnNewDeviceDetectedNotification])
 emitter.listen(UserStateChanged, [OnUserStateChangedNotification])

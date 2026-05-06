@@ -72,6 +72,7 @@ export default defineConfig({
     },
     () => import('@adonisjs/bouncer/bouncer_provider'),
     () => import('@adonisjs/otel/otel_provider'),
+    () => import('@adonisjs/transmit/transmit_provider')
   ],
 
   /*
@@ -88,6 +89,7 @@ export default defineConfig({
     () => import('#start/events'),
     () => import('#start/admin_routes'),
     () => import('#start/routes_docs'),
+    () => import('#start/transmit'),
     {
       file: () => import('#start/scheduler'),
       environment: ['web'],

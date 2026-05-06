@@ -114,6 +114,7 @@ export const adminSwaggerSpec = swaggerJsdoc(adminOptions)
 function filterPaths(spec: any, keepAdmin: boolean): any {
   if (!spec.paths) return spec
   const filtered = { ...spec, paths: {} as Record<string, any> }
+
   for (const [pathKey, pathValue] of Object.entries(spec.paths)) {
     const methods = pathValue as Record<string, any>
     const hasAdminTag = Object.values(methods).some(

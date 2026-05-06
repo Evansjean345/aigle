@@ -24,10 +24,6 @@ export default class GeoIpMiddleware {
     const ip = ctx.request.ip()
 
     ctx.geoLocation = await geoIpService.getLocation(ip)
-
-    console.log('from geoip middleware:')
-    console.log(ctx.geoLocation)
-
     return next()
   }
 }

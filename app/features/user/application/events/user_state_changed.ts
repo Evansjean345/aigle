@@ -1,5 +1,5 @@
 import { BaseEvent } from '@adonisjs/core/events'
-import { UserStatus } from '#features/user/domain/enum'
+import { type UserStatus } from '#features/user/domain/enum'
 
 /**
  * Represents an event that is triggered when a user's state changes.

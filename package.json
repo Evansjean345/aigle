@@ -73,6 +73,7 @@
     "@adonisjs/otel": "^1.2.3",
     "@adonisjs/queue": "^0.6.0",
     "@adonisjs/redis": "^10.0.0",
+    "@adonisjs/transmit": "^3.0.1",
     "@aws-sdk/client-s3": "^3.936.0",
     "@aws-sdk/s3-request-presigner": "^3.936.0",
     "@google-cloud/storage": "^7.15.0",

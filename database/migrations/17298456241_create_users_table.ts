@@ -6,11 +6,12 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
-      table
-        .integer('country_id')
+     table
+        .bigInteger('country_id')
         .unsigned()
         .nullable()
         .references('id')
+
         .inTable('countries')
         .onDelete('SET NULL')
         .onUpdate('CASCADE')

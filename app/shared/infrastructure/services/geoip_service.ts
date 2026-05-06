@@ -195,11 +195,8 @@ export default class GeoIpService {
 
       if (this.asnReader) {
         const response = this.asnReader.asn(ip)
-        const organization = response.autonomousSystemOrganization?.toLowerCase().replace(/[^a-z0-9 ]/g, '') || ''
-
-        console.log('Organization:', organization)
-        console.log('response')
-        console.log(response)
+        const organization =
+          response.autonomousSystemOrganization?.toLowerCase().replace(/[^a-z0-9 ]/g, '') || ''
 
         result.isVpn = PROXY_ORGANIZATIONS.some((org) => organization.includes(org))
       }

@@ -12,6 +12,7 @@ export default class extends BaseSchema {
       table.integer('monthly_limit').defaultTo(0)
       table.integer('balance_limit').defaultTo(0)
       table.boolean('is_active').defaultTo(true)
+      table.boolean('is_archived').defaultTo(false)
       table.timestamp('created_at')
       table.timestamp('updated_at')
     })

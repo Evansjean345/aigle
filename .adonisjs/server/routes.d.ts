@@ -38,6 +38,8 @@ export type ScannedRoutes = {
     'providers.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'providers.store': { paramsTuple?: []; params?: {} }
     'providers.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'providers.activate': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'providers.deactivate': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'providers.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'service_provider_methods.index': { paramsTuple?: []; params?: {} }
     'service_provider_methods.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -91,6 +93,9 @@ export type ScannedRoutes = {
     'admin_wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'event_stream': { paramsTuple?: []; params?: {} }
+    'subscribe': { paramsTuple?: []; params?: {} }
+    'unsubscribe': { paramsTuple?: []; params?: {} }
     'auth.check_phone': { paramsTuple?: []; params?: {} }
     'auth.register': { paramsTuple?: []; params?: {} }
     'auth.verify_credentials': { paramsTuple?: []; params?: {} }
@@ -185,6 +190,7 @@ export type ScannedRoutes = {
     'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'event_stream': { paramsTuple?: []; params?: {} }
     'auth.user_auth': { paramsTuple?: []; params?: {} }
     'auth.session_status': { paramsTuple?: []; params?: {} }
     'wallet_over_view': { paramsTuple?: []; params?: {} }
@@ -247,6 +253,7 @@ export type ScannedRoutes = {
     'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'event_stream': { paramsTuple?: []; params?: {} }
     'auth.user_auth': { paramsTuple?: []; params?: {} }
     'auth.session_status': { paramsTuple?: []; params?: {} }
     'wallet_over_view': { paramsTuple?: []; params?: {} }
@@ -278,6 +285,8 @@ export type ScannedRoutes = {
     'kyc.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_app_version.store': { paramsTuple?: []; params?: {} }
     'admin_wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
+    'subscribe': { paramsTuple?: []; params?: {} }
+    'unsubscribe': { paramsTuple?: []; params?: {} }
     'auth.check_phone': { paramsTuple?: []; params?: {} }
     'auth.register': { paramsTuple?: []; params?: {} }
     'auth.verify_credentials': { paramsTuple?: []; params?: {} }
@@ -316,6 +325,8 @@ export type ScannedRoutes = {
     'service_types.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'payment_methods.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'providers.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'providers.activate': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'providers.deactivate': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'service_provider_methods.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_company_contacts.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.block': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
