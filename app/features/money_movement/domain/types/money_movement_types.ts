@@ -30,7 +30,7 @@ export interface MoneyCommand {
   amount: number
   currency: string
   /** user_id — audit (qui a initié). */
-  initiatedBy: stringZ
+  initiatedBy: string
   /** Corrélation métier optionnelle. */
   reference?: string
   metadata?: Record<string, unknown>

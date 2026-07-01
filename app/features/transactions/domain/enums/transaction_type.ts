@@ -13,4 +13,3 @@ export enum TransactionType {
   // PAYOUT = 'payout',
   // MASS_PAYOUT = 'mass_payout',
 }
-
