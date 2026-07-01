@@ -130,5 +130,18 @@ export default await Env.create(new URL('../', import.meta.url), {
   | En Docker : http://otel-collector:4318 (résolution DNS du network).
   | En dev local hors Docker : http://localhost:4318.
   */
-  OTEL_EXPORTER_OTLP_ENDPOINT: Env.schema.string.optional()
+  OTEL_EXPORTER_OTLP_ENDPOINT: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Provider Hub2 (mobile money) — provider_gateway
+  |----------------------------------------------------------
+  | Optionnelles au Lot 1 (additif, adapter pas encore branché).
+  | À passer en requises au Lot 2 (bascule HTTP→local).
+  */
+  HUB2_API_ENV: Env.schema.string.optional(),
+  HUB2_API_KEY: Env.schema.string.optional(),
+  HUB2_API_SECRET: Env.schema.string.optional(),
+  HUB2_API_SANDBOX_SECRET: Env.schema.string.optional(),
+  HUB2_API_ENDPOINT: Env.schema.string.optional()
 })

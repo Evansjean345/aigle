@@ -1,0 +1,279 @@
+import type { PaymentProviderPort } from '#features/provider_gateway/domain/interfaces/payment_provider_port'
+import type { ProviderRequest } from '#features/provider_gateway/domain/value_objects/provider_request'
+import { ProviderResponse } from '#features/provider_gateway/domain/value_objects/provider_response'
+import { ProviderCallError } from '#features/provider_gateway/infrastructure/exceptions/provider_call_error'
+import { ErrorSeverity } from '#features/provider_gateway/domain/enums/error_severity'
+import ErrorClassifier from '#features/provider_gateway/infrastructure/error_classifier'
+import ErrorMessageTranslator from '#features/provider_gateway/infrastructure/error_message_translator'
+import { resolveOrangeFlow } from '#features/provider_gateway/infrastructure/adapters/hub2/orange_payment_flow'
+import { HUB2_ERROR_MAP } from '#features/provider_gateway/infrastructure/adapters/hub2/hub2_error_map'
+import { HUB2_CLIENT_ERRORS } from '#features/provider_gateway/infrastructure/adapters/hub2/hub2_client_errors'
+import { apiEnv, apiKey, apiSecret, apiUrl } from '#config/hub2'
+import paymentLog from '#shared/infrastructure/logging/payment_log'
+
+const REDIRECT_POLLING_TIMEOUT_MS = 6000
+const REDIRECT_POLLING_INTERVAL_MS = 1500
+
+export class Hub2Adapter implements PaymentProviderPort {
+  readonly providerName = 'hub2'
+  private readonly apiKey: string
+  private readonly token: string
+  private readonly apiUrl: string
+  private readonly env: string
+
+  constructor() {
+    this.apiKey = apiKey
+    this.token = apiSecret
+    this.apiUrl = apiUrl
+    this.env = apiEnv
+  }
+
+  async checkout(request: ProviderRequest): Promise<ProviderResponse> {
+    try {
+      const intentResponse = await this.createPaymentIntentRequest(request)
+      const paymentResponse = await this.processPaymentIntent(
+        intentResponse.id,
+        intentResponse.token,
+        request
+      )
+
+      return this.buildCheckoutResponse(paymentResponse)
+    } catch (error) {
+      return this.handleError(error, 'checkout')
+    }
+  }
+
+  async payout(request: ProviderRequest): Promise<ProviderResponse> {
+    try {
+      const response = await this.fetchWithHeaders(`${this.apiUrl}/transfers`, {
+        method: 'POST',
+        body: JSON.stringify({
+          reference: request.transactionId,
+          amount: request.amount,
+          currency: request.currency,
+          description: "transfert d'argent",
+          destination: {
+            type: 'mobile_money',
+            country: request.country,
+            recipientName: '',
+            msisdn: request.phoneNumber,
+            provider: request.metadata.provider ?? request.provider,
+          },
+        }),
+      })
+
+      await this.validateResponse(response)
+      const result = (await response.json()) as unknown as Record<string, any>
+
+      return ProviderResponse.success({
+        providerReference: result.id ?? result.reference ?? null,
+        rawData: result,
+      })
+    } catch (error) {
+      return this.handleError(error, 'payout')
+    }
+  }
+
+  private async createPaymentIntentRequest(
+    request: ProviderRequest
+  ): Promise<{ id: string; token: string }> {
+    const response = await this.fetchWithHeaders(`${this.apiUrl}/payment-intents`, {
+      method: 'POST',
+      body: JSON.stringify({
+        customerReference: request.customerReference,
+        purchaseReference: request.transactionId,
+        amount: request.amount,
+        currency: request.currency,
+      }),
+    })
+
+    return (await response.json()) as { id: string; token: string }
+  }
+
+  private async processPaymentIntent(
+    paymentIntentId: string,
+    token: string,
+    request: ProviderRequest
+  ): Promise<Record<string, any>> {
+    const paymentData = this.buildPaymentData(token, request)
+
+    const response = await fetch(`${this.apiUrl}/payment-intents/${paymentIntentId}/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(paymentData),
+    })
+
+    await this.validateResponse(response)
+    const responseData = (await response.json()) as Record<string, any>
+
+    if (!responseData.payments || responseData.payments.length === 0) {
+      throw new ProviderCallError(
+        this.providerName,
+        'INVALID_PROVIDER_RESPONSE',
+        'No payments returned'
+      )
+    }
+
+    const payment = responseData.payments[0]
+    const waveNeedsPolling = payment.status === 'created' && payment.provider === 'wave'
+    const orangeNeedsPolling =
+      payment.provider === 'orange' && resolveOrangeFlow(request.metadata).requiresRedirectPolling()
+
+    if (waveNeedsPolling || orangeNeedsPolling) {
+      return await this.pollForRedirect(paymentIntentId, token, responseData)
+    }
+
+    return responseData
+  }
+
+  private buildPaymentData(token: string, request: ProviderRequest): Record<string, any> {
+    const mobileMoneyProvider = (request.metadata.provider as string) ?? request.provider
+
+    const data: Record<string, any> = {
+      token,
+      paymentMethod: 'mobile_money',
+      country: request.country,
+      provider: mobileMoneyProvider,
+      mobileMoney: {
+        msisdn: request.phoneNumber,
+      },
+    }
+
+    if (mobileMoneyProvider === 'orange') {
+      resolveOrangeFlow(request.metadata).apply(data.mobileMoney, request.metadata)
+    }
+
+    if (mobileMoneyProvider === 'wave') {
+      if (request.metadata.success_url)
+        data.mobileMoney.onSuccessRedirectionUrl = request.metadata.success_url
+      if (request.metadata.error_url)
+        data.mobileMoney.onFailedRedirectionUrl = request.metadata.error_url
+    }
+
+    return data
+  }
+
+  private buildCheckoutResponse(responseData: Record<string, any>): ProviderResponse {
+    let redirectUrl: string | null = null
+
+    if (responseData.nextAction?.type === 'redirection' && responseData.nextAction?.data?.url) {
+      redirectUrl = responseData.nextAction.data.url
+    }
+
+    return ProviderResponse.success({
+      providerReference: responseData.id ?? null,
+      redirectUrl,
+      rawData: responseData as Record<string, unknown>,
+    })
+  }
+
+  private async pollForRedirect(
+    paymentIntentId: string,
+    token: string,
+    initialResponse: Record<string, any>
+  ): Promise<Record<string, any>> {
+    const startTime = Date.now()
+    let responseData = initialResponse
+
+    while (Date.now() - startTime < REDIRECT_POLLING_TIMEOUT_MS) {
+      try {
+        const response = await fetch(
+          `${this.apiUrl}/payment-intents/${paymentIntentId}?token=${token}`,
+          { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+        )
+        await this.validateResponse(response)
+        responseData = (await response.json()) as Record<string, any>
+
+        if (responseData.nextAction?.type === 'redirection' && responseData.nextAction?.data?.url) {
+          break
+        }
+      } catch (error) {
+        paymentLog.error(
+          'HUB2_POLLING_FAILED',
+          { paymentIntentId, error: String(error) },
+          'Polling getPaymentIntent failed'
+        )
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, REDIRECT_POLLING_INTERVAL_MS))
+    }
+
+    return responseData
+  }
+
+  private async fetchWithHeaders(url: string, options: RequestInit): Promise<Response> {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'ApiKey': this.token,
+        'MerchantId': this.apiKey,
+        'Environment': this.env,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    await this.validateResponse(response)
+    return response
+  }
+
+  private async validateResponse(response: Response): Promise<void> {
+    if (!response.ok) {
+      const body = (await response.json()) as Record<string, any>
+      paymentLog.error(
+        'HUB2_UPSTREAM_ERROR',
+        { status: response.status, body },
+        'Hub2 upstream error'
+      )
+
+      throw new ProviderCallError(
+        this.providerName,
+        'UPSTREAM_ERROR',
+        body.message,
+        response.status,
+        body
+      )
+    }
+  }
+
+  private handleError(error: unknown, operation: string): ProviderResponse {
+    if (error instanceof ProviderCallError) {
+      const severity = ErrorClassifier.classify(error, HUB2_ERROR_MAP)
+      const clientError = ErrorMessageTranslator.translate(
+        { errorCode: error.errorCode, providerName: this.providerName, rawData: error.rawData },
+        HUB2_CLIENT_ERRORS
+      )
+
+      paymentLog.error(
+        'HUB2_OP_FAILED',
+        {
+          operation,
+          errorCode: error.errorCode,
+          clientCode: clientError.code,
+          errorStatus: error.httpStatus,
+          errorSeverity: severity,
+        },
+        `Hub2 ${operation} failed: ${error.message}`
+      )
+
+      return ProviderResponse.failure({
+        errorCode: clientError.code,
+        errorMessage: clientError.message,
+        rawData: error.rawData,
+        severity,
+      })
+    }
+
+    const message = error instanceof Error ? error.message : String(error)
+    paymentLog.error(
+      'HUB2_UNEXPECTED_ERROR',
+      { operation, message },
+      `Hub2 ${operation} unexpected error`
+    )
+
+    return ProviderResponse.failure({
+      errorCode: 'INTERNAL_ERROR',
+      errorMessage: message,
+      severity: ErrorSeverity.AMBIGUOUS,
+    })
+  }
+}
