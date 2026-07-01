@@ -1,5 +1,6 @@
-export type ProviderRail = 'mobile_money' | 'bank_transfer' | 'card' | 'airtime'
-export type ProviderOperation = 'checkout' | 'payout' | 'airtime_purchase'
+// Airtime hors périmètre (CF11 : reste côté aiglehub) → non listé ici.
+export type ProviderRail = 'mobile_money' | 'bank_transfer' | 'card'
+export type ProviderOperation = 'checkout' | 'payout'
 
 /**
  * Capacités déclaratives d'un provider — ce qu'il sait router.

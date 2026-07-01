@@ -56,6 +56,7 @@ export default defineConfig({
     () => import('#features/notifications/notification_service_provider'),
     () => import('#features/transactions/transaction_provider'),
     () => import('#features/ledger/ledger_provider'),
+    () => import('#features/provider_gateway/provider_gateway_provider'),
     {
       file: () => import('@adonisjs/cache/cache_provider'),
       environment: ['web', 'repl', 'console', 'test'],
@@ -72,7 +73,7 @@ export default defineConfig({
     },
     () => import('@adonisjs/bouncer/bouncer_provider'),
     () => import('@adonisjs/otel/otel_provider'),
-    () => import('@adonisjs/transmit/transmit_provider')
+    () => import('@adonisjs/transmit/transmit_provider'),
   ],
 
   /*
