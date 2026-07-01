@@ -3,13 +3,9 @@
  * Adapté d'aiglehub (VO → enum + helpers, style aiglesend).
  */
 export enum ErrorSeverity {
-  /** Échec définitif — ne pas retenter. */
   DEFINITIVE = 'definitive',
-  /** Transitoire — retenter. */
   RETRYABLE = 'retryable',
-  /** État incertain — revue nécessaire. */
   AMBIGUOUS = 'ambiguous',
-  /** Problème de configuration — alerter les ops. */
   CONFIGURATION = 'configuration',
 }
 

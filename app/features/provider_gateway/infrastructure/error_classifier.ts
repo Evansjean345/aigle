@@ -2,24 +2,6 @@ import { ErrorSeverity } from '#features/provider_gateway/domain/enums/error_sev
 import { type ProviderCallError } from '#features/provider_gateway/infrastructure/exceptions/provider_call_error'
 import type { ProviderErrorMap } from '#features/provider_gateway/domain/types/provider_error_map'
 
-function classifyByHttpStatus(status: number): ErrorSeverity {
-  if (status === 400) return ErrorSeverity.DEFINITIVE // Bad request = données invalides
-  if (status === 401) return ErrorSeverity.CONFIGURATION // Auth cassée
-  if (status === 403) return ErrorSeverity.CONFIGURATION // Permission manquante
-  if (status === 404) return ErrorSeverity.CONFIGURATION // Endpoint inexistant
-  if (status === 409) return ErrorSeverity.DEFINITIVE // Conflit (doublon côté provider)
-  if (status === 422) return ErrorSeverity.DEFINITIVE // Validation provider échouée
-  if (status === 429) return ErrorSeverity.RETRYABLE // Rate limit
-
-  // 5xx Server errors
-  if (status >= 500 && status < 600) return ErrorSeverity.RETRYABLE
-
-  // Fallback
-  if (status >= 400 && status < 500) return ErrorSeverity.DEFINITIVE
-
-  return ErrorSeverity.AMBIGUOUS
-}
-
 /**
  * Classe une erreur provider en sévérité — d'abord par erreur réseau, puis via
  * la table par provider (`ProviderErrorMap`), enfin par statut HTTP. Adapté
@@ -35,6 +17,7 @@ export default class ErrorClassifier {
     }
 
     const providerErrorCode = ErrorClassifier.extractProviderErrorCode(error)
+
     if (providerErrorCode && errorMap[providerErrorCode]) {
       return errorMap[providerErrorCode]
     }
@@ -43,7 +26,25 @@ export default class ErrorClassifier {
       return errorMap[error.errorCode]
     }
 
-    return classifyByHttpStatus(error.httpStatus)
+    return ErrorClassifier.classifyByHttpStatus(error.httpStatus)
+  }
+
+  private static classifyByHttpStatus(status: number): ErrorSeverity {
+    if (status === 400) return ErrorSeverity.DEFINITIVE // Bad request = données invalides
+    if (status === 401) return ErrorSeverity.CONFIGURATION // Auth cassée
+    if (status === 403) return ErrorSeverity.CONFIGURATION // Permission manquante
+    if (status === 404) return ErrorSeverity.CONFIGURATION // Endpoint inexistant
+    if (status === 409) return ErrorSeverity.DEFINITIVE // Conflit (doublon côté provider)
+    if (status === 422) return ErrorSeverity.DEFINITIVE // Validation provider échouée
+    if (status === 429) return ErrorSeverity.RETRYABLE // Rate limit
+
+    // 5xx Server errors
+    if (status >= 500 && status < 600) return ErrorSeverity.RETRYABLE
+
+    // Fallback
+    if (status >= 400 && status < 500) return ErrorSeverity.DEFINITIVE
+
+    return ErrorSeverity.AMBIGUOUS
   }
 
   private static extractProviderErrorCode(error: ProviderCallError): string | null {

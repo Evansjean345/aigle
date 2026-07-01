@@ -1,5 +1,5 @@
-import type { ProviderRequest } from '#features/provider_gateway/domain/types/provider_request'
-import type { ProviderResponse } from '#features/provider_gateway/domain/types/provider_response'
+import type { ProviderRequest } from '#features/provider_gateway/domain/value_objects/provider_request'
+import type { ProviderResponse } from '#features/provider_gateway/domain/value_objects/provider_response'
 
 /**
  * Port définissant le contrat commun à tous les providers de paiement.
