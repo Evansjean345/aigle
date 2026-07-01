@@ -143,5 +143,16 @@ export default await Env.create(new URL('../', import.meta.url), {
   HUB2_API_KEY: Env.schema.string.optional(),
   HUB2_API_SECRET: Env.schema.string.optional(),
   HUB2_API_SANDBOX_SECRET: Env.schema.string.optional(),
-  HUB2_API_ENDPOINT: Env.schema.string.optional()
+  HUB2_API_ENDPOINT: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Provider Wave (mobile money direct) — provider_gateway
+  |----------------------------------------------------------
+  | Optionnelles au Lot 1 (Wave dormant, routé via Hub2).
+  | À passer en requises à l'activation de Wave.
+  */
+  WAVE_API_KEY: Env.schema.string.optional(),
+  WAVE_API_URL: Env.schema.string.optional(),
+  WAVE_API_AGGREGATED_MERCHANT_ID: Env.schema.string.optional()
 })
