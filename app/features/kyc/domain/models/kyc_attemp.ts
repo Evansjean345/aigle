@@ -45,7 +45,7 @@ export class KycAttemp extends BaseModel {
   declare nextAction?: string
 
   @column()
-  declare agentId?: number
+  declare agentId: number | null
 
   @column.dateTime()
   declare validUntil?: DateTime

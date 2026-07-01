@@ -101,7 +101,7 @@ export default class AdminAuthService {
         eventAction: 'LOGIN_SUCCESS',
         actorId: String(admin.id),
         actorType: 'Admin',
-        actorRole: admin.role.name,
+        actorRole: admin.role?.name ?? null,
         targetType: 'Member',
         targetId: String(admin.id),
         result: AuditResult.SUCCESS,

@@ -72,7 +72,7 @@ export default class SubmitKycDocumentUsecase {
         existingKyc.selfieUrl = selfiUrl
         existingKyc.status = KycDocumentStatus.PENDING
         existingKyc.comment = undefined
-        existingKyc.agentId = undefined
+        existingKyc.agentId = null
 
         await this.kycDocumentRepository.saveKycDocument(existingKyc)
       } else {
@@ -84,6 +84,7 @@ export default class SubmitKycDocumentUsecase {
         newKycDocument.documentVersoUrl = versoUrl
         newKycDocument.selfieUrl = selfiUrl
         newKycDocument.status = KycDocumentStatus.PENDING
+        newKycDocument.agentId = null
 
         await this.kycDocumentRepository.saveKycDocument(newKycDocument)
       }
@@ -109,6 +110,7 @@ export default class SubmitKycDocumentUsecase {
       newAttempt.selfieUrl = selfiUrl
       newAttempt.attemptNumber = attemptNumber
       newAttempt.status = KycDocumentStatus.PENDING
+      newAttempt.agentId = null
 
       await this.kycDocumentRepository.saveAttempt(newAttempt)
 

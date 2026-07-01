@@ -1,0 +1,156 @@
+# docker-compose.dev.yml — Stack DEV/TEST locale pour aigle_send_api
+#
+# Rôle :
+#   - Builder l'image API localement (le tag final est utilisé par build-and-ship.sh)
+#   - Lancer DBs + Redis + API + queue-worker pour test bout-en-bout local
+#
+# WORKFLOW :
+#   1. cp .env.example .env  (une fois) puis remplir
+#   2. Build + run :
+#        docker compose -f docker-compose.dev.yml up -d
+#   3. Tester :
+#        curl http://localhost:3380/health
+#   4. Une fois validé, ship vers VPS :
+#        cd ../  # racine du projet
+#        VPS_HOST=aiglesend-app VPS_USER=deploy VPS_PORT=2210 \
+#          bash ../aiglesend-infrastructure/scripts/deploy.sh staging v0.1.X
+#
+# Variables :
+#   API_TAG=v0.1.0   (défaut "dev") — le tag de l'image, repris par build-and-ship.sh
+
+services:
+
+  # ===========================================================================
+  # API AdonisJS — build local, image taggée pour ship ultérieur
+  # ===========================================================================
+  api:
+    image: ghcr.io/fintech-hyksos/aiglesend-api:${API_TAG:-dev}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      tags:
+        - ghcr.io/fintech-hyksos/aiglesend-api:${API_TAG:-dev}
+      labels:
+        - "aiglesend.version=${API_TAG:-dev}"
+        - "aiglesend.built-at=local-dev"
+    container_name: aiglesend-dev-api
+    restart: unless-stopped
+    env_file:
+      - .env.docker.dev
+    ports:
+      # Port hôte 3380 → conteneur 3333 (cohérent avec NUXT_PUBLIC_BASE_URL=http://localhost:3380/api/admin/)
+      - "3333:3333"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - aiglesend-dev-net
+
+    # ===========================================================================
+    # Queue worker — même image, command différente
+    # ===========================================================================
+  queue-worker:
+    image: ghcr.io/fintech-hyksos/aiglesend-api:${API_TAG:-dev}
+    container_name: aiglesend-dev-queue-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      api:
+        condition: service_started     # attendre que l'API soit lancée
+      mariadb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: [ "node", "ace", "queue:work", "--queue=default,payment,mail" ]
+    networks:
+      - aiglesend-dev-net
+
+  # ===========================================================================
+  # MariaDB
+  # ===========================================================================
+  mariadb:
+    image: mariadb:11.4
+    container_name: aiglesend-dev-mariadb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3307:3306"
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - aiglesend_mariadb_data:/var/lib/mysql
+      - ./config:/etc/mysql/conf.d:ro
+    networks:
+      - aiglesend-dev-net
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ===========================================================================
+  # Redis
+  # ===========================================================================
+  redis:
+    image: redis:7.4-alpine
+    container_name: aiglesend-dev-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6378:6379"
+    volumes:
+      - aiglesend_redis_data:/data
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD}
+    networks:
+      - aiglesend-dev-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # Postgres (audit)
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: aiglesend-dev-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5433:5432"
+    environment:
+      POSTGRES_DB: ${AUDIT_DB_DATABASE}
+      POSTGRES_USER: ${AUDIT_DB_USER}
+      POSTGRES_PASSWORD: ${AUDIT_DB_PASSWORD}
+    volumes:
+      - aiglesend_postgres_data:/var/lib/postgresql/data
+    networks:
+      - aiglesend-dev-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  aiglesend_mariadb_data:
+  aiglesend_redis_data:
+  aiglesend_postgres_data:
+
+networks:
+  aiglesend-dev-net:
+    driver: bridge

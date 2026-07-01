@@ -121,7 +121,7 @@ export default class VerifyAdminOtpUseCase {
         eventAction: isSetupFlow ? 'OTP_VERIFIED' : 'LOGIN_OTP_VERIFIED',
         actorId: String(admin.id),
         actorType: 'Admin',
-        actorRole: admin.role.name,
+        actorRole: admin.role?.name ?? null,
         targetType: 'Member',
         targetId: String(admin.id),
         result: AuditResult.SUCCESS,

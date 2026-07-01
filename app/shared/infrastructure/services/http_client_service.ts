@@ -186,6 +186,7 @@ export default class HttpClient {
 
       if (axiosError.response) {
         const isRetryable = this.isRetryable(axiosError)
+
         return {
           success: false,
           error: {
@@ -203,7 +204,7 @@ export default class HttpClient {
         return {
           success: false,
           error: {
-            message: 'La requete a expiré',
+            message: 'La requête a expiré',
             code: 'TIMEOUT',
             retryable: true,
           },

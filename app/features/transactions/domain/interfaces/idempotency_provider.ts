@@ -20,4 +20,11 @@ export default abstract class IdempotencyProvider {
    * @param ttlSeconds Durée de validité.
    */
   abstract update(key: string, value: string, ttlSeconds?: number): Promise<void>
+
+  /**
+   * Supprime une clé d'idempotence. Utilisé pour libérer une clé orpheline
+   * après l'échec d'un use case, afin de permettre un retry propre.
+   * @param key La clé d'idempotence unique.
+   */
+  abstract delete(key: string): Promise<void>
 }

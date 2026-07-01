@@ -39,4 +39,5 @@ export const middleware = router.named({
   device: () => import('#shared/middleware/device_middleware'),
   permission: () => import('#shared/middleware/permission_middleware'),
   geoip: () => import('#shared/middleware/geoip_middleware'),
+  apiKey: () => import('../app/wrappers/aigle_business/mobile/middleware/api_key_middleware.js'),
 })

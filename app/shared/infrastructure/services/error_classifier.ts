@@ -83,7 +83,7 @@ export default class ErrorClassifier {
         severity: ErrorSeverity.CONFIGURATION,
         category: ErrorCategory.INTERNAL,
         adminAction: AdminAction.ESCALATE,
-        adminMessage: `Payload rejete par l'agrégateur (HTTP 422): ${message || 'validation error'}`,
+        adminMessage: `Payload rejeté par l'agrégateur (HTTP 422): ${message || 'validation error'}`,
         retryable: false,
       }
     }

@@ -1,6 +1,6 @@
-import Country from '../../domain/models/country.js'
-import CountryRepository from '../../domain/interfaces/country_repository.js'
 import { Exception } from '@adonisjs/core/exceptions'
+import Country from '#features/country/domain/models/country'
+import type CountryRepository from '#features/country/domain/interfaces/country_repository'
 
 export default class CountryRepositoryImpl implements CountryRepository {
   /**

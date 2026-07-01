@@ -103,11 +103,11 @@ export default class ProviderErrorReporter {
   }
 
   /**
-   * Logge l'échec provider au niveau approprié selon la `severity`. On
+   * Logger l'échec provider au niveau approprié selon la `severity'. On
    * réserve `error` aux cas définitifs et de configuration (qui
    * indiquent un vrai problème côté nous), et on rétrograde en `warn`
-   * les échecs transitoires (`RETRYABLE`) ou inclassifiables
-   * (`AMBIGUOUS`) pour ne pas saturer les alertes.
+   * les échecs transitoires ('RETRYABLE') ou unclassifiable
+   * ('AMBIGUOUS') pour ne pas saturer les alertes.
    */
   private static logByClassifiedError(
     classified: ClassifiedError,

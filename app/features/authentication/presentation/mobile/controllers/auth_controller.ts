@@ -24,6 +24,7 @@ import { RegisterRequestDto } from '#features/authentication/application/dtos/re
 import { VerifyAccountRequestDto } from '#features/authentication/application/dtos/verify_account.dto'
 import VerifyCredentialsUseCase from '#features/authentication/application/use_cases/verify_credentials_use_case'
 import GetSessionStatusUseCase from '#features/authentication/application/use_cases/get_session_status_use_case'
+import GetUserInfoUseCase from '../../../../../wrappers/aigle_business/mobile/use_cases/get_user_info_use_case.js'
 
 /**
  * AuthController is responsible for managing user authentication-related operations such as
@@ -45,6 +46,7 @@ export default class AuthController {
    * @param {CheckPhoneUseCase} checkPhoneUseCase - Verifies the existence or validity of a user's phone number.
    * @param {ResetPasswordUseCase} resetPasswordUseCase - Handles resetting a user's password.
    * @param getSessionStatusUseCase
+   * @param getUserInfoUseCase
    */
   constructor(
     private verifyCredentialsUseCase: VerifyCredentialsUseCase,
@@ -57,7 +59,8 @@ export default class AuthController {
     private logoutUseCase: LogoutUseCase,
     private checkPhoneUseCase: CheckPhoneUseCase,
     private resetPasswordUseCase: ResetPasswordUseCase,
-    private getSessionStatusUseCase: GetSessionStatusUseCase
+    private getSessionStatusUseCase: GetSessionStatusUseCase,
+    private getUserInfoUseCase: GetUserInfoUseCase
   ) {}
 
   /**
@@ -297,5 +300,25 @@ export default class AuthController {
       geoLocation,
     })
     return response.created(result)
+  }
+
+  /**
+   *
+   * @param param0
+   * @param param0.response
+   * @param param0.request
+   */
+  async getUserInfo({ response, request }: HttpContext): Promise<void> {
+    const payload = await request.validateUsing(checkPhoneValidator)
+    const userInfo = await this.getUserInfoUseCase.execute(payload.phone, payload.country_id)
+
+    if (!userInfo) {
+      return response.notFound({
+        message: 'Utilisateur introuvable',
+        code: 'USER_NOT_FOUND',
+      })
+    }
+
+    return response.ok(userInfo)
   }
 }

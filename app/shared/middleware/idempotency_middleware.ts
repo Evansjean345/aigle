@@ -87,6 +87,19 @@ export default class IdempotencyMiddleware {
 
     // Mark as processing and continue
     await this.idempotency.checkAndMark(key)
-    return next()
+    await next()
+
+    // If the use case errored (4xx/5xx response) and the key is still in
+    // PROCESSING state (the use case threw before updating with a result),
+    // free the orphaned key so the next retry can run a fresh attempt.
+    // We deliberately do NOT delete keys that already hold a real result
+    // (transaction UID or cached JSON) — those are valid idempotent caches.
+    if (response.getStatus() >= 400) {
+      const current = await this.idempotency.get(key)
+
+      if (current === 'PROCESSING') {
+        await this.idempotency.delete(key)
+      }
+    }
   }
 }

@@ -67,7 +67,6 @@ export default class ProviderRepositoryImpl implements ProviderRepository {
         code: 'E_PROVIDER_NOT_FOUND',
       })
     }
-
     return provider
   }
 

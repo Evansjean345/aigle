@@ -1,0 +1,85 @@
+# .dockerignore — Ne PAS envoyer dans le contexte de build
+#
+# Tout ce qui n'est pas listé ici sera inclus dans le `docker build` context.
+# Garder ce fichier strict réduit la taille de l'image et accélère le build.
+
+# === Git / IDE ===
+.git
+.gitignore
+.gitattributes
+.fleet
+.idea
+.vscode
+.claude
+.junie
+
+# === Node ===
+node_modules
+npm-debug.log
+yarn-error.log
+
+# === Build outputs (Adonis génère son build dans le builder stage) ===
+build
+tmp
+.adonisjs
+
+# === Logs & dev ===
+logs
+*.log
+*.txt
+*.md
+README*
+
+# === Secrets & .env ===
+.env
+.env.*
+!.env.example
+gcs_key.json
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# === Tests ===
+tests
+**/*.spec.ts
+**/*.test.ts
+playwright-report
+test-results
+
+# === Backups & gros binaires ===
+backups
+*.sql
+*.sql.gz
+*.dump
+*.rdb
+*.rar
+*.zip
+*.tar
+*.tar.gz
+
+# === Geo-database (volumineux, monté en bind plus tard ou téléchargé au runtime) ===
+geo-database
+geo-database.rar
+app.rar
+
+# === Données dev ===
+country.json
+database_updates.sql
+insert_tables.sql
+
+# === Docker (évite la récursion si on copie le compose) ===
+Dockerfile
+Dockerfile.*
+docker-compose.yml
+docker-compose.*.yml
+.dockerignore
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === Docs ===
+docs
+documentation

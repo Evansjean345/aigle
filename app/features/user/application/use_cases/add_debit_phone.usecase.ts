@@ -30,8 +30,9 @@ export default class AddDebitPhoneUseCase {
    *
    * @param {DebitPhoneRepository} debitPhoneRepository - Repository for managing debit phone-related data.
    * @param {ProviderRepository} providerRepository - Repository for managing provider-related data.
-   * @param {OtpService} otpService - Service for handling OTP operations.
+   * @param otpSendingService
    * @param {UserRepository} userRepository - Repository for managing user-related data.
+   * @param otpAttemptGuard
    */
   constructor(
     private debitPhoneRepository: DebitPhoneRepository,
@@ -50,6 +51,7 @@ export default class AddDebitPhoneUseCase {
    * @param {string} phone - The phone number to be registered or updated, in normalized format.
    * @param {string} providerCode - The code of the mobile money provider associated with the phone number.
    * @param {string} [label] - An optional label to associate with the phone number for easier identification.
+   * @param auditContext
    * @return {Promise<{message: string}>} A promise resolving to an object containing a message indicating the result of the operation.
    * @throws {Exception} Throws an exception if the provider is not of type "mobile_money", if the user attempts to change
    *                     a verified debit phone number before the minimum allowed days, if the phone number already
@@ -194,7 +196,7 @@ export default class AddDebitPhoneUseCase {
   private async ensureIsMobileMoneyProvider(providerCode: string): Promise<Provider> {
     const provider = await this.providerRepository.findByCode(providerCode)
 
-    if (provider.type !== 'mobile_money') {
+    if (provider.type !== 'mobile-money') {
       throw new Exception(
         "L'opérateur sélectionné n'est pas un opérateur mobile money. Seuls les opérateurs mobile money sont autorisés pour les numéros débiteurs.",
         { status: 400, code: 'INVALID_PROVIDER_TYPE' }

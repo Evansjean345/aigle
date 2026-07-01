@@ -295,6 +295,7 @@ export default class InterTransfertUseCase {
       operator: payload.providerFromCode,
       phone: payload.debiteurPhone.replaceAll(' ', ''),
       userId: user.usersUid,
+      paymentId: depositPaymentId,
       pinCode: payload.pinCode,
     })
       .toQueue('payment')

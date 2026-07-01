@@ -20,6 +20,7 @@ export default class DebitPhoneController {
    * @param {AddDebitPhoneUseCase} addDebitPhoneUseCase - Gère l'ajout d'un numéro débiteur.
    * @param {VerifyDebitPhoneUseCase} verifyDebitPhoneUseCase - Gère la vérification d'un numéro débiteur par OTP.
    * @param {ListDebitPhonesUseCase} listDebitPhonesUseCase - Gère la récupération du numéro débiteur par opérateur.
+   * @param resendDebitPhoneOtpUseCase
    */
   constructor(
     private addDebitPhoneUseCase: AddDebitPhoneUseCase,

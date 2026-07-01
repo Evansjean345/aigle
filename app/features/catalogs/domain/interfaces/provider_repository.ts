@@ -1,4 +1,4 @@
-﻿import Provider from '#features/catalogs/domain/models/provider'
+﻿import type Provider from '#features/catalogs/domain/models/provider'
 import {
   type ListProvidersRequestDto,
   type CreateProviderCommand,

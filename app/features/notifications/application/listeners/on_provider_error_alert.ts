@@ -3,6 +3,8 @@ import { AdminAction, ErrorSeverity } from '#shared/enums/provider_error_enums'
 import SendMailJob from '#features/notifications/application/jobs/send_mail_job'
 import env from '#start/env'
 import notificationLog from '#shared/infrastructure/logging/notification_log'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#features/audit/domain/enums'
 
 export default class OnProviderErrorAlert {
   /**
@@ -26,6 +28,29 @@ export default class OnProviderErrorAlert {
         { severity: event.severity, adminAction: event.adminAction },
         'No recipients configured for admin alert'
       )
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'ALERT',
+          eventAction: `PROVIDER_ERROR_ALERT_${event.adminAction}`,
+          actorType: 'system',
+          actorId: null,
+          targetType: 'ProviderErrorAlert',
+          targetId: event.transactionReference,
+          result: AuditResult.FAILURE,
+          metadata: {
+            alertLevel,
+            severity: event.severity,
+            category: event.category,
+            adminAction: event.adminAction,
+            errorCode: event.errorCode,
+            provider: event.provider,
+            recipientsCount: 0,
+            reason: 'NO_RECIPIENTS_CONFIGURED',
+          },
+        })
+        .catch(() => {})
+
       return
     }
 
@@ -60,6 +85,27 @@ export default class OnProviderErrorAlert {
       },
       'Admin alert email dispatched'
     )
+
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'ALERT',
+        eventAction: `PROVIDER_ERROR_ALERT_${event.adminAction}`,
+        actorType: 'system',
+        actorId: null,
+        targetType: 'ProviderErrorAlert',
+        targetId: event.transactionReference,
+        result: AuditResult.SUCCESS,
+        metadata: {
+          alertLevel,
+          severity: event.severity,
+          category: event.category,
+          adminAction: event.adminAction,
+          errorCode: event.errorCode,
+          provider: event.provider,
+          recipientsCount: recipients.length,
+        },
+      })
+      .catch(() => {})
   }
 
   /**

@@ -73,6 +73,10 @@ export default class SyncCheckoutService {
       error_url: deepLink,
     }
 
+    if (params.provider === 'orange') {
+      dataSend.payment_mode = 'payment_link'
+    }
+
     const response = await this.httpClient.post(env.get('API_CHECKOUT_URL')!, dataSend)
 
     emitter
@@ -122,16 +126,18 @@ export default class SyncCheckoutService {
 
       throw new Exception(response.error.message, {
         code: `${failureOpts.logCode}_CHECKOUT_FAILED`,
-        status: 400,
+        status: classified.retryable ? 502 : 500,
       })
     }
 
-    console.log('response')
-    console.log(response)
-
     return {
       type: response.data?.payment_details?.type,
-      redirectUrl: response.data?.payment_details?.redirect_url,
+      // `wave_launch_url` est le champ historique de la passerelle ; `redirect_url`
+      // est le nouveau nom générique. On lit le second en priorité avec repli sur
+      // le premier pour rester robuste quel que soit l'ordre de déploiement.
+      redirectUrl:
+        response.data?.payment_details?.redirect_url ??
+        response.data?.payment_details?.wave_launch_url,
     }
   }
 }

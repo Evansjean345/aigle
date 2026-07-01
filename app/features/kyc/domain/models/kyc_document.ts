@@ -40,7 +40,7 @@ export default class KycDocument extends BaseModel {
   declare nextAction?: string
 
   @column()
-  declare agentId?: number
+  declare agentId: number | null
 
   @column.dateTime()
   declare validUntil?: DateTime

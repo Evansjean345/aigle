@@ -99,6 +99,7 @@ export type ScannedRoutes = {
     'auth.check_phone': { paramsTuple?: []; params?: {} }
     'auth.register': { paramsTuple?: []; params?: {} }
     'auth.verify_credentials': { paramsTuple?: []; params?: {} }
+    'auth.get_user_info': { paramsTuple?: []; params?: {} }
     'auth.verify_user_account': { paramsTuple?: []; params?: {} }
     'auth.send_otp': { paramsTuple?: []; params?: {} }
     'auth.forgot_password_request': { paramsTuple?: []; params?: {} }
@@ -141,6 +142,7 @@ export type ScannedRoutes = {
     'debit_phone.store': { paramsTuple?: []; params?: {} }
     'debit_phone.verify': { paramsTuple?: []; params?: {} }
     'debit_phone.resend': { paramsTuple?: []; params?: {} }
+    'health': { paramsTuple?: []; params?: {} }
   }
   GET: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
@@ -204,6 +206,7 @@ export type ScannedRoutes = {
     'app_version.check': { paramsTuple?: []; params?: {} }
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
     'debit_phone.index': { paramsTuple?: []; params?: {} }
+    'health': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
@@ -267,6 +270,7 @@ export type ScannedRoutes = {
     'app_version.check': { paramsTuple?: []; params?: {} }
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
     'debit_phone.index': { paramsTuple?: []; params?: {} }
+    'health': { paramsTuple?: []; params?: {} }
   }
   POST: {
     'admin_management.login': { paramsTuple?: []; params?: {} }
@@ -290,6 +294,7 @@ export type ScannedRoutes = {
     'auth.check_phone': { paramsTuple?: []; params?: {} }
     'auth.register': { paramsTuple?: []; params?: {} }
     'auth.verify_credentials': { paramsTuple?: []; params?: {} }
+    'auth.get_user_info': { paramsTuple?: []; params?: {} }
     'auth.verify_user_account': { paramsTuple?: []; params?: {} }
     'auth.send_otp': { paramsTuple?: []; params?: {} }
     'auth.forgot_password_request': { paramsTuple?: []; params?: {} }

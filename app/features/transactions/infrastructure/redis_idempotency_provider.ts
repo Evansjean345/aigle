@@ -48,4 +48,15 @@ export default class RedisIdempotencyProvider implements IdempotencyProvider {
     const redisKey = `${this.redisKeyPrefix}${key}`
     await this.connection.set(redisKey, value, 'EX', ttlSeconds)
   }
+
+  /**
+   * Deletes an idempotency key from Redis. No-op if the key does not exist.
+   *
+   * @param {string} key - The unique key to remove.
+   * @return {Promise<void>} A promise that resolves once the deletion is complete.
+   */
+  async delete(key: string): Promise<void> {
+    const redisKey = `${this.redisKeyPrefix}${key}`
+    await this.connection.del(redisKey)
+  }
 }

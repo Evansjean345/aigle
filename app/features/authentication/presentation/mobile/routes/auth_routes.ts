@@ -17,6 +17,8 @@ export default function mobileAuthRoutes() {
         })
         .use(middleware.geoip())
 
+      router.post('user-info', [AuthController, 'getUserInfo']).use(middleware.apiKey())
+
       // Public routes with device middleware
       router
         .group(() => {

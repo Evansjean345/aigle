@@ -117,7 +117,7 @@ export default class TransfertUseCase {
 
     this.assertSufficientBalance(wallet.balance, amount)
 
-    const { transaction } = await this.persistTransfer(
+    const { transaction, paymentId } = await this.persistTransfer(
       payload,
       user,
       wallet,
@@ -132,6 +132,7 @@ export default class TransfertUseCase {
       transactionId: transaction.id,
       transactionReference: transaction.reference,
       walletId: wallet.id!,
+      paymentId,
       totalAmount: total,
       amount,
       paymentMethod: payload.paymentMethodCode,
@@ -196,7 +197,7 @@ export default class TransfertUseCase {
     idempotencyKey?: string,
     deviceInfo?: DeviceHeadersInfo,
     geoIpLocation?: GeoIpLocation
-  ): Promise<{ transaction: Transaction }> {
+  ): Promise<{ transaction: Transaction; paymentId: number }> {
     const walletId = wallet.id
     const trx = await db.transaction()
 
@@ -220,7 +221,7 @@ export default class TransfertUseCase {
         trx
       )
 
-      await this.paymentService.createPayment(
+      const payment = await this.paymentService.createPayment(
         {
           payment_method: payload.paymentMethodCode,
           operation_type: serviceType.code,
@@ -329,7 +330,7 @@ export default class TransfertUseCase {
         })
         .catch((_) => {})
 
-      return { transaction }
+      return { transaction, paymentId: payment.id }
     } catch (error) {
       if (trx.isCompleted) {
         await trx.rollback()

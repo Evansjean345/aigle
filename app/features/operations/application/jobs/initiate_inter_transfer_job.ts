@@ -7,10 +7,15 @@ import HttpClient from '#shared/infrastructure/services/http_client_service'
 import TransactionFailureHandler from '#features/transactions/application/services/transaction_failure_handler'
 import config from '@adonisjs/core/services/config'
 import emitter from '@adonisjs/core/services/emitter'
+import ErrorClassifier, {
+  type ClassifiedError,
+} from '#shared/infrastructure/services/error_classifier'
+import ProviderErrorReporter from '#shared/infrastructure/services/provider_error_reporter'
 
 export interface InitiateInterTransferPayload {
   transactionId: number
   transactionReference: string
+  paymentId: number
   amount: number
   totalAmount: number
   paymentMethod: string
@@ -79,13 +84,21 @@ export default class InitiateInterTransferJob extends Job<InitiateInterTransferP
         .catch((_) => {})
 
       if (!result.success) {
+        const classified = ErrorClassifier.classify({
+          httpStatus: result.error?.statusCode,
+          message: result.error?.message,
+          networkCode: result.error?.code,
+        })
+
+        ProviderErrorReporter.report(classified, result.error ?? {}, this.buildReporterContext())
+
         paymentLog.error(
           'INTER_TRANSFER_CHECKOUT_FAILED',
           { reference: transactionReference, error: result.error },
           'Checkout API call failed for inter-transfer'
         )
 
-        await this.handleFailure(payload)
+        await this.handleFailure(payload, classified)
         return
       }
 
@@ -98,6 +111,13 @@ export default class InitiateInterTransferJob extends Job<InitiateInterTransferP
         'Inter-transfer checkout initiated via job'
       )
     } catch (err) {
+      const classified = ErrorClassifier.classify({
+        message: err instanceof Error ? err.message : 'Unknown error',
+        networkCode: (err as any)?.code,
+      })
+
+      ProviderErrorReporter.reportNetworkException(classified, err, this.buildReporterContext())
+
       errorLog.error(
         'INTER_TRANSFER_CHECKOUT_INIT_ERROR',
         {
@@ -107,11 +127,24 @@ export default class InitiateInterTransferJob extends Job<InitiateInterTransferP
         'Failed to initiate inter-transfer checkout'
       )
 
-      await this.handleFailure(payload)
+      await this.handleFailure(payload, classified)
     }
   }
 
-  private async handleFailure(payload: InitiateInterTransferPayload): Promise<void> {
+  private buildReporterContext() {
+    return {
+      logPrefix: 'INTER_TRANSFER',
+      transactionReference: this.payload.transactionReference,
+      provider: this.payload.operator,
+      paymentMethod: this.payload.paymentMethod,
+      operationType: 'inter_transfer',
+    }
+  }
+
+  private async handleFailure(
+    payload: InitiateInterTransferPayload,
+    classified?: ClassifiedError
+  ): Promise<void> {
     const failureHandler = await app.container.make(TransactionFailureHandler)
 
     await failureHandler.handle({
@@ -124,6 +157,10 @@ export default class InitiateInterTransferJob extends Job<InitiateInterTransferP
           reference: payload.transactionReference,
           amount: payload.totalAmount,
         },
+      },
+      payment: {
+        paymentId: payload.paymentId,
+        classifiedError: classified,
       },
     })
   }

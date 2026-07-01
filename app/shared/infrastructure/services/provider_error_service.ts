@@ -18,8 +18,8 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     isFinal: true,
     adminAction: AdminAction.NONE,
     userMessage:
-      "Votre solde est insuffisant chez l'operateur. Veuillez recharger votre compte ou utiliser un autre moyen de paiement.",
-    adminMessage: 'Solde insuffisant sur le compte operateur du client.',
+      "Votre solde est insuffisant chez l'opérateur. Veuillez recharger votre compte ou utiliser un autre moyen de paiement.",
+    adminMessage: 'solde insuffisant sur le compte opérateur du client.',
   },
 
   [ProviderErrorCode.INVALID_PHONE_NUMBER]: {
@@ -27,7 +27,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     category: ErrorCategory.USER_ERROR,
     isFinal: true,
     adminAction: AdminAction.NONE,
-    userMessage: 'Le numero de telephone est invalide. Veuillez le verifier et reessayer.',
+    userMessage: 'Le numero de telephone est invalide. Veuillez le verifier et réessayer.',
     adminMessage: 'Numero de telephone invalide soumis par le client.',
   },
 
@@ -36,7 +36,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     category: ErrorCategory.USER_ERROR,
     isFinal: true,
     adminAction: AdminAction.NONE,
-    userMessage: 'Le montant saisi est invalide. Veuillez verifier le montant et reessayer.',
+    userMessage: 'Le montant saisi est invalide. Veuillez verifier le montant et réessayer.',
     adminMessage: 'Montant invalide soumis par le client.',
   },
 
@@ -55,8 +55,8 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     isFinal: true,
     adminAction: AdminAction.NONE,
     userMessage:
-      'Le plafond de transaction de votre compte est depasse. Veuillez reessayer avec un montant inferieur.',
-    adminMessage: 'Plafond de transaction depassé chez le provider.',
+      'Le plafond de transaction de votre compte est dépasse. Veuillez réessayer avec un montant inférieur.',
+    adminMessage: 'Plafond de transaction dépasse chez le provider.',
   },
 
   [ProviderErrorCode.RECIPIENT_NOT_ELIGIBLE]: {
@@ -73,7 +73,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     category: ErrorCategory.USER_ERROR,
     isFinal: true,
     adminAction: AdminAction.NONE,
-    userMessage: 'La session de paiement a expiré. Veuillez reessayer.',
+    userMessage: 'La session de paiement a expiré. Veuillez réessayer.',
     adminMessage: 'Session expirée coté provider.',
   },
 
@@ -118,7 +118,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     category: ErrorCategory.PROVIDER_ERROR,
     isFinal: true,
     adminAction: AdminAction.INVESTIGATE,
-    userMessage: 'Le service est momentanément indisponible. Veuillez reessayer plus tard.',
+    userMessage: 'Le service est momentanément indisponible. Veuillez réessayer plus tard.',
     adminMessage: 'Le provider a refusé la requête sans motif explicite.',
   },
 
@@ -127,7 +127,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     category: ErrorCategory.PROVIDER_ERROR,
     isFinal: false,
     adminAction: AdminAction.MONITOR_PROVIDER,
-    userMessage: 'Le service rencontre des difficultes techniques. Veuillez reessayer plus tard.',
+    userMessage: 'Le service rencontre des difficultés techniques. Veuillez réessayer plus tard.',
     adminMessage: 'Service provider injoignable ou en maintenance.',
   },
 
@@ -146,8 +146,8 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     isFinal: true,
     adminAction: AdminAction.ESCALATE,
     userMessage:
-      'Une erreur technique est survenue. Veuillez reessayer plus tard ou contacter le support.',
-    adminMessage: "Requete dupliquée détectée par le provider. Verifier la logique d'idempotence.",
+      'Une erreur technique est survenue. Veuillez réessayer plus tard ou contacter le support.',
+    adminMessage: "Requête dupliquée détectée par le provider. Verifier la logique d'idempotence.",
   },
 
   [ProviderErrorCode.UNSUPPORTED_CURRENCY]: {
@@ -156,7 +156,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     isFinal: true,
     adminAction: AdminAction.ESCALATE,
     userMessage:
-      'Une erreur technique est survenue. Veuillez reessayer plus tard ou contacter le support.',
+      'Une erreur technique est survenue. Veuillez réessayer plus tard ou contacter le support.',
     adminMessage: 'Dévise non supportée envoyée au provider. Verifier la configuration.',
   },
 
@@ -166,7 +166,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     isFinal: true,
     adminAction: AdminAction.ESCALATE,
     userMessage:
-      'Une erreur technique est survenue. Veuillez reessayer plus tard ou contacter le support.',
+      'Une erreur technique est survenue. Veuillez réessayer plus tard ou contacter le support.',
     adminMessage: 'Opérateur non supporté envoyé au provider. Verifier la configuration.',
   },
 
@@ -175,7 +175,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     category: ErrorCategory.INTERNAL,
     isFinal: false,
     adminAction: AdminAction.ESCALATE,
-    userMessage: 'Une erreur technique est survenue. Veuillez reessayer dans quelques instants.',
+    userMessage: 'Une erreur technique est survenue. Veuillez réessayer dans quelques instants.',
     adminMessage: 'Erreur interne cote provider. Investigation technique requise.',
   },
 
@@ -185,7 +185,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     isFinal: false,
     adminAction: AdminAction.INVESTIGATE,
     userMessage:
-      'Une erreur technique est survenue. Veuillez reessayer plus tard ou contacter le support.',
+      'Une erreur technique est survenue. Veuillez réessayer plus tard ou contacter le support.',
     adminMessage: 'Erreur inconnue recue du provider. Examiner les logs.',
   },
 }
@@ -195,7 +195,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
  */
 export default class ProviderErrorService {
   /**
-   * Resout un code d'erreur AigleHub en definition categorisee.
+   * Resout un code d'erreur AigleHub en definition catégorisée.
    */
   static resolve(code: string): ProviderErrorDefinition {
     const known = REGISTRY[code as ProviderErrorCode]
@@ -208,8 +208,8 @@ export default class ProviderErrorService {
       isFinal: false,
       adminAction: AdminAction.INVESTIGATE,
       userMessage:
-        'Une erreur technique est survenue. Veuillez reessayer plus tard ou contacter le support.',
-      adminMessage: 'Code erreur non mappe recu du provider: ' + code,
+        'Une erreur technique est survenue. Veuillez réessayer plus tard ou contacter le support.',
+      adminMessage: 'Code erreur non mappe reçu du provider: ' + code,
     }
   }
 }

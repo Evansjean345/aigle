@@ -38,7 +38,7 @@ export default class extends BaseSeeder {
       {
         slug: 'wallet_adjustment.read',
         name: 'Voir ajustements wallet',
-        description: 'Consulter l\'historique des ajustements de portefeuille',
+        description: "Consulter l'historique des ajustements de portefeuille",
       },
       {
         slug: 'transaction_refund.execute',
@@ -48,12 +48,12 @@ export default class extends BaseSeeder {
       {
         slug: 'transactions_refunds.read',
         name: 'Voir remboursements',
-        description: 'Consulter l\'historique des remboursements (auto, webhook, manuel)',
+        description: "Consulter l'historique des remboursements (auto, webhook, manuel)",
       },
       {
         slug: 'audit.read',
-        name: 'Voir le journal d\'audit',
-        description: 'Consulter les logs d\'activité administrative et système',
+        name: "Voir le journal d'audit",
+        description: "Consulter les logs d'activité administrative et système",
       },
     ])
 
