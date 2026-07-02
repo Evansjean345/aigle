@@ -57,6 +57,7 @@ export default defineConfig({
     () => import('#features/transactions/transaction_provider'),
     () => import('#features/ledger/ledger_provider'),
     () => import('#features/provider_gateway/provider_gateway_provider'),
+    () => import('#features/money_movement/money_movement_provider'),
     {
       file: () => import('@adonisjs/cache/cache_provider'),
       environment: ['web', 'repl', 'console', 'test'],

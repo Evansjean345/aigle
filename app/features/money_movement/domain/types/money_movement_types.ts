@@ -22,6 +22,20 @@ export interface OperatorTarget {
   country: string
 }
 
+/**
+ * Contexte de frais — IDs catalogue product-agnostic (aucune string codée en dur côté core).
+ * Le produit choisit le service/moyen/provider ; l'engine calcule les frais via le service
+ * core `fees` (L2-D6 : les frais appartiennent à l'engine).
+ */
+export interface FeeContextInput {
+  serviceTypeId: number
+  paymentMethodId: number
+  providerFromId: number
+  providerToId?: number
+  /** Le montant inclut-il déjà les frais (gross-up) ? */
+  includeFees?: boolean
+}
+
 /** Base commune à toutes les commandes. */
 export interface MoneyCommand {
   /** Obligatoire — déduplication (ex. `batch_id + item_id`). */
@@ -41,6 +55,7 @@ export interface InternalMoveCommand extends MoneyCommand {
   fromAccountId: string
   toAccountId: string
   type: TransactionType
+  feeContext: FeeContextInput
 }
 
 /** Externe sortant : débit compte → opérateur (async). Ex. `transfert`, futur payout. */
@@ -48,6 +63,7 @@ export interface ExternalOutCommand extends MoneyCommand {
   fromAccountId: string
   destination: OperatorTarget
   type: TransactionType
+  feeContext: FeeContextInput
 }
 
 /** Externe entrant : opérateur → crédit compte (async). Ex. `deposit`, futur collect. */
@@ -55,6 +71,7 @@ export interface ExternalInCommand extends MoneyCommand {
   toAccountId: string
   source: OperatorTarget
   type: TransactionType
+  feeContext: FeeContextInput
 }
 
 /**
@@ -65,6 +82,7 @@ export interface ExternalToExternalCommand extends MoneyCommand {
   source: OperatorTarget
   destination: OperatorTarget
   type: TransactionType
+  feeContext: FeeContextInput
 }
 
 /** Contre-passation (refund) d'un mouvement existant. */
@@ -90,6 +108,12 @@ export interface MovementResult {
    * externe est synchrone et retourne des éléments d'interaction utilisateur.
    */
   providerData?: Record<string, unknown>
+  /**
+   * Références des records satellites créés par le mouvement (ex. la transaction miroir
+   * de crédit d'un transfert interne). Permet au produit de retrouver ces records pour
+   * ses propres effets de bord (notification, audit) sans que le contrat n'expose de modèle.
+   */
+  relatedReferences?: string[]
 }
 
 // ── Events de settlement (types définis au Lot 2 ; émission au Lot 3) ──────

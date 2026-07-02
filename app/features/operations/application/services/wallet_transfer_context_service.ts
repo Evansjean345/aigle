@@ -25,6 +25,12 @@ export interface TransferContext {
   fees: number
   total: number
   currentUser: User
+  /** IDs catalogue résolus (service transfert / moyen wallet / provider aigle) — passés à l'engine. */
+  feeContext: {
+    serviceTypeId: number
+    paymentMethodId: number
+    providerFromId: number
+  }
 }
 
 /**
@@ -105,6 +111,11 @@ export default class WalletTransferContextService {
       fees,
       total,
       currentUser,
+      feeContext: {
+        serviceTypeId: serviceType.id,
+        paymentMethodId: paymentMethod.id,
+        providerFromId: provider.id,
+      },
     }
   }
 
