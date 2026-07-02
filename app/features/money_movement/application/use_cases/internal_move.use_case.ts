@@ -10,9 +10,9 @@ import WalletService from '#features/wallet/application/services/wallet_service'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import LedgerService from '#features/ledger/application/services/ledger_service'
-import FeeResolver from '#features/money_movement/application/support/fee_resolver'
-import PartyValidator from '#features/money_movement/application/support/party_validator'
-import MoneyActivityEmitter from '#features/money_movement/application/support/money_activity_emitter'
+import FeeResolver from '#features/money_movement/application/services/fee_resolver'
+import PartyValidator from '#features/money_movement/application/services/party_validator'
+import MoneyActivityEmitter from '#features/money_movement/application/services/money_activity_emitter'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
@@ -27,14 +27,16 @@ import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 /**
- * Handler de la primitive `moveInternal` (compte → compte, atomique, synchrone → COMPLETED).
+ * Use case de la primitive `moveInternal` (compte → compte, atomique, synchrone → COMPLETED).
  *
- * Possède SA `db.transaction` (L2-D5) : débit source / crédit destination, records
- * transaction+payment miroir, écritures ledger, statut COMPLETED — tout-ou-rien. Port fidèle
- * du chemin wallet_to_wallet historique (équivalence prouvée par la caractérisation).
+ * Use case du bounded context money_movement (le core), invoqué par la façade `MoneyMovementEngine`
+ * (l'adaptateur du contrat), elle-même appelée par le use case produit (operations). Possède SA
+ * `db.transaction` (L2-D5) : débit source / crédit destination, records transaction+payment miroir,
+ * écritures ledger, statut COMPLETED — tout-ou-rien. Port fidèle du chemin wallet_to_wallet
+ * historique (équivalence prouvée par la caractérisation).
  */
 @inject()
-export default class InternalMoveHandler {
+export default class InternalMoveUseCase {
   constructor(
     private readonly walletService: WalletService,
     private readonly transactionService: TransactionService,
