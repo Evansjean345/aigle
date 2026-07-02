@@ -8,24 +8,20 @@ import type {
   ExternalInitiationResult,
 } from '#features/money_movement/domain/types/money_movement_types'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
-import SyncCheckoutService from '#features/operations/application/services/sync_checkout_service'
-import InitiateDepositJob from '#features/operations/application/jobs/initiate_deposit_job'
-import InitiateTransferJob from '#features/operations/application/jobs/initiate_transfer_job'
-import InitiateInterTransferJob from '#features/operations/application/jobs/initiate_inter_transfer_job'
-import { isSyncDepositProvider } from '#features/operations/application/constants/provider.constants'
+import SyncCheckoutService from '#features/money_movement/infrastructure/services/sync_checkout_service'
+import InitiateDepositJob from '#features/money_movement/infrastructure/jobs/initiate_deposit_job'
+import InitiateTransferJob from '#features/money_movement/infrastructure/jobs/initiate_transfer_job'
+import InitiateInterTransferJob from '#features/money_movement/infrastructure/jobs/initiate_inter_transfer_job'
+import { isSyncDepositProvider } from '#features/money_movement/infrastructure/constants/provider.constants'
 
 /**
  * Stratégie d'initiation externe — chemin HTTP actuel (Lot 2, active).
  *
  * Implémente le port `ExternalMovementStrategy` en déléguant au chemin existant vers aiglehub :
- * `SyncCheckoutService` (providers synchrones) et les jobs `Initiate*Job` (async). C'est la
- * stratégie branchée au Lot 2 ; la bascule vers `local_gateway_strategy` (provider_gateway
- * in-process) est un flip de binding au lot 3b.
- *
- * ⚠ Couplage TRANSITOIRE money_movement → operations (jobs/services/constantes du chemin actuel).
- * Assumé et documenté : il disparaît à l'étape de migration du Lot 2 (les jobs `initiate_*` et
- * `sync_checkout` déménagent dans `money_movement/infrastructure`). Aucune règle depcruise ne
- * l'interdit à ce stade (report-only, pas de règle core↛product active).
+ * `SyncCheckoutService` (providers synchrones) et les jobs `Initiate*Job` (async), tous deux
+ * désormais dans `money_movement/infrastructure` (migrés d'operations au lot de découpage — plus
+ * aucune dépendance core→produit). C'est la stratégie branchée au Lot 2 ; la bascule vers
+ * `local_gateway_strategy` (provider_gateway in-process) est un flip de binding au lot 3b.
  */
 @inject()
 export default class HttpAggregatorStrategy extends ExternalMovementStrategy {

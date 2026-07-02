@@ -11,9 +11,13 @@ import { TransactionDirection } from '#features/transactions/domain/enums/transa
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import TransfertUseCase from '#features/operations/application/use_cases/transfert.usecase'
-import InitiateTransferJob from '#features/operations/application/jobs/initiate_transfer_job'
+import InitiateTransferJob from '#features/money_movement/infrastructure/jobs/initiate_transfer_job'
 import { TransfertRequestDto } from '#features/operations/application/dtos/operation.dto'
-import { createUserWithWallet, reloadBalance, swapGuards } from './mocks/operations_fixtures.js'
+import {
+  createUserWithWallet,
+  reloadBalance,
+  swapGuards,
+} from '#tests/functional/payments-flow/mocks/operations_fixtures'
 
 /**
  * Caractérisation du flux transfert (Lot 2, Phase 0).

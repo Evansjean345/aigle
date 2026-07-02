@@ -8,7 +8,7 @@ import { TransactionStatus } from '#features/transactions/domain/enums/transacti
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import InterTransfertUseCase from '#features/operations/application/use_cases/transfert_inter.usecase'
-import InitiateInterTransferJob from '#features/operations/application/jobs/initiate_inter_transfer_job'
+import InitiateInterTransferJob from '#features/money_movement/infrastructure/jobs/initiate_inter_transfer_job'
 import { InterTransfertRequestDto } from '#features/operations/application/dtos/operation.dto'
 import { createUserWithWallet, reloadBalance, swapGuards } from './mocks/operations_fixtures.js'
 

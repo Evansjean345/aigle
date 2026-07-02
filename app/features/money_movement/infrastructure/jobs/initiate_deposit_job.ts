@@ -2,7 +2,7 @@ import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import BaseAggregatorJob, {
   type BaseAggregatorPayload,
-} from '#features/operations/application/jobs/base_aggregator_job'
+} from '#features/money_movement/infrastructure/jobs/base_aggregator_job'
 import TransactionFailureHandler from '#features/transactions/application/services/transaction_failure_handler'
 import { type ClassifiedError } from '#shared/infrastructure/services/error_classifier'
 

@@ -9,7 +9,7 @@ import { TransactionStatus } from '#features/transactions/domain/enums/transacti
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import { ErrorCategory, ErrorSeverity, AdminAction } from '#shared/enums/provider_error_enums'
 import HttpClient from '#shared/infrastructure/services/http_client_service'
-import InitiateDepositJob from '#features/operations/application/jobs/initiate_deposit_job'
+import InitiateDepositJob from '#features/money_movement/infrastructure/jobs/initiate_deposit_job'
 import SendMailJob from '#features/notifications/application/jobs/send_mail_job'
 import DispatchWebhookEventJob from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
 import { createPendingFixture, generateJobData } from './mocks/transaction_mock.js'
