@@ -99,6 +99,14 @@ export interface MovementResult {
   status: TransactionStatus
   movementId: string
   reference: string
+  /**
+   * Montants monétaires résolus par l'engine (net / frais / total, unité mineure). Retournés pour
+   * que le produit compose ses effets de bord (audit) SANS re-interroger le core par référence —
+   * l'engine vient de les calculer. À l'extraction en service, évite un aller-retour réseau.
+   */
+  amount?: number
+  fees?: number
+  total?: number
   providerReference?: string
   ledgerEntryIds?: string[]
   failureReason?: string

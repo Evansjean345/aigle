@@ -5,8 +5,6 @@ import {
 import { inject } from '@adonisjs/core'
 import { Exception } from '@adonisjs/core/exceptions'
 import User from '#features/user/domain/models/user'
-import Transaction from '#features/transactions/domain/models/transaction'
-import TransactionService from '#features/transactions/application/services/transaction_service'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
 import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
@@ -18,7 +16,10 @@ import paymentLog from '#shared/infrastructure/logging/payment_log'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'
-import type { ExternalOutCommand } from '#features/money_movement/domain/types/money_movement_types'
+import type {
+  ExternalOutCommand,
+  MovementResult,
+} from '#features/money_movement/domain/types/money_movement_types'
 
 /**
  * Use case transfert — routeur mince (Lot 2, L2-D6).
@@ -30,7 +31,6 @@ import type { ExternalOutCommand } from '#features/money_movement/domain/types/m
 @inject()
 export default class TransfertUseCase {
   constructor(
-    private readonly transactionService: TransactionService,
     private readonly serviceTypeRepository: ServiceTypeRepository,
     private readonly accountValidationService: AccountValidationService,
     private readonly throttleCache: TransactionThrottleCache,
@@ -61,6 +61,7 @@ export default class TransfertUseCase {
     ])
 
     const serviceType = await this.serviceTypeRepository.findByCode(payload.serviceType)
+
     if (!serviceType) {
       throw new Exception(`Service type ${payload.serviceType} not found`, {
         code: 'SERVICE_TYPE_NOT_FOUND',
@@ -91,8 +92,7 @@ export default class TransfertUseCase {
 
     const result = await this.engine.initiateExternalOut(command)
 
-    const transaction = await this.transactionService.findByReference(result.reference)
-    this.emitAudit(transaction, payload, user)
+    this.emitAudit(result, payload, user)
 
     const response: TransfertResponseDTO = {
       message: 'transfert initié',
@@ -112,9 +112,9 @@ export default class TransfertUseCase {
     transactionLog.info(
       'TRANSFER_SUCCESS',
       {
-        transaction: { id: transaction.id, reference: transaction.reference },
+        transaction: { id: result.movementId, reference: result.reference },
         user: { id: user.id },
-        amount: transaction.amount,
+        amount: result.amount,
       },
       'Transfer operation completed'
     )
@@ -126,7 +126,7 @@ export default class TransfertUseCase {
    * Émet l'événement d'audit produit du transfert (contexte requête : IP, user-agent, géo).
    * @private
    */
-  private emitAudit(transaction: Transaction, payload: TransfertRequestDto, user: User): void {
+  private emitAudit(result: MovementResult, payload: TransfertRequestDto, user: User): void {
     emitter
       .emit('activity:audit', {
         eventCategory: 'TRANSACTION',
@@ -134,16 +134,16 @@ export default class TransfertUseCase {
         actorId: String(user.id),
         actorType: 'User',
         targetType: 'Transaction',
-        targetId: String(transaction.id),
+        targetId: result.movementId,
         result: AuditResult.SUCCESS,
         ipAddress: payload.ipAddress ?? payload.geoIpLocation?.ip ?? null,
         userAgent: payload.userAgent ?? null,
         requestId: payload.requestId ?? null,
         metadata: {
-          reference: transaction.reference,
-          amount: transaction.amount,
-          fees: transaction.fees,
-          total: transaction.totalAmount,
+          reference: result.reference,
+          amount: result.amount,
+          fees: result.fees,
+          total: result.total,
           provider: payload.providerCode,
           paymentMethod: payload.paymentMethodCode,
           geoCountry: payload.geoIpLocation?.countryCode ?? null,

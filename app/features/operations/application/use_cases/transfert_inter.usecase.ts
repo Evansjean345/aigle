@@ -4,8 +4,6 @@ import {
 } from '#features/operations/application/dtos/operation.dto'
 import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
-import Transaction from '#features/transactions/domain/models/transaction'
-import TransactionService from '#features/transactions/application/services/transaction_service'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
 import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
@@ -17,7 +15,10 @@ import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'
-import type { ExternalToExternalCommand } from '#features/money_movement/domain/types/money_movement_types'
+import type {
+  ExternalToExternalCommand,
+  MovementResult,
+} from '#features/money_movement/domain/types/money_movement_types'
 
 /**
  * Use case transfert_inter — routeur mince (Lot 2, L2-D6).
@@ -30,7 +31,6 @@ import type { ExternalToExternalCommand } from '#features/money_movement/domain/
 @inject()
 export default class InterTransfertUseCase {
   constructor(
-    private readonly transactionService: TransactionService,
     private readonly serviceTypeRepository: ServiceTypeRepository,
     private readonly accountValidationService: AccountValidationService,
     private readonly throttleCache: TransactionThrottleCache,
@@ -97,8 +97,7 @@ export default class InterTransfertUseCase {
 
     const result = await this.engine.initiateExternalToExternal(command)
 
-    const transaction = await this.transactionService.findByReference(result.reference)
-    this.emitAudit(transaction, payload, user)
+    this.emitAudit(result, payload, user)
 
     const response: InterTransfertResponseDTO = {
       message: 'Initialisation du dépot inter effectuée',
@@ -131,7 +130,7 @@ export default class InterTransfertUseCase {
    * Émet l'événement d'audit produit du transfert inter-réseaux (contexte requête).
    * @private
    */
-  private emitAudit(transaction: Transaction, payload: InterTransfertRequestDto, user: User): void {
+  private emitAudit(result: MovementResult, payload: InterTransfertRequestDto, user: User): void {
     emitter
       .emit('activity:audit', {
         eventCategory: 'TRANSACTION',
@@ -139,16 +138,16 @@ export default class InterTransfertUseCase {
         actorId: String(user.id),
         actorType: 'User',
         targetType: 'Transaction',
-        targetId: String(transaction.id),
+        targetId: result.movementId,
         result: AuditResult.SUCCESS,
         ipAddress: payload.ipAddress ?? payload.geoIpLocation?.ip ?? null,
         userAgent: payload.userAgent ?? null,
         requestId: payload.requestId ?? null,
         metadata: {
-          reference: transaction.reference,
-          amount: transaction.amount,
-          fees: transaction.fees,
-          total: transaction.totalAmount,
+          reference: result.reference,
+          amount: result.amount,
+          fees: result.fees,
+          total: result.total,
           providerFrom: payload.providerFromCode,
           providerTo: payload.providerToCode,
           paymentMethodDeposit: payload.paymentMethodDepositCode,

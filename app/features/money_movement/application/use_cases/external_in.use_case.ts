@@ -126,6 +126,9 @@ export default class ExternalInUseCase {
       status: initiation.status,
       movementId: String(transactionId),
       reference: transactionReference,
+      amount,
+      fees,
+      total,
       providerReference: initiation.providerReference,
       providerData: initiation.providerData,
     }

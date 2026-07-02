@@ -4,8 +4,6 @@ import {
 } from '#features/operations/application/dtos/operation.dto'
 import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
-import Transaction from '#features/transactions/domain/models/transaction'
-import TransactionService from '#features/transactions/application/services/transaction_service'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
@@ -16,7 +14,10 @@ import DebitPhoneValidationService from '#features/user/application/services/deb
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'
-import type { ExternalInCommand } from '#features/money_movement/domain/types/money_movement_types'
+import type {
+  ExternalInCommand,
+  MovementResult,
+} from '#features/money_movement/domain/types/money_movement_types'
 
 /**
  * Use case deposit — routeur mince (Lot 2, L2-D6).
@@ -28,7 +29,6 @@ import type { ExternalInCommand } from '#features/money_movement/domain/types/mo
 @inject()
 export default class DepositUseCase {
   constructor(
-    private readonly transactionService: TransactionService,
     private readonly serviceTypeRepository: ServiceTypeRepository,
     private readonly accountValidationService: AccountValidationService,
     private readonly failureCache: TransactionFailureCache,
@@ -78,8 +78,7 @@ export default class DepositUseCase {
 
     const result = await this.engine.initiateExternalIn(command)
 
-    const transaction = await this.transactionService.findByReference(result.reference)
-    this.emitAudit(transaction, payload, user)
+    this.emitAudit(result, payload, user)
 
     const response: DepositResponseDTO = {
       message: 'transaction initiated',
@@ -112,7 +111,7 @@ export default class DepositUseCase {
    * Émet l'événement d'audit produit du dépôt (contexte requête : IP, user-agent, géo).
    * @private
    */
-  private emitAudit(transaction: Transaction, payload: DepositRequestDto, user: User): void {
+  private emitAudit(result: MovementResult, payload: DepositRequestDto, user: User): void {
     emitter
       .emit('activity:audit', {
         eventCategory: 'TRANSACTION',
@@ -120,16 +119,16 @@ export default class DepositUseCase {
         actorId: String(user.id),
         actorType: 'User',
         targetType: 'Transaction',
-        targetId: String(transaction.id),
+        targetId: result.movementId,
         result: AuditResult.SUCCESS,
         ipAddress: payload.ipAddress ?? payload.geoIpLocation?.ip ?? null,
         userAgent: payload.userAgent ?? null,
         requestId: payload.requestId ?? null,
         metadata: {
-          reference: transaction.reference,
-          amount: transaction.amount,
-          fees: transaction.fees,
-          total: transaction.totalAmount,
+          reference: result.reference,
+          amount: result.amount,
+          fees: result.fees,
+          total: result.total,
           provider: payload.providerCode,
           paymentMethod: payload.paymentMethodCode,
           geoCountry: payload.geoIpLocation?.countryCode ?? null,
