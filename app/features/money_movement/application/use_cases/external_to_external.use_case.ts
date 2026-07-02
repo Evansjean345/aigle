@@ -57,6 +57,7 @@ export default class ExternalToExternalUseCase {
     let transactionId: number
     let transactionReference: string
     let depositPaymentId: number
+
     try {
       const transaction = await this.transactionService.createTransaction(
         {
