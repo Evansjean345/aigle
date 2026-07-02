@@ -20,6 +20,8 @@ import { PaymentStatus } from '#features/transactions/domain/enums/payment_statu
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import { PaymentMethod } from '#features/transactions/domain/enums/payment_method'
 import { LedgerDirection } from '#features/ledger/domain/ledger_enums'
+import WalletToWalletTransactionCompleted from '#features/transactions/application/events/wallet_to_wallet_transaction_completed'
+import transferLog from '#shared/infrastructure/logging/transfer_log'
 import type User from '#features/user/domain/models/user'
 import type Transaction from '#features/transactions/domain/models/transaction'
 import type Wallet from '#features/wallet/domain/models/wallet'
@@ -154,6 +156,20 @@ export default class InternalMoveUseCase {
         recipientBefore,
         recipientAfter: credited.balance,
       })
+
+      // Fait argent « mouvement interne réglé » émis par le CORE (l'engine possède les records).
+      // Le produit ne re-lit plus les transactions pour dispatcher : les listeners (volume,
+      // notification) écoutent cet event core. Deviendra `MovementSettled` au Lot 3.
+      WalletToWalletTransactionCompleted.dispatch(senderTx, recipientTx, {
+        recipientPhone: recipientWallet.user.phone,
+        senderPhone: senderWallet.user.phone,
+      }).catch((err) =>
+        transferLog.error(
+          'EVENT_DISPATCH_FAILED',
+          { error: err instanceof Error ? err.message : 'Unknown error' },
+          'Failed to dispatch wallet-to-wallet completion event'
+        )
+      )
 
       return {
         status: TransactionStatus.SUCCESS,

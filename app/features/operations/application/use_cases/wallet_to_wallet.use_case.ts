@@ -1,17 +1,13 @@
 import { inject } from '@adonisjs/core'
-import TransactionService from '#features/transactions/application/services/transaction_service'
 import User from '#features/user/domain/models/user'
-import Transaction from '#features/transactions/domain/models/transaction'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import {
   WalletToWalletRequestDto,
   WalletToWalletResponseDTO,
 } from '#features/operations/application/dtos/operation.dto'
-import Wallet from '#features/wallet/domain/models/wallet'
 import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
 import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
-import WalletToWalletTransactionCompleted from '#features/transactions/application/events/wallet_to_wallet_transaction_completed'
 import WalletToWalletTransactionFailed from '#features/transactions/application/events/wallet_to_wallet_transaction_failed'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import WalletTransferContextService, {
@@ -23,7 +19,10 @@ import AccountValidationService from '#features/user/application/services/accoun
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'
-import type { InternalMoveCommand } from '#features/money_movement/domain/types/money_movement_types'
+import type {
+  InternalMoveCommand,
+  MovementResult,
+} from '#features/money_movement/domain/types/money_movement_types'
 
 interface AuditContext {
   ipAddress?: string | null
@@ -42,7 +41,6 @@ interface AuditContext {
 @inject()
 export default class WalletToWalletUseCase {
   constructor(
-    private readonly transactionService: TransactionService,
     private readonly contextFactory: WalletTransferContextService,
     private readonly accountValidationService: AccountValidationService,
     private readonly throttleCache: TransactionThrottleCache,
@@ -118,6 +116,7 @@ export default class WalletToWalletUseCase {
     }
 
     let result
+
     try {
       result = await this.engine.moveInternal(command)
     } catch (error) {
@@ -129,10 +128,9 @@ export default class WalletToWalletUseCase {
       throw error
     }
 
-    const senderTx = await this.transactionService.findByReference(result.reference)
-    const recipientTx = await this.transactionService.findByReference(result.relatedReferences![0])
-
-    this.emitAudit(senderTx, recipientTx, context, payload, auditContext)
+    // Effets de bord PRODUIT uniquement : audit (contexte requête). L'event de complétion
+    // (notification, volume) est émis par l'engine (core) — le produit ne re-lit plus le core.
+    this.emitAudit(result, context, payload, auditContext)
 
     const responseResult: WalletToWalletResponseDTO = {
       message: 'Transfert wallet-to-wallet effectué avec succès',
@@ -143,14 +141,12 @@ export default class WalletToWalletUseCase {
       await this.idempotency.update(idempotencyKey, JSON.stringify(responseResult))
     }
 
-    this.dispatchCompletionEvent(senderTx, recipientTx, senderWallet, recipientWallet)
-
     transferLog.info(
       'WALLET_TRANSFER_COMPLETED',
       {
         reference: idempotencyKey,
-        sender: { transactionId: senderTx.id },
-        recipient: { transactionId: recipientTx.id },
+        sender: { transactionId: result.movementId },
+        recipient: { transactionId: result.relatedReferences?.[0] },
       },
       'Wallet-to-wallet transfer completed'
     )
@@ -163,8 +159,7 @@ export default class WalletToWalletUseCase {
    * @private
    */
   private emitAudit(
-    senderTx: Transaction,
-    recipientTx: Transaction,
+    result: MovementResult,
     context: TransferContext,
     payload: WalletToWalletRequestDto,
     auditContext: AuditContext
@@ -176,14 +171,14 @@ export default class WalletToWalletUseCase {
         actorId: String(context.currentUser.id),
         actorType: 'User',
         targetType: 'Transaction',
-        targetId: String(senderTx.id),
+        targetId: result.movementId,
         result: AuditResult.SUCCESS,
         ipAddress: auditContext.ipAddress ?? payload.geoIpLocation?.ip ?? null,
         userAgent: auditContext.userAgent ?? null,
         requestId: auditContext.requestId ?? null,
         metadata: {
-          senderReference: senderTx.reference,
-          recipientReference: recipientTx.reference,
+          senderReference: result.reference,
+          recipientReference: result.relatedReferences?.[0],
           amount: context.amount,
           fees: context.fees,
           total: context.total,
@@ -194,28 +189,6 @@ export default class WalletToWalletUseCase {
         },
       })
       .catch(() => {})
-  }
-
-  /**
-   * Notifie la fin du transfert (canal produit). Best-effort, ne bloque pas la réponse.
-   * @private
-   */
-  private dispatchCompletionEvent(
-    senderTx: Transaction,
-    recipientTx: Transaction,
-    senderWallet: Wallet,
-    recipientWallet: Wallet
-  ): void {
-    WalletToWalletTransactionCompleted.dispatch(senderTx, recipientTx, {
-      recipientPhone: recipientWallet.user.phone,
-      senderPhone: senderWallet.user.phone,
-    }).catch((err) =>
-      transferLog.error(
-        'EVENT_DISPATCH_FAILED',
-        { error: err instanceof Error ? err.message : 'Unknown error' },
-        'Failed to dispatch completion event'
-      )
-    )
   }
 
   /**
