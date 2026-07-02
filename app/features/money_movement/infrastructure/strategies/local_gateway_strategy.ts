@@ -1,5 +1,4 @@
 import { inject } from '@adonisjs/core'
-import { Exception } from '@adonisjs/core/exceptions'
 import ExternalMovementStrategy from '#features/money_movement/domain/interfaces/external_movement_strategy'
 import type {
   ExternalInitiationBase,
@@ -18,6 +17,7 @@ import type { ProviderOperation } from '#features/provider_gateway/domain/types/
 import { ErrorSeverity } from '#features/provider_gateway/domain/enums/error_severity'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import ProviderInitiationError from '#features/money_movement/infrastructure/exceptions/provider_initiation_error'
+import UnroutablePaymentMethodException from '#features/money_movement/infrastructure/exceptions/unroutable_payment_method_exception'
 
 @inject()
 export default class LocalGatewayStrategy implements ExternalMovementStrategy {
@@ -100,10 +100,7 @@ export default class LocalGatewayStrategy implements ExternalMovementStrategy {
       case 'credit-card':
         return 'credit-card'
       default:
-        throw new Exception(`Moyen de paiement non routable : ${paymentMethod}`, {
-          status: 422,
-          code: 'E_UNROUTABLE_PAYMENT_METHOD',
-        })
+        throw new UnroutablePaymentMethodException(paymentMethod)
     }
   }
 }
