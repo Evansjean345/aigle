@@ -1,4 +1,4 @@
-/**
+/*
  * Règles de frontières — consolidation core-feature (cf. apps/docs).
  *
  * REPORT-ONLY pour l'instant : toutes les règles sont en `severity: 'warn'`
@@ -12,10 +12,33 @@
  * forme alias (`#features/...`, = la cible résolue). aiglesend importe toujours
  * via `#features/*`, donc les règles se déclenchent bien.
  *
- * @type {import('dependency-cruiser').IConfiguration}
+ * Couches (vers micro-services en couche — objectif d'indépendance) :
+ *   - PRODUIT  : operations (consumer). [business à venir]
+ *   - CORE     : tout le reste, dont :
+ *       · identité : user · device · authentication · otp · kyc
+ *       · argent   : money_movement · wallet · ledger · transactions · fees · provider_gateway
+ *       · transverse : catalogs · country · qr · notifications · audit · webhooks · team
+ * Invariant structurant (doc centrale §3.3) : le PRODUIT dépend du CORE, jamais l'inverse.
  */
+const PRODUCT_FEATURES = ['operations']
+
+/** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
+    {
+      name: 'core-ne-depend-pas-du-produit',
+      comment:
+        'Le CORE ne connaît jamais le PRODUIT : aucune feature core (ni transverse) ne doit ' +
+        'importer une feature produit (operations). Condition de l’extractibilité en service.',
+      severity: 'warn',
+      from: {
+        path: 'app/features/',
+        pathNot: `app/features/(${PRODUCT_FEATURES.join('|')})/`,
+      },
+      to: {
+        path: `#features/(${PRODUCT_FEATURES.join('|')})/`,
+      },
+    },
     {
       name: 'domaine-pur',
       comment: 'Le domaine ne dépend pas des autres couches (application/infra/présentation).',
