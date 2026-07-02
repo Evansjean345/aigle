@@ -84,4 +84,88 @@ export interface MovementResult {
   providerReference?: string
   ledgerEntryIds?: string[]
   failureReason?: string
+  /**
+   * Données de retour du provider à propager au produit (ex. URL de redirection /
+   * OTP d'un checkout synchrone). Optionnel — présent uniquement quand l'initiation
+   * externe est synchrone et retourne des éléments d'interaction utilisateur.
+   */
+  providerData?: Record<string, unknown>
+}
+
+// ── Events de settlement (types définis au Lot 2 ; émission au Lot 3) ──────
+
+/**
+ * Émis quand un mouvement externe est confirmé réglé (callback opérateur).
+ * Le produit **écoute** pour finaliser (notifications, statut applicatif) — il ne bloque pas.
+ */
+export interface MovementSettled {
+  movementId: string
+  reference: string
+  status: TransactionStatus
+  providerReference?: string
+  /** ISO-8601. */
+  settledAt: string
+}
+
+/**
+ * Émis quand un mouvement externe échoue définitivement (callback opérateur / classification).
+ */
+export interface MovementFailed {
+  movementId: string
+  reference: string
+  reason: string
+  /** ISO-8601. */
+  failedAt: string
+}
+
+// ── Port stratégie externe (initiation) ───────────────────────────────────
+//
+// L'engine possède la trx DB (L2-D5) puis délègue l'INITIATION externe à une stratégie
+// (http = jobs/sync_checkout existants au Lot 2 ; local = provider_gateway, activée au 3b).
+// Les contextes ne véhiculent QUE des identifiants et données métier — jamais de contexte
+// transactionnel (pas de trx). Ils dérivent des payloads réels des jobs actuels.
+
+/** Base commune aux initiations externes. */
+export interface ExternalInitiationBase {
+  transactionId: number
+  transactionReference: string
+  paymentId: number
+  amount: number
+  totalAmount: number
+  fees: number
+  /** Code opérateur/provider (ex. `orange`, `moov`). */
+  operator: string
+  /** Code du moyen de paiement (ex. `mobile-money`). */
+  paymentMethod: string
+  phone: string
+  userId: string
+}
+
+/** Initiation sortante : débit compte → opérateur (transfert). */
+export interface ExternalOutInitiation extends ExternalInitiationBase {
+  walletId: number
+}
+
+/** Initiation entrante : opérateur → crédit compte (deposit). */
+export interface ExternalInInitiation extends ExternalInitiationBase {
+  /** Le provider résout-il de façon synchrone (redirect/OTP) plutôt que par job async ? */
+  sync: boolean
+  /** OTP fourni (Orange) à transmettre au provider. */
+  otp?: string
+}
+
+/** Initiation opérateur → opérateur (inter-réseau, jambe 1 cash-in). */
+export interface ExternalToExternalInitiation extends ExternalInitiationBase {
+  pinCode?: string
+}
+
+/**
+ * Résultat d'une initiation externe.
+ * `PENDING` (async / attente webhook) ; `providerData` porte les éléments d'interaction
+ * synchrones (redirect URL, type) le cas échéant.
+ */
+export interface ExternalInitiationResult {
+  status: TransactionStatus
+  providerReference?: string
+  providerData?: Record<string, unknown>
 }
