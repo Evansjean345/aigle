@@ -6,10 +6,11 @@ import type { PaymentProviderPort } from '#features/provider_gateway/domain/inte
 import type { ProviderOperation } from '#features/provider_gateway/domain/types/provider_capabilities'
 import type { ProviderRequest } from '#features/provider_gateway/domain/value_objects/provider_request'
 import type { ProviderResponse } from '#features/provider_gateway/domain/value_objects/provider_response'
+import { UnsupportedProviderOperationError } from '#features/provider_gateway/infrastructure/exceptions/unsupported_provider_operation_error'
 
 /**
  * Contrat d'entrée du routeur, indépendant des agrégats des autres features.
- * Type fermé pour que le mapping `railFor` soit vérifié à la compilation.
+ * Union fermée = vocabulaire des rails aligné sur les codes DB (langage commun).
  * (Airtime hors périmètre — CF11.)
  */
 export type RoutableOperation = 'mobile-money' | 'credit-card'
@@ -52,7 +53,7 @@ export class ProviderResolver {
       case 'payout':
         return adapter.payout(request)
       default:
-        throw new Error(`Unknown operation: ${operation satisfies never}`)
+        throw new UnsupportedProviderOperationError(operation satisfies never)
     }
   }
 }
