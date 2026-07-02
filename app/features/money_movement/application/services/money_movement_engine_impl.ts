@@ -10,6 +10,7 @@ import type {
   MovementResult,
 } from '#features/money_movement/domain/types/money_movement_types'
 import InternalMoveUseCase from '#features/money_movement/application/use_cases/internal_move.use_case'
+import ExternalInUseCase from '#features/money_movement/application/use_cases/external_in.use_case'
 
 /**
  * Façade du `MoneyMovementEngine` (core argent, Lot 2).
@@ -26,7 +27,10 @@ import InternalMoveUseCase from '#features/money_movement/application/use_cases/
  */
 @inject()
 export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
-  constructor(private readonly internalMove: InternalMoveUseCase) {}
+  constructor(
+    private readonly internalMove: InternalMoveUseCase,
+    private readonly externalIn: ExternalInUseCase
+  ) {}
 
   /** Interne : compte → compte, atomique, synchrone (→ COMPLETED). */
   moveInternal(cmd: InternalMoveCommand): Promise<MovementResult> {
@@ -38,9 +42,9 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
     throw this.notImplemented('initiateExternalOut')
   }
 
-  /** Externe entrant (deposit) — branché au commit dédié. */
-  async initiateExternalIn(_cmd: ExternalInCommand): Promise<MovementResult> {
-    throw this.notImplemented('initiateExternalIn')
+  /** Externe entrant (deposit) → PENDING. */
+  initiateExternalIn(cmd: ExternalInCommand): Promise<MovementResult> {
+    return this.externalIn.handle(cmd)
   }
 
   /** Externe → externe (transfert_inter) — branché au commit dédié. */

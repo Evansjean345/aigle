@@ -170,13 +170,12 @@ export interface ExternalOutInitiation extends ExternalInitiationBase {
   walletId: number
 }
 
-/** Initiation entrante : opérateur → crédit compte (deposit). */
-export interface ExternalInInitiation extends ExternalInitiationBase {
-  /** Le provider résout-il de façon synchrone (redirect/OTP) plutôt que par job async ? */
-  sync: boolean
-  /** OTP fourni (Orange) à transmettre au provider. */
-  otp?: string
-}
+/**
+ * Initiation entrante : opérateur → crédit compte (deposit).
+ * La décision sync (redirect/OTP) vs async (job) appartient à la stratégie (elle connaît le
+ * routage provider) — le contexte ne porte donc que les données du mouvement.
+ */
+export type ExternalInInitiation = ExternalInitiationBase
 
 /** Initiation opérateur → opérateur (inter-réseau, jambe 1 cash-in). */
 export interface ExternalToExternalInitiation extends ExternalInitiationBase {

@@ -22,7 +22,8 @@ export default class PartyValidator {
     user: User
     amount: number
     transactionType: TransactionType
-    direction: TransactionDirection
+    /** Omise = défaut DEBIT côté service de limites (fidèle aux flux qui ne la précisent pas). */
+    direction?: TransactionDirection
     isRecipient?: boolean
   }): Promise<void> {
     await this.accountValidationService.validateAccount(params.user, params.isRecipient ?? false)

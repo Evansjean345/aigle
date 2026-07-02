@@ -1,21 +1,32 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'
 import MoneyMovementEngineImpl from '#features/money_movement/application/services/money_movement_engine_impl'
+import ExternalMovementStrategy from '#features/money_movement/domain/interfaces/external_movement_strategy'
+import HttpAggregatorStrategy from '#features/money_movement/infrastructure/strategies/http_aggregator_strategy'
 
 /**
  * Wiring de la feature money_movement (core argent).
  *
- * Binde le contrat `MoneyMovementEngine` sur son implémentation. L'impl a des dépendances
- * `@inject()` (services core wallet/transactions/ledger/fees/validations) → on la résout via
- * le conteneur pour l'injection. La stratégie externe (`ExternalMovementStrategy`) sera bindée
- * au commit qui branche les primitives externes (deposit → …), http au Lot 2, local au 3b.
+ * - Binde le contrat `MoneyMovementEngine` sur sa façade (résolue via le conteneur pour son DI).
+ * - Binde le port `ExternalMovementStrategy` sur la stratégie HTTP (chemin actuel vers aiglehub).
+ *   La bascule vers `local_gateway_strategy` (provider_gateway in-process) au lot 3b = changer
+ *   cette seule ligne.
+ *
+ * Binding **transient** (`bind`, pas `singleton`) : l'engine et la stratégie sont des
+ * orchestrateurs sans état, résolus par requête via les use cases. Le transient garde la couture
+ * testable (le `container.swap(HttpClient)` d'un test se propage à une chaîne fraîchement résolue,
+ * là où un singleton figerait le HttpClient capté à la 1ʳᵉ résolution) — sans coût en prod.
  */
 export default class MoneyMovementProvider {
   constructor(protected app: ApplicationService) {}
 
   register() {
-    this.app.container.singleton(MoneyMovementEngine, () => {
+    this.app.container.bind(MoneyMovementEngine, () => {
       return this.app.container.make(MoneyMovementEngineImpl)
+    })
+
+    this.app.container.bind(ExternalMovementStrategy, () => {
+      return this.app.container.make(HttpAggregatorStrategy)
     })
   }
 }
