@@ -1,5 +1,4 @@
 import { inject } from '@adonisjs/core'
-import { Exception } from '@adonisjs/core/exceptions'
 import env from '#start/env'
 import ExternalMovementStrategy from '#features/money_movement/domain/interfaces/external_movement_strategy'
 import type {
@@ -12,6 +11,7 @@ import { TransactionStatus } from '#features/transactions/domain/enums/transacti
 import SyncCheckoutService from '#features/operations/application/services/sync_checkout_service'
 import InitiateDepositJob from '#features/operations/application/jobs/initiate_deposit_job'
 import InitiateTransferJob from '#features/operations/application/jobs/initiate_transfer_job'
+import InitiateInterTransferJob from '#features/operations/application/jobs/initiate_inter_transfer_job'
 import { isSyncDepositProvider } from '#features/operations/application/constants/provider.constants'
 
 /**
@@ -101,15 +101,50 @@ export default class HttpAggregatorStrategy extends ExternalMovementStrategy {
     return { status: TransactionStatus.PENDING }
   }
 
-  /** Opérateur → opérateur (transfert_inter) — branché au commit transfert_inter. */
-  async initiateOutToOut(_ctx: ExternalToExternalInitiation): Promise<ExternalInitiationResult> {
-    throw this.notImplemented('initiateOutToOut')
-  }
+  /**
+   * Opérateur → opérateur (transfert_inter, jambe 1 = cash-in chez le débiteur). Provider source
+   * synchrone (wave/orange) → `sync_checkout` (redirect) ; sinon dispatch `InitiateInterTransferJob`.
+   * La jambe 2 (cash-out bénéficiaire) est déclenchée au webhook — hors périmètre Lot 2.
+   */
+  async initiateOutToOut(ctx: ExternalToExternalInitiation): Promise<ExternalInitiationResult> {
+    if (isSyncDepositProvider(ctx.operator)) {
+      const { redirectUrl, type } = await this.syncCheckoutService.checkout({
+        operationType: ctx.paymentMethod,
+        amount: ctx.amount,
+        provider: ctx.operator,
+        phone: ctx.phone,
+        reference: ctx.transactionReference,
+        notifySuccessUrl: env.get('NOTIFY_TRANSFERT_INTER_SUCCESS_URL')!,
+        notifyFailureUrl: env.get('NOTIFY_TRANSFERT_INTER_FAILURE_URL')!,
+        failureOptions: {
+          transactionId: ctx.transactionId,
+          logCode: 'INTER_TRANSFER_SYNC',
+          notification: {
+            webhookEvent: 'TransfertInterTransactionFailed',
+            webhookData: { reference: ctx.transactionReference, amount: ctx.amount },
+          },
+          payment: { paymentId: ctx.paymentId },
+        },
+      })
 
-  private notImplemented(method: string): Exception {
-    return new Exception(`HttpAggregatorStrategy.${method} n'est pas encore implémenté (Lot 2)`, {
-      status: 501,
-      code: 'E_NOT_IMPLEMENTED',
+      return { status: TransactionStatus.PENDING, providerData: { redirectUrl, type } }
+    }
+
+    await InitiateInterTransferJob.dispatch({
+      transactionId: ctx.transactionId,
+      transactionReference: ctx.transactionReference,
+      amount: ctx.amount,
+      totalAmount: ctx.totalAmount,
+      paymentMethod: ctx.paymentMethod,
+      operator: ctx.operator,
+      phone: ctx.phone.replaceAll(' ', ''),
+      userId: ctx.userId,
+      paymentId: ctx.paymentId,
+      pinCode: ctx.pinCode,
     })
+      .toQueue('payment')
+      .priority(1)
+
+    return { status: TransactionStatus.PENDING }
   }
 }
