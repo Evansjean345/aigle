@@ -12,7 +12,7 @@ import TransactionFailureCache from '#features/transactions/domain/interfaces/tr
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
-import DebitPhoneValidationService from '#features/operations/application/services/debit_phone_validation_service'
+import DebitPhoneValidationService from '#features/user/application/services/debit_phone_validation_service'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'

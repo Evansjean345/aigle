@@ -6,7 +6,7 @@ import { UserStatus } from '#features/user/domain/enum'
 import { WalletStatus } from '#features/wallet/domain/enums/wallet_status'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
-import DebitPhoneValidationService from '#features/operations/application/services/debit_phone_validation_service'
+import DebitPhoneValidationService from '#features/user/application/services/debit_phone_validation_service'
 
 /**
  * Fixtures partagées des tests de caractérisation du chemin argent (`operations`).
