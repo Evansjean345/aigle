@@ -1,4 +1,5 @@
 import { inject } from '@adonisjs/core'
+import { Exception } from '@adonisjs/core/exceptions'
 import ExternalMovementStrategy from '#features/money_movement/domain/interfaces/external_movement_strategy'
 import type {
   ExternalInitiationBase,
@@ -18,30 +19,11 @@ import { ErrorSeverity } from '#features/provider_gateway/domain/enums/error_sev
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import ProviderInitiationError from '#features/money_movement/infrastructure/exceptions/provider_initiation_error'
 
-/**
- * Stratégie d'initiation externe — routage IN-PROCESS via le provider_gateway (Lot 1).
- *
- * Implémente le port `ExternalMovementStrategy` en routant chaque primitive vers un adapter
- * provider (Hub2…) au lieu du chemin HTTP vers aiglehub :
- *   - initiateIn (deposit)      → opération `checkout` (pay-in)
- *   - initiateOut (transfert)   → opération `payout`
- *   - initiateOutToOut (inter)  → opération `checkout` (cash-in jambe 1)
- *
- * ⚠ ÉCRITE MAIS **NON BINDÉE** au Lot 2 : c'est `http_aggregator_strategy` qui est active. La
- * bascule (lot 3b) = binder ce port sur cette classe. La couture est testée unitairement (mapping
- * `ProviderResponse`/severity → résultat engine) pour que la bascule soit un flip de config.
- *
- * Dette connue (à lever au 3b, comme le chemin http) : `country` codé en dur 'ci' (le contexte
- * d'initiation ne le véhicule pas encore) ; metadata provider minimale (redirect/otp orange/wave
- * à compléter à l'activation).
- */
 @inject()
-export default class LocalGatewayStrategy extends ExternalMovementStrategy {
+export default class LocalGatewayStrategy implements ExternalMovementStrategy {
   private static readonly DEFAULT_COUNTRY = 'ci'
 
-  constructor(private readonly resolver: ProviderResolver) {
-    super()
-  }
+  constructor(private readonly resolver: ProviderResolver) {}
 
   /** Entrant (deposit) → checkout. Montant net (comme le chemin http). */
   initiateIn(ctx: ExternalInInitiation): Promise<ExternalInitiationResult> {
@@ -64,7 +46,7 @@ export default class LocalGatewayStrategy extends ExternalMovementStrategy {
     amount: number
   ): Promise<ExternalInitiationResult> {
     const adapter = this.resolver.resolve({
-      operationType: this.railFor(ctx.paymentMethod),
+      operationType: this.toRoutableOperation(ctx.paymentMethod),
       operator: ctx.operator,
       country: LocalGatewayStrategy.DEFAULT_COUNTRY,
       operation,
@@ -77,8 +59,6 @@ export default class LocalGatewayStrategy extends ExternalMovementStrategy {
       provider: adapter.providerName,
       phoneNumber: ctx.phone.replaceAll(' ', ''),
       country: LocalGatewayStrategy.DEFAULT_COUNTRY,
-      // L'adapter lit l'opérateur mobile money dans `metadata.provider` (le champ `provider`
-      // du request = nom du gateway). Cf. Hub2Adapter.buildPaymentData.
       metadata: { provider: ctx.operator },
     })
 
@@ -107,7 +87,23 @@ export default class LocalGatewayStrategy extends ExternalMovementStrategy {
     })
   }
 
-  private railFor(paymentMethod: string): RoutableOperation {
-    return paymentMethod === 'credit-card' ? 'credit-card' : 'mobile_money'
+  /**
+   * Rétrécit le code moyen de paiement (string, non contraint) vers la `RoutableOperation` typée
+   * du provider_gateway. Depuis l'uniformisation du vocabulaire, les valeurs sont identiques (pas
+   * de traduction) — cette garde valide l'entrée et **lève** sur un moyen de paiement non routable
+   * plutôt que de le rabattre en silence.
+   */
+  private toRoutableOperation(paymentMethod: string): RoutableOperation {
+    switch (paymentMethod) {
+      case 'mobile-money':
+        return 'mobile-money'
+      case 'credit-card':
+        return 'credit-card'
+      default:
+        throw new Exception(`Moyen de paiement non routable : ${paymentMethod}`, {
+          status: 422,
+          code: 'E_UNROUTABLE_PAYMENT_METHOD',
+        })
+    }
   }
 }

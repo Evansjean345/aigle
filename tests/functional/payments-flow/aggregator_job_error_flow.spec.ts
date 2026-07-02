@@ -224,7 +224,7 @@ test.group('InitiateDepositJob | Alertes admin + dispatch mail', (group) => {
         alert.provider === 'orange' &&
         alert.transactionReference === transaction.reference &&
         alert.context.operationType === 'deposit checkout' &&
-        alert.context.paymentMethod === 'mobile_money' &&
+        alert.context.paymentMethod === 'mobile-money' &&
         alert.context.httpStatus === 422 &&
         alert.context.message.includes('country field must be defined')
       )

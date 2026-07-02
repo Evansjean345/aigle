@@ -63,6 +63,7 @@ function makeStrategy(resolver: FakeResolver): LocalGatewayStrategy {
 test.group('LocalGatewayStrategy | routage', () => {
   test('initiateIn (deposit) route un checkout avec le montant net', async ({ assert }) => {
     const resolver = new FakeResolver()
+
     resolver.setResponse(
       ProviderResponse.success({
         providerReference: 'hub2-ref',
@@ -73,7 +74,7 @@ test.group('LocalGatewayStrategy | routage', () => {
     const result = await makeStrategy(resolver).initiateIn(baseCtx() as any)
 
     assert.equal(resolver.lastResolve!.operation, 'checkout')
-    assert.equal(resolver.lastResolve!.operationType, 'mobile_money')
+    assert.equal(resolver.lastResolve!.operationType, 'mobile-money')
     assert.equal(resolver.lastResolve!.operator, 'orange')
     assert.equal(resolver.lastInvoke!.operation, 'checkout')
     assert.equal(resolver.lastInvoke!.request.amount, 5000)
@@ -120,6 +121,23 @@ test.group('LocalGatewayStrategy | routage', () => {
     await makeStrategy(resolver).initiateIn(baseCtx({ paymentMethod: 'credit-card' }) as any)
 
     assert.equal(resolver.lastResolve!.operationType, 'credit-card')
+  })
+
+  test('moyen de paiement non routable → lève (garde stricte, pas de repli silencieux)', async ({
+    assert,
+  }) => {
+    const resolver = new FakeResolver()
+
+    const error = await makeStrategy(resolver)
+      .initiateIn(baseCtx({ paymentMethod: 'wallet' }) as any)
+      .then(
+        () => null,
+        (e) => e
+      )
+
+    assert.isNotNull(error)
+    assert.equal(error.code, 'E_UNROUTABLE_PAYMENT_METHOD')
+    assert.isNull(resolver.lastInvoke)
   })
 })
 

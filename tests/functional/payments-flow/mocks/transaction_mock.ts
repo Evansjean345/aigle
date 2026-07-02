@@ -15,7 +15,7 @@ export const DEFAULT_TRANSACTION_DATA = {
   usersUid: 'test-user-uid',
   phone: '0700000000',
   operator: 'orange',
-  paymentMethod: 'mobile_money',
+  paymentMethod: 'mobile-money',
 }
 
 export async function createPendingFixture(

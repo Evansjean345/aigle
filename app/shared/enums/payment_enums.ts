@@ -18,9 +18,3 @@ export enum PaymentStep {
   TRANSFERT_CONFIRMED = 'transfert_confirmed',
   TRANSFERT_FAILED = 'transfert_failed',
 }
-
-export enum PaymentMethod {
-  MOBILE_MONEY = 'mobile_money',
-  WALLET = 'wallet',
-  INTERNAL = 'internal',
-}

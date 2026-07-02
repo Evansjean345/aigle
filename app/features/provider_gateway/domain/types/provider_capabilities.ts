@@ -1,5 +1,7 @@
 // Airtime hors périmètre (CF11 : reste côté aiglehub) → non listé ici.
-export type ProviderRail = 'mobile_money' | 'bank_transfer' | 'card'
+// Vocabulaire unique aligné sur les codes DB `payment_methods.code` (langage commun) :
+// pas de `mobile_money`/`card`/`bank_transfer` parallèles.
+export type ProviderRail = 'mobile-money' | 'bank' | 'credit-card'
 export type ProviderOperation = 'checkout' | 'payout'
 
 /**

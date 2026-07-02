@@ -12,7 +12,7 @@ import { WaveAdapter } from '#features/provider_gateway/infrastructure/adapters/
 export const waveManifest: ProviderManifest = {
   name: 'wave',
   capabilities: {
-    rail: 'mobile_money',
+    rail: 'mobile-money',
     operations: ['checkout', 'payout'],
     operators: ['wave'],
     priority: 10,

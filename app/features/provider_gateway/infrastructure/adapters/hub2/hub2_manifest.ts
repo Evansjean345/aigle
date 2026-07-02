@@ -9,7 +9,7 @@ import { Hub2Adapter } from '#features/provider_gateway/infrastructure/adapters/
 export const hub2Manifest: ProviderManifest = {
   name: 'hub2',
   capabilities: {
-    rail: 'mobile_money',
+    rail: 'mobile-money',
     operations: ['checkout', 'payout'],
     operators: ['orange', 'moov', 'mtn', 'wave'],
     // countries: absent → multi-pays
