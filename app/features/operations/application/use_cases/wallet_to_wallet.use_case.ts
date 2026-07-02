@@ -11,8 +11,8 @@ import {
 import Wallet from '#features/wallet/domain/models/wallet'
 import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
 import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
-import WalletToWalletTransactionCompleted from '#features/operations/application/events/wallet_to_wallet_transaction_completed'
-import WalletToWalletTransactionFailed from '#features/operations/application/events/wallet_to_wallet_transaction_failed'
+import WalletToWalletTransactionCompleted from '#features/transactions/application/events/wallet_to_wallet_transaction_completed'
+import WalletToWalletTransactionFailed from '#features/transactions/application/events/wallet_to_wallet_transaction_failed'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import WalletTransferContextService, {
   TransferContext,
@@ -72,6 +72,7 @@ export default class WalletToWalletUseCase {
         payload.deviceInfo,
         payload.geoIpLocation
       ),
+
       this.accountValidationService.verifyPinForUser(currentUser, payload.pincode),
     ])
 

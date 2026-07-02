@@ -5,7 +5,7 @@ import TransactionFailureCache from '#features/transactions/domain/interfaces/tr
 import { inject } from '@adonisjs/core'
 import DepositTransactionCompleted from '#features/webhooks/application/events/deposit/deposit_transaction_completed'
 import TransfertTransactionCompleted from '#features/webhooks/application/events/transfert/transfert_transaction_completed'
-import WalletToWalletTransactionCompleted from '#features/operations/application/events/wallet_to_wallet_transaction_completed'
+import WalletToWalletTransactionCompleted from '#features/transactions/application/events/wallet_to_wallet_transaction_completed'
 
 @inject()
 export default class PersistUserTransactionsVolume {
