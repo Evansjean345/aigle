@@ -10,11 +10,11 @@ export default class extends BaseSeeder {
     const [deposit, transfert, interReseau, topup] = await Promise.all([
       ServiceType.findBy('code', 'deposit'),
       ServiceType.findBy('code', 'transfert'),
-      ServiceType.findBy('code', 'inter-reseau'),
+      ServiceType.findBy('code', 'inter_reseau'),
       ServiceType.findBy('code', 'topup'),
     ])
 
-    const mobileMoney = await PaymentMethod.findBy('code', 'mobile_money')
+    const mobileMoney = await PaymentMethod.findBy('code', 'mobile-money')
 
     const providers = await Provider.query().whereIn('code', ['orange', 'moov', 'wave', 'mtn'])
     const providerByCode = Object.fromEntries(providers.map((p) => [p.code, p])) as Record<
