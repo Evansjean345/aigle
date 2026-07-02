@@ -29,8 +29,10 @@ module.exports = {
       name: 'core-ne-depend-pas-du-produit',
       comment:
         'Le CORE ne connaît jamais le PRODUIT : aucune feature core (ni transverse) ne doit ' +
-        'importer une feature produit (operations). Condition de l’extractibilité en service.',
-      severity: 'warn',
+        'importer une feature produit (operations). Condition de l’extractibilité en service. ' +
+        'En ERROR : les 8 violations initiales (jobs money↔operations, events core↔operations) ' +
+        'ont été résorbées au lot de découpage — la frontière est désormais verrouillée.',
+      severity: 'error',
       from: {
         path: 'app/features/',
         pathNot: `app/features/(${PRODUCT_FEATURES.join('|')})/`,
