@@ -11,6 +11,7 @@ import type {
 } from '#features/money_movement/domain/types/money_movement_types'
 import InternalMoveUseCase from '#features/money_movement/application/use_cases/internal_move.use_case'
 import ExternalInUseCase from '#features/money_movement/application/use_cases/external_in.use_case'
+import ExternalOutUseCase from '#features/money_movement/application/use_cases/external_out.use_case'
 
 /**
  * Façade du `MoneyMovementEngine` (core argent, Lot 2).
@@ -29,7 +30,8 @@ import ExternalInUseCase from '#features/money_movement/application/use_cases/ex
 export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
   constructor(
     private readonly internalMove: InternalMoveUseCase,
-    private readonly externalIn: ExternalInUseCase
+    private readonly externalIn: ExternalInUseCase,
+    private readonly externalOut: ExternalOutUseCase
   ) {}
 
   /** Interne : compte → compte, atomique, synchrone (→ COMPLETED). */
@@ -37,9 +39,9 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
     return this.internalMove.handle(cmd)
   }
 
-  /** Externe sortant (transfert) — branché au commit dédié. */
-  async initiateExternalOut(_cmd: ExternalOutCommand): Promise<MovementResult> {
-    throw this.notImplemented('initiateExternalOut')
+  /** Externe sortant (transfert) → PENDING. */
+  initiateExternalOut(cmd: ExternalOutCommand): Promise<MovementResult> {
+    return this.externalOut.handle(cmd)
   }
 
   /** Externe entrant (deposit) → PENDING. */

@@ -11,6 +11,7 @@ import type {
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import SyncCheckoutService from '#features/operations/application/services/sync_checkout_service'
 import InitiateDepositJob from '#features/operations/application/jobs/initiate_deposit_job'
+import InitiateTransferJob from '#features/operations/application/jobs/initiate_transfer_job'
 import { isSyncDepositProvider } from '#features/operations/application/constants/provider.constants'
 
 /**
@@ -32,9 +33,27 @@ export default class HttpAggregatorStrategy extends ExternalMovementStrategy {
     super()
   }
 
-  /** Sortant (transfert) — branché au commit transfert. */
-  async initiateOut(_ctx: ExternalOutInitiation): Promise<ExternalInitiationResult> {
-    throw this.notImplemented('initiateOut')
+  /**
+   * Sortant (transfert). Toujours async : dispatch de `InitiateTransferJob` (pas de branche sync
+   * pour le transfert). PENDING → settlement au webhook.
+   */
+  async initiateOut(ctx: ExternalOutInitiation): Promise<ExternalInitiationResult> {
+    await InitiateTransferJob.dispatch({
+      transactionId: ctx.transactionId,
+      transactionReference: ctx.transactionReference,
+      walletId: ctx.walletId,
+      paymentId: ctx.paymentId,
+      totalAmount: ctx.totalAmount,
+      amount: ctx.amount,
+      paymentMethod: ctx.paymentMethod,
+      operator: ctx.operator,
+      phone: ctx.phone.replaceAll(' ', ''),
+      userId: ctx.userId,
+    })
+      .toQueue('payment')
+      .priority(1)
+
+    return { status: TransactionStatus.PENDING }
   }
 
   /**
