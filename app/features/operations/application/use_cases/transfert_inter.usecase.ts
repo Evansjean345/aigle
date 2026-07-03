@@ -6,11 +6,8 @@ import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
-import TransactionThrottleCache from '#features/risk/domain/interfaces/transaction_throttle_cache'
-import TransactionFailureCache from '#features/risk/domain/interfaces/transaction_failure_cache'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
-import AccountValidationService from '#features/user/application/services/account_validation_service'
-import DebitPhoneValidationService from '#features/user/application/services/debit_phone_validation_service'
+import IdentityGate from '#features/authentication/application/services/identity_gate'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
@@ -32,11 +29,8 @@ import type {
 export default class InterTransfertUseCase {
   constructor(
     private readonly serviceTypeRepository: ServiceTypeRepository,
-    private readonly accountValidationService: AccountValidationService,
-    private readonly throttleCache: TransactionThrottleCache,
-    private readonly failureCache: TransactionFailureCache,
+    private readonly identityGate: IdentityGate,
     private readonly idempotency: IdempotencyProvider,
-    private readonly debitPhoneValidationService: DebitPhoneValidationService,
     private readonly engine: MoneyMovementEngine
   ) {}
 
@@ -54,16 +48,13 @@ export default class InterTransfertUseCase {
       'Starting inter-network transfer process'
     )
 
-    await Promise.all([
-      this.failureCache.verifyNotBlocked(user.usersUid),
-      this.throttleCache.verifyThrottle(user.usersUid),
-      this.accountValidationService.validateDevice(user, payload.deviceInfo, payload.geoIpLocation),
-      this.debitPhoneValidationService.validateDebitPhone(
-        payload.debiteurPhone,
-        payload.providerFromId,
-        user
-      ),
-    ])
+    await this.identityGate.authorize({
+      user,
+      kind: 'transfert_inter',
+      deviceInfo: payload.deviceInfo,
+      geoIpLocation: payload.geoIpLocation,
+      debitPhone: { phone: payload.debiteurPhone, providerId: payload.providerFromId },
+    })
 
     const serviceType = await this.serviceTypeRepository.findByCode(payload.serviceType)
 

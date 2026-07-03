@@ -6,8 +6,6 @@ import {
   WalletToWalletRequestDto,
   WalletToWalletResponseDTO,
 } from '#features/operations/application/dtos/operation.dto'
-import TransactionThrottleCache from '#features/risk/domain/interfaces/transaction_throttle_cache'
-import TransactionFailureCache from '#features/risk/domain/interfaces/transaction_failure_cache'
 import WalletToWalletTransactionFailed from '#features/transactions/application/events/wallet_to_wallet_transaction_failed'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import WalletTransferContextService, {
@@ -15,7 +13,7 @@ import WalletTransferContextService, {
   TransferMode,
 } from '#features/operations/application/services/wallet_transfer_context_service'
 import transferLog from '#shared/infrastructure/logging/transfer_log'
-import AccountValidationService from '#features/user/application/services/account_validation_service'
+import IdentityGate from '#features/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'
@@ -42,9 +40,7 @@ interface AuditContext {
 export default class WalletToWalletUseCase {
   constructor(
     private readonly contextFactory: WalletTransferContextService,
-    private readonly accountValidationService: AccountValidationService,
-    private readonly throttleCache: TransactionThrottleCache,
-    private readonly failureCache: TransactionFailureCache,
+    private readonly identityGate: IdentityGate,
     private readonly idempotency: IdempotencyProvider,
     private readonly engine: MoneyMovementEngine
   ) {}
@@ -61,18 +57,13 @@ export default class WalletToWalletUseCase {
   ): Promise<WalletToWalletResponseDTO> {
     this.logTransferStart(currentUser, mode, payload)
 
-    await this.failureCache.verifyNotBlocked(currentUser.usersUid)
-    await this.throttleCache.verifyThrottle(currentUser.usersUid)
-
-    await Promise.all([
-      this.accountValidationService.validateDevice(
-        currentUser,
-        payload.deviceInfo,
-        payload.geoIpLocation
-      ),
-
-      this.accountValidationService.verifyPinForUser(currentUser, payload.pincode),
-    ])
+    await this.identityGate.authorize({
+      user: currentUser,
+      kind: 'wallet_to_wallet',
+      deviceInfo: payload.deviceInfo,
+      geoIpLocation: payload.geoIpLocation,
+      pincode: payload.pincode,
+    })
 
     const context = await this.contextFactory.create(payload, currentUser, mode)
 

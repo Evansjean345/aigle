@@ -5,12 +5,10 @@ import {
 import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
-import AccountValidationService from '#features/user/application/services/account_validation_service'
-import TransactionFailureCache from '#features/risk/domain/interfaces/transaction_failure_cache'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
-import DebitPhoneValidationService from '#features/user/application/services/debit_phone_validation_service'
+import IdentityGate from '#features/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
 import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'
@@ -30,10 +28,8 @@ import type {
 export default class DepositUseCase {
   constructor(
     private readonly serviceTypeRepository: ServiceTypeRepository,
-    private readonly accountValidationService: AccountValidationService,
-    private readonly failureCache: TransactionFailureCache,
+    private readonly identityGate: IdentityGate,
     private readonly idempotency: IdempotencyProvider,
-    private readonly debitPhoneValidationService: DebitPhoneValidationService,
     private readonly engine: MoneyMovementEngine
   ) {}
 
@@ -48,11 +44,13 @@ export default class DepositUseCase {
       'Starting deposit process'
     )
 
-    await Promise.all([
-      this.failureCache.verifyNotBlocked(user.usersUid),
-      this.accountValidationService.validateDevice(user, payload.deviceInfo, payload.geoIpLocation),
-      this.debitPhoneValidationService.validateDebitPhone(payload.phone, payload.providerId, user),
-    ])
+    await this.identityGate.authorize({
+      user,
+      kind: 'deposit',
+      deviceInfo: payload.deviceInfo,
+      geoIpLocation: payload.geoIpLocation,
+      debitPhone: { phone: payload.phone, providerId: payload.providerId },
+    })
 
     const serviceType = await this.serviceTypeRepository.findByCode(payload.serviceType)
 
