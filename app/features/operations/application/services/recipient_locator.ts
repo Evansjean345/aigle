@@ -62,19 +62,18 @@ export default class RecipientLocator {
   ): Promise<RecipientResolution> {
     const senderCountry = await this.countryRepository.findCountryBy('id', currentUser.countryId)
 
-    const recipientWallet = await this.resolveRecipient(
+    const recipient = await this.resolveRecipient(
       mode,
       payload,
       currentUser.usersUid!,
       senderCountry.phoneCode
     )
-    await recipientWallet.load('user')
 
     const amount = this.parseAndValidateAmount(payload.amount)
 
     return {
-      recipientUsersUid: recipientWallet.user.usersUid,
-      recipientPhone: recipientWallet.user.phone,
+      recipientUsersUid: recipient.usersUid,
+      recipientPhone: recipient.phone,
       amount,
       feeContext: {
         serviceTypeCode: TransactionType.TRANSFERT,
@@ -85,9 +84,12 @@ export default class RecipientLocator {
   }
 
   /**
-   * Résout le wallet destinataire selon le mode d'adressage :
+   * Résout le compte destinataire selon le mode d'adressage :
    * - `by_qrcode` : via le token QR ;
    * - `by_phone` : via le numéro + l'indicatif pays de l'émetteur.
+   *
+   * Le modèle `Wallet` (ORM) reste confiné à cette méthode : on n'en fait sortir que la projection
+   * minimale nécessaire ({ usersUid, phone }), pour éviter de laisser fuiter des champs non requis.
    * @private
    */
   private async resolveRecipient(
@@ -95,19 +97,25 @@ export default class RecipientLocator {
     payload: WalletToWalletRequestDto,
     senderUserId: string,
     phoneCode: string
-  ): Promise<Wallet> {
+  ): Promise<{ usersUid: string; phone: string }> {
+    let wallet: Wallet
     switch (mode) {
       case TransferMode.BY_QRCODE:
-        return this.walletService.getByWalletToken(payload.token)
+        wallet = await this.walletService.getByWalletToken(payload.token)
+        break
       case TransferMode.BY_PHONE:
-        return this.walletService.getWalletByPhoneNumber(
+        wallet = await this.walletService.getWalletByPhoneNumber(
           payload.recipientPhone!,
           senderUserId,
           phoneCode
         )
+        break
       default:
         throw new ModeUnsupportedException()
     }
+
+    await wallet.load('user')
+    return { usersUid: wallet.user.usersUid, phone: wallet.user.phone }
   }
 
   /**
