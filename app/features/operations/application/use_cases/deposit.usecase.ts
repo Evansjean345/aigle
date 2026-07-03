@@ -7,7 +7,6 @@ import User from '#features/user/domain/models/user'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
-import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
 import IdentityGate from '#features/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#features/audit/domain/enums'
@@ -27,7 +26,6 @@ import type {
 @inject()
 export default class DepositUseCase {
   constructor(
-    private readonly serviceTypeRepository: ServiceTypeRepository,
     private readonly identityGate: IdentityGate,
     private readonly idempotency: IdempotencyProvider,
     private readonly engine: MoneyMovementEngine
@@ -52,20 +50,18 @@ export default class DepositUseCase {
       debitPhone: { phone: payload.phone, providerId: payload.providerId },
     })
 
-    const serviceType = await this.serviceTypeRepository.findByCode(payload.serviceType)
-
     const command: ExternalInCommand = {
       idempotencyKey: idempotencyKey ?? '',
       amount: Number(payload.amount),
       currency: 'XOF',
       initiatedBy: user.usersUid,
-      type: serviceType.code as TransactionType,
+      type: payload.serviceType as TransactionType,
       toAccountId: user.usersUid,
       source: { operator: payload.providerCode, msisdn: payload.phone, country: 'ci' },
       feeContext: {
-        serviceTypeId: serviceType.id,
-        paymentMethodId: payload.paymentMethodId,
-        providerFromId: payload.providerId,
+        serviceTypeCode: payload.serviceType,
+        paymentMethodCode: payload.paymentMethodCode,
+        providerFromCode: payload.providerCode,
       },
       metadata: {
         paymentMethodCode: payload.paymentMethodCode,

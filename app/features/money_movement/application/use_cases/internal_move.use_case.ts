@@ -175,6 +175,9 @@ export default class InternalMoveUseCase {
         status: TransactionStatus.SUCCESS,
         movementId: String(senderTx.id),
         reference: senderTx.reference,
+        amount,
+        fees,
+        total,
         relatedReferences: [recipientTx.reference],
       }
     } catch (error) {

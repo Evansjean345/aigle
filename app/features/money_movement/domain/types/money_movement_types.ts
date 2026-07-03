@@ -28,10 +28,10 @@ export interface OperatorTarget {
  * core `fees` (L2-D6 : les frais appartiennent à l'engine).
  */
 export interface FeeContextInput {
-  serviceTypeId: number
-  paymentMethodId: number
-  providerFromId: number
-  providerToId?: number
+  serviceTypeCode: string
+  paymentMethodCode: string
+  providerFromCode: string
+  providerToCode?: string
   /** Le montant inclut-il déjà les frais (gross-up) ? */
   includeFees?: boolean
 }

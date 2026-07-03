@@ -170,9 +170,9 @@ export default class WalletToWalletUseCase {
         metadata: {
           senderReference: result.reference,
           recipientReference: result.relatedReferences?.[0],
-          amount: context.amount,
-          fees: context.fees,
-          total: context.total,
+          amount: result.amount,
+          fees: result.fees,
+          total: result.total,
           recipientPhone: context.recipientWallet.user.phone,
           geoCountry: payload.geoIpLocation?.countryCode ?? null,
           geoCity: payload.geoIpLocation?.city ?? null,

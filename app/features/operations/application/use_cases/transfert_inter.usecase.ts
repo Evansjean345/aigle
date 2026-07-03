@@ -5,7 +5,6 @@ import {
 import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
-import ServiceTypeRepository from '#features/catalogs/domain/interfaces/service_type_repository'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import IdentityGate from '#features/authentication/application/services/identity_gate'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
@@ -28,7 +27,6 @@ import type {
 @inject()
 export default class InterTransfertUseCase {
   constructor(
-    private readonly serviceTypeRepository: ServiceTypeRepository,
     private readonly identityGate: IdentityGate,
     private readonly idempotency: IdempotencyProvider,
     private readonly engine: MoneyMovementEngine
@@ -56,14 +54,12 @@ export default class InterTransfertUseCase {
       debitPhone: { phone: payload.debiteurPhone, providerId: payload.providerFromId },
     })
 
-    const serviceType = await this.serviceTypeRepository.findByCode(payload.serviceType)
-
     const command: ExternalToExternalCommand = {
       idempotencyKey: idempotencyKey ?? '',
       amount: Number(payload.amount),
       currency: 'XOF',
       initiatedBy: user.usersUid,
-      type: serviceType.code as TransactionType,
+      type: payload.serviceType as TransactionType,
       source: { operator: payload.providerFromCode, msisdn: payload.debiteurPhone, country: 'ci' },
       destination: {
         operator: payload.providerToCode,
@@ -71,10 +67,10 @@ export default class InterTransfertUseCase {
         country: 'ci',
       },
       feeContext: {
-        serviceTypeId: serviceType.id,
-        paymentMethodId: payload.paymentMethodDepositId,
-        providerFromId: payload.providerFromId,
-        providerToId: payload.providerToId,
+        serviceTypeCode: payload.serviceType,
+        paymentMethodCode: payload.paymentMethodDepositCode,
+        providerFromCode: payload.providerFromCode,
+        providerToCode: payload.providerToCode,
         includeFees: payload.includeFees,
       },
       metadata: {
