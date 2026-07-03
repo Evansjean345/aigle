@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
 import WalletService from '#features/wallet/application/services/wallet_service'
-import { RecipientAccount } from '#features/wallet/application/dtos/recipient_account'
+import { type RecipientAccountResult } from '#features/wallet/application/dtos/wallet.dto'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { WalletToWalletRequestDto } from '#features/operations/application/dtos/operation.dto'
 import ModeUnsupportedException from '#features/operations/infrastructure/exceptions/mode_unsupported_exception'
@@ -89,7 +89,7 @@ export default class RecipientLocator {
    * - `by_phone` : via le numéro + l'indicatif pays de l'émetteur.
    *
    * La résolution ET la projection vivent dans wallet-core (couche propriétaire de la donnée) :
-   * le modèle ORM `Wallet` n'est jamais connu ici ; on ne reçoit qu'un `RecipientAccount`. Ce
+   * le modèle ORM `Wallet` n'est jamais connu ici ; on ne reçoit qu'un `RecipientAccountResult`. Ce
    * routeur ne décide que du MODE d'adressage (QR vs téléphone), concept produit.
    * @private
    */
@@ -98,7 +98,7 @@ export default class RecipientLocator {
     payload: WalletToWalletRequestDto,
     senderUserId: string,
     phoneCode: string
-  ): Promise<RecipientAccount> {
+  ): Promise<RecipientAccountResult> {
     switch (mode) {
       case TransferMode.BY_QRCODE:
         return this.walletService.resolveRecipientByToken(payload.token)

@@ -35,3 +35,18 @@ export const toWalletOverviewResult = (
   wallet: WalletCreatedResult.fromWallet(wallet),
   transactions: transactions.map(MobileTransactionResponseDTO.fromTransaction),
 })
+
+/**
+ * Compte bénéficiaire projeté par wallet-core (résolution QR / téléphone) : n'expose que
+ * l'identité de compte requise, sans laisser fuiter le modèle ORM `Wallet` hors de sa couche.
+ * Requiert la relation `user` chargée sur le wallet source.
+ */
+export interface RecipientAccountResult {
+  usersUid: string
+  phone: string
+}
+
+export const toRecipientAccountResult = (wallet: Wallet): RecipientAccountResult => ({
+  usersUid: wallet.user.usersUid,
+  phone: wallet.user.phone,
+})
