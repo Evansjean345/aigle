@@ -5,7 +5,7 @@ import LedgerService from '#features/ledger/application/services/ledger_service'
 import WalletAdjustException from '#features/wallet/infrastructure/exceptions/wallet_adjust_exception'
 import { AuditResult } from '#features/audit/domain/enums'
 import MoneyActivityEmitter from '#features/money_movement/application/services/money_activity_emitter'
-import SettlementSupport from '#features/money_movement/application/services/settlement_support'
+import SettlementSupport from '#features/money_movement/application/settlement/settlement_support'
 import type {
   SettlementContext,
   SettlementStrategy,

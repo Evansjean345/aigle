@@ -5,7 +5,7 @@ import RefundService from '#features/transactions/application/services/refund_se
 import TransactionAlreadyRefundedException from '#features/transactions/infrastructure/exceptions/transaction_already_refunded_exception'
 import { AuditResult } from '#features/audit/domain/enums'
 import MoneyActivityEmitter from '#features/money_movement/application/services/money_activity_emitter'
-import SettlementSupport from '#features/money_movement/application/services/settlement_support'
+import SettlementSupport from '#features/money_movement/application/settlement/settlement_support'
 import type {
   SettlementContext,
   SettlementStrategy,
