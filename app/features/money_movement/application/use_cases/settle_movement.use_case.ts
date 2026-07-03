@@ -5,10 +5,10 @@ import Transaction from '#features/transactions/domain/models/transaction'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import MoneyActivityEmitter from '#features/money_movement/application/services/money_activity_emitter'
-import SettlementSupport from '#features/money_movement/application/settlement/settlement_support'
-import DepositSettlementStrategy from '#features/money_movement/application/settlement/deposit_settlement_strategy'
-import TransfertSettlementStrategy from '#features/money_movement/application/settlement/transfert_settlement_strategy'
-import type { SettlementStrategy } from '#features/money_movement/application/settlement/settlement_strategy'
+import SettlementSupport from '#features/money_movement/application/services/settlement/settlement_support'
+import DepositSettlementStrategy from '#features/money_movement/application/services/settlement/deposit_settlement_strategy'
+import TransfertSettlementStrategy from '#features/money_movement/application/services/settlement/transfert_settlement_strategy'
+import type { SettlementStrategy } from '#features/money_movement/application/services/settlement/settlement_strategy'
 import type {
   SettleCommand,
   SettleResult,
