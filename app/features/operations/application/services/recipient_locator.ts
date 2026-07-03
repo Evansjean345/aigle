@@ -69,30 +69,28 @@ export default class RecipientLocator {
   }
 
   /**
-   * Résout le compte destinataire selon le mode d'adressage :
-   * - `by_qrcode` : via le token QR ;
-   * - `by_phone` : via le numéro + l'indicatif pays de l'émetteur.
-   *
-   * La résolution ET la projection vivent dans wallet-core (couche propriétaire de la donnée) :
-   * le modèle ORM `Wallet` n'est jamais connu ici ; on ne reçoit qu'un `RecipientAccountResult`. Ce
-   * routeur ne décide que du MODE d'adressage (QR vs téléphone), concept produit.
+   * Traduit le MODE d'adressage produit (QR vs téléphone) en descripteur wallet-core, puis délègue
+   * à la porte unique `resolveRecipient` : la résolution ET la projection vivent dans wallet-core
+   * (couche propriétaire), le modèle ORM `Wallet` n'est jamais connu ici. Un seul appel côté produit,
+   * quel que soit le mode — frontière prête pour un split micro-service.
    * @private
    */
-  private async resolveRecipient(
+  private resolveRecipient(
     mode: TransferMode,
     payload: WalletToWalletRequestDto,
-    senderUserId: string,
-    phoneCode: string
+    senderUsersUid: string,
+    countryPhoneCode: string
   ): Promise<RecipientAccountResult> {
     switch (mode) {
       case TransferMode.BY_QRCODE:
-        return this.walletService.resolveRecipientByToken(payload.token)
+        return this.walletService.resolveRecipient({ by: 'qrcode', token: payload.token })
       case TransferMode.BY_PHONE:
-        return this.walletService.resolveRecipientByPhone(
-          payload.recipientPhone!,
-          senderUserId,
-          phoneCode
-        )
+        return this.walletService.resolveRecipient({
+          by: 'phone',
+          phone: payload.recipientPhone!,
+          senderUsersUid,
+          countryPhoneCode,
+        })
       default:
         throw new ModeUnsupportedException()
     }

@@ -5,6 +5,7 @@ import {
   WalletCreatedResult,
   toRecipientAccountResult,
   type RecipientAccountResult,
+  type ResolveRecipientQuery,
 } from '#features/wallet/application/dtos/wallet.dto'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
@@ -68,7 +69,7 @@ export default class WalletService {
   /**
    * Retrieves a wallet associated with a specific user ID.
    *
-   * @param {string} userId - The unique identifier of the user whose wallet is to be retrieved.
+   * @param walletId
    * @param trx - Optional transaction client for database operations.
    * @return {Promise<Wallet>} A promise that resolves to the wallet associated with the given user ID.
    * @throws {Exception} If no wallet is found for the provided user ID, an exception is thrown with a status of 404 and code 'WALLET_NOT_FOUND'.
@@ -139,16 +140,28 @@ export default class WalletService {
   }
 
   /**
-   * Résout le compte bénéficiaire désigné par un token QR, en read-model wallet-core.
+   * Porte unique de résolution d'un bénéficiaire, en read-model wallet-core.
    *
-   * Vérifie le token, charge le wallet + son porteur, et n'expose que `RecipientAccountResult`
-   * ({ usersUid, phone }) : le modèle ORM `Wallet` ne sort pas de wallet-core.
+   * Dispatche en interne selon la stratégie d'adressage (`by`) : token QR ou numéro de téléphone.
+   * N'expose qu'un `RecipientAccountResult` ({ usersUid, phone }) — le modèle ORM `Wallet` ne sort
+   * pas de wallet-core. Frontière à gros grain : un seul point d'entrée (un seul endpoint au split
+   * micro-service) plutôt qu'une opération par stratégie.
    *
-   * @param {string} token - Le token QR encodant le porteur du wallet.
-   * @return {Promise<RecipientAccountResult>} Le compte bénéficiaire résolu.
-   * @throws {Exception} Token manquant/invalide, ou wallet introuvable (404).
+   * @throws {Exception} Selon la stratégie : token manquant/invalide, numéro invalide, destinataire
+   *   inexistant, transfert vers soi-même, ou wallet introuvable (404).
    */
-  async resolveRecipientByToken(token?: string): Promise<RecipientAccountResult> {
+  async resolveRecipient(query: ResolveRecipientQuery): Promise<RecipientAccountResult> {
+    const wallet =
+      query.by === 'qrcode'
+        ? await this.resolveWalletByToken(query.token)
+        : await this.resolveWalletByPhone(query.phone, query.senderUsersUid, query.countryPhoneCode)
+
+    await wallet.load('user')
+    return toRecipientAccountResult(wallet)
+  }
+
+  /** Vérifie le token QR et charge le wallet du porteur. @private */
+  private async resolveWalletByToken(token?: string): Promise<Wallet> {
     if (!token?.length) {
       throw new Exception('Token requis pour le mode QR code', {
         status: 400,
@@ -166,29 +179,18 @@ export default class WalletService {
       })
     }
 
-    const wallet = await this.getByUserId(res.sub)
-    await wallet.load('user')
-    return toRecipientAccountResult(wallet)
+    return this.getByUserId(res.sub)
   }
 
   /**
-   * Résout le compte bénéficiaire désigné par un numéro de téléphone, en read-model wallet-core.
-   *
-   * Normalise le numéro, vérifie que le destinataire existe et que l'émetteur ne se transfère pas
-   * à lui-même, puis n'expose que `RecipientAccountResult` ({ usersUid, phone }) : le modèle ORM `Wallet`
-   * ne sort pas de wallet-core.
-   *
-   * @param {string} phoneRaw - Le numéro fourni par l'émetteur.
-   * @param {string} senderUserId - L'UID du compte émetteur.
-   * @param {string} countryPhone - L'indicatif pays pour la normalisation.
-   * @return {Promise<RecipientAccountResult>} Le compte bénéficiaire résolu.
-   * @throws {Exception} Numéro invalide, destinataire inexistant, ou transfert vers soi-même.
+   * Normalise le numéro, vérifie l'existence du destinataire et l'absence de transfert vers
+   * soi-même, puis charge le wallet du destinataire. @private
    */
-  async resolveRecipientByPhone(
+  private async resolveWalletByPhone(
     phoneRaw: string,
-    senderUserId: string,
+    senderUsersUid: string,
     countryPhone: string
-  ): Promise<RecipientAccountResult> {
+  ): Promise<Wallet> {
     const normalizedPhone = normalizePhone(phoneRaw, countryPhone)
 
     if (!normalizedPhone) {
@@ -204,13 +206,11 @@ export default class WalletService {
       throw new UnregisteredAccountException()
     }
 
-    if (recipientUser.usersUid === senderUserId) {
+    if (recipientUser.usersUid === senderUsersUid) {
       throw new SelfTransferException()
     }
 
-    const wallet = await this.getByUserId(recipientUser.usersUid)
-    await wallet.load('user')
-    return toRecipientAccountResult(wallet)
+    return this.getByUserId(recipientUser.usersUid)
   }
 
   /**

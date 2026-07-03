@@ -37,6 +37,16 @@ export const toWalletOverviewResult = (
 })
 
 /**
+ * Descripteur de résolution d'un bénéficiaire — union discriminée passée à la porte unique
+ * `WalletService.resolveRecipient`. Une seule opération wallet-core dispatche en interne selon
+ * `by`, plutôt que d'exposer un endpoint par stratégie (frontière à gros grain, prête pour un
+ * split micro-service : un seul appel, une seule branche exécutée).
+ */
+export type ResolveRecipientQuery =
+  | { by: 'qrcode'; token?: string }
+  | { by: 'phone'; phone: string; senderUsersUid: string; countryPhoneCode: string }
+
+/**
  * Compte bénéficiaire projeté par wallet-core (résolution QR / téléphone) : n'expose que
  * l'identité de compte requise, sans laisser fuiter le modèle ORM `Wallet` hors de sa couche.
  * Requiert la relation `user` chargée sur le wallet source.
