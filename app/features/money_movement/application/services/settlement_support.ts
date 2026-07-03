@@ -13,6 +13,8 @@ import ProviderErrorService from '#shared/infrastructure/services/provider_error
 import { AdminAction } from '#shared/enums/provider_error_enums'
 import { PROVIDER_SEVERITY_MAP } from '#shared/enums/provider_error_severity_map'
 import type { AuditResult } from '#features/audit/domain/enums'
+import DispatchWebhookEventJob from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
+import type { WebhookEventName } from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
 import type { SettlementOutcome } from '#features/money_movement/domain/types/money_movement_types'
 
 /** Codes indiquant que la transition d'état a déjà eu lieu (course / rejeu) → à avaler. */
@@ -147,6 +149,24 @@ export default class SettlementSupport {
         metadata: { reference: transaction.reference, ...metadata },
       })
       .catch(() => {})
+  }
+
+  /** Dispatch différé (queue) de l'event par flux — comportement inchangé. */
+  async dispatchFlowEvent(
+    eventName: WebhookEventName,
+    transaction: Transaction,
+    eventData: Record<string, unknown>
+  ): Promise<void> {
+    await DispatchWebhookEventJob.dispatch({
+      eventName,
+      eventData: { reference: transaction.reference, ...eventData },
+      reference: transaction.reference,
+    })
+  }
+
+  /** Message d'erreur normalisé pour l'audit. */
+  errorMessage(error: unknown): string | null {
+    return (error as { message?: string })?.message ?? null
   }
 
   /** Exécute une transition d'état en avalant les codes « déjà terminal » (course / rejeu). */
