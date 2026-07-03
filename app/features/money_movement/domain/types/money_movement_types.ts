@@ -150,6 +150,39 @@ export interface MovementFailed {
   failedAt: string
 }
 
+// ── Settlement (Lot 3) : callback opérateur → règlement du mouvement ───────
+//
+// Symétrie de l'initiation : le règlement d'un mouvement externe passe par l'engine (porte unique
+// de l'argent). Toute la mécanique — verrou, idempotence, mark tx/payment, crédit/refund wallet,
+// ledger, classification d'erreur, events — vit dans le core ; le handler de webhook n'est qu'un
+// adaptateur entrant (valide le payload, appelle `settle`, répond).
+
+export type SettlementKind =
+  | 'deposit'
+  | 'transfert'
+  | 'transfert_inter_first'
+  | 'transfert_inter_second'
+
+export type SettlementOutcome = 'success' | 'failure'
+
+/** Commande de règlement d'un mouvement externe (déclenchée par le callback opérateur). */
+export interface SettleCommand {
+  reference: string
+  kind: SettlementKind
+  outcome: SettlementOutcome
+  /** Réponse brute de l'opérateur (marquage payment + classification erreur CF10). */
+  operatorResponse?: unknown
+  error?: unknown
+}
+
+export interface SettleResult {
+  reference: string
+  movementId: string
+  status: TransactionStatus
+  /** true = mouvement déjà dans l'état terminal (rejeu idempotent), aucune mutation appliquée. */
+  alreadySettled: boolean
+}
+
 // ── Port stratégie externe (initiation) ───────────────────────────────────
 //
 // L'engine possède la trx DB (L2-D5) puis délègue l'INITIATION externe à une stratégie

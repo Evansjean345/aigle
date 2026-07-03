@@ -5,6 +5,8 @@ import type {
   ExternalToExternalCommand,
   ReverseCommand,
   MovementResult,
+  SettleCommand,
+  SettleResult,
 } from '#features/money_movement/domain/types/money_movement_types'
 
 export default abstract class MoneyMovementEngine {
@@ -25,4 +27,11 @@ export default abstract class MoneyMovementEngine {
 
   /** Contre-passation (refund) : renverse un mouvement par écritures de correction. */
   abstract reverse(cmd: ReverseCommand): Promise<MovementResult>
+
+  /**
+   * Règle un mouvement externe suite au callback opérateur (settlement). Toute la mécanique argent
+   * (verrou, idempotence, mark tx/payment, crédit/refund wallet, ledger, classification d'erreur,
+   * events) vit ici ; le handler de webhook n'est qu'un adaptateur entrant. Async → SUCCESS/FAILED.
+   */
+  abstract settle(cmd: SettleCommand): Promise<SettleResult>
 }

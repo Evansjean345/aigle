@@ -103,7 +103,7 @@ test.group('Settlement | caractérisation', (group) => {
     assert,
   }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
-    const fake = QueueManager.fake()
+    QueueManager.fake()
 
     try {
       const initUseCase = await app.container.make(DepositUseCase)
@@ -136,7 +136,7 @@ test.group('Settlement | caractérisation', (group) => {
 
   test('deposit échec : tx + payment FAILED, wallet inchangé', async ({ assert }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
-    const fake = QueueManager.fake()
+    QueueManager.fake()
 
     try {
       const initUseCase = await app.container.make(DepositUseCase)
@@ -163,7 +163,7 @@ test.group('Settlement | caractérisation', (group) => {
     assert,
   }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
-    const fake = QueueManager.fake()
+    QueueManager.fake()
 
     try {
       const initUseCase = await app.container.make(TransfertUseCase)
@@ -196,7 +196,7 @@ test.group('Settlement | caractérisation', (group) => {
     assert,
   }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
-    const fake = QueueManager.fake()
+    QueueManager.fake()
 
     try {
       const initUseCase = await app.container.make(TransfertUseCase)

@@ -8,11 +8,14 @@ import type {
   ExternalToExternalCommand,
   ReverseCommand,
   MovementResult,
+  SettleCommand,
+  SettleResult,
 } from '#features/money_movement/domain/types/money_movement_types'
 import InternalMoveUseCase from '#features/money_movement/application/use_cases/internal_move.use_case'
 import ExternalInUseCase from '#features/money_movement/application/use_cases/external_in.use_case'
 import ExternalOutUseCase from '#features/money_movement/application/use_cases/external_out.use_case'
 import ExternalToExternalUseCase from '#features/money_movement/application/use_cases/external_to_external.use_case'
+import SettleMovementUseCase from '#features/money_movement/application/use_cases/settle_movement.use_case'
 
 /**
  * Façade du `MoneyMovementEngine` (core argent, Lot 2).
@@ -33,7 +36,8 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
     private readonly internalMove: InternalMoveUseCase,
     private readonly externalIn: ExternalInUseCase,
     private readonly externalOut: ExternalOutUseCase,
-    private readonly externalToExternal: ExternalToExternalUseCase
+    private readonly externalToExternal: ExternalToExternalUseCase,
+    private readonly settleMovement: SettleMovementUseCase
   ) {}
 
   /** Interne : compte → compte, atomique, synchrone (→ COMPLETED). */
@@ -59,6 +63,11 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
   /** Contre-passation — différée (L2-D3). */
   async reverse(_cmd: ReverseCommand): Promise<MovementResult> {
     throw this.notImplemented('reverse')
+  }
+
+  /** Règlement d'un mouvement externe (callback opérateur) — Lot 3. */
+  settle(cmd: SettleCommand): Promise<SettleResult> {
+    return this.settleMovement.handle(cmd)
   }
 
   private notImplemented(primitive: string): Exception {

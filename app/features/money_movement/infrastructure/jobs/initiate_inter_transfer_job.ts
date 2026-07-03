@@ -56,6 +56,7 @@ export default class InitiateInterTransferJob extends Job<InitiateInterTransferP
         url.searchParams.set('provider', operator)
         return url.toString()
       })()
+
       dataSend.success_url = deepLink
       dataSend.error_url = deepLink
     }

@@ -59,6 +59,10 @@ import { type AuditRecordInput } from '#shared/infrastructure/logging/audit_serv
 import { type TransactionLogEventData } from '#features/transactions/application/types/transaction_log_event_data'
 import { type AdminProviderErrorAlertEvent } from '#features/notifications/domain/events/admin_alert_events'
 import { type SecurityAlertEvent } from '#features/audit/application/types/security_alert_event'
+import {
+  type MovementSettled,
+  type MovementFailed,
+} from '#features/money_movement/domain/types/money_movement_types'
 
 declare module '@adonisjs/core/types' {
   interface EventsList {
@@ -66,6 +70,8 @@ declare module '@adonisjs/core/types' {
     'activity:transaction-log': TransactionLogEventData
     'alert:provider-error': AdminProviderErrorAlertEvent
     'alert:security': SecurityAlertEvent
+    'movement:settled': MovementSettled
+    'movement:failed': MovementFailed
   }
 }
 
