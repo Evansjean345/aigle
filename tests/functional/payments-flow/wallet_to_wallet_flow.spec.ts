@@ -13,7 +13,7 @@ import { PaymentStatus } from '#features/transactions/domain/enums/payment_statu
 import { PaymentMethod } from '#features/transactions/domain/enums/payment_method'
 import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
 import { WalletToWalletRequestDto } from '#features/operations/application/dtos/operation.dto'
-import { TransferMode } from '#features/operations/application/services/wallet_transfer_context_service'
+import { TransferMode } from '#features/operations/application/services/recipient_locator'
 import { createUserWithWallet, reloadBalance, swapGuards } from './mocks/operations_fixtures.js'
 
 /**

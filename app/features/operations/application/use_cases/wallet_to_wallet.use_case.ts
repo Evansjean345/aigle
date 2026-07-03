@@ -8,10 +8,10 @@ import {
 } from '#features/operations/application/dtos/operation.dto'
 import WalletToWalletTransactionFailed from '#features/transactions/application/events/wallet_to_wallet_transaction_failed'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
-import WalletTransferContextService, {
-  TransferContext,
+import RecipientLocator, {
+  RecipientResolution,
   TransferMode,
-} from '#features/operations/application/services/wallet_transfer_context_service'
+} from '#features/operations/application/services/recipient_locator'
 import transferLog from '#shared/infrastructure/logging/transfer_log'
 import IdentityGate from '#features/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'
@@ -31,15 +31,15 @@ interface AuditContext {
 /**
  * Use case wallet_to_wallet — routeur mince (Lot 2, L2-D6).
  *
- * Le produit ne fait que : gardes (blocage/throttle/appareil/PIN), résolution du destinataire
- * (téléphone/QR) et des IDs de frais, construction de la commande, appel de l'engine, puis ses
+ * Le produit ne fait que : gardes (blocage/throttle/appareil/PIN), localisation du destinataire
+ * (téléphone/QR → compte), construction de la commande en codes, appel de l'engine, puis ses
  * effets de bord produit (audit + notification). TOUTE la mécanique argent (records, wallet,
  * ledger, statuts, frais, atomicité) vit dans le `MoneyMovementEngine`.
  */
 @inject()
 export default class WalletToWalletUseCase {
   constructor(
-    private readonly contextFactory: WalletTransferContextService,
+    private readonly recipientLocator: RecipientLocator,
     private readonly identityGate: IdentityGate,
     private readonly idempotency: IdempotencyProvider,
     private readonly engine: MoneyMovementEngine
@@ -65,7 +65,7 @@ export default class WalletToWalletUseCase {
       pincode: payload.pincode,
     })
 
-    const context = await this.contextFactory.create(payload, currentUser, mode)
+    const recipient = await this.recipientLocator.locate(payload, currentUser, mode)
 
     const auditContext: AuditContext = {
       ipAddress: payload.ipAddress ?? payload.geoIpLocation?.ip ?? null,
@@ -73,31 +73,30 @@ export default class WalletToWalletUseCase {
       requestId: payload.requestId ?? null,
     }
 
-    return this.dispatchToEngine(context, payload, currentUser, auditContext, idempotencyKey)
+    return this.dispatchToEngine(recipient, payload, currentUser, auditContext, idempotencyKey)
   }
 
   /**
-   * Traduit le contexte en commande, délègue à l'engine, puis rejoue les effets de bord produit.
+   * Traduit le bénéficiaire résolu en commande, délègue à l'engine, puis rejoue les effets de bord
+   * produit.
    */
   private async dispatchToEngine(
-    context: TransferContext,
+    recipient: RecipientResolution,
     payload: WalletToWalletRequestDto,
     currentUser: User,
     auditContext: AuditContext,
     idempotencyKey?: string
   ): Promise<WalletToWalletResponseDTO> {
-    const { senderWallet, recipientWallet } = context
-
     const command: InternalMoveCommand = {
       idempotencyKey: idempotencyKey ?? '',
-      amount: context.amount,
-      currency: senderWallet.currencySymbol ?? 'XOF',
+      amount: recipient.amount,
+      currency: 'XOF',
       initiatedBy: currentUser.usersUid,
       type: TransactionType.WALLET_TRANSFERT,
       fromAccountId: currentUser.usersUid,
-      toAccountId: recipientWallet.user.usersUid,
+      toAccountId: recipient.recipientUsersUid,
       feeContext: {
-        ...context.feeContext,
+        ...recipient.feeContext,
         includeFees: payload.includeFees,
       },
       metadata: {
@@ -113,15 +112,15 @@ export default class WalletToWalletUseCase {
     } catch (error) {
       await WalletToWalletTransactionFailed.dispatch({
         userId: currentUser.usersUid,
-        amount: context.amount,
-        recipientPhone: recipientWallet.user.phone,
+        amount: recipient.amount,
+        recipientPhone: recipient.recipientPhone,
       })
       throw error
     }
 
     // Effets de bord PRODUIT uniquement : audit (contexte requête). L'event de complétion
     // (notification, volume) est émis par l'engine (core) — le produit ne re-lit plus le core.
-    this.emitAudit(result, context, payload, auditContext)
+    this.emitAudit(result, recipient, currentUser, payload, auditContext)
 
     const responseResult: WalletToWalletResponseDTO = {
       message: 'Transfert wallet-to-wallet effectué avec succès',
@@ -151,7 +150,8 @@ export default class WalletToWalletUseCase {
    */
   private emitAudit(
     result: MovementResult,
-    context: TransferContext,
+    recipient: RecipientResolution,
+    currentUser: User,
     payload: WalletToWalletRequestDto,
     auditContext: AuditContext
   ): void {
@@ -159,7 +159,7 @@ export default class WalletToWalletUseCase {
       .emit('activity:audit', {
         eventCategory: 'TRANSACTION',
         eventAction: 'W2W_INITIATED',
-        actorId: String(context.currentUser.id),
+        actorId: String(currentUser.id),
         actorType: 'User',
         targetType: 'Transaction',
         targetId: result.movementId,
@@ -173,7 +173,7 @@ export default class WalletToWalletUseCase {
           amount: result.amount,
           fees: result.fees,
           total: result.total,
-          recipientPhone: context.recipientWallet.user.phone,
+          recipientPhone: recipient.recipientPhone,
           geoCountry: payload.geoIpLocation?.countryCode ?? null,
           geoCity: payload.geoIpLocation?.city ?? null,
           isVpn: payload.geoIpLocation?.isVpn ?? null,
