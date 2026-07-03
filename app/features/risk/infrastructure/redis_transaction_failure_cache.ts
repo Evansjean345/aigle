@@ -1,5 +1,5 @@
 import redis from '@adonisjs/redis/services/main'
-import type TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
+import type TransactionFailureCache from '#features/risk/domain/interfaces/transaction_failure_cache'
 import { Exception } from '@adonisjs/core/exceptions'
 
 /**
@@ -105,6 +105,9 @@ export default class RedisTransactionFailureCache implements TransactionFailureC
    * @return {Promise<void>} A promise that resolves when the reset operation is complete.
    */
   async resetFailures(userId: string): Promise<void> {
-    await Promise.all([this.connection.del(this.getCountKey(userId)), this.connection.del(this.getBlockKey(userId))])
+    await Promise.all([
+      this.connection.del(this.getCountKey(userId)),
+      this.connection.del(this.getBlockKey(userId)),
+    ])
   }
 }

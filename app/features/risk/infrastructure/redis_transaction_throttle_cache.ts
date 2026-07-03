@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import redis from '@adonisjs/redis/services/main'
-import type TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
-import TransferThrottleException from '#features/transactions/infrastructure/exceptions/transfer_throttle_exception'
+import type TransactionThrottleCache from '#features/risk/domain/interfaces/transaction_throttle_cache'
+import TransferThrottleException from '#features/risk/infrastructure/exceptions/transfer_throttle_exception'
 
 /**
  * A cache implementation using Redis to manage transaction throttling for users.

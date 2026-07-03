@@ -21,6 +21,9 @@ const WalletToWalletTransactionPushNotificationListener = () =>
 const PersistUserTransactionsVolumeListener = () =>
   import('#features/transactions/application/listeners/persist_user_transactions_volume')
 
+const ResetSecurityCountersOnSuccessListener = () =>
+  import('#features/risk/application/listeners/reset_security_counters_on_success')
+
 const OnDepositSuccessNotification = () =>
   import('#features/notifications/application/listeners/on_deposit_success_notification')
 
@@ -50,7 +53,7 @@ const OnUserStateChangedNotification = () =>
 const OnWalletStatusChangedNotification = () =>
   import('#features/notifications/application/listeners/on_wallet_status_changed_notification')
 const HandleTransactionFailure = () =>
-  import('#features/transactions/application/listeners/handle_transaction_failure')
+  import('#features/risk/application/listeners/handle_transaction_failure')
 
 import { type AuditRecordInput } from '#shared/infrastructure/logging/audit_service'
 import { type TransactionLogEventData } from '#features/transactions/application/types/transaction_log_event_data'
@@ -69,14 +72,17 @@ declare module '@adonisjs/core/types' {
 emitter.listen(DepositTransactionCompleted, [
   OnDepositSuccessNotification,
   PersistUserTransactionsVolumeListener,
+  ResetSecurityCountersOnSuccessListener,
 ])
 emitter.listen(TransfertTransactionCompleted, [
   OnTransfertSuccessNotification,
   PersistUserTransactionsVolumeListener,
+  ResetSecurityCountersOnSuccessListener,
 ])
 emitter.listen(WalletToWalletTransactionCompleted, [
   PersistUserTransactionsVolumeListener,
   WalletToWalletTransactionPushNotificationListener,
+  ResetSecurityCountersOnSuccessListener,
 ])
 emitter.listen(KycDocumentSubmitted, [
   OnUserKycStatusUpdate,

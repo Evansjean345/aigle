@@ -6,8 +6,8 @@ import {
   WalletToWalletRequestDto,
   WalletToWalletResponseDTO,
 } from '#features/operations/application/dtos/operation.dto'
-import TransactionThrottleCache from '#features/transactions/domain/interfaces/transaction_throttle_cache'
-import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
+import TransactionThrottleCache from '#features/risk/domain/interfaces/transaction_throttle_cache'
+import TransactionFailureCache from '#features/risk/domain/interfaces/transaction_failure_cache'
 import WalletToWalletTransactionFailed from '#features/transactions/application/events/wallet_to_wallet_transaction_failed'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import WalletTransferContextService, {

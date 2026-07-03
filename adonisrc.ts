@@ -55,6 +55,7 @@ export default defineConfig({
     },
     () => import('#features/notifications/notification_service_provider'),
     () => import('#features/transactions/transaction_provider'),
+    () => import('#features/risk/risk_provider'),
     () => import('#features/ledger/ledger_provider'),
     () => import('#features/provider_gateway/provider_gateway_provider'),
     () => import('#features/money_movement/money_movement_provider'),

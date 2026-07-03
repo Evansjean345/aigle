@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import TransactionFailureCache from '#features/transactions/domain/interfaces/transaction_failure_cache'
+import TransactionFailureCache from '#features/risk/domain/interfaces/transaction_failure_cache'
 import DepositTransactionFailed from '#features/webhooks/application/events/deposit/deposit_transaction_failed'
 import TransfertTransactionFailed from '#features/webhooks/application/events/transfert/transfert_transaction_failed'
 import WalletToWalletTransactionFailed from '#features/transactions/application/events/wallet_to_wallet_transaction_failed'
