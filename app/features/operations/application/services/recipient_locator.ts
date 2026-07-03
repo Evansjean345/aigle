@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import { type RecipientAccountResult } from '#features/wallet/application/dtos/wallet.dto'
+import { type RecipientResolution } from '#features/operations/application/dtos/wallet_to_wallet.dto'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { WalletToWalletRequestDto } from '#features/operations/application/dtos/operation.dto'
 import ModeUnsupportedException from '#features/operations/infrastructure/exceptions/mode_unsupported_exception'
@@ -13,24 +14,6 @@ import { PaymentMethod } from '#features/transactions/domain/enums/payment_metho
 export enum TransferMode {
   BY_QRCODE = 'by_qrcode',
   BY_PHONE = 'by_phone',
-}
-
-/**
- * Bénéficiaire résolu + entrées de commande argent, prêts à alimenter l'engine.
- *
- * Volontairement minimal : le compte destinataire (identifiant money-core) et son téléphone
- * (pour l'audit produit), le montant validé, et les codes de tarification. Aucun modèle `Wallet`
- * n'en sort — l'engine résout lui-même les deux wallets et la mécanique argent.
- */
-export interface RecipientResolution {
-  recipientUsersUid: string
-  recipientPhone: string
-  amount: number
-  feeContext: {
-    serviceTypeCode: string
-    paymentMethodCode: string
-    providerFromCode: string
-  }
 }
 
 /**
