@@ -1,7 +1,7 @@
 import {
   DepositRequestDto,
   DepositResponseDTO,
-} from '#features/operations/application/dtos/operation.dto'
+} from '#features/operations/application/dtos/deposit.dto'
 import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
@@ -71,7 +71,6 @@ export default class DepositUseCase {
     }
 
     const result = await this.engine.initiateExternalIn(command)
-
     this.emitAudit(result, payload, user)
 
     const response: DepositResponseDTO = {

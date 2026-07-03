@@ -12,7 +12,7 @@ import { PaymentStatus } from '#features/transactions/domain/enums/payment_statu
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import TransfertUseCase from '#features/operations/application/use_cases/transfert.usecase'
 import InitiateTransferJob from '#features/money_movement/infrastructure/jobs/initiate_transfer_job'
-import { TransfertRequestDto } from '#features/operations/application/dtos/operation.dto'
+import { TransfertRequestDto } from '#features/operations/application/dtos/transfert.dto'
 import {
   createUserWithWallet,
   reloadBalance,

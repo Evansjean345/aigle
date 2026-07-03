@@ -5,13 +5,13 @@ import { TransactionStatus } from '#features/transactions/domain/enums/transacti
 import {
   WalletToWalletRequestDto,
   WalletToWalletResponseDTO,
-} from '#features/operations/application/dtos/operation.dto'
+  type RecipientResolution,
+} from '#features/operations/application/dtos/wallet_to_wallet.dto'
 import WalletToWalletTransactionFailed from '#features/transactions/application/events/wallet_to_wallet_transaction_failed'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import RecipientLocator, {
   TransferMode,
 } from '#features/operations/application/services/recipient_locator'
-import { type RecipientResolution } from '#features/operations/application/dtos/wallet_to_wallet.dto'
 import transferLog from '#shared/infrastructure/logging/transfer_log'
 import IdentityGate from '#features/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'

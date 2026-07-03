@@ -2,9 +2,11 @@ import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import { type RecipientAccountResult } from '#features/wallet/application/dtos/wallet.dto'
-import { type RecipientResolution } from '#features/operations/application/dtos/wallet_to_wallet.dto'
+import {
+  WalletToWalletRequestDto,
+  type RecipientResolution,
+} from '#features/operations/application/dtos/wallet_to_wallet.dto'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
-import { WalletToWalletRequestDto } from '#features/operations/application/dtos/operation.dto'
 import ModeUnsupportedException from '#features/operations/infrastructure/exceptions/mode_unsupported_exception'
 import InvalidAmountException from '#features/operations/infrastructure/exceptions/invalid_amount_exception'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'

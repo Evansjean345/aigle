@@ -11,7 +11,7 @@ import { PaymentStatus } from '#features/transactions/domain/enums/payment_statu
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import DepositUseCase from '#features/operations/application/use_cases/deposit.usecase'
 import InitiateDepositJob from '#features/money_movement/infrastructure/jobs/initiate_deposit_job'
-import { DepositRequestDto } from '#features/operations/application/dtos/operation.dto'
+import { DepositRequestDto } from '#features/operations/application/dtos/deposit.dto'
 import { createUserWithWallet, reloadBalance, swapGuards } from './mocks/operations_fixtures.js'
 import FakeHttpClient from './mocks/http_fake_mock.js'
 
