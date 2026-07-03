@@ -12,6 +12,8 @@ import PaymentService from '#features/transactions/application/services/payment_
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import LedgerService from '#features/ledger/application/services/ledger_service'
+import RefundService from '#features/transactions/application/services/refund_service'
+import TransactionAlreadyRefundedException from '#features/transactions/infrastructure/exceptions/transaction_already_refunded_exception'
 import WalletAdjustException from '#features/wallet/infrastructure/exceptions/wallet_adjust_exception'
 import TransactionNotFoundException from '#features/transactions/infrastructure/exceptions/transaction_not_found_exception'
 import PaymentNotFoundException from '#features/transactions/infrastructure/exceptions/payment_not_found_exception'
@@ -52,22 +54,16 @@ export default class SettleMovementUseCase {
     private readonly transactionService: TransactionService,
     private readonly walletService: WalletService,
     private readonly ledgerService: LedgerService,
+    private readonly refundService: RefundService,
     private readonly activity: MoneyActivityEmitter
   ) {}
 
+  /**
+   * Squelette commun à tous les settlements (L2-D5 : la trx appartient au core) : verrou + charge,
+   * court-circuit idempotent, charge wallet, applique la mutation propre au flux, commit, émet
+   * l'event canonique. La logique argent spécifique vit dans les `apply*`.
+   */
   async handle(cmd: SettleCommand): Promise<SettleResult> {
-    switch (cmd.kind) {
-      case 'deposit':
-        return this.settleDeposit(cmd)
-      default:
-        throw new Exception(`settle(${cmd.kind}) n'est pas encore implémenté (Lot 3)`, {
-          status: 501,
-          code: 'E_NOT_IMPLEMENTED',
-        })
-    }
-  }
-
-  private async settleDeposit(cmd: SettleCommand): Promise<SettleResult> {
     const trx = await db.transaction()
     try {
       const { transaction, payment } = await this.loadWithPayment(cmd.reference, trx)
@@ -78,12 +74,7 @@ export default class SettleMovementUseCase {
       }
 
       const wallet = await this.walletService.getByUserId(transaction.usersUid, trx)
-
-      if (cmd.outcome === 'success') {
-        await this.applyDepositSuccess(transaction, payment, wallet, cmd.operatorResponse, trx)
-      } else {
-        await this.applyDepositFailure(transaction, payment, cmd.operatorResponse, cmd.error, trx)
-      }
+      await this.apply(cmd, transaction, payment, wallet, trx)
 
       await trx.commit()
 
@@ -92,6 +83,39 @@ export default class SettleMovementUseCase {
     } catch (error) {
       if (!trx.isCompleted) await trx.rollback()
       throw error
+    }
+  }
+
+  /** Aiguille vers la mutation argent propre au flux + à l'issue. */
+  private apply(
+    cmd: SettleCommand,
+    transaction: Transaction,
+    payment: Payment,
+    wallet: Wallet,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    const success = cmd.outcome === 'success'
+    switch (cmd.kind) {
+      case 'deposit':
+        return success
+          ? this.applyDepositSuccess(transaction, payment, wallet, cmd.operatorResponse, trx)
+          : this.applyDepositFailure(transaction, payment, cmd.operatorResponse, cmd.error, trx)
+      case 'transfert':
+        return success
+          ? this.applyTransfertSuccess(transaction, payment, wallet, cmd.operatorResponse, trx)
+          : this.applyTransfertFailure(
+              transaction,
+              payment,
+              wallet,
+              cmd.operatorResponse,
+              cmd.error,
+              trx
+            )
+      default:
+        throw new Exception(`settle(${cmd.kind}) n'est pas encore implémenté (Lot 3)`, {
+          status: 501,
+          code: 'E_NOT_IMPLEMENTED',
+        })
     }
   }
 
@@ -200,6 +224,70 @@ export default class SettleMovementUseCase {
     })
   }
 
+  private async applyTransfertSuccess(
+    transaction: Transaction,
+    payment: Payment,
+    wallet: Wallet,
+    operatorResponse: unknown,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    const currentBalance = Number(wallet.balance)
+    await this.safeMarkPaymentSuccess(payment.id, operatorResponse, trx)
+    await this.safeMarkTransactionSuccess(transaction.id, currentBalance, trx)
+
+    this.activity.emit({ event: 'SUCCESS', transactionId: transaction.reference })
+
+    this.emitAudit(transaction, 'TRANSFER_COMPLETED', AuditResult.SUCCESS, {
+      amount: Number(transaction.amount),
+      status: TransactionStatus.SUCCESS,
+      userId: transaction.usersUid,
+    })
+
+    await DispatchWebhookEventJob.dispatch({
+      eventName: 'TransfertTransactionCompleted',
+      eventData: {
+        reference: transaction.reference,
+        amount: transaction.amount,
+        userId: transaction.usersUid,
+        balanceAfter: currentBalance,
+        beneficiaryPhone: this.paymentService.extractBeneficiaryPhone(payment),
+      },
+      reference: transaction.reference,
+    })
+  }
+
+  private async applyTransfertFailure(
+    transaction: Transaction,
+    payment: Payment,
+    wallet: Wallet,
+    operatorResponse: unknown,
+    error: unknown,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    await this.safeMarkPaymentFailed(payment.id, operatorResponse, trx, error)
+
+    this.emitAudit(transaction, 'TRANSFER_FAILED', AuditResult.FAILURE, {
+      amount: Number(transaction.amount),
+      status: TransactionStatus.FAILED,
+      userId: transaction.usersUid,
+      error: (error as { message?: string })?.message ?? null,
+    })
+
+    try {
+      await this.refundService.webhookReversal(transaction, wallet, operatorResponse, trx)
+
+      this.emitAudit(transaction, 'TRANSFER_REFUNDED', AuditResult.SUCCESS, {
+        amount: Number(transaction.amount),
+        walletId: wallet.id,
+        userId: transaction.usersUid,
+      })
+    } catch (refundErr) {
+      // Course avec le failure handler d'initiation : déjà remboursé → rien à faire.
+      if (refundErr instanceof TransactionAlreadyRefundedException) return
+      throw refundErr
+    }
+  }
+
   /** Émet l'event canonique de settlement (`movement:settled` / `movement:failed`). */
   private emitSettlementEvent(transaction: Transaction, outcome: 'success' | 'failure'): void {
     if (outcome === 'success') {
@@ -235,6 +323,7 @@ export default class SettleMovementUseCase {
     }
 
     const payments = await this.paymentService.findByTransaction(transaction.transactionsUid, trx)
+
     if (payments.length === 0) {
       throw new PaymentNotFoundException('Paiement introuvable pour cette transaction')
     }
