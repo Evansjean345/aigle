@@ -2,6 +2,7 @@
 import { inject } from '@adonisjs/core'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { WalletCreatedResult } from '#features/wallet/application/dtos/wallet.dto'
+import { RecipientAccount } from '#features/wallet/application/dtos/recipient_account'
 import Wallet from '#features/wallet/domain/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
 import { randomUUID } from 'node:crypto'
@@ -135,13 +136,16 @@ export default class WalletService {
   }
 
   /**
-   * Retrieves user account information associated with a wallet token.
+   * Résout le compte bénéficiaire désigné par un token QR, en read-model wallet-core.
    *
-   * @param {string} token - The wallet token used to locate the user's wallet.
-   * @return {Promise<{phone: string, token: string}>} A promise that resolves to an object containing the user's phone number and the wallet token.
-   * @throws {Exception} If the wallet is not found, an exception is thrown with a status of 404 and the code 'WALLET_NOT_FOUND'.
+   * Vérifie le token, charge le wallet + son porteur, et n'expose que `RecipientAccount`
+   * ({ usersUid, phone }) : le modèle ORM `Wallet` ne sort pas de wallet-core.
+   *
+   * @param {string} token - Le token QR encodant le porteur du wallet.
+   * @return {Promise<RecipientAccount>} Le compte bénéficiaire résolu.
+   * @throws {Exception} Token manquant/invalide, ou wallet introuvable (404).
    */
-  async getByWalletToken(token?: string): Promise<Wallet> {
+  async resolveRecipientByToken(token?: string): Promise<RecipientAccount> {
     if (!token?.length) {
       throw new Exception('Token requis pour le mode QR code', {
         status: 400,
@@ -159,24 +163,29 @@ export default class WalletService {
       })
     }
 
-    return this.getByUserId(res.sub)
+    const wallet = await this.getByUserId(res.sub)
+    await wallet.load('user')
+    return RecipientAccount.fromWallet(wallet)
   }
 
   /**
-   * Retrieves a wallet associated with a given phone number.
-   * Validates the phone number, ensures the recipient exists, and checks that the sender is not transferring to themselves.
+   * Résout le compte bénéficiaire désigné par un numéro de téléphone, en read-model wallet-core.
    *
-   * @param {string} phoneRaw - The raw phone number provided by the sender.
-   * @param {string} senderUserId - The unique identifier of the sender's user account.
-   * @param {string} countryPhone - The country code to normalize the phone number.
-   * @return {Promise<Wallet>} A promise that resolves to the wallet associated with the recipient's user account.
-   * @throws {Exception} Throws an exception if the phone number is invalid, if no recipient exists, or if the sender is attempting to transfer to their own account.
+   * Normalise le numéro, vérifie que le destinataire existe et que l'émetteur ne se transfère pas
+   * à lui-même, puis n'expose que `RecipientAccount` ({ usersUid, phone }) : le modèle ORM `Wallet`
+   * ne sort pas de wallet-core.
+   *
+   * @param {string} phoneRaw - Le numéro fourni par l'émetteur.
+   * @param {string} senderUserId - L'UID du compte émetteur.
+   * @param {string} countryPhone - L'indicatif pays pour la normalisation.
+   * @return {Promise<RecipientAccount>} Le compte bénéficiaire résolu.
+   * @throws {Exception} Numéro invalide, destinataire inexistant, ou transfert vers soi-même.
    */
-  async getWalletByPhoneNumber(
+  async resolveRecipientByPhone(
     phoneRaw: string,
     senderUserId: string,
     countryPhone: string
-  ): Promise<Wallet> {
+  ): Promise<RecipientAccount> {
     const normalizedPhone = normalizePhone(phoneRaw, countryPhone)
 
     if (!normalizedPhone) {
@@ -196,7 +205,9 @@ export default class WalletService {
       throw new SelfTransferException()
     }
 
-    return this.getByUserId(recipientUser.usersUid)
+    const wallet = await this.getByUserId(recipientUser.usersUid)
+    await wallet.load('user')
+    return RecipientAccount.fromWallet(wallet)
   }
 
   /**

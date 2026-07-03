@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import User from '#features/user/domain/models/user'
-import Wallet from '#features/wallet/domain/models/wallet'
 import WalletService from '#features/wallet/application/services/wallet_service'
+import { RecipientAccount } from '#features/wallet/application/dtos/recipient_account'
 import CountryRepository from '#features/country/domain/interfaces/country_repository'
 import { WalletToWalletRequestDto } from '#features/operations/application/dtos/operation.dto'
 import ModeUnsupportedException from '#features/operations/infrastructure/exceptions/mode_unsupported_exception'
@@ -88,8 +88,9 @@ export default class RecipientLocator {
    * - `by_qrcode` : via le token QR ;
    * - `by_phone` : via le numéro + l'indicatif pays de l'émetteur.
    *
-   * Le modèle `Wallet` (ORM) reste confiné à cette méthode : on n'en fait sortir que la projection
-   * minimale nécessaire ({ usersUid, phone }), pour éviter de laisser fuiter des champs non requis.
+   * La résolution ET la projection vivent dans wallet-core (couche propriétaire de la donnée) :
+   * le modèle ORM `Wallet` n'est jamais connu ici ; on ne reçoit qu'un `RecipientAccount`. Ce
+   * routeur ne décide que du MODE d'adressage (QR vs téléphone), concept produit.
    * @private
    */
   private async resolveRecipient(
@@ -97,25 +98,19 @@ export default class RecipientLocator {
     payload: WalletToWalletRequestDto,
     senderUserId: string,
     phoneCode: string
-  ): Promise<{ usersUid: string; phone: string }> {
-    let wallet: Wallet
+  ): Promise<RecipientAccount> {
     switch (mode) {
       case TransferMode.BY_QRCODE:
-        wallet = await this.walletService.getByWalletToken(payload.token)
-        break
+        return this.walletService.resolveRecipientByToken(payload.token)
       case TransferMode.BY_PHONE:
-        wallet = await this.walletService.getWalletByPhoneNumber(
+        return this.walletService.resolveRecipientByPhone(
           payload.recipientPhone!,
           senderUserId,
           phoneCode
         )
-        break
       default:
         throw new ModeUnsupportedException()
     }
-
-    await wallet.load('user')
-    return { usersUid: wallet.user.usersUid, phone: wallet.user.phone }
   }
 
   /**
