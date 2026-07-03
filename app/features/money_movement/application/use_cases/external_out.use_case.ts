@@ -50,6 +50,10 @@ export default class ExternalOutUseCase {
       transactionType: cmd.type,
     })
 
+    // Fonds insuffisants : géré par le débit gardé (`debitBalance` → UPDATE atomique WHERE
+    // balance >= amount), qui lève `InsufficientFundsException` (même classe/code/message que
+    // l'ancien pré-check) de façon race-safe. On ne réimporte pas l'exception d'une autre
+    // feature (indépendance des couches) : elle se propage via le service wallet appelé.
     const { paymentMethodCode, deviceInfo, geoIpLocation } = this.extractMeta(cmd)
     const rawPhone = cmd.destination.msisdn
     const balanceBefore = Number(wallet.balance)
