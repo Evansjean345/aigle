@@ -15,7 +15,8 @@ import InternalMoveUseCase from '#features/money_movement/application/use_cases/
 import ExternalInUseCase from '#features/money_movement/application/use_cases/external_in.use_case'
 import ExternalOutUseCase from '#features/money_movement/application/use_cases/external_out.use_case'
 import ExternalToExternalUseCase from '#features/money_movement/application/use_cases/external_to_external.use_case'
-import SettleMovementUseCase from '#features/money_movement/application/use_cases/settle_movement.use_case'
+import SettleDepositUseCase from '#features/money_movement/application/use_cases/settle_deposit.use_case'
+import SettleTransfertUseCase from '#features/money_movement/application/use_cases/settle_transfert.use_case'
 
 /**
  * Façade du `MoneyMovementEngine` (core argent, Lot 2).
@@ -37,7 +38,8 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
     private readonly externalIn: ExternalInUseCase,
     private readonly externalOut: ExternalOutUseCase,
     private readonly externalToExternal: ExternalToExternalUseCase,
-    private readonly settleMovement: SettleMovementUseCase
+    private readonly settleDeposit: SettleDepositUseCase,
+    private readonly settleTransfert: SettleTransfertUseCase
   ) {}
 
   /** Interne : compte → compte, atomique, synchrone (→ COMPLETED). */
@@ -65,9 +67,22 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
     throw this.notImplemented('reverse')
   }
 
-  /** Règlement d'un mouvement externe (callback opérateur) — Lot 3. */
+  /**
+   * Règlement d'un mouvement externe (callback opérateur) — Lot 3. Route par `kind` vers le use
+   * case du flux, comme les primitives d'initiation routent vers `external_in/out/...`.
+   */
   settle(cmd: SettleCommand): Promise<SettleResult> {
-    return this.settleMovement.handle(cmd)
+    switch (cmd.kind) {
+      case 'deposit':
+        return this.settleDeposit.handle(cmd)
+      case 'transfert':
+        return this.settleTransfert.handle(cmd)
+      default:
+        throw new Exception(`settle(${cmd.kind}) n'est pas encore implémenté (Lot 3)`, {
+          status: 501,
+          code: 'E_NOT_IMPLEMENTED',
+        })
+    }
   }
 
   private notImplemented(primitive: string): Exception {

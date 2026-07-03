@@ -1,30 +1,73 @@
 import { inject } from '@adonisjs/core'
+import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import Transaction from '#features/transactions/domain/models/transaction'
+import type Payment from '#features/transactions/domain/models/payment'
+import type Wallet from '#features/wallet/domain/models/wallet'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import LedgerService from '#features/ledger/application/services/ledger_service'
 import WalletAdjustException from '#features/wallet/infrastructure/exceptions/wallet_adjust_exception'
 import { AuditResult } from '#features/audit/domain/enums'
 import MoneyActivityEmitter from '#features/money_movement/application/services/money_activity_emitter'
-import SettlementSupport from '#features/money_movement/application/services/settlement/settlement_support'
+import SettlementSupport from '#features/money_movement/application/services/settlement_support'
 import type {
-  SettlementContext,
-  SettlementStrategy,
-} from '#features/money_movement/application/services/settlement/settlement_strategy'
+  SettleCommand,
+  SettleResult,
+} from '#features/money_movement/domain/types/money_movement_types'
 
 /**
- * Règlement d'un dépôt (externe entrant). Succès : crédit du wallet du montant net + ledger.
- * Échec : marquage FAILED, pas de mouvement wallet.
+ * Use case core : règlement d'un DÉPÔT (externe entrant) suite au callback opérateur (Lot 3).
+ *
+ * Symétrie de `external_in` (initiation) : l'opération vit dans le use case. Squelette
+ * transactionnel (L2-D5) + idempotence, puis mutation argent — succès : crédit du wallet du
+ * montant net + ledger ; échec : marquage FAILED. La plomberie générique est dans
+ * `SettlementSupport`.
  */
 @inject()
-export default class DepositSettlementStrategy implements SettlementStrategy {
+export default class SettleDepositUseCase {
   constructor(
-    private readonly support: SettlementSupport,
     private readonly walletService: WalletService,
     private readonly ledgerService: LedgerService,
+    private readonly support: SettlementSupport,
     private readonly activity: MoneyActivityEmitter
   ) {}
 
-  async applySuccess({ transaction, payment, wallet, operatorResponse, trx }: SettlementContext) {
+  async handle(cmd: SettleCommand): Promise<SettleResult> {
+    const trx = await db.transaction()
+    try {
+      const { transaction, payment } = await this.support.loadWithPayment(cmd.reference, trx)
+
+      if (this.support.isIdempotent(transaction, payment, cmd.outcome)) {
+        await trx.commit()
+        return this.support.result(transaction, true)
+      }
+
+      const wallet = await this.walletService.getByUserId(transaction.usersUid, trx)
+
+      if (cmd.outcome === 'success') {
+        await this.applySuccess(transaction, payment, wallet, cmd.operatorResponse, trx)
+      } else {
+        await this.applyFailure(transaction, payment, cmd.operatorResponse, cmd.error, trx)
+      }
+
+      await trx.commit()
+
+      this.support.emitSettlementEvent(transaction, cmd.outcome)
+      return this.support.result(transaction, false)
+    } catch (error) {
+      if (!trx.isCompleted) await trx.rollback()
+      throw error
+    }
+  }
+
+  private async applySuccess(
+    transaction: Transaction,
+    payment: Payment,
+    wallet: Wallet,
+    operatorResponse: unknown,
+    trx: TransactionClientContract
+  ): Promise<void> {
     await this.support.markPaymentSuccess(payment.id, operatorResponse, trx)
 
     const creditAmount = Number(transaction.totalAmount || 0)
@@ -83,7 +126,13 @@ export default class DepositSettlementStrategy implements SettlementStrategy {
     })
   }
 
-  async applyFailure({ transaction, payment, operatorResponse, error, trx }: SettlementContext) {
+  private async applyFailure(
+    transaction: Transaction,
+    payment: Payment,
+    operatorResponse: unknown,
+    error: unknown,
+    trx: TransactionClientContract
+  ): Promise<void> {
     await this.support.markTransactionFailed(transaction.id, trx)
     await this.support.markPaymentFailed(payment.id, operatorResponse, trx, error)
 
@@ -92,6 +141,7 @@ export default class DepositSettlementStrategy implements SettlementStrategy {
       transactionId: transaction.reference,
       errorMessage: 'Payment failed via webhook',
     })
+
     this.support.emitAudit(transaction, 'DEPOSIT_FAILED', AuditResult.FAILURE, {
       amount: Number(transaction.amount),
       status: TransactionStatus.FAILED,

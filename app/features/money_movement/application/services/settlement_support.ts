@@ -13,9 +13,13 @@ import ProviderErrorService from '#shared/infrastructure/services/provider_error
 import { AdminAction } from '#shared/enums/provider_error_enums'
 import { PROVIDER_SEVERITY_MAP } from '#shared/enums/provider_error_severity_map'
 import type { AuditResult } from '#features/audit/domain/enums'
+import MoneyActivityEmitter from '#features/money_movement/application/services/money_activity_emitter'
 import DispatchWebhookEventJob from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
 import type { WebhookEventName } from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
-import type { SettlementOutcome } from '#features/money_movement/domain/types/money_movement_types'
+import type {
+  SettlementOutcome,
+  SettleResult,
+} from '#features/money_movement/domain/types/money_movement_types'
 
 /** Codes indiquant que la transition d'état a déjà eu lieu (course / rejeu) → à avaler. */
 const TERMINAL_STATE_CODES = new Set([
@@ -38,7 +42,8 @@ const TERMINAL_STATE_CODES = new Set([
 export default class SettlementSupport {
   constructor(
     private readonly paymentService: PaymentService,
-    private readonly transactionService: TransactionService
+    private readonly transactionService: TransactionService,
+    private readonly activity: MoneyActivityEmitter
   ) {}
 
   /** Charge la transaction (verrou `forUpdate`) + son premier paiement. */
@@ -167,6 +172,35 @@ export default class SettlementSupport {
   /** Message d'erreur normalisé pour l'audit. */
   errorMessage(error: unknown): string | null {
     return (error as { message?: string })?.message ?? null
+  }
+
+  /** Émet l'event canonique de settlement (`movement:settled` / `movement:failed`). */
+  emitSettlementEvent(transaction: Transaction, outcome: SettlementOutcome): void {
+    if (outcome === 'success') {
+      this.activity.settled({
+        movementId: String(transaction.id),
+        reference: transaction.reference,
+        status: TransactionStatus.SUCCESS,
+        settledAt: new Date().toISOString(),
+      })
+    } else {
+      this.activity.failedMovement({
+        movementId: String(transaction.id),
+        reference: transaction.reference,
+        reason: 'Payment failed via webhook',
+        failedAt: new Date().toISOString(),
+      })
+    }
+  }
+
+  /** Construit le résultat de règlement. */
+  result(transaction: Transaction, alreadySettled: boolean): SettleResult {
+    return {
+      reference: transaction.reference,
+      movementId: String(transaction.id),
+      status: transaction.status,
+      alreadySettled,
+    }
   }
 
   /** Exécute une transition d'état en avalant les codes « déjà terminal » (course / rejeu). */
