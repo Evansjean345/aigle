@@ -37,15 +37,15 @@ export const WAVE_CLIENT_ERRORS: Record<string, ClientError> = {
   payout_timeout: { code: 'EXPIRED_SESSION', message: 'Le délai a expiré' },
   checkout_timeout: { code: 'EXPIRED_SESSION', message: 'Le délai a expiré' },
   internal_error: {
-    code: 'PROVIDER_INTERNAL_ERROR',
+    code: 'PROVIDER_UNAVAILABLE',
     message: 'Erreur interne du fournisseur, veuillez réessayer',
   },
   checkout_failed: {
-    code: 'CHECKOUT_FAILED',
+    code: 'PROVIDER_REFUSED',
     message: "Le paiement Wave n'a pas pu aboutir",
   },
   payout_failed: {
-    code: 'PAYOUT_FAILED',
+    code: 'PROVIDER_REFUSED',
     message: "Le transfert Wave n'a pas pu aboutir",
   },
 

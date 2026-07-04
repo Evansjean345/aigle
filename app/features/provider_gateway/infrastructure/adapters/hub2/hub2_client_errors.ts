@@ -4,19 +4,19 @@ export const HUB2_CLIENT_ERRORS: Record<string, ClientError> = {
   // ── Payments (checkout / pay-in) ──────────────────
   customer_insufficient_funds: { code: 'INSUFFICIENT_FUNDS', message: 'Solde insuffisant' },
   customer_account_locked: {
-    code: 'ACCOUNT_LOCKED',
+    code: 'ACCOUNT_BLOCKED',
     message: 'Le compte du payeur est verrouillé',
   },
   authentication_failed: {
-    code: 'AUTHENTICATION_FAILED',
+    code: 'PROVIDER_REFUSED',
     message: "L'authentification du paiement a échoué",
   },
   authentication_timeout: {
-    code: 'AUTHENTICATION_TIMEOUT',
+    code: 'EXPIRED_SESSION',
     message: "Le délai d'authentification a expiré",
   },
   canceled_by_customer: {
-    code: 'CANCELED_BY_CUSTOMER',
+    code: 'CANCELED',
     message: 'Paiement annulé par le client',
   },
   canceled: { code: 'CANCELED', message: 'Paiement annulé par le fournisseur' },
@@ -29,7 +29,7 @@ export const HUB2_CLIENT_ERRORS: Record<string, ClientError> = {
     message: "Cette devise n'est pas supportée",
   },
   payer_quota_exceeded: {
-    code: 'QUOTA_EXCEEDED',
+    code: 'LIMIT_EXCEEDED',
     message: 'Le quota du payeur est dépassé',
   },
   invalid_msisdn: {
@@ -41,7 +41,7 @@ export const HUB2_CLIENT_ERRORS: Record<string, ClientError> = {
     message: 'Ce numéro est temporairement bloqué',
   },
   invalid_payment_processor: {
-    code: 'UNSUPPORTED_OPERATION',
+    code: 'PROVIDER_REFUSED',
     message: 'Opération non supportée par ce fournisseur',
   },
   forbidden_by_provider: {
@@ -53,7 +53,7 @@ export const HUB2_CLIENT_ERRORS: Record<string, ClientError> = {
     message: 'Une opération similaire est déjà en cours',
   },
   bad_parameters: {
-    code: 'INVALID_PARAMETERS',
+    code: 'PROVIDER_REFUSED',
     message: 'Les paramètres de la requête sont invalides',
   },
   timeout: { code: 'EXPIRED_SESSION', message: 'Le délai de paiement a expiré' },
@@ -77,14 +77,14 @@ export const HUB2_CLIENT_ERRORS: Record<string, ClientError> = {
     message: 'Le montant du transfert est invalide',
   },
   destination_not_allowed: {
-    code: 'RECIPIENT_NOT_ALLOWED',
+    code: 'RECIPIENT_NOT_ELIGIBLE',
     message: 'Le transfert vers ce destinataire est interdit',
   },
-  bad_request: { code: 'INVALID_PARAMETERS', message: 'La requête contient des erreurs' },
+  bad_request: { code: 'PROVIDER_REFUSED', message: 'La requête contient des erreurs' },
 
   // ── Erreurs génériques (payments + transfers) ─────
   internal_error: {
-    code: 'PROVIDER_INTERNAL_ERROR',
+    code: 'PROVIDER_UNAVAILABLE',
     message: 'Erreur interne du fournisseur, veuillez réessayer',
   },
   service_unavailable: {

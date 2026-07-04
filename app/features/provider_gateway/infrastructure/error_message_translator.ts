@@ -14,7 +14,7 @@ export type ProviderClientErrorMap = Record<string, ClientError>
 const GENERIC_CLIENT_ERRORS: Record<string, ClientError> = {
   customer_insufficient_funds: { code: 'INSUFFICIENT_FUNDS', message: 'Solde insuffisant' },
   insufficient_funds: {
-    code: 'MERCHANT_INSUFFICIENT_FUNDS',
+    code: 'INTERNAL_ERROR',
     message: 'Solde marchand insuffisant',
   },
   invalid_destination: { code: 'INVALID_RECIPIENT', message: 'La destination est invalide' },
