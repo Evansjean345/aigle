@@ -1,4 +1,4 @@
-import CompanyContact from '#features/catalogs/domain/models/company_contact'
+import CompanyContact from '#core/catalogs/domain/models/company_contact'
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
 
 export default class extends BaseSeeder {

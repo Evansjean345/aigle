@@ -1,4 +1,4 @@
-import type Admin from '#features/team/domain/models/admin'
+import type Admin from '#core/team/domain/models/admin'
 
 /**
  * Checks if the given admin user has a specific permission.

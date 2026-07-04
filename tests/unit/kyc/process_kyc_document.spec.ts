@@ -1,9 +1,9 @@
 import { test } from '@japa/runner'
-import ProcessKycDocumentUseCase from '#features/kyc/application/usecases/admin/process_kyc_document.usecase'
-import type KycDocumentRepository from '#features/kyc/domain/interfaces/kyc_document_repository'
-import { KycDocumentStatus, KycDocumentType } from '#features/kyc/domain/enum/kyc_enum'
-import KycDocument from '#features/kyc/domain/models/kyc_document'
-import KycDocumentNotFoundException from '#features/kyc/infrastructure/exceptions/kyc_document_not_found_exception'
+import ProcessKycDocumentUseCase from '#core/kyc/application/usecases/admin/process_kyc_document.usecase'
+import type KycDocumentRepository from '#core/kyc/domain/interfaces/kyc_document_repository'
+import { KycDocumentStatus, KycDocumentType } from '#core/kyc/domain/enum/kyc_enum'
+import KycDocument from '#core/kyc/domain/models/kyc_document'
+import KycDocumentNotFoundException from '#core/kyc/infrastructure/exceptions/kyc_document_not_found_exception'
 
 test.group('Kyc | Process Use Case', () => {
   test("devrait lever une exception si le document n'existe pas", async ({ assert }) => {

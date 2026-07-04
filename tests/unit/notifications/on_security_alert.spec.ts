@@ -1,9 +1,9 @@
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import emitter from '@adonisjs/core/services/emitter'
-import OnSecurityAlert from '#features/notifications/application/listeners/on_security_alert'
-import { type SecurityAlertEvent } from '#features/audit/application/types/security_alert_event'
-import { SecurityAlertType, AlertSeverity, AuditResult } from '#features/audit/domain/enums'
+import OnSecurityAlert from '#core/notifications/application/listeners/on_security_alert'
+import { type SecurityAlertEvent } from '#core/audit/application/types/security_alert_event'
+import { SecurityAlertType, AlertSeverity, AuditResult } from '#core/audit/domain/enums'
 
 function buildEvent(overrides: Partial<SecurityAlertEvent> = {}): SecurityAlertEvent {
   return {

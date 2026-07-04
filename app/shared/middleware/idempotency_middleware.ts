@@ -1,10 +1,10 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { NextFn } from '@adonisjs/core/types/http'
 import { inject } from '@adonisjs/core'
-import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
-import TransactionService from '#features/transactions/application/services/transaction_service'
-import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
-import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
+import IdempotencyProvider from '#core/transactions/domain/interfaces/idempotency_provider'
+import TransactionService from '#core/transactions/application/services/transaction_service'
+import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
+import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
 
 @inject()
 export default class IdempotencyMiddleware {

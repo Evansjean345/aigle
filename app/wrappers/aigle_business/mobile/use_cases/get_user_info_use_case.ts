@@ -1,6 +1,6 @@
-import CountryRepository from '#features/country/domain/interfaces/country_repository'
+import CountryRepository from '#core/country/domain/interfaces/country_repository'
 import { inject } from '@adonisjs/core'
-import User from '#features/user/domain/models/user'
+import User from '#core/user/domain/models/user'
 import { concartPhoneNumber } from '#shared/utils/utiles'
 
 export interface UserInfoDto {

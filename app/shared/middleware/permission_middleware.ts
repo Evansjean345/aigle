@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
-import Admin from '#features/team/domain/models/admin'
+import Admin from '#core/team/domain/models/admin'
 
 export default class PermissionMiddleware {
   async handle(ctx: HttpContext, next: NextFn, requiredPermissions: string[]) {

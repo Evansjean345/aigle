@@ -5,8 +5,8 @@ import { inject } from '@adonisjs/core'
 import { TransfertRequestDto } from '#features/operations/application/dtos/transfert.dto'
 import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
 import { TransferMode } from '#features/operations/application/services/recipient_locator'
-import { PaymentMethod } from '#features/transactions/domain/enums/payment_method'
-import User from '#features/user/domain/models/user'
+import { PaymentMethod } from '#core/transactions/domain/enums/payment_method'
+import User from '#core/user/domain/models/user'
 import { WalletToWalletRequestDto } from '#features/operations/application/dtos/wallet_to_wallet.dto'
 
 /**

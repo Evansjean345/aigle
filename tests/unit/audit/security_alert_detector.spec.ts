@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
-import SecurityAlertDetector from '#features/audit/application/services/security_alert_detector'
-import { SecurityAlertType, AlertSeverity, AuditResult } from '#features/audit/domain/enums'
+import SecurityAlertDetector from '#core/audit/application/services/security_alert_detector'
+import { SecurityAlertType, AlertSeverity, AuditResult } from '#core/audit/domain/enums'
 import emitter from '@adonisjs/core/services/emitter'
 
 function buildCounterStub(opts: { initialCount?: number; throwOnIncrement?: boolean } = {}) {

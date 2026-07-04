@@ -1,10 +1,10 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import Transaction from '#features/transactions/domain/models/transaction'
-import Payment from '#features/transactions/domain/models/payment'
-import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
-import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
+import Transaction from '#core/transactions/domain/models/transaction'
+import Payment from '#core/transactions/domain/models/payment'
+import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
+import { PaymentStatus } from '#core/transactions/domain/enums/payment_status'
 import { ProviderErrorCode, ErrorCategory, AdminAction } from '#shared/enums/provider_error_enums'
 
 import { createPendingFixture } from './mocks/transaction_mock.js'
@@ -14,7 +14,7 @@ import {
   INTERNAL_ERROR_SCENARIOS,
   PROVIDER_ERROR_SCENARIOS,
 } from './mocks/error_scenarios.js'
-import TransactionFailureHandler from '#features/transactions/application/services/transaction_failure_handler'
+import TransactionFailureHandler from '#core/transactions/application/services/transaction_failure_handler'
 
 async function runProviderErrorTest(
   assert: any,

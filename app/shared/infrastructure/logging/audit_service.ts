@@ -1,4 +1,4 @@
-import AuditLog from '#features/audit/domain/models/audit_log'
+import AuditLog from '#core/audit/domain/models/audit_log'
 import { randomUUID } from 'node:crypto'
 
 export type AuditRecordInput = {

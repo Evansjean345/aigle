@@ -1,12 +1,12 @@
 import { test } from '@japa/runner'
-import ProviderGatewayAdapter from '#features/money_movement/infrastructure/gateways/provider_gateway_adapter'
-import ProviderInitiationError from '#features/money_movement/infrastructure/exceptions/provider_initiation_error'
-import { ProviderResponse } from '#features/provider_gateway/domain/value_objects/provider_response'
-import { type ProviderRequest } from '#features/provider_gateway/domain/value_objects/provider_request'
-import { ErrorSeverity } from '#features/provider_gateway/domain/enums/error_severity'
-import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
-import type { ProviderOperation } from '#features/provider_gateway/domain/types/provider_capabilities'
-import type { ResolveProviderInput } from '#features/provider_gateway/infrastructure/provider_resolver'
+import ProviderGatewayAdapter from '#core/money_movement/infrastructure/gateways/provider_gateway_adapter'
+import ProviderInitiationError from '#core/money_movement/infrastructure/exceptions/provider_initiation_error'
+import { ProviderResponse } from '#core/provider_gateway/domain/value_objects/provider_response'
+import { type ProviderRequest } from '#core/provider_gateway/domain/value_objects/provider_request'
+import { ErrorSeverity } from '#core/provider_gateway/domain/enums/error_severity'
+import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
+import type { ProviderOperation } from '#core/provider_gateway/domain/types/provider_capabilities'
+import type { ResolveProviderInput } from '#core/provider_gateway/infrastructure/provider_resolver'
 
 /**
  * Test unitaire du `ProviderGatewayAdapter` (implémentation du port ExternalMovementGateway).

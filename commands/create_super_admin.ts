@@ -1,10 +1,10 @@
 import { BaseCommand } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
-import Admin from '#features/team/domain/models/admin'
-import Role from '#features/team/domain/models/role'
-import AdminRepository from '#features/team/domain/interfaces/admin_repository'
+import Admin from '#core/team/domain/models/admin'
+import Role from '#core/team/domain/models/role'
+import AdminRepository from '#core/team/domain/interfaces/admin_repository'
 import emitter from '@adonisjs/core/services/emitter'
-import { AuditResult } from '#features/audit/domain/enums'
+import { AuditResult } from '#core/audit/domain/enums'
 
 const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/
 

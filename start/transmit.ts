@@ -1,7 +1,7 @@
 import transmit from '@adonisjs/transmit/services/main'
 import { middleware } from '#start/kernel'
-import KycPolicy from '#features/kyc/presentation/admin/policies/kyc_policy'
-import type Admin from '#features/team/domain/models/admin'
+import KycPolicy from '#core/kyc/presentation/admin/policies/kyc_policy'
+import type Admin from '#core/team/domain/models/admin'
 
 /**
  * Register SSE endpoints exposed by Transmit:

@@ -1,7 +1,7 @@
 import { BaseCommand } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
-import Role from '#features/team/domain/models/role'
-import Permission from '#features/team/domain/models/permission'
+import Role from '#core/team/domain/models/role'
+import Permission from '#core/team/domain/models/permission'
 
 export default class MakeRootRole extends BaseCommand {
   static commandName = 'make:root-role'

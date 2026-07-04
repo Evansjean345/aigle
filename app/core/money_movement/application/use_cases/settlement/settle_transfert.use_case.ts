@@ -1,0 +1,122 @@
+import { inject } from '@adonisjs/core'
+import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import Transaction from '#core/transactions/domain/models/transaction'
+import type Payment from '#core/transactions/domain/models/payment'
+import type Wallet from '#core/wallet/domain/models/wallet'
+import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
+import WalletService from '#core/wallet/application/services/wallet_service'
+import PaymentService from '#core/transactions/application/services/payment_service'
+import RefundService from '#core/transactions/application/services/refund_service'
+import TransactionAlreadyRefundedException from '#core/transactions/infrastructure/exceptions/transaction_already_refunded_exception'
+import { AuditResult } from '#core/audit/domain/enums'
+import MoneyActivityEmitter from '#core/money_movement/application/services/money_activity_emitter'
+import SettlementSupport from '#core/money_movement/application/services/settlement_support'
+import type {
+  SettleCommand,
+  SettleResult,
+} from '#core/money_movement/domain/types/money_movement_types'
+
+/**
+ * Use case core : règlement d'un TRANSFERT (externe sortant) suite au callback opérateur (Lot 3).
+ *
+ * Symétrie de `external_out` (initiation) : l'opération vit dans le use case. Succès : marquage
+ * SUCCESS (le débit a eu lieu à l'initiation, aucun mouvement wallet ici). Échec : marquage FAILED
+ * + refund du `totalAmount` (course avec le failure handler d'initiation gérée via
+ * TransactionAlreadyRefundedException). Plomberie générique dans `SettlementSupport`.
+ */
+@inject()
+export default class SettleTransfertUseCase {
+  constructor(
+    private readonly walletService: WalletService,
+    private readonly paymentService: PaymentService,
+    private readonly refundService: RefundService,
+    private readonly support: SettlementSupport,
+    private readonly activity: MoneyActivityEmitter
+  ) {}
+
+  async handle(cmd: SettleCommand): Promise<SettleResult> {
+    const trx = await db.transaction()
+    try {
+      const { transaction, payment } = await this.support.loadWithPayment(cmd.reference, trx)
+
+      if (this.support.isIdempotent(transaction, payment, cmd.outcome)) {
+        await trx.commit()
+        return this.support.result(transaction, true)
+      }
+
+      const wallet = await this.walletService.getByUserId(transaction.usersUid, trx)
+
+      if (cmd.outcome === 'success') {
+        await this.applySuccess(transaction, payment, wallet, cmd.operatorResponse, trx)
+      } else {
+        await this.applyFailure(transaction, payment, wallet, cmd.operatorResponse, cmd.error, trx)
+      }
+
+      await trx.commit()
+
+      return this.support.result(transaction, false)
+    } catch (error) {
+      if (!trx.isCompleted) await trx.rollback()
+      throw error
+    }
+  }
+
+  private async applySuccess(
+    transaction: Transaction,
+    payment: Payment,
+    wallet: Wallet,
+    operatorResponse: unknown,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    const currentBalance = Number(wallet.balance)
+    await this.support.markPaymentSuccess(payment.id, operatorResponse, trx)
+    await this.support.markTransactionSuccess(transaction.id, currentBalance, trx)
+
+    this.activity.emit({ event: 'SUCCESS', transactionId: transaction.reference })
+    this.support.emitAudit(transaction, 'TRANSFER_COMPLETED', AuditResult.SUCCESS, {
+      amount: Number(transaction.amount),
+      status: TransactionStatus.SUCCESS,
+      userId: transaction.usersUid,
+    })
+
+    await this.support.dispatchFlowEvent('TransfertTransactionCompleted', transaction, {
+      amount: transaction.amount,
+      userId: transaction.usersUid,
+      balanceAfter: currentBalance,
+      beneficiaryPhone: this.paymentService.extractBeneficiaryPhone(payment),
+    })
+  }
+
+  private async applyFailure(
+    transaction: Transaction,
+    payment: Payment,
+    wallet: Wallet,
+    operatorResponse: unknown,
+    error: unknown,
+    trx: TransactionClientContract
+  ): Promise<void> {
+    await this.support.markPaymentFailed(payment.id, operatorResponse, trx, error)
+
+    this.support.emitAudit(transaction, 'TRANSFER_FAILED', AuditResult.FAILURE, {
+      amount: Number(transaction.amount),
+      status: TransactionStatus.FAILED,
+      userId: transaction.usersUid,
+      error: this.support.errorMessage(error),
+    })
+
+    try {
+      await this.refundService.webhookReversal(transaction, wallet, operatorResponse, trx)
+
+      this.support.emitAudit(transaction, 'TRANSFER_REFUNDED', AuditResult.SUCCESS, {
+        amount: Number(transaction.amount),
+        walletId: wallet.id,
+        userId: transaction.usersUid,
+      })
+    } catch (refundErr) {
+      // Course avec le failure handler d'initiation : déjà remboursé → rien à faire.
+      if (refundErr instanceof TransactionAlreadyRefundedException) return
+      throw refundErr
+    }
+  }
+}

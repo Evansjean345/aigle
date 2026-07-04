@@ -4,7 +4,7 @@ import WalletToWalletUseCase from '#features/operations/application/use_cases/wa
 import { walletToWalletValidator } from '#features/operations/presentation/mobile/validators/wallet_to_wallet_validator'
 import { TransferMode } from '#features/operations/application/services/recipient_locator'
 import { WalletToWalletRequestDto } from '#features/operations/application/dtos/wallet_to_wallet.dto'
-import User from '#features/user/domain/models/user'
+import User from '#core/user/domain/models/user'
 
 /**
  * Controller responsible for handling wallet-to-wallet operations.

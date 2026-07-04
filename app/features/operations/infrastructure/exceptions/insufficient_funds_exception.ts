@@ -1,3 +1,3 @@
-import InsufficientFundsException from '#features/wallet/infrastructure/exceptions/insufficient_funds_exception'
+import InsufficientFundsException from '#core/wallet/infrastructure/exceptions/insufficient_funds_exception'
 
 export default InsufficientFundsException

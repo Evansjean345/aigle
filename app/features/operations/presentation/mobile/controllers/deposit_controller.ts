@@ -3,7 +3,7 @@ import { depositValidator } from '#features/operations/presentation/mobile/valid
 import DepositUseCase from '#features/operations/application/use_cases/deposit.usecase'
 import { inject } from '@adonisjs/core'
 import { DepositRequestDto } from '#features/operations/application/dtos/deposit.dto'
-import User from '#features/user/domain/models/user'
+import User from '#core/user/domain/models/user'
 
 @inject()
 export default class DepositController {

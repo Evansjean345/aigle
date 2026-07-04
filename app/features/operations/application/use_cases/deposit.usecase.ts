@@ -3,18 +3,18 @@ import {
   DepositResponseDTO,
 } from '#features/operations/application/dtos/deposit.dto'
 import { inject } from '@adonisjs/core'
-import User from '#features/user/domain/models/user'
-import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
-import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
+import User from '#core/user/domain/models/user'
+import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
+import IdempotencyProvider from '#core/transactions/domain/interfaces/idempotency_provider'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
-import IdentityGate from '#features/authentication/application/services/identity_gate'
+import IdentityGate from '#core/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'
-import { AuditResult } from '#features/audit/domain/enums'
-import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'
+import { AuditResult } from '#core/audit/domain/enums'
+import MoneyMovementEngine from '#core/money_movement/domain/interfaces/money_movement_engine'
 import type {
   ExternalInCommand,
   MovementResult,
-} from '#features/money_movement/domain/types/money_movement_types'
+} from '#core/money_movement/domain/types/money_movement_types'
 
 /**
  * Use case deposit — routeur mince (Lot 2, L2-D6).

@@ -1,26 +1,26 @@
 import { inject } from '@adonisjs/core'
-import User from '#features/user/domain/models/user'
-import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
-import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
+import User from '#core/user/domain/models/user'
+import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
+import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
 import {
   WalletToWalletRequestDto,
   WalletToWalletResponseDTO,
   type RecipientResolution,
 } from '#features/operations/application/dtos/wallet_to_wallet.dto'
-import WalletToWalletTransactionFailed from '#features/transactions/application/events/wallet_to_wallet_transaction_failed'
-import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
+import WalletToWalletTransactionFailed from '#core/transactions/application/events/wallet_to_wallet_transaction_failed'
+import IdempotencyProvider from '#core/transactions/domain/interfaces/idempotency_provider'
 import RecipientLocator, {
   TransferMode,
 } from '#features/operations/application/services/recipient_locator'
 import transferLog from '#shared/infrastructure/logging/transfer_log'
-import IdentityGate from '#features/authentication/application/services/identity_gate'
+import IdentityGate from '#core/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'
-import { AuditResult } from '#features/audit/domain/enums'
-import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'
+import { AuditResult } from '#core/audit/domain/enums'
+import MoneyMovementEngine from '#core/money_movement/domain/interfaces/money_movement_engine'
 import type {
   InternalMoveCommand,
   MovementResult,
-} from '#features/money_movement/domain/types/money_movement_types'
+} from '#core/money_movement/domain/types/money_movement_types'
 
 interface AuditContext {
   ipAddress?: string | null

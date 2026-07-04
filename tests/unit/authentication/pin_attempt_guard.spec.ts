@@ -1,12 +1,12 @@
 import { test } from '@japa/runner'
-import PinAttemptGuard from '#features/authentication/application/services/pin_attempt_guard'
+import PinAttemptGuard from '#core/authentication/application/services/pin_attempt_guard'
 import type SlidingWindowCounter from '#shared/domain/cache/sliding_window_counter'
 import type TimedFlag from '#shared/domain/cache/timed_flag'
-import { UserStatus } from '#features/user/domain/enum'
-import AccountBlockedException from '#features/authentication/infrastructure/exceptions/account_blocked_exception'
-import PinTemporarilyBlockedException from '#features/authentication/infrastructure/exceptions/pin_temporarily_blocked_exception'
-import type UserRepository from '#features/user/domain/interfaces/user_repository'
-import type User from '#features/user/domain/models/user'
+import { UserStatus } from '#core/user/domain/enum'
+import AccountBlockedException from '#core/authentication/infrastructure/exceptions/account_blocked_exception'
+import PinTemporarilyBlockedException from '#core/authentication/infrastructure/exceptions/pin_temporarily_blocked_exception'
+import type UserRepository from '#core/user/domain/interfaces/user_repository'
+import type User from '#core/user/domain/models/user'
 
 interface CounterStub {
   counter: SlidingWindowCounter
