@@ -11,12 +11,12 @@ import type {
   SettleCommand,
   SettleResult,
 } from '#features/money_movement/domain/types/money_movement_types'
-import InternalMoveUseCase from '#features/money_movement/application/use_cases/internal_move.use_case'
-import ExternalInUseCase from '#features/money_movement/application/use_cases/external_in.use_case'
-import ExternalOutUseCase from '#features/money_movement/application/use_cases/external_out.use_case'
-import ExternalToExternalUseCase from '#features/money_movement/application/use_cases/external_to_external.use_case'
-import SettleDepositUseCase from '#features/money_movement/application/use_cases/settle_deposit.use_case'
-import SettleTransfertUseCase from '#features/money_movement/application/use_cases/settle_transfert.use_case'
+import InternalMoveUseCase from '#features/money_movement/application/use_cases/initiation/internal_move.use_case'
+import ExternalInUseCase from '#features/money_movement/application/use_cases/initiation/external_in.use_case'
+import ExternalOutUseCase from '#features/money_movement/application/use_cases/initiation/external_out.use_case'
+import ExternalToExternalUseCase from '#features/money_movement/application/use_cases/initiation/external_to_external.use_case'
+import SettleDepositUseCase from '#features/money_movement/application/use_cases/settlement/settle_deposit.use_case'
+import SettleTransfertUseCase from '#features/money_movement/application/use_cases/settlement/settle_transfert.use_case'
 
 /**
  * Façade du `MoneyMovementEngine` (core argent, Lot 2).
