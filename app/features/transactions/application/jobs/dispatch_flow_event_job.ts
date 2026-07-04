@@ -4,26 +4,26 @@ import paymentLog from '#shared/infrastructure/logging/payment_log'
 
 const EVENT_MAP = {
   DepositTransactionCompleted: () =>
-    import('#features/webhooks/application/events/deposit/deposit_transaction_completed'),
+    import('#features/transactions/application/events/deposit_transaction_completed'),
   DepositTransactionFailed: () =>
-    import('#features/webhooks/application/events/deposit/deposit_transaction_failed'),
+    import('#features/transactions/application/events/deposit_transaction_failed'),
   TransfertTransactionCompleted: () =>
-    import('#features/webhooks/application/events/transfert/transfert_transaction_completed'),
+    import('#features/transactions/application/events/transfert_transaction_completed'),
   TransfertTransactionFailed: () =>
-    import('#features/webhooks/application/events/transfert/transfert_transaction_failed'),
+    import('#features/transactions/application/events/transfert_transaction_failed'),
   TransfertInterTransactionFailed: () =>
-    import('#features/webhooks/application/events/transfert_inter/transfert_inter_transaction_failed'),
+    import('#features/transactions/application/events/transfert_inter_transaction_failed'),
 } as const
 
-export type WebhookEventName = keyof typeof EVENT_MAP
+export type FlowEventName = keyof typeof EVENT_MAP
 
-export interface DispatchWebhookEventPayload {
-  eventName: WebhookEventName
+export interface DispatchFlowEventPayload {
+  eventName: FlowEventName
   eventData: Record<string, any>
   reference: string
 }
 
-export default class DispatchWebhookEventJob extends Job<DispatchWebhookEventPayload> {
+export default class DispatchFlowEventJob extends Job<DispatchFlowEventPayload> {
   async execute(): Promise<void> {
     const { eventName, eventData, reference } = this.payload
 

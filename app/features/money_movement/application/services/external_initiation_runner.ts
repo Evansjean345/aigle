@@ -6,7 +6,7 @@ import { PROVIDER_SEVERITY_MAP } from '#shared/enums/provider_error_severity_map
 import { ErrorSeverity } from '#shared/enums/provider_error_enums'
 import type { ClassifiedError } from '#shared/infrastructure/services/error_classifier'
 import ProviderInitiationError from '#features/money_movement/infrastructure/exceptions/provider_initiation_error'
-import type { WebhookEventName } from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
+import type { FlowEventName } from '#features/transactions/application/jobs/dispatch_flow_event_job'
 import type { ExternalInitiationResult } from '#features/money_movement/domain/types/money_movement_types'
 
 /**
@@ -23,7 +23,7 @@ export interface InitiationRunContext {
   /** Présent si le flux a débité le wallet (transfert) → auto-reversal au refund. */
   walletId?: number
   /** Event d'échec dispatché au produit (listeners risk/notifications). */
-  failureEvent: WebhookEventName
+  failureEvent: FlowEventName
   failureEventData: Record<string, any>
 }
 
@@ -94,8 +94,8 @@ export default class ExternalInitiationRunner {
         operatorResponse: { code: error.providerErrorCode, message: error.message },
       },
       notification: {
-        webhookEvent: ctx.failureEvent,
-        webhookData: ctx.failureEventData,
+        flowEvent: ctx.failureEvent,
+        flowData: ctx.failureEventData,
       },
     })
   }

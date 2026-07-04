@@ -1,8 +1,8 @@
 import TransactionVolumeCache from '#features/transactions/domain/interfaces/transaction_volume_cache'
 import IdempotencyProvider from '#features/transactions/domain/interfaces/idempotency_provider'
 import { inject } from '@adonisjs/core'
-import DepositTransactionCompleted from '#features/webhooks/application/events/deposit/deposit_transaction_completed'
-import TransfertTransactionCompleted from '#features/webhooks/application/events/transfert/transfert_transaction_completed'
+import DepositTransactionCompleted from '#features/transactions/application/events/deposit_transaction_completed'
+import TransfertTransactionCompleted from '#features/transactions/application/events/transfert_transaction_completed'
 import WalletToWalletTransactionCompleted from '#features/transactions/application/events/wallet_to_wallet_transaction_completed'
 
 /**

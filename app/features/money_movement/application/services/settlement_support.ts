@@ -13,8 +13,8 @@ import ProviderErrorService from '#shared/infrastructure/services/provider_error
 import { AdminAction } from '#shared/enums/provider_error_enums'
 import { PROVIDER_SEVERITY_MAP } from '#shared/enums/provider_error_severity_map'
 import type { AuditResult } from '#features/audit/domain/enums'
-import DispatchWebhookEventJob from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
-import type { WebhookEventName } from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
+import DispatchFlowEventJob from '#features/transactions/application/jobs/dispatch_flow_event_job'
+import type { FlowEventName } from '#features/transactions/application/jobs/dispatch_flow_event_job'
 import type {
   SettlementOutcome,
   SettleResult,
@@ -165,11 +165,11 @@ export default class SettlementSupport {
 
   /** Dispatch différé (queue) de l'event par flux — comportement inchangé. */
   async dispatchFlowEvent(
-    eventName: WebhookEventName,
+    eventName: FlowEventName,
     transaction: Transaction,
     eventData: Record<string, unknown>
   ): Promise<void> {
-    await DispatchWebhookEventJob.dispatch({
+    await DispatchFlowEventJob.dispatch({
       eventName,
       eventData: { reference: transaction.reference, ...eventData },
       reference: transaction.reference,

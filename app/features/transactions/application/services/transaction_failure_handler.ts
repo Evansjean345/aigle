@@ -4,8 +4,8 @@ import emitter from '@adonisjs/core/services/emitter'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
 import RefundService from '#features/transactions/application/services/refund_service'
-import DispatchWebhookEventJob from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
-import type { WebhookEventName } from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
+import DispatchFlowEventJob from '#features/transactions/application/jobs/dispatch_flow_event_job'
+import type { FlowEventName } from '#features/transactions/application/jobs/dispatch_flow_event_job'
 import ProviderErrorService from '#shared/infrastructure/services/provider_error_service'
 import type { ClassifiedError } from '#shared/infrastructure/services/error_classifier'
 import { ErrorSeverity, ErrorCategory, AdminAction } from '#shared/enums/provider_error_enums'
@@ -22,8 +22,8 @@ export interface TransactionFailureOptions {
   logCode: string
   walletId?: number
   notification?: {
-    webhookEvent: WebhookEventName
-    webhookData: Record<string, any>
+    flowEvent: FlowEventName
+    flowData: Record<string, any>
   }
   payment?: {
     paymentId: number
@@ -148,10 +148,10 @@ export default class TransactionFailureHandler {
   ): Promise<void> {
     if (!options.notification) return
 
-    await DispatchWebhookEventJob.dispatch({
-      eventName: options.notification.webhookEvent,
+    await DispatchFlowEventJob.dispatch({
+      eventName: options.notification.flowEvent,
       eventData: {
-        ...options.notification.webhookData,
+        ...options.notification.flowData,
         userId: usersUid,
       },
       reference: options.transactionReference,
