@@ -34,14 +34,17 @@ export default class SettleTransfertInterFirstUseCase {
   async handle(cmd: SettleCommand): Promise<SettleResult> {
     const trx = await db.transaction()
     let toEnqueue: { transaction: Transaction; secondPayment: Payment } | null = null
+
     try {
       const { transaction, payments } = await this.support.loadWithAllPayments(cmd.reference, trx)
+
       if (payments.length < 2) {
         throw new Exception('Invalid inter-transfer payments structure', {
           status: 400,
           code: 'INTER_TRANSFER_INVALID_PAYMENTS',
         })
       }
+
       const [firstPayment, secondPayment] = payments
 
       if (this.isIdempotent(transaction, firstPayment, cmd.outcome)) {
@@ -72,6 +75,7 @@ export default class SettleTransfertInterFirstUseCase {
           ),
           this.paymentService.markFailed(secondPayment.id, {}, trx),
         ])
+
         this.support.emitAudit(
           transaction,
           'INTER_TRANSFER_FIRST_LEG_FAILED',
@@ -87,12 +91,7 @@ export default class SettleTransfertInterFirstUseCase {
       await trx.commit()
 
       if (toEnqueue) {
-        // Succès jambe 1 : déclenche l'initiation de la jambe 2 via l'engine (hors trx). Pas
-        // d'event canonique de règlement : le mouvement n'est pas encore réglé (jambe 2 à venir).
         await this.triggerSecondLeg(toEnqueue.transaction, toEnqueue.secondPayment)
-      } else {
-        // Échec jambe 1 = mouvement échoué → event canonique.
-        this.support.emitSettlementEvent(transaction, 'failure')
       }
 
       return this.support.result(transaction, false)
@@ -120,6 +119,7 @@ export default class SettleTransfertInterFirstUseCase {
   /** Déclenche l'initiation de la jambe 2 (payout bénéficiaire) via l'engine (port stratégie). */
   private async triggerSecondLeg(transaction: Transaction, secondPayment: Payment): Promise<void> {
     const details = this.paymentService.parsePaymentDetails(secondPayment)
+
     await this.initiateSecondLeg.handle({
       transactionId: transaction.id,
       transactionReference: transaction.reference,

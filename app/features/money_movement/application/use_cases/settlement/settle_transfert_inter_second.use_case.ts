@@ -21,8 +21,7 @@ import type {
  *
  * Succès : marque le 2e paiement + la transaction réussis + écriture ledger EXTERNAL (aucun
  * mouvement de solde — Aigle en pont). Échec : marque le 2e paiement + la transaction échoués +
- * event `TransfertInterTransactionFailed`. C'est la jambe terminale : émet l'event canonique
- * `movement:settled`/`failed`.
+ * event `TransfertInterTransactionFailed`. C'est la jambe terminale de la saga inter.
  */
 @inject()
 export default class SettleTransfertInterSecondUseCase {
@@ -68,7 +67,6 @@ export default class SettleTransfertInterSecondUseCase {
 
       await trx.commit()
 
-      this.support.emitSettlementEvent(transaction, cmd.outcome)
       return this.support.result(transaction, false)
     } catch (error) {
       if (!trx.isCompleted) await trx.rollback()

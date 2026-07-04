@@ -1,5 +1,4 @@
 import { inject } from '@adonisjs/core'
-import { Exception } from '@adonisjs/core/exceptions'
 import emitter from '@adonisjs/core/services/emitter'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Transaction from '#features/transactions/domain/models/transaction'
@@ -14,7 +13,6 @@ import ProviderErrorService from '#shared/infrastructure/services/provider_error
 import { AdminAction } from '#shared/enums/provider_error_enums'
 import { PROVIDER_SEVERITY_MAP } from '#shared/enums/provider_error_severity_map'
 import type { AuditResult } from '#features/audit/domain/enums'
-import MoneyActivityEmitter from '#features/money_movement/application/services/money_activity_emitter'
 import DispatchWebhookEventJob from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
 import type { WebhookEventName } from '#features/webhooks/application/jobs/dispatch_webhook_event_job'
 import type {
@@ -43,8 +41,7 @@ const TERMINAL_STATE_CODES = new Set([
 export default class SettlementSupport {
   constructor(
     private readonly paymentService: PaymentService,
-    private readonly transactionService: TransactionService,
-    private readonly activity: MoneyActivityEmitter
+    private readonly transactionService: TransactionService
   ) {}
 
   /** Charge la transaction (verrou `forUpdate`) + tous ses paiements (ordonnés). */
@@ -182,39 +179,6 @@ export default class SettlementSupport {
   /** Message d'erreur normalisé pour l'audit. */
   errorMessage(error: unknown): string | null {
     return (error as { message?: string })?.message ?? null
-  }
-
-  /**
-   * Émet l'event canonique de settlement (`movement:settled` / `movement:failed`).
-   *
-   * Switch exhaustif volontaire : seul `failure` déclenche `movement:failed`, pour qu'un futur
-   * outcome (ex. `pending`, `partial`) ne tombe pas silencieusement dans l'échec (faux positif).
-   * La garde `never` du `default` force à traiter tout nouvel outcome ici, à la compilation.
-   */
-  emitSettlementEvent(transaction: Transaction, outcome: SettlementOutcome): void {
-    switch (outcome) {
-      case 'success':
-        this.activity.settled({
-          movementId: String(transaction.id),
-          reference: transaction.reference,
-          status: TransactionStatus.SUCCESS,
-          settledAt: new Date().toISOString(),
-        })
-        return
-      case 'failure':
-        this.activity.failedMovement({
-          movementId: String(transaction.id),
-          reference: transaction.reference,
-          reason: 'Payment failed via webhook',
-          failedAt: new Date().toISOString(),
-        })
-        return
-      default:
-        throw new Exception(`Outcome de settlement non géré : ${outcome satisfies never}`, {
-          status: 500,
-          code: 'E_UNHANDLED_SETTLEMENT_OUTCOME',
-        })
-    }
   }
 
   /** Construit le résultat de règlement. */

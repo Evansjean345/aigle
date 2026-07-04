@@ -159,7 +159,7 @@ export default class InternalMoveUseCase {
 
       // Fait argent « mouvement interne réglé » émis par le CORE (l'engine possède les records).
       // Le produit ne re-lit plus les transactions pour dispatcher : les listeners (volume,
-      // notification) écoutent cet event core. Deviendra `MovementSettled` au Lot 3.
+      // notification) écoutent cet event core.
       WalletToWalletTransactionCompleted.dispatch(senderTx, recipientTx, {
         recipientPhone: recipientWallet.user.phone,
         senderPhone: senderWallet.user.phone,

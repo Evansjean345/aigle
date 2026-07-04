@@ -124,32 +124,6 @@ export interface MovementResult {
   relatedReferences?: string[]
 }
 
-// ── Events de settlement (types définis au Lot 2 ; émission au Lot 3) ──────
-
-/**
- * Émis quand un mouvement externe est confirmé réglé (callback opérateur).
- * Le produit **écoute** pour finaliser (notifications, statut applicatif) — il ne bloque pas.
- */
-export interface MovementSettled {
-  movementId: string
-  reference: string
-  status: TransactionStatus
-  providerReference?: string
-  /** ISO-8601. */
-  settledAt: string
-}
-
-/**
- * Émis quand un mouvement externe échoue définitivement (callback opérateur / classification).
- */
-export interface MovementFailed {
-  movementId: string
-  reference: string
-  reason: string
-  /** ISO-8601. */
-  failedAt: string
-}
-
 // ── Settlement (Lot 3) : callback opérateur → règlement du mouvement ───────
 //
 // Symétrie de l'initiation : le règlement d'un mouvement externe passe par l'engine (porte unique

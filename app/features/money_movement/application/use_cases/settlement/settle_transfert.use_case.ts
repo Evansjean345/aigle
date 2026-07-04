@@ -55,7 +55,6 @@ export default class SettleTransfertUseCase {
 
       await trx.commit()
 
-      this.support.emitSettlementEvent(transaction, cmd.outcome)
       return this.support.result(transaction, false)
     } catch (error) {
       if (!trx.isCompleted) await trx.rollback()
