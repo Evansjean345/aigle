@@ -5,6 +5,7 @@ import type {
   ExternalOutInitiation,
   ExternalInInitiation,
   ExternalToExternalInitiation,
+  ExternalSecondLegInitiation,
   ExternalInitiationResult,
 } from '#features/money_movement/domain/types/money_movement_types'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
@@ -12,6 +13,7 @@ import SyncCheckoutService from '#features/money_movement/infrastructure/service
 import InitiateDepositJob from '#features/money_movement/infrastructure/jobs/initiate_deposit_job'
 import InitiateTransferJob from '#features/money_movement/infrastructure/jobs/initiate_transfer_job'
 import InitiateInterTransferJob from '#features/money_movement/infrastructure/jobs/initiate_inter_transfer_job'
+import InitiateInterTransferSecondStepJob from '#features/money_movement/infrastructure/jobs/initiate_inter_transfer_second_step_job'
 import { isSyncDepositProvider } from '#features/money_movement/infrastructure/constants/provider.constants'
 
 /**
@@ -137,6 +139,26 @@ export default class HttpAggregatorStrategy extends ExternalMovementStrategy {
       userId: ctx.userId,
       paymentId: ctx.paymentId,
       pinCode: ctx.pinCode,
+    })
+      .toQueue('payment')
+      .priority(1)
+
+    return { status: TransactionStatus.PENDING }
+  }
+
+  /**
+   * Jambe 2 (cash-out bénéficiaire). Dispatch de `InitiateInterTransferSecondStepJob` (payout via
+   * aiglehub). Déclenché après le règlement de la jambe 1. PENDING → settlement au webhook jambe 2.
+   */
+  async initiateSecondLeg(ctx: ExternalSecondLegInitiation): Promise<ExternalInitiationResult> {
+    await InitiateInterTransferSecondStepJob.dispatch({
+      transactionId: ctx.transactionId,
+      transactionReference: ctx.transactionReference,
+      secondPaymentId: ctx.paymentId,
+      totalAmount: ctx.totalAmount,
+      paymentMethod: ctx.paymentMethod,
+      operator: ctx.operator,
+      phone: ctx.phone,
     })
       .toQueue('payment')
       .priority(1)

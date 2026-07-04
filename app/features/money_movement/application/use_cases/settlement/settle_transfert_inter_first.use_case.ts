@@ -6,9 +6,9 @@ import type Payment from '#features/transactions/domain/models/payment'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import PaymentService from '#features/transactions/application/services/payment_service'
-import InitiateInterTransferSecondStepJob from '#features/webhooks/application/jobs/initiate_inter_transfer_second_step_job'
 import { AuditResult } from '#features/audit/domain/enums'
 import SettlementSupport from '#features/money_movement/application/services/settlement_support'
+import InitiateInterSecondLegUseCase from '#features/money_movement/application/use_cases/initiation/initiate_inter_second_leg.use_case'
 import type {
   SettleCommand,
   SettleResult,
@@ -27,7 +27,8 @@ import type {
 export default class SettleTransfertInterFirstUseCase {
   constructor(
     private readonly paymentService: PaymentService,
-    private readonly support: SettlementSupport
+    private readonly support: SettlementSupport,
+    private readonly initiateSecondLeg: InitiateInterSecondLegUseCase
   ) {}
 
   async handle(cmd: SettleCommand): Promise<SettleResult> {
@@ -86,9 +87,9 @@ export default class SettleTransfertInterFirstUseCase {
       await trx.commit()
 
       if (toEnqueue) {
-        // Succès jambe 1 : déclenche l'initiation de la jambe 2 (hors trx). Pas d'event canonique
-        // de règlement : le mouvement n'est pas encore réglé (jambe 2 à venir).
-        await this.enqueueSecondStep(toEnqueue.transaction, toEnqueue.secondPayment)
+        // Succès jambe 1 : déclenche l'initiation de la jambe 2 via l'engine (hors trx). Pas
+        // d'event canonique de règlement : le mouvement n'est pas encore réglé (jambe 2 à venir).
+        await this.triggerSecondLeg(toEnqueue.transaction, toEnqueue.secondPayment)
       } else {
         // Échec jambe 1 = mouvement échoué → event canonique.
         this.support.emitSettlementEvent(transaction, 'failure')
@@ -116,19 +117,20 @@ export default class SettleTransfertInterFirstUseCase {
     )
   }
 
-  /** Enqueue l'initiation de la jambe 2 (payout bénéficiaire) — comportement inchangé. */
-  private async enqueueSecondStep(transaction: Transaction, secondPayment: Payment): Promise<void> {
+  /** Déclenche l'initiation de la jambe 2 (payout bénéficiaire) via l'engine (port stratégie). */
+  private async triggerSecondLeg(transaction: Transaction, secondPayment: Payment): Promise<void> {
     const details = this.paymentService.parsePaymentDetails(secondPayment)
-    await InitiateInterTransferSecondStepJob.dispatch({
+    await this.initiateSecondLeg.handle({
       transactionId: transaction.id,
       transactionReference: transaction.reference,
-      secondPaymentId: secondPayment.id,
+      paymentId: secondPayment.id,
+      amount: Number(transaction.amount),
       totalAmount: Number(transaction.totalAmount),
-      paymentMethod: secondPayment.paymentMethod,
+      fees: Number(transaction.fees),
       operator: details?.operator || '',
+      paymentMethod: secondPayment.paymentMethod,
       phone: details?.phone || '',
+      userId: transaction.usersUid,
     })
-      .toQueue('payment')
-      .priority(1)
   }
 }

@@ -2,6 +2,7 @@ import type {
   ExternalOutInitiation,
   ExternalInInitiation,
   ExternalToExternalInitiation,
+  ExternalSecondLegInitiation,
   ExternalInitiationResult,
 } from '#features/money_movement/domain/types/money_movement_types'
 
@@ -29,4 +30,10 @@ export default abstract class ExternalMovementStrategy {
 
   /** Opérateur → opérateur (inter-réseau, jambe 1 cash-in). Async → `PENDING`. */
   abstract initiateOutToOut(ctx: ExternalToExternalInitiation): Promise<ExternalInitiationResult>
+
+  /**
+   * Jambe 2 d'un inter-réseau (cash-out → bénéficiaire), déclenchée après le règlement de la
+   * jambe 1. Async → `PENDING` (settlement au webhook de la jambe 2).
+   */
+  abstract initiateSecondLeg(ctx: ExternalSecondLegInitiation): Promise<ExternalInitiationResult>
 }

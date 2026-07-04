@@ -5,6 +5,7 @@ import type {
   ExternalOutInitiation,
   ExternalInInitiation,
   ExternalToExternalInitiation,
+  ExternalSecondLegInitiation,
   ExternalInitiationResult,
 } from '#features/money_movement/domain/types/money_movement_types'
 import {
@@ -38,6 +39,11 @@ export default class LocalGatewayStrategy implements ExternalMovementStrategy {
   /** Opérateur → opérateur (inter, jambe 1 cash-in) → checkout. Montant net. */
   initiateOutToOut(ctx: ExternalToExternalInitiation): Promise<ExternalInitiationResult> {
     return this.route(ctx, 'checkout', ctx.amount)
+  }
+
+  /** Inter jambe 2 (cash-out bénéficiaire) → payout. Montant total envoyé à l'opérateur. */
+  initiateSecondLeg(ctx: ExternalSecondLegInitiation): Promise<ExternalInitiationResult> {
+    return this.route(ctx, 'payout', ctx.totalAmount)
   }
 
   private async route(

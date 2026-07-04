@@ -8,7 +8,7 @@ import { TransactionStatus } from '#features/transactions/domain/enums/transacti
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import InterTransfertUseCase from '#features/operations/application/use_cases/transfert_inter.usecase'
 import { InterTransfertRequestDto } from '#features/operations/application/dtos/transfert_inter.dto'
-import InitiateInterTransferSecondStepJob from '#features/webhooks/application/jobs/initiate_inter_transfer_second_step_job'
+import InitiateInterTransferSecondStepJob from '#features/money_movement/infrastructure/jobs/initiate_inter_transfer_second_step_job'
 import HandleTransfertInterFirstWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_first_webhook.use_case'
 import HandleTransfertInterSecondWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_second_webhook.use_case'
 import type { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
