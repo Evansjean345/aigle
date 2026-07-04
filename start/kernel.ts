@@ -41,5 +41,5 @@ export const middleware = router.named({
   geoip: () => import('#shared/middleware/geoip_middleware'),
   apiKey: () => import('../app/wrappers/aigle_business/mobile/middleware/api_key_middleware.js'),
   verify_hub2_signature: () =>
-    import('#features/provider_gateway/presentation/middleware/verify_hub2_signature_middleware'),
+    import('#features/webhooks/presentation/provider/middleware/verify_hub2_signature_middleware'),
 })
