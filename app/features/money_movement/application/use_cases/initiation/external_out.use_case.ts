@@ -12,6 +12,7 @@ import LedgerService from '#features/ledger/application/services/ledger_service'
 import FeeResolver from '#features/money_movement/application/services/fee_resolver'
 import PartyValidator from '#features/money_movement/application/services/party_validator'
 import MoneyActivityEmitter from '#features/money_movement/application/services/money_activity_emitter'
+import ExternalInitiationRunner from '#features/money_movement/application/services/external_initiation_runner'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
@@ -37,7 +38,8 @@ export default class ExternalOutUseCase {
     private readonly feeResolver: FeeResolver,
     private readonly partyValidator: PartyValidator,
     private readonly activity: MoneyActivityEmitter,
-    private readonly strategy: ExternalMovementStrategy
+    private readonly strategy: ExternalMovementStrategy,
+    private readonly runner: ExternalInitiationRunner
   ) {}
 
   async handle(cmd: ExternalOutCommand): Promise<MovementResult> {
@@ -63,6 +65,7 @@ export default class ExternalOutUseCase {
     let transactionReference: string
     let paymentId: number
     let balanceAfter: number
+
     try {
       const debited = await this.walletService.debitBalance(wallet.id, amount, trx)
       const transaction = await this.transactionService.createTransaction(
@@ -138,19 +141,33 @@ export default class ExternalOutUseCase {
       }
     )
 
-    const initiation = await this.strategy.initiateOut({
-      transactionId,
-      transactionReference,
-      paymentId,
-      walletId: wallet.id,
-      amount,
-      totalAmount: total,
-      fees,
-      operator: cmd.destination.operator,
-      paymentMethod: paymentMethodCode,
-      phone: rawPhone,
-      userId: cmd.initiatedBy,
-    })
+    const initiation = await this.runner.run(
+      {
+        transactionId,
+        transactionReference,
+        paymentId,
+        operator: cmd.destination.operator,
+        paymentMethod: paymentMethodCode,
+        logCode: 'TRANSFER_PAYOUT',
+        walletId: wallet.id,
+        failureEvent: 'TransfertTransactionFailed',
+        failureEventData: { reference: transactionReference, amount },
+      },
+      () =>
+        this.strategy.initiateOut({
+          transactionId,
+          transactionReference,
+          paymentId,
+          walletId: wallet.id,
+          amount,
+          totalAmount: total,
+          fees,
+          operator: cmd.destination.operator,
+          paymentMethod: paymentMethodCode,
+          phone: rawPhone,
+          userId: cmd.initiatedBy,
+        })
+    )
 
     return {
       status: initiation.status,

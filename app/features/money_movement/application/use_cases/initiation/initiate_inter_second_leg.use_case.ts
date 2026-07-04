@@ -1,5 +1,6 @@
 import { inject } from '@adonisjs/core'
 import ExternalMovementStrategy from '#features/money_movement/domain/interfaces/external_movement_strategy'
+import ExternalInitiationRunner from '#features/money_movement/application/services/external_initiation_runner'
 import type {
   ExternalSecondLegInitiation,
   ExternalInitiationResult,
@@ -8,15 +9,30 @@ import type {
 /**
  * Use case core : initiation de la JAMBE 2 d'un inter-réseau (cash-out → bénéficiaire).
  *
- * Continuation de la saga déclenchée par le règlement de la jambe 1. Comme toute initiation
- * externe, passe par le port `ExternalMovementStrategy` (http aujourd'hui, local au 3b) — la
- * jambe 2 n'est plus un job brut dispatché hors de l'engine.
+ * Continuation de la saga déclenchée par le règlement de la jambe 1. Passe par le port
+ * `ExternalMovementStrategy` (local depuis le Lot 3b). Sur échec provider, le runner marque le
+ * mouvement FAILED + classe/reporte/notifie (aucun wallet à re-créditer — Aigle en pont).
  */
 @inject()
 export default class InitiateInterSecondLegUseCase {
-  constructor(private readonly strategy: ExternalMovementStrategy) {}
+  constructor(
+    private readonly strategy: ExternalMovementStrategy,
+    private readonly runner: ExternalInitiationRunner
+  ) {}
 
   handle(ctx: ExternalSecondLegInitiation): Promise<ExternalInitiationResult> {
-    return this.strategy.initiateSecondLeg(ctx)
+    return this.runner.run(
+      {
+        transactionId: ctx.transactionId,
+        transactionReference: ctx.transactionReference,
+        paymentId: ctx.paymentId,
+        operator: ctx.operator,
+        paymentMethod: ctx.paymentMethod,
+        logCode: 'INTER_TRANSFER_SECOND_STEP',
+        failureEvent: 'TransfertInterTransactionFailed',
+        failureEventData: { reference: ctx.transactionReference, amount: ctx.amount },
+      },
+      () => this.strategy.initiateSecondLeg(ctx)
+    )
   }
 }

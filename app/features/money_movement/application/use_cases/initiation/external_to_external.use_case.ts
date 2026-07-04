@@ -11,6 +11,7 @@ import PaymentService from '#features/transactions/application/services/payment_
 import FeeResolver from '#features/money_movement/application/services/fee_resolver'
 import PartyValidator from '#features/money_movement/application/services/party_validator'
 import MoneyActivityEmitter from '#features/money_movement/application/services/money_activity_emitter'
+import ExternalInitiationRunner from '#features/money_movement/application/services/external_initiation_runner'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { TransactionType } from '#features/transactions/domain/enums/transaction_type'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
@@ -38,7 +39,8 @@ export default class ExternalToExternalUseCase {
     private readonly feeResolver: FeeResolver,
     private readonly partyValidator: PartyValidator,
     private readonly activity: MoneyActivityEmitter,
-    private readonly strategy: ExternalMovementStrategy
+    private readonly strategy: ExternalMovementStrategy,
+    private readonly runner: ExternalInitiationRunner
   ) {}
 
   async handle(cmd: ExternalToExternalCommand): Promise<MovementResult> {
@@ -130,19 +132,32 @@ export default class ExternalToExternalUseCase {
       }
     )
 
-    const initiation = await this.strategy.initiateOutToOut({
-      transactionId,
-      transactionReference,
-      paymentId: depositPaymentId,
-      amount,
-      totalAmount: total,
-      fees,
-      operator: cmd.source.operator,
-      paymentMethod: meta.paymentMethodDepositCode,
-      phone: cmd.source.msisdn,
-      userId: cmd.initiatedBy,
-      pinCode: meta.pinCode,
-    })
+    const initiation = await this.runner.run(
+      {
+        transactionId,
+        transactionReference,
+        paymentId: depositPaymentId,
+        operator: cmd.source.operator,
+        paymentMethod: meta.paymentMethodDepositCode,
+        logCode: 'INTER_TRANSFER_INIT',
+        failureEvent: 'TransfertInterTransactionFailed',
+        failureEventData: { reference: transactionReference, amount },
+      },
+      () =>
+        this.strategy.initiateOutToOut({
+          transactionId,
+          transactionReference,
+          paymentId: depositPaymentId,
+          amount,
+          totalAmount: total,
+          fees,
+          operator: cmd.source.operator,
+          paymentMethod: meta.paymentMethodDepositCode,
+          phone: cmd.source.msisdn,
+          userId: cmd.initiatedBy,
+          pinCode: meta.pinCode,
+        })
+    )
 
     return {
       status: initiation.status,
