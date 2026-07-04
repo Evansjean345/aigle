@@ -1,26 +1,22 @@
 /*
- * Règles de frontières — consolidation core-feature (cf. apps/docs).
+ * Règles de frontières — monolithe modulaire Aigle (couches physiques core / products).
  *
- * REPORT-ONLY pour l'instant : toutes les règles sont en `severity: 'warn'`
- * (le codebase existant n'a pas été écrit avec ces règles). On resserrera
- * progressivement en `error`, feature par feature, une fois le socle stabilisé.
+ * NB résolution : depcruise ne mappe pas les subpath imports (`#core/*`, `#aiglesend/*`) vers les
+ * .ts. On matche donc le `from` sur le chemin réel du module source (`app/core/...`,
+ * `app/products/...`) et le `to` sur la forme alias résolue (`#core/...`, `#aiglesend/...`).
  *
- * NB résolution : depcruise ne mappe pas les subpath imports `#features/*` vers
- * les .ts (extensionAlias .js→.ts non supporté par son schéma). Les dépendances
- * restent donc sous la forme alias `#features/...`. On matche donc le `from` sur
- * le chemin réel (`app/features/...`, = la source du module) et le `to` sur la
- * forme alias (`#features/...`, = la cible résolue). aiglesend importe toujours
- * via `#features/*`, donc les règles se déclenchent bien.
- *
- * Couches (vers micro-services en couche — objectif d'indépendance) :
- *   - PRODUIT  : operations (consumer). [business à venir]
- *   - CORE     : tout le reste, dont :
+ * Couches (séparation PHYSIQUE, Lot 5 — objectif d'indépendance / extractibilité) :
+ *   - CORE     : app/core/<feature>/            (plateforme partagée, extractible)
  *       · identité : user · device · authentication · otp · kyc
  *       · argent   : money_movement · wallet · ledger · transactions · fees · provider_gateway
- *       · transverse : catalogs · country · qr · notifications · audit · webhooks · team
- * Invariant structurant (doc centrale §3.3) : le PRODUIT dépend du CORE, jamais l'inverse.
+ *       · transverse : catalogs · country · notifications · audit · webhooks · team
+ *   - PRODUIT  : app/products/<app>/<feature>/  (aiglesend : operations, qr ; aiglebusiness à venir)
+ * Invariant structurant : le PRODUIT dépend du CORE, jamais l'inverse (condition d'extractibilité).
+ *
+ * Racines de couche pour les règles DDD (core = 1 niveau, produit = 2 niveaux app/feature) :
+ *   from réel  : app/(core/[^/]+|products/[^/]+/[^/]+)
+ *   to alias   : #(core|aiglesend)/[^/]+
  */
-const PRODUCT_FEATURES = ['operations']
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
@@ -28,46 +24,40 @@ module.exports = {
     {
       name: 'core-ne-depend-pas-du-produit',
       comment:
-        'Le CORE ne connaît jamais le PRODUIT : aucune feature core (ni transverse) ne doit ' +
-        'importer une feature produit (operations). Condition de l’extractibilité en service. ' +
-        'En ERROR : les 8 violations initiales (jobs money↔operations, events core↔operations) ' +
-        'ont été résorbées au lot de découpage — la frontière est désormais verrouillée.',
+        'Le CORE (et shared) ne connaît jamais le PRODUIT : aucun module core/shared ne doit ' +
+        'importer une feature produit (app/products/**, alias #aiglesend|#aiglebusiness). ' +
+        'Condition de l’extractibilité du core en service/librairie.',
       severity: 'error',
-      from: {
-        path: 'app/features/',
-        pathNot: `app/features/(${PRODUCT_FEATURES.join('|')})/`,
-      },
-      to: {
-        path: `#features/(${PRODUCT_FEATURES.join('|')})/`,
-      },
+      from: { path: '^app/(core|shared)/' },
+      to: { path: '^#(aiglesend|aiglebusiness)/' },
     },
     {
       name: 'domaine-pur',
       comment: 'Le domaine ne dépend pas des autres couches (application/infra/présentation).',
       severity: 'warn',
-      from: { path: 'app/features/[^/]+/domain' },
-      to: { path: '#features/[^/]+/(application|infrastructure|presentation)' },
+      from: { path: '^app/(core/[^/]+|products/[^/]+/[^/]+)/domain' },
+      to: { path: '^#(core|aiglesend)/[^/]+/(application|infrastructure|presentation)' },
     },
     {
       name: 'application-sans-infra-ni-presentation',
       comment: "L'application ne dépend pas de l'infrastructure ni de la présentation.",
       severity: 'warn',
-      from: { path: 'app/features/[^/]+/application' },
-      to: { path: '#features/[^/]+/(infrastructure|presentation)' },
+      from: { path: '^app/(core/[^/]+|products/[^/]+/[^/]+)/application' },
+      to: { path: '^#(core|aiglesend)/[^/]+/(infrastructure|presentation)' },
     },
     {
       name: 'presentation-sans-modeles-ni-infra',
       comment: 'La présentation passe par application, jamais directement domain/models ou infra.',
       severity: 'warn',
-      from: { path: 'app/features/[^/]+/presentation' },
-      to: { path: '#features/[^/]+/(domain/models|infrastructure)' },
+      from: { path: '^app/(core/[^/]+|products/[^/]+/[^/]+)/presentation' },
+      to: { path: '^#(core|aiglesend)/[^/]+/(domain/models|infrastructure)' },
     },
     {
-      name: 'shared-sans-features',
-      comment: "shared ne dépend d'aucune feature.",
+      name: 'shared-sans-couches',
+      comment: "shared ne dépend d'aucune feature (core ou produit).",
       severity: 'warn',
-      from: { path: 'app/shared' },
-      to: { path: '#features/' },
+      from: { path: '^app/shared' },
+      to: { path: '^#(core|aiglesend|aiglebusiness)/' },
     },
     {
       name: 'no-circular',

@@ -10,7 +10,7 @@ import {
 import Wallet from '#core/wallet/domain/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
 import { randomUUID } from 'node:crypto'
-import QrJwtService, { TOKEN_ERRORS } from '#aiglesend/qr/application/services/qr_jwt_service'
+import QrJwtService, { TOKEN_ERRORS } from '#core/qr/application/services/qr_jwt_service'
 import { normalizePhone } from '#shared/utils/utiles'
 import UserRepository from '#core/user/domain/interfaces/user_repository'
 import { WalletStatus } from '#core/wallet/domain/enums/wallet_status'

@@ -28,7 +28,6 @@
     "#start/*": "./start/*.js",
     "#tests/*": "./tests/*.js",
     "#config/*": "./config/*.js",
-    "#features/*": "./app/features/*.js",
     "#core/*": "./app/core/*.js",
     "#aiglesend/*": "./app/products/aiglesend/*.js",
     "#shared/*": "./app/shared/*.js",
