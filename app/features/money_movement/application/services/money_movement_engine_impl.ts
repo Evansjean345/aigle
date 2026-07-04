@@ -17,6 +17,8 @@ import ExternalOutUseCase from '#features/money_movement/application/use_cases/i
 import ExternalToExternalUseCase from '#features/money_movement/application/use_cases/initiation/external_to_external.use_case'
 import SettleDepositUseCase from '#features/money_movement/application/use_cases/settlement/settle_deposit.use_case'
 import SettleTransfertUseCase from '#features/money_movement/application/use_cases/settlement/settle_transfert.use_case'
+import SettleTransfertInterFirstUseCase from '#features/money_movement/application/use_cases/settlement/settle_transfert_inter_first.use_case'
+import SettleTransfertInterSecondUseCase from '#features/money_movement/application/use_cases/settlement/settle_transfert_inter_second.use_case'
 
 /**
  * Façade du `MoneyMovementEngine` (core argent, Lot 2).
@@ -39,7 +41,9 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
     private readonly externalOut: ExternalOutUseCase,
     private readonly externalToExternal: ExternalToExternalUseCase,
     private readonly settleDeposit: SettleDepositUseCase,
-    private readonly settleTransfert: SettleTransfertUseCase
+    private readonly settleTransfert: SettleTransfertUseCase,
+    private readonly settleInterFirst: SettleTransfertInterFirstUseCase,
+    private readonly settleInterSecond: SettleTransfertInterSecondUseCase
   ) {}
 
   /** Interne : compte → compte, atomique, synchrone (→ COMPLETED). */
@@ -78,9 +82,9 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
       case 'transfert':
         return this.settleTransfert.handle(cmd)
       case 'transfert_inter_first':
+        return this.settleInterFirst.handle(cmd)
       case 'transfert_inter_second':
-        // Flux inter-réseau (2 jambes) — à brancher (dernier flux du Lot 3).
-        throw new MovementNotImplementedException(`settle(${cmd.kind})`)
+        return this.settleInterSecond.handle(cmd)
       default:
         // Exhaustivité : un nouveau SettlementKind doit être traité explicitement ci-dessus.
         throw new MovementNotImplementedException(`settle(${cmd.kind satisfies never})`)

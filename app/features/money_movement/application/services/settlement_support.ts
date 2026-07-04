@@ -47,11 +47,11 @@ export default class SettlementSupport {
     private readonly activity: MoneyActivityEmitter
   ) {}
 
-  /** Charge la transaction (verrou `forUpdate`) + son premier paiement. */
-  async loadWithPayment(
+  /** Charge la transaction (verrou `forUpdate`) + tous ses paiements (ordonnés). */
+  async loadWithAllPayments(
     reference: string,
     trx: TransactionClientContract
-  ): Promise<{ transaction: Transaction; payment: Payment }> {
+  ): Promise<{ transaction: Transaction; payments: Payment[] }> {
     const transaction = await Transaction.query({ client: trx })
       .where('reference', reference)
       .forUpdate()
@@ -66,6 +66,15 @@ export default class SettlementSupport {
       throw new PaymentNotFoundException('Paiement introuvable pour cette transaction')
     }
 
+    return { transaction, payments }
+  }
+
+  /** Charge la transaction (verrou `forUpdate`) + son premier paiement. */
+  async loadWithPayment(
+    reference: string,
+    trx: TransactionClientContract
+  ): Promise<{ transaction: Transaction; payment: Payment }> {
+    const { transaction, payments } = await this.loadWithAllPayments(reference, trx)
     return { transaction, payment: payments[0] }
   }
 

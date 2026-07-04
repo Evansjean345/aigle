@@ -143,7 +143,7 @@ test.group('Settlement inter-réseau | caractérisation', (group) => {
 
   test('jambe 2 succès : secondPayment SUCCESS, tx SUCCESS', async ({ assert }) => {
     const { user } = await createUserWithWallet({ balance: 10000 })
-    const fake = QueueManager.fake()
+    QueueManager.fake()
 
     try {
       const tx = await initInter(user)
@@ -166,7 +166,7 @@ test.group('Settlement inter-réseau | caractérisation', (group) => {
 
   test('jambe 2 échec : secondPayment FAILED, tx FAILED', async ({ assert }) => {
     const { user } = await createUserWithWallet({ balance: 10000 })
-    const fake = QueueManager.fake()
+    QueueManager.fake()
 
     try {
       const tx = await initInter(user)
