@@ -17,6 +17,7 @@ import {
   createUserWithWallet,
   reloadBalance,
   swapGuards,
+  swapProviderGateway,
 } from '#tests/functional/payments-flow/mocks/operations_fixtures'
 
 /**
@@ -87,12 +88,15 @@ function buildWebhook(reference: string, status: 'succeeded' | 'failed'): Webhoo
 
 test.group('Settlement | caractérisation', (group) => {
   let restoreGuards: () => void
+  let gateway: ReturnType<typeof swapProviderGateway>
 
   group.each.setup(async () => {
     await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
     await db.beginGlobalTransaction()
     restoreGuards = swapGuards()
+    gateway = swapProviderGateway()
     return async () => {
+      gateway.restore()
       restoreGuards()
       await db.rollbackGlobalTransaction()
       await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')

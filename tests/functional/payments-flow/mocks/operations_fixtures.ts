@@ -7,6 +7,11 @@ import { WalletStatus } from '#features/wallet/domain/enums/wallet_status'
 import AccountValidationService from '#features/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#features/transactions/application/services/transaction_limit_validation_service'
 import DebitPhoneValidationService from '#features/user/application/services/debit_phone_validation_service'
+import { ProviderResolver } from '#features/provider_gateway/infrastructure/provider_resolver'
+import { ProviderResponse } from '#features/provider_gateway/domain/value_objects/provider_response'
+import type { ProviderOperation } from '#features/provider_gateway/domain/types/provider_capabilities'
+import type { ProviderRequest } from '#features/provider_gateway/domain/value_objects/provider_request'
+import type { ResolveProviderInput } from '#features/provider_gateway/infrastructure/provider_resolver'
 
 /**
  * Fixtures partagées des tests de caractérisation du chemin argent (`operations`).
@@ -112,5 +117,58 @@ export function swapGuards(): () => void {
     app.container.restore(AccountValidationService)
     app.container.restore(TransactionLimitValidationService)
     app.container.restore(DebitPhoneValidationService)
+  }
+}
+
+/** Une invocation capturée du provider_gateway (routage local). */
+export interface CapturedInvoke {
+  operation: ProviderOperation
+  request: ProviderRequest
+  resolve: ResolveProviderInput
+}
+
+/**
+ * Fake `ProviderResolver` : capture les appels de routage (resolve/invoke) et retourne une réponse
+ * paramétrable, sans taper le vrai provider (Hub2/Wave). Remplace, depuis la bascule locale (3b),
+ * l'ancien fake du HttpClient vers aiglehub — le chemin argent route désormais in-process via
+ * provider_gateway.
+ */
+export class FakeProviderResolver {
+  readonly invokes: CapturedInvoke[] = []
+  private response: ProviderResponse = ProviderResponse.success({ providerReference: 'fake-ref' })
+
+  setResponse(response: ProviderResponse): void {
+    this.response = response
+  }
+
+  resolve(input: ResolveProviderInput) {
+    this.lastResolve = input
+    return { providerName: input.operator } as any
+  }
+
+  private lastResolve: ResolveProviderInput | null = null
+
+  async invoke(
+    _adapter: unknown,
+    operation: ProviderOperation,
+    request: ProviderRequest
+  ): Promise<ProviderResponse> {
+    this.invokes.push({ operation, request, resolve: this.lastResolve! })
+    return this.response
+  }
+}
+
+/**
+ * Substitue le `ProviderResolver` par un fake dans le conteneur : le chemin d'initiation externe
+ * (stratégie locale) route vers ce fake au lieu du vrai provider. Retourne le fake (pour les
+ * assertions) + la fonction de restauration.
+ */
+export function swapProviderGateway(): { resolver: FakeProviderResolver; restore: () => void } {
+  const resolver = new FakeProviderResolver()
+  app.container.swap(ProviderResolver, () => resolver as any)
+
+  return {
+    resolver,
+    restore: () => app.container.restore(ProviderResolver),
   }
 }

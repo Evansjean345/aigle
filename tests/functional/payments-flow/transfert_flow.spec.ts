@@ -1,7 +1,6 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import { QueueManager } from '@adonisjs/queue'
 import Transaction from '#features/transactions/domain/models/transaction'
 import Payment from '#features/transactions/domain/models/payment'
 import Ledger from '#features/ledger/domain/models/ledger'
@@ -11,20 +10,20 @@ import { TransactionDirection } from '#features/transactions/domain/enums/transa
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
 import TransfertUseCase from '#features/operations/application/use_cases/transfert.usecase'
-import InitiateTransferJob from '#features/money_movement/infrastructure/jobs/initiate_transfer_job'
 import { TransfertRequestDto } from '#features/operations/application/dtos/transfert.dto'
 import {
   createUserWithWallet,
   reloadBalance,
   swapGuards,
+  swapProviderGateway,
 } from '#tests/functional/payments-flow/mocks/operations_fixtures'
 
 /**
- * Caractérisation du flux transfert (Lot 2, Phase 0).
+ * Caractérisation du flux transfert — routage LOCAL (provider_gateway, Lot 3b).
  *
  * Fige le comportement ACTUEL : débit immédiat du wallet (réservation), transaction PENDING,
- * écriture ledger, payload du job d'initiation, réponse API, échec fonds insuffisants.
- * Le HTTP vers aiglehub est capturé via la queue (job non exécuté).
+ * écriture ledger, initiation via provider_gateway (payout, montant total), échec fonds
+ * insuffisants. Le fake ProviderResolver capture l'appel (aucun HTTP réel).
  */
 
 function buildDto(overrides: Partial<Record<string, any>> = {}): TransfertRequestDto {
@@ -59,11 +58,11 @@ test.group('Flux transfert | caractérisation', (group) => {
     }
   })
 
-  test('transfert nominal : débit immédiat, transaction PENDING, job dispatché', async ({
+  test('transfert nominal : débit immédiat, transaction PENDING, payout routé via provider_gateway', async ({
     assert,
   }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
-    const fake = QueueManager.fake()
+    const gateway = swapProviderGateway()
 
     try {
       const useCase = await app.container.make(TransfertUseCase)
@@ -91,25 +90,23 @@ test.group('Flux transfert | caractérisation', (group) => {
       const ledger = await Ledger.query().where('transaction_id', tx.id).firstOrFail()
       assert.equal(ledger.direction, LedgerDirection.DEBIT)
 
-      // Job d'initiation dispatché avec le bon payload
-      fake.assertPushed(InitiateTransferJob, {
-        payload: (p: any) =>
-          p.transactionReference === tx.reference &&
-          p.walletId === wallet.id &&
-          p.amount === 5000 &&
-          p.totalAmount === 4900 &&
-          p.operator === 'orange' &&
-          p.phone === '0700000008' &&
-          p.paymentId === pay.id,
-      })
+      // provider_gateway invoqué : payout, montant TOTAL (net + frais), opérateur correct
+      assert.lengthOf(gateway.resolver.invokes, 1)
+      const invoke = gateway.resolver.invokes[0]
+      assert.equal(invoke.operation, 'payout')
+      assert.equal(invoke.resolve.operator, 'orange')
+      assert.equal(invoke.request.amount, 4900)
+      assert.equal(invoke.request.transactionId, tx.reference)
     } finally {
-      QueueManager.restore()
+      gateway.restore()
     }
   })
 
-  test('fonds insuffisants : rejet, aucun débit ni record', async ({ assert }) => {
+  test('fonds insuffisants : rejet, aucun débit ni record, provider_gateway non invoqué', async ({
+    assert,
+  }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 1000 })
-    const fake = QueueManager.fake()
+    const gateway = swapProviderGateway()
 
     try {
       const useCase = await app.container.make(TransfertUseCase)
@@ -122,9 +119,9 @@ test.group('Flux transfert | caractérisation', (group) => {
       assert.equal(await reloadBalance(wallet.id), 1000)
       const txs = await Transaction.query().where('users_uid', user.usersUid)
       assert.lengthOf(txs, 0)
-      fake.assertNotPushed(InitiateTransferJob)
+      assert.lengthOf(gateway.resolver.invokes, 0)
     } finally {
-      QueueManager.restore()
+      gateway.restore()
     }
   })
 })

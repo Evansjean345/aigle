@@ -1,26 +1,29 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import { QueueManager } from '@adonisjs/queue'
-import HttpClient from '#shared/infrastructure/services/http_client_service'
 import Transaction from '#features/transactions/domain/models/transaction'
 import Payment from '#features/transactions/domain/models/payment'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
 import { TransactionDirection } from '#features/transactions/domain/enums/transaction_direction'
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#features/transactions/domain/enums/payment_step'
+import { ProviderResponse } from '#features/provider_gateway/domain/value_objects/provider_response'
 import DepositUseCase from '#features/operations/application/use_cases/deposit.usecase'
-import InitiateDepositJob from '#features/money_movement/infrastructure/jobs/initiate_deposit_job'
 import { DepositRequestDto } from '#features/operations/application/dtos/deposit.dto'
-import { createUserWithWallet, reloadBalance, swapGuards } from './mocks/operations_fixtures.js'
-import FakeHttpClient from './mocks/http_fake_mock.js'
+import {
+  createUserWithWallet,
+  reloadBalance,
+  swapGuards,
+  swapProviderGateway,
+} from './mocks/operations_fixtures.js'
 
 /**
- * Caractérisation du flux deposit (Lot 2, Phase 0).
+ * Caractérisation du flux deposit — routage LOCAL (provider_gateway, Lot 3b).
  *
- * Fige le comportement ACTUEL : transaction PENDING sans mouvement de wallet, payload du job
- * async (providers non-sync) OU appel sync_checkout (providers sync : wave/orange), réponse API.
- * Le HTTP vers aiglehub est substitué (fake), la queue est en capture.
+ * Fige le comportement ACTUEL : transaction PENDING sans mouvement de wallet, initiation via
+ * provider_gateway (checkout) — le fake ProviderResolver capture l'appel (aucun HTTP réel), et
+ * porte la redirection (providers synchrones) dans la réponse. Le chemin HTTP vers aiglehub a été
+ * supprimé (aiglehub absorbé).
  */
 
 function buildDto(overrides: Partial<Record<string, any>> = {}): DepositRequestDto {
@@ -53,11 +56,11 @@ test.group('Flux deposit | caractérisation', (group) => {
     }
   })
 
-  test('provider async (moov) : transaction PENDING, aucun mouvement wallet, job dispatché', async ({
+  test('deposit : transaction PENDING, aucun mouvement wallet, checkout routé via provider_gateway', async ({
     assert,
   }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
-    const fake = QueueManager.fake()
+    const gateway = swapProviderGateway()
 
     try {
       const useCase = await app.container.make(DepositUseCase)
@@ -81,30 +84,30 @@ test.group('Flux deposit | caractérisation', (group) => {
       assert.equal(pay.status, PaymentStatus.PENDING)
       assert.equal(pay.step, PaymentStep.DEPOSIT_INIT)
 
-      // Job d'initiation dispatché avec le bon payload
-      fake.assertPushed(InitiateDepositJob, {
-        payload: (p: any) =>
-          p.transactionReference === tx.reference &&
-          p.amount === 5000 &&
-          p.operator === 'moov' &&
-          p.phone === '0700000005' &&
-          p.paymentId === pay.id,
-      })
+      // provider_gateway invoqué : checkout, montant net, opérateur/référence corrects
+      assert.lengthOf(gateway.resolver.invokes, 1)
+      const invoke = gateway.resolver.invokes[0]
+      assert.equal(invoke.operation, 'checkout')
+      assert.equal(invoke.resolve.operationType, 'mobile-money')
+      assert.equal(invoke.resolve.operator, 'moov')
+      assert.equal(invoke.request.amount, 5000)
+      assert.equal(invoke.request.transactionId, tx.reference)
     } finally {
-      QueueManager.restore()
+      gateway.restore()
     }
   })
 
-  test('provider sync (orange) : sync_checkout appelé, redirectUrl retourné', async ({
+  test('deposit provider synchrone : redirectUrl du provider_gateway propagée', async ({
     assert,
   }) => {
     const { user } = await createUserWithWallet({ balance: 10000, phone: '2250700000006' })
-
-    const fakeHttp = new FakeHttpClient()
-    fakeHttp.simulateSuccess({
-      payment_details: { redirect_url: 'https://pay.aigle/redirect', type: 'orange' },
-    })
-    app.container.swap(HttpClient, () => fakeHttp as any)
+    const gateway = swapProviderGateway()
+    gateway.resolver.setResponse(
+      ProviderResponse.success({
+        providerReference: 'hub2-ref',
+        redirectUrl: 'https://pay.aigle/redirect',
+      })
+    )
 
     try {
       const useCase = await app.container.make(DepositUseCase)
@@ -115,12 +118,12 @@ test.group('Flux deposit | caractérisation', (group) => {
 
       assert.equal(result.data.status, TransactionStatus.PENDING)
       assert.equal(result.data.redirectUrl, 'https://pay.aigle/redirect')
-      assert.equal(result.data.type, 'orange')
 
       const tx = await Transaction.query().where('users_uid', user.usersUid).firstOrFail()
       assert.equal(tx.status, TransactionStatus.PENDING)
+      assert.equal(gateway.resolver.invokes[0].resolve.operator, 'orange')
     } finally {
-      app.container.restore(HttpClient)
+      gateway.restore()
     }
   })
 })

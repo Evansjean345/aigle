@@ -10,13 +10,13 @@ import type {
  * Port de la stratégie d'initiation externe (money_movement).
  *
  * L'engine ouvre et possède sa trx DB (L2-D5), crée les records, puis délègue l'INITIATION
- * du leg externe à une stratégie derrière ce port. C'est le seam unique qui rendra la bascule
- * HTTP→local (lot 3b) un flip de binding, sans réécrire les use cases ni l'engine :
+ * du leg externe à une stratégie derrière ce port. Seam unique d'initiation externe :
  *
- * - `http_aggregator_strategy` (Lot 2, active) : dispatch des jobs / sync_checkout vers aiglehub.
- * - `local_gateway_strategy` (Lot 3b, inactive au Lot 2) : routage in-process via provider_gateway.
+ * - `local_gateway_strategy` (active depuis Lot 3b) : routage in-process via provider_gateway,
+ *   aiglehub étant absorbé (aiglesend = couche racine).
  *
- * Le port est PUR : il ne connaît ni HTTP, ni jobs, ni provider_gateway, ni contexte trx.
+ * Le chemin HTTP vers aiglehub (`http_aggregator_strategy` + jobs/sync_checkout) a été supprimé
+ * à la bascule (Lot 3b). Le port reste PUR : ni HTTP, ni jobs, ni provider_gateway, ni trx.
  */
 export default abstract class ExternalMovementStrategy {
   /** Sortant : débit compte → opérateur (transfert). Async → `PENDING`. */

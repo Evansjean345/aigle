@@ -15,7 +15,12 @@ import { InterTransfertRequestDto } from '#features/operations/application/dtos/
 import { Hub2WebhookNormalizer } from '#features/webhooks/application/normalizers/hub2_webhook_normalizer'
 import { WaveWebhookNormalizer } from '#features/webhooks/application/normalizers/wave_webhook_normalizer'
 import SettleProviderWebhookUseCase from '#features/webhooks/application/use_cases/settle_provider_webhook.use_case'
-import { createUserWithWallet, reloadBalance, swapGuards } from './mocks/operations_fixtures.js'
+import {
+  createUserWithWallet,
+  reloadBalance,
+  swapGuards,
+  swapProviderGateway,
+} from './mocks/operations_fixtures.js'
 
 /**
  * Réception directe des webhooks provider (Lot 3b-1) — normalizer + settler → engine.settle.
@@ -88,12 +93,15 @@ function interDto(): InterTransfertRequestDto {
 
 test.group('Réception directe webhooks provider | Lot 3b', (group) => {
   let restoreGuards: () => void
+  let gateway: ReturnType<typeof swapProviderGateway>
 
   group.each.setup(async () => {
     await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
     await db.beginGlobalTransaction()
     restoreGuards = swapGuards()
+    gateway = swapProviderGateway()
     return async () => {
+      gateway.restore()
       restoreGuards()
       await db.rollbackGlobalTransaction()
       await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
@@ -119,6 +127,7 @@ test.group('Réception directe webhooks provider | Lot 3b', (group) => {
       reference: 'ref-2',
       failureCause: { message: 'boom' },
     })
+
     assert.equal(payoutFail?.operationType, 'payout')
     assert.equal(payoutFail?.outcome, 'failed')
     assert.equal(payoutFail?.errorMessage, 'boom')
