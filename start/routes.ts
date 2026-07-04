@@ -6,7 +6,6 @@ import mobileAuthRoutes from '#features/authentication/presentation/mobile/route
 import mobileWalletRoutes from '#features/wallet/presentation/mobile/routes/wallet_routes'
 import mobileServicesRoutes from '#features/catalogs/presentation/mobile/routes/services_routes'
 import mobileOperationRoutes from '#features/operations/presentation/mobile/routes/operation_routes'
-import mobileWebhookRoutes from '#features/webhooks/presentation/mobile/routes/webhook_routes'
 import providerWebhookRoutes from '#features/webhooks/presentation/provider/routes/provider_webhook_routes'
 import mobileTransactionRoutes from '#features/transactions/presentation/mobile/routes/transaction_routes'
 import userAccountMobileRoutes from '#features/user/presentation/mobile/routes/profile_routes'
@@ -21,7 +20,6 @@ router
     router.group(mobileWalletRoutes)
     router.group(mobileServicesRoutes)
     router.group(mobileOperationRoutes)
-    router.group(mobileWebhookRoutes)
     router.group(providerWebhookRoutes)
     router.group(mobileTransactionRoutes)
     router.group(userAccountMobileRoutes)

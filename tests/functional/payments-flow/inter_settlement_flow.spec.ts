@@ -8,9 +8,8 @@ import { TransactionStatus } from '#features/transactions/domain/enums/transacti
 import { PaymentStatus } from '#features/transactions/domain/enums/payment_status'
 import InterTransfertUseCase from '#features/operations/application/use_cases/transfert_inter.usecase'
 import { InterTransfertRequestDto } from '#features/operations/application/dtos/transfert_inter.dto'
-import HandleTransfertInterFirstWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_first_webhook.use_case'
-import HandleTransfertInterSecondWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_inter_second_webhook.use_case'
-import type { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
+import { Hub2WebhookNormalizer } from '#features/webhooks/application/normalizers/hub2_webhook_normalizer'
+import SettleProviderWebhookUseCase from '#features/webhooks/application/use_cases/settle_provider_webhook.use_case'
 import {
   createUserWithWallet,
   swapGuards,
@@ -18,15 +17,14 @@ import {
 } from './mocks/operations_fixtures.js'
 
 /**
- * Caractérisation du SETTLEMENT inter-réseau (Lot 3) — saga 2 jambes, routage LOCAL.
+ * Caractérisation du SETTLEMENT inter-réseau via la RÉCEPTION DIRECTE des webhooks provider (Lot 3b).
+ * Saga 2 jambes : jambe 1 = checkout (cash-in débiteur), jambe 2 = payout (cash-out bénéficiaire).
  *
- * - jambe 1 succès : firstPayment SUCCESS, tx encore PENDING, jambe 2 INITIÉE via provider_gateway
- *   (payout) ;
+ * - jambe 1 succès : firstPayment SUCCESS, tx encore PENDING, jambe 2 INITIÉE via provider_gateway ;
  * - jambe 1 échec  : tx FAILED + 2 payments FAILED, jambe 2 non initiée ;
  * - jambe 2 succès : secondPayment SUCCESS, tx SUCCESS ;
  * - jambe 2 échec  : secondPayment FAILED, tx FAILED.
- * Aucun mouvement wallet (Aigle en pont). Le fake ProviderResolver capture les initiations ;
- * QueueManager en capture pour DispatchWebhookEventJob.
+ * Aucun mouvement wallet (Aigle en pont). provider_gateway faké ; QueueManager en capture.
  */
 
 function buildInterDto(): InterTransfertRequestDto {
@@ -56,23 +54,21 @@ function buildInterDto(): InterTransfertRequestDto {
   )
 }
 
-function buildWebhook(reference: string, status: 'succeeded' | 'failed'): WebhookRequestDto {
-  const now = new Date().toISOString()
-  return {
-    type: status === 'succeeded' ? 'checkout_succeeded' : 'checkout_failed',
-    data: {
-      createdAt: now,
-      updatedAt: now,
-      amount: 5000,
-      currency: 'XOF',
-      status,
-      transactionId: `op-${reference}`,
-      operationType: 'mobile_money',
-      actionType: 'deposit',
-      paymentDetails: {},
-      reference,
-    },
-  }
+/** Webhook Hub2 checkout (jambe 1, cash-in) normalisé. */
+function checkoutWebhook(reference: string, ok: boolean) {
+  return Hub2WebhookNormalizer.normalize(
+    ok ? 'payment_intent.succeeded' : 'payment_intent.payment_failed',
+    { purchaseReference: reference, id: `op-${reference}`, lastPaymentFailure: { message: 'KO' } }
+  )!
+}
+
+/** Webhook Hub2 transfer/payout (jambe 2, cash-out) normalisé. */
+function payoutWebhook(reference: string, ok: boolean) {
+  return Hub2WebhookNormalizer.normalize(ok ? 'transfer.succeeded' : 'transfer.failed', {
+    reference,
+    id: `op-${reference}`,
+    failureCause: { message: 'KO' },
+  })!
 }
 
 async function initInter(user: any): Promise<Transaction> {
@@ -106,8 +102,8 @@ test.group('Settlement inter-réseau | caractérisation', (group) => {
     const { user } = await createUserWithWallet({ balance: 10000 })
     const tx = await initInter(user)
 
-    const first = await app.container.make(HandleTransfertInterFirstWebhookUseCase)
-    await first.execute(buildWebhook(tx.reference, 'succeeded'), TransactionStatus.SUCCESS)
+    const settler = await app.container.make(SettleProviderWebhookUseCase)
+    await settler.handle(checkoutWebhook(tx.reference, true))
 
     const payments = await Payment.query().where('transactions_id', tx.id).orderBy('id', 'asc')
     assert.equal(payments[0].status, PaymentStatus.SUCCESS)
@@ -124,8 +120,8 @@ test.group('Settlement inter-réseau | caractérisation', (group) => {
     const { user } = await createUserWithWallet({ balance: 10000 })
     const tx = await initInter(user)
 
-    const first = await app.container.make(HandleTransfertInterFirstWebhookUseCase)
-    await first.execute(buildWebhook(tx.reference, 'failed'), TransactionStatus.FAILED)
+    const settler = await app.container.make(SettleProviderWebhookUseCase)
+    await settler.handle(checkoutWebhook(tx.reference, false))
 
     await tx.refresh()
     assert.equal(tx.status, TransactionStatus.FAILED)
@@ -143,11 +139,9 @@ test.group('Settlement inter-réseau | caractérisation', (group) => {
     const { user } = await createUserWithWallet({ balance: 10000 })
     const tx = await initInter(user)
 
-    const first = await app.container.make(HandleTransfertInterFirstWebhookUseCase)
-    await first.execute(buildWebhook(tx.reference, 'succeeded'), TransactionStatus.SUCCESS)
-
-    const second = await app.container.make(HandleTransfertInterSecondWebhookUseCase)
-    await second.execute(buildWebhook(tx.reference, 'succeeded'), TransactionStatus.SUCCESS)
+    const settler = await app.container.make(SettleProviderWebhookUseCase)
+    await settler.handle(checkoutWebhook(tx.reference, true))
+    await settler.handle(payoutWebhook(tx.reference, true))
 
     const payments = await Payment.query().where('transactions_id', tx.id).orderBy('id', 'asc')
     assert.equal(payments[1].status, PaymentStatus.SUCCESS)
@@ -160,11 +154,9 @@ test.group('Settlement inter-réseau | caractérisation', (group) => {
     const { user } = await createUserWithWallet({ balance: 10000 })
     const tx = await initInter(user)
 
-    const first = await app.container.make(HandleTransfertInterFirstWebhookUseCase)
-    await first.execute(buildWebhook(tx.reference, 'succeeded'), TransactionStatus.SUCCESS)
-
-    const second = await app.container.make(HandleTransfertInterSecondWebhookUseCase)
-    await second.execute(buildWebhook(tx.reference, 'failed'), TransactionStatus.FAILED)
+    const settler = await app.container.make(SettleProviderWebhookUseCase)
+    await settler.handle(checkoutWebhook(tx.reference, true))
+    await settler.handle(payoutWebhook(tx.reference, false))
 
     const payments = await Payment.query().where('transactions_id', tx.id).orderBy('id', 'asc')
     assert.equal(payments[1].status, PaymentStatus.FAILED)

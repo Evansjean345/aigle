@@ -33,7 +33,8 @@ export default class DispatchWebhookEventJob extends Job<DispatchWebhookEventPay
       throw new Error(`Unknown webhook event: ${eventName}`)
     }
 
-    const EventClass = (await loader()).default as any
+    const module = await loader()
+    const EventClass = module.default as any
     await EventClass.dispatch(eventData)
 
     paymentLog.info(

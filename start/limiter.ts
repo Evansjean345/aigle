@@ -1,37 +1,6 @@
 import limiter from '@adonisjs/limiter/services/main'
 
 /**
- * Defines a throttle limiter for webhook requests.
- *
- * This variable, `webhookThrottle`, is used to manage and restrict the frequency of webhook calls
- * to protect the system from excessive or abusive traffic. The throttle is applied based on either
- * a unique reference value from the request payload or the requester's IP address, ensuring adaptive
- * request control.
- *
- * Features:
- * - Allows a maximum of 10 webhook requests per minute.
- * - Dynamically generates a throttle key based on a unique reference or IP address.
- * - Blocks subsequent requests for 2 minutes if the limit is exceeded.
- * - Responds with a 429 status code and an appropriate message when the rate limit is violated.
- *
- * Use this throttle mechanism to enforce rate limitation policies for webhook endpoints and
- * ensure fair usage.
- */
-export const webhookThrottle = limiter.define('webhook', (ctx) => {
-  const reference = ctx.request.input('data.reference')
-  const key = reference ? `webhook_${reference}` : `webhook_ip_${ctx.request.ip()}`
-
-  return limiter
-    .allowRequests(10)
-    .every('1 minute')
-    .usingKey(key)
-    .blockFor('2 minutes')
-    .limitExceeded((error) => {
-      error.setStatus(429).setMessage('Too many webhook requests. Please retry later.')
-    })
-})
-
-/**
  * Defines a rate limiter for OTP (One-Time Password) request attempts.
  *
  * This limiter is configured to restrict the number of OTP requests within a specific time window.

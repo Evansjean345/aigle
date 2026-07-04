@@ -10,9 +10,8 @@ import DepositUseCase from '#features/operations/application/use_cases/deposit.u
 import TransfertUseCase from '#features/operations/application/use_cases/transfert.usecase'
 import { DepositRequestDto } from '#features/operations/application/dtos/deposit.dto'
 import { TransfertRequestDto } from '#features/operations/application/dtos/transfert.dto'
-import HandleDepositWebhookUseCase from '#features/webhooks/application/use_cases/handle_deposit_webhook.use_case'
-import HandleTransfertWebhookUseCase from '#features/webhooks/application/use_cases/handle_transfert_webhook.use_case'
-import type { WebhookRequestDto } from '#features/webhooks/application/dto/webhook_request.dto'
+import { Hub2WebhookNormalizer } from '#features/webhooks/application/normalizers/hub2_webhook_normalizer'
+import SettleProviderWebhookUseCase from '#features/webhooks/application/use_cases/settle_provider_webhook.use_case'
 import {
   createUserWithWallet,
   reloadBalance,
@@ -21,16 +20,16 @@ import {
 } from '#tests/functional/payments-flow/mocks/operations_fixtures'
 
 /**
- * Caractérisation du SETTLEMENT (Lot 3, Phase 0).
+ * Caractérisation du SETTLEMENT via la RÉCEPTION DIRECTE des webhooks provider (Lot 3b).
  *
- * Fige le comportement ACTUEL de la boucle de retour (webhooks aiglehub) AVANT de la ramener
- * derrière l'engine : deposit succès (crédit wallet + tx/payment SUCCESS), deposit échec
- * (tx/payment FAILED, wallet inchangé), transfert succès (statuts SUCCESS, wallet inchangé),
- * transfert échec (FAILED + refund `totalAmount` — NB : le fee n'est pas re-crédité).
+ * Fige le comportement de la boucle de retour désormais en direct (Hub2 → normalizer → settler →
+ * engine.settle) : deposit succès (crédit wallet + tx/payment SUCCESS), deposit échec (tx/payment
+ * FAILED, wallet inchangé), transfert succès (statuts SUCCESS, wallet inchangé), transfert échec
+ * (FAILED + refund `totalAmount` — NB : le fee n'est pas re-crédité).
  *
  * Montage : on initie via le VRAI use case produit (crée la transaction PENDING + payment,
- * mouvemente le wallet comme en prod), puis on invoque le VRAI handler de webhook. Queue en
- * capture (le job de dispatch d'event n'exécute pas les listeners). Isolation DB = global trx.
+ * mouvemente le wallet), le provider_gateway est faké (aucun HTTP réel), puis on invoque le settler
+ * provider avec un webhook Hub2 normalisé. Queue en capture. Isolation DB = global trx.
  */
 
 function buildDepositDto(): DepositRequestDto {
@@ -67,23 +66,21 @@ function buildTransfertDto(): TransfertRequestDto {
   )
 }
 
-function buildWebhook(reference: string, status: 'succeeded' | 'failed'): WebhookRequestDto {
-  const now = new Date().toISOString()
-  return {
-    type: status === 'succeeded' ? 'checkout_succeeded' : 'checkout_failed',
-    data: {
-      createdAt: now,
-      updatedAt: now,
-      amount: 5000,
-      currency: 'XOF',
-      status,
-      transactionId: `op-${reference}`,
-      operationType: 'mobile_money',
-      actionType: 'deposit',
-      paymentDetails: {},
-      reference,
-    },
-  }
+/** Webhook Hub2 checkout (deposit / cash-in) normalisé. */
+function depositWebhook(reference: string, ok: boolean) {
+  return Hub2WebhookNormalizer.normalize(
+    ok ? 'payment_intent.succeeded' : 'payment_intent.payment_failed',
+    { purchaseReference: reference, id: `op-${reference}`, lastPaymentFailure: { message: 'KO' } }
+  )!
+}
+
+/** Webhook Hub2 transfer (payout) normalisé. */
+function transfertWebhook(reference: string, ok: boolean) {
+  return Hub2WebhookNormalizer.normalize(ok ? 'transfer.succeeded' : 'transfer.failed', {
+    reference,
+    id: `op-${reference}`,
+    failureCause: { message: 'KO' },
+  })!
 }
 
 test.group('Settlement | caractérisation', (group) => {
@@ -95,7 +92,9 @@ test.group('Settlement | caractérisation', (group) => {
     await db.beginGlobalTransaction()
     restoreGuards = swapGuards()
     gateway = swapProviderGateway()
+    QueueManager.fake()
     return async () => {
+      QueueManager.restore()
       gateway.restore()
       restoreGuards()
       await db.rollbackGlobalTransaction()
@@ -107,118 +106,90 @@ test.group('Settlement | caractérisation', (group) => {
     assert,
   }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
-    QueueManager.fake()
 
-    try {
-      const initUseCase = await app.container.make(DepositUseCase)
-      await initUseCase.execute(buildDepositDto(), user)
+    const initUseCase = await app.container.make(DepositUseCase)
+    await initUseCase.execute(buildDepositDto(), user)
 
-      const tx = await Transaction.query().where('users_uid', user.usersUid).firstOrFail()
-      assert.equal(tx.status, TransactionStatus.PENDING)
-      assert.equal(await reloadBalance(wallet.id), 10000)
+    const tx = await Transaction.query().where('users_uid', user.usersUid).firstOrFail()
+    assert.equal(tx.status, TransactionStatus.PENDING)
+    assert.equal(await reloadBalance(wallet.id), 10000)
 
-      const webhookUseCase = await app.container.make(HandleDepositWebhookUseCase)
-      const response = await webhookUseCase.execute(
-        buildWebhook(tx.reference, 'succeeded'),
-        TransactionStatus.SUCCESS
-      )
+    const settler = await app.container.make(SettleProviderWebhookUseCase)
+    await settler.handle(depositWebhook(tx.reference, true))
 
-      assert.equal(response.status, 200)
+    // Wallet crédité du totalAmount (5000 - 150 = 4850) → 14850
+    assert.equal(await reloadBalance(wallet.id), 14850)
 
-      // Wallet crédité du totalAmount (5000 - 150 = 4850) → 14850
-      assert.equal(await reloadBalance(wallet.id), 14850)
+    await tx.refresh()
+    assert.equal(tx.status, TransactionStatus.SUCCESS)
 
-      await tx.refresh()
-      assert.equal(tx.status, TransactionStatus.SUCCESS)
-
-      const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
-      assert.equal(pay.status, PaymentStatus.SUCCESS)
-    } finally {
-      QueueManager.restore()
-    }
+    const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
+    assert.equal(pay.status, PaymentStatus.SUCCESS)
   })
 
   test('deposit échec : tx + payment FAILED, wallet inchangé', async ({ assert }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
-    QueueManager.fake()
 
-    try {
-      const initUseCase = await app.container.make(DepositUseCase)
-      await initUseCase.execute(buildDepositDto(), user)
+    const initUseCase = await app.container.make(DepositUseCase)
+    await initUseCase.execute(buildDepositDto(), user)
 
-      const tx = await Transaction.query().where('users_uid', user.usersUid).firstOrFail()
+    const tx = await Transaction.query().where('users_uid', user.usersUid).firstOrFail()
 
-      const webhookUseCase = await app.container.make(HandleDepositWebhookUseCase)
-      await webhookUseCase.execute(buildWebhook(tx.reference, 'failed'), TransactionStatus.FAILED)
+    const settler = await app.container.make(SettleProviderWebhookUseCase)
+    await settler.handle(depositWebhook(tx.reference, false))
 
-      assert.equal(await reloadBalance(wallet.id), 10000)
+    assert.equal(await reloadBalance(wallet.id), 10000)
 
-      await tx.refresh()
-      assert.equal(tx.status, TransactionStatus.FAILED)
+    await tx.refresh()
+    assert.equal(tx.status, TransactionStatus.FAILED)
 
-      const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
-      assert.equal(pay.status, PaymentStatus.FAILED)
-    } finally {
-      QueueManager.restore()
-    }
+    const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
+    assert.equal(pay.status, PaymentStatus.FAILED)
   })
 
   test('transfert succès : tx + payment SUCCESS, wallet inchangé (déjà débité)', async ({
     assert,
   }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
-    QueueManager.fake()
 
-    try {
-      const initUseCase = await app.container.make(TransfertUseCase)
-      await initUseCase.execute(buildTransfertDto(), user)
+    const initUseCase = await app.container.make(TransfertUseCase)
+    await initUseCase.execute(buildTransfertDto(), user)
 
-      const tx = await Transaction.query().where('users_uid', user.usersUid).firstOrFail()
-      // Débit immédiat à l'initiation : 10000 - 5000 = 5000
-      assert.equal(await reloadBalance(wallet.id), 5000)
+    const tx = await Transaction.query().where('users_uid', user.usersUid).firstOrFail()
+    // Débit immédiat à l'initiation : 10000 - 5000 = 5000
+    assert.equal(await reloadBalance(wallet.id), 5000)
 
-      const webhookUseCase = await app.container.make(HandleTransfertWebhookUseCase)
-      await webhookUseCase.execute(
-        buildWebhook(tx.reference, 'succeeded'),
-        TransactionStatus.SUCCESS
-      )
+    const settler = await app.container.make(SettleProviderWebhookUseCase)
+    await settler.handle(transfertWebhook(tx.reference, true))
 
-      // Succès : aucun mouvement wallet supplémentaire
-      assert.equal(await reloadBalance(wallet.id), 5000)
+    // Succès : aucun mouvement wallet supplémentaire
+    assert.equal(await reloadBalance(wallet.id), 5000)
 
-      await tx.refresh()
-      assert.equal(tx.status, TransactionStatus.SUCCESS)
+    await tx.refresh()
+    assert.equal(tx.status, TransactionStatus.SUCCESS)
 
-      const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
-      assert.equal(pay.status, PaymentStatus.SUCCESS)
-    } finally {
-      QueueManager.restore()
-    }
+    const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
+    assert.equal(pay.status, PaymentStatus.SUCCESS)
   })
 
   test('transfert échec : refund du totalAmount (fee non re-crédité), wallet à 9900', async ({
     assert,
   }) => {
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
-    QueueManager.fake()
 
-    try {
-      const initUseCase = await app.container.make(TransfertUseCase)
-      await initUseCase.execute(buildTransfertDto(), user)
+    const initUseCase = await app.container.make(TransfertUseCase)
+    await initUseCase.execute(buildTransfertDto(), user)
 
-      const tx = await Transaction.query().where('users_uid', user.usersUid).firstOrFail()
-      assert.equal(await reloadBalance(wallet.id), 5000)
+    const tx = await Transaction.query().where('users_uid', user.usersUid).firstOrFail()
+    assert.equal(await reloadBalance(wallet.id), 5000)
 
-      const webhookUseCase = await app.container.make(HandleTransfertWebhookUseCase)
-      await webhookUseCase.execute(buildWebhook(tx.reference, 'failed'), TransactionStatus.FAILED)
+    const settler = await app.container.make(SettleProviderWebhookUseCase)
+    await settler.handle(transfertWebhook(tx.reference, false))
 
-      // Refund du totalAmount (4900) : 5000 + 4900 = 9900 (le fee de 100 n'est pas re-crédité)
-      assert.equal(await reloadBalance(wallet.id), 9900)
+    // Refund du totalAmount (4900) : 5000 + 4900 = 9900 (le fee de 100 n'est pas re-crédité)
+    assert.equal(await reloadBalance(wallet.id), 9900)
 
-      const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
-      assert.equal(pay.status, PaymentStatus.FAILED)
-    } finally {
-      QueueManager.restore()
-    }
+    const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
+    assert.equal(pay.status, PaymentStatus.FAILED)
   })
 })
