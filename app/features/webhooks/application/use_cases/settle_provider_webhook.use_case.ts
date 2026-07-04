@@ -48,7 +48,11 @@ export default class SettleProviderWebhookUseCase {
       kind,
       outcome: event.outcome === 'success' ? 'success' : 'failure',
       operatorResponse: event.rawData,
-      error: event.errorMessage ? { message: event.errorMessage } : undefined,
+      // Code canonique + message → classification/persistance/alerte côté settlement (markPaymentFailed).
+      error:
+        event.errorCode || event.errorMessage
+          ? { code: event.errorCode ?? undefined, message: event.errorMessage ?? undefined }
+          : undefined,
     })
   }
 

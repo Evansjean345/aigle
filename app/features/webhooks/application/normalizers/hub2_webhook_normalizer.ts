@@ -1,4 +1,6 @@
 import type { ProviderWebhookEvent } from '#features/webhooks/domain/value_objects/provider_webhook_event'
+import ErrorMessageTranslator from '#features/provider_gateway/infrastructure/error_message_translator'
+import { HUB2_CLIENT_ERRORS } from '#features/provider_gateway/infrastructure/adapters/hub2/hub2_client_errors'
 
 /**
  * Normalise les webhooks Hub2 en `ProviderWebhookEvent` (Lot 3b). Porté d'aiglehub.
@@ -27,10 +29,20 @@ export class Hub2WebhookNormalizer {
     if (!reference) return null
 
     let errorMessage: string | null = null
+    let errorCode: string | null = null
 
     if (mapping.outcome === 'failed') {
-      errorMessage =
-        data.lastPaymentFailure?.message || data.failureCause?.message || 'Payment failed'
+      const failure = data.lastPaymentFailure ?? data.failureCause ?? {}
+      errorMessage = failure.message || 'Payment failed'
+
+      const nativeCode = failure.code ?? data.code ?? null
+
+      if (nativeCode) {
+        errorCode = ErrorMessageTranslator.translate(
+          { errorCode: nativeCode, providerName: 'hub2', rawData: data },
+          HUB2_CLIENT_ERRORS
+        ).code
+      }
     }
 
     return {
@@ -39,6 +51,7 @@ export class Hub2WebhookNormalizer {
       operationType: mapping.operationType,
       providerName: 'hub2',
       providerReference: data.id ?? null,
+      errorCode,
       errorMessage,
       rawData: data,
     }

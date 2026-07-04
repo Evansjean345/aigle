@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import { QueueManager } from '@adonisjs/queue'
+import emitter from '@adonisjs/core/services/emitter'
 import Transaction from '#features/transactions/domain/models/transaction'
 import Payment from '#features/transactions/domain/models/payment'
 import { TransactionStatus } from '#features/transactions/domain/enums/transaction_status'
@@ -119,18 +120,21 @@ test.group('Réception directe webhooks provider | Lot 3b', (group) => {
       operationType: 'checkout',
       providerName: 'hub2',
       providerReference: 'op-1',
+      errorCode: null,
       errorMessage: null,
       rawData: { purchaseReference: 'ref-1', id: 'op-1' },
     })
 
+    // Échec avec code natif → message + code canonique traduit (customer_insufficient_funds → INSUFFICIENT_FUNDS).
     const payoutFail = Hub2WebhookNormalizer.normalize('transfer.failed', {
       reference: 'ref-2',
-      failureCause: { message: 'boom' },
+      failureCause: { message: 'boom', code: 'customer_insufficient_funds' },
     })
 
     assert.equal(payoutFail?.operationType, 'payout')
     assert.equal(payoutFail?.outcome, 'failed')
     assert.equal(payoutFail?.errorMessage, 'boom')
+    assert.equal(payoutFail?.errorCode, 'INSUFFICIENT_FUNDS')
 
     assert.isNull(Hub2WebhookNormalizer.normalize('unknown.type', {}))
   })
@@ -225,6 +229,7 @@ test.group('Réception directe webhooks provider | Lot 3b', (group) => {
   }) => {
     const { user } = await createUserWithWallet({ balance: 10000 })
     QueueManager.fake()
+
     try {
       const init = await app.container.make(InterTransfertUseCase)
       await init.execute(interDto(), user)
@@ -249,6 +254,51 @@ test.group('Réception directe webhooks provider | Lot 3b', (group) => {
       await tx.refresh()
       assert.equal(tx.status, TransactionStatus.SUCCESS)
     } finally {
+      QueueManager.restore()
+    }
+  })
+
+  test('transfert : webhook échec avec code provider → classification + alerte admin + definition persistée', async ({
+    assert,
+  }) => {
+    const { user } = await createUserWithWallet({ balance: 10000 })
+    QueueManager.fake()
+
+    const alerts: any[] = []
+    const onAlert = (e: any) => alerts.push(e)
+    emitter.on('alert:provider-error', onAlert)
+
+    try {
+      const init = await app.container.make(TransfertUseCase)
+      await init.execute(transfertDto(), user)
+      const tx = await Transaction.query().where('users_uid', user.usersUid).firstOrFail()
+
+      // Webhook d'échec Hub2 avec code natif provider (fraud_suspicion → FRAUD_SUSPICION, SECURITY).
+      const event = Hub2WebhookNormalizer.normalize('transfer.failed', {
+        reference: tx.reference,
+        failureCause: { message: 'Refusé', code: 'fraud_suspicion' },
+      })!
+      assert.equal(event.errorCode, 'FRAUD_SUSPICION')
+
+      const settler = await app.container.make(SettleProviderWebhookUseCase)
+      await settler.handle(event)
+
+      // Paiement FAILED + classification persistée en base (code + catégorie sur le payment)
+      const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
+      assert.equal(pay.status, PaymentStatus.FAILED)
+      assert.equal(pay.errorCode, 'FRAUD_SUSPICION')
+      assert.equal(pay.errorCategory, 'SECURITY')
+
+      // Transfert échoué → refund (tx REFUNDED)
+      await tx.refresh()
+      assert.equal(tx.status, TransactionStatus.REFUNDED)
+
+      // Alerte admin émise (→ mail + audit) avec la bonne classification
+      assert.isAtLeast(alerts.length, 1)
+      assert.equal(alerts[0].errorCode, 'FRAUD_SUSPICION')
+      assert.equal(alerts[0].category, 'SECURITY')
+    } finally {
+      emitter.off('alert:provider-error', onAlert)
       QueueManager.restore()
     }
   })

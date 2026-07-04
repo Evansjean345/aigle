@@ -22,6 +22,12 @@ export interface ProviderWebhookEvent {
   /** Référence externe du provider (si disponible). */
   providerReference: string | null
 
+  /**
+   * Code d'erreur canonique si `failed` (traduit du code natif provider via ErrorMessageTranslator,
+   * comme le chemin d'initiation). Alimente la classification/alerte/persistance côté settlement.
+   */
+  errorCode: string | null
+
   /** Message d'erreur si `failed`. */
   errorMessage: string | null
 

@@ -97,7 +97,8 @@ test.group('Échec initiation (routage local) | traitement d’erreur', (group) 
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
 
     const alerts: any[] = []
-    emitter.on('alert:provider-error', (e: any) => alerts.push(e))
+    const onAlert = (e: any) => alerts.push(e)
+    emitter.on('alert:provider-error', onAlert)
 
     try {
       const useCase = await app.container.make(TransfertUseCase)
@@ -119,7 +120,7 @@ test.group('Échec initiation (routage local) | traitement d’erreur', (group) 
       assert.isAtLeast(alerts.length, 1)
       assert.equal(alerts[0].transactionReference, tx.reference)
     } finally {
-      emitter.off('alert:provider-error')
+      emitter.off('alert:provider-error', onAlert)
     }
   })
 
@@ -129,7 +130,8 @@ test.group('Échec initiation (routage local) | traitement d’erreur', (group) 
     const { user, wallet } = await createUserWithWallet({ balance: 10000 })
 
     const alerts: any[] = []
-    emitter.on('alert:provider-error', (e: any) => alerts.push(e))
+    const onAlert = (e: any) => alerts.push(e)
+    emitter.on('alert:provider-error', onAlert)
 
     try {
       const useCase = await app.container.make(DepositUseCase)
@@ -147,7 +149,7 @@ test.group('Échec initiation (routage local) | traitement d’erreur', (group) 
 
       assert.isAtLeast(alerts.length, 1)
     } finally {
-      emitter.off('alert:provider-error')
+      emitter.off('alert:provider-error', onAlert)
     }
   })
 })
