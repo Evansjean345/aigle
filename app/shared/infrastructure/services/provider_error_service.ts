@@ -137,7 +137,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     isFinal: false,
     adminAction: AdminAction.MONITOR_PROVIDER,
     userMessage: 'Trop de tentatives. Veuillez patienter un instant.',
-    adminMessage: 'AigleHub/Provider nous a rate-limit.',
+    adminMessage: 'Le provider nous a rate-limit.',
   },
 
   [ProviderErrorCode.DUPLICATE_REQUEST]: {
@@ -195,7 +195,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
  */
 export default class ProviderErrorService {
   /**
-   * Resout un code d'erreur AigleHub en definition catégorisée.
+   * Resout un code d'erreur provider en definition catégorisée.
    */
   static resolve(code: string): ProviderErrorDefinition {
     const known = REGISTRY[code as ProviderErrorCode]
