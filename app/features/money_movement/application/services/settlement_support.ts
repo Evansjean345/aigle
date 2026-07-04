@@ -1,4 +1,5 @@
 import { inject } from '@adonisjs/core'
+import { Exception } from '@adonisjs/core/exceptions'
 import emitter from '@adonisjs/core/services/emitter'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Transaction from '#features/transactions/domain/models/transaction'
@@ -174,22 +175,36 @@ export default class SettlementSupport {
     return (error as { message?: string })?.message ?? null
   }
 
-  /** Émet l'event canonique de settlement (`movement:settled` / `movement:failed`). */
+  /**
+   * Émet l'event canonique de settlement (`movement:settled` / `movement:failed`).
+   *
+   * Switch exhaustif volontaire : seul `failure` déclenche `movement:failed`, pour qu'un futur
+   * outcome (ex. `pending`, `partial`) ne tombe pas silencieusement dans l'échec (faux positif).
+   * La garde `never` du `default` force à traiter tout nouvel outcome ici, à la compilation.
+   */
   emitSettlementEvent(transaction: Transaction, outcome: SettlementOutcome): void {
-    if (outcome === 'success') {
-      this.activity.settled({
-        movementId: String(transaction.id),
-        reference: transaction.reference,
-        status: TransactionStatus.SUCCESS,
-        settledAt: new Date().toISOString(),
-      })
-    } else {
-      this.activity.failedMovement({
-        movementId: String(transaction.id),
-        reference: transaction.reference,
-        reason: 'Payment failed via webhook',
-        failedAt: new Date().toISOString(),
-      })
+    switch (outcome) {
+      case 'success':
+        this.activity.settled({
+          movementId: String(transaction.id),
+          reference: transaction.reference,
+          status: TransactionStatus.SUCCESS,
+          settledAt: new Date().toISOString(),
+        })
+        return
+      case 'failure':
+        this.activity.failedMovement({
+          movementId: String(transaction.id),
+          reference: transaction.reference,
+          reason: 'Payment failed via webhook',
+          failedAt: new Date().toISOString(),
+        })
+        return
+      default:
+        throw new Exception(`Outcome de settlement non géré : ${outcome satisfies never}`, {
+          status: 500,
+          code: 'E_UNHANDLED_SETTLEMENT_OUTCOME',
+        })
     }
   }
 
