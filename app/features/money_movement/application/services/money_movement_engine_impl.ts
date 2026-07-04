@@ -77,8 +77,13 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
         return this.settleDeposit.handle(cmd)
       case 'transfert':
         return this.settleTransfert.handle(cmd)
-      default:
+      case 'transfert_inter_first':
+      case 'transfert_inter_second':
+        // Flux inter-réseau (2 jambes) — à brancher (dernier flux du Lot 3).
         throw new MovementNotImplementedException(`settle(${cmd.kind})`)
+      default:
+        // Exhaustivité : un nouveau SettlementKind doit être traité explicitement ci-dessus.
+        throw new MovementNotImplementedException(`settle(${cmd.kind satisfies never})`)
     }
   }
 }
