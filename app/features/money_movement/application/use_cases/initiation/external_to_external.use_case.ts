@@ -4,7 +4,7 @@ import type {
   ExternalToExternalCommand,
   MovementResult,
 } from '#features/money_movement/domain/types/money_movement_types'
-import ExternalMovementStrategy from '#features/money_movement/domain/interfaces/external_movement_strategy'
+import ExternalMovementGateway from '#features/money_movement/domain/interfaces/external_movement_gateway'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
@@ -27,7 +27,7 @@ import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_servic
  *
  * Validations + frais, puis SA trx courte { transaction PENDING EXTERNAL sur le wallet de
  * l'initiateur (AUCUN mouvement de solde) + 2 payments : dépôt PENDING + transfert DRAFT }, puis
- * initiation de la jambe 1 déléguée à la stratégie. La jambe 2 (cash-out bénéficiaire) est
+ * initiation de la jambe 1 déléguée au gateway. La jambe 2 (cash-out bénéficiaire) est
  * déclenchée au webhook — hors périmètre Lot 2.
  */
 @inject()
@@ -39,7 +39,7 @@ export default class ExternalToExternalUseCase {
     private readonly feeResolver: FeeResolver,
     private readonly partyValidator: PartyValidator,
     private readonly activity: MoneyActivityEmitter,
-    private readonly strategy: ExternalMovementStrategy,
+    private readonly gateway: ExternalMovementGateway,
     private readonly runner: ExternalInitiationRunner
   ) {}
 
@@ -144,7 +144,7 @@ export default class ExternalToExternalUseCase {
         failureEventData: { reference: transactionReference, amount },
       },
       () =>
-        this.strategy.initiateOutToOut({
+        this.gateway.initiateOutToOut({
           transactionId,
           transactionReference,
           paymentId: depositPaymentId,

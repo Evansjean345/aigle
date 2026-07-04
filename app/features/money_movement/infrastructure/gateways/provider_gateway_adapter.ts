@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import ExternalMovementStrategy from '#features/money_movement/domain/interfaces/external_movement_strategy'
+import ExternalMovementGateway from '#features/money_movement/domain/interfaces/external_movement_gateway'
 import type {
   ExternalInitiationBase,
   ExternalOutInitiation,
@@ -20,8 +20,15 @@ import { TransactionStatus } from '#features/transactions/domain/enums/transacti
 import ProviderInitiationError from '#features/money_movement/infrastructure/exceptions/provider_initiation_error'
 import UnroutablePaymentMethodException from '#features/money_movement/infrastructure/exceptions/unroutable_payment_method_exception'
 
+/**
+ * Implémentation du port `ExternalMovementGateway` : adapte l'initiation externe du moteur vers la
+ * feature provider_gateway (in-process). Résout le provider via `ProviderResolver` selon le moyen
+ * de paiement + l'opérateur, mappe la primitive (checkout/payout) et le montant, invoque l'adapter
+ * et traduit la réponse (PENDING + providerReference/redirect) ou l'échec (`ProviderInitiationError`
+ * porté par la severity). Seul chemin depuis la bascule Lot 3b (aiglehub absorbé).
+ */
 @inject()
-export default class LocalGatewayStrategy implements ExternalMovementStrategy {
+export default class ProviderGatewayAdapter implements ExternalMovementGateway {
   private static readonly DEFAULT_COUNTRY = 'ci'
 
   constructor(private readonly resolver: ProviderResolver) {}
@@ -54,7 +61,7 @@ export default class LocalGatewayStrategy implements ExternalMovementStrategy {
     const adapter = this.resolver.resolve({
       operationType: this.toRoutableOperation(ctx.paymentMethod),
       operator: ctx.operator,
-      country: LocalGatewayStrategy.DEFAULT_COUNTRY,
+      country: ProviderGatewayAdapter.DEFAULT_COUNTRY,
       operation,
     })
 
@@ -64,7 +71,7 @@ export default class LocalGatewayStrategy implements ExternalMovementStrategy {
       currency: 'XOF',
       provider: adapter.providerName,
       phoneNumber: ctx.phone.replaceAll(' ', ''),
-      country: LocalGatewayStrategy.DEFAULT_COUNTRY,
+      country: ProviderGatewayAdapter.DEFAULT_COUNTRY,
       metadata: { provider: ctx.operator },
     })
 

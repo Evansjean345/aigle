@@ -4,7 +4,7 @@ import type {
   ExternalInCommand,
   MovementResult,
 } from '#features/money_movement/domain/types/money_movement_types'
-import ExternalMovementStrategy from '#features/money_movement/domain/interfaces/external_movement_strategy'
+import ExternalMovementGateway from '#features/money_movement/domain/interfaces/external_movement_gateway'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
@@ -24,7 +24,7 @@ import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_servic
 /**
  * Use case de la primitive `initiateExternalIn` (opérateur → crédit compte, async → PENDING).
  * Flux deposit : validations compte/limites + frais, puis SA trx courte { records PENDING, AUCUN
- * mouvement wallet }, puis initiation externe déléguée à la stratégie (sync_checkout redirect/OTP,
+ * mouvement wallet }, puis initiation externe déléguée au gateway (routage in-process via provider_gateway),
  * ou job async). Le crédit du wallet interviendra au settlement (webhook), inchangé au Lot 2.
  */
 @inject()
@@ -36,7 +36,7 @@ export default class ExternalInUseCase {
     private readonly feeResolver: FeeResolver,
     private readonly partyValidator: PartyValidator,
     private readonly activity: MoneyActivityEmitter,
-    private readonly strategy: ExternalMovementStrategy,
+    private readonly gateway: ExternalMovementGateway,
     private readonly runner: ExternalInitiationRunner
   ) {}
 
@@ -123,7 +123,7 @@ export default class ExternalInUseCase {
         failureEventData: { reference: transactionReference, amount },
       },
       () =>
-        this.strategy.initiateIn({
+        this.gateway.initiateIn({
           transactionId,
           transactionReference,
           paymentId,

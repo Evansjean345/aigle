@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import LocalGatewayStrategy from '#features/money_movement/infrastructure/strategies/local_gateway_strategy'
+import ProviderGatewayAdapter from '#features/money_movement/infrastructure/gateways/provider_gateway_adapter'
 import ProviderInitiationError from '#features/money_movement/infrastructure/exceptions/provider_initiation_error'
 import { ProviderResponse } from '#features/provider_gateway/domain/value_objects/provider_response'
 import { type ProviderRequest } from '#features/provider_gateway/domain/value_objects/provider_request'
@@ -9,9 +9,9 @@ import type { ProviderOperation } from '#features/provider_gateway/domain/types/
 import type { ResolveProviderInput } from '#features/provider_gateway/infrastructure/provider_resolver'
 
 /**
- * Test unitaire de la stratégie locale (provider_gateway). Vérifie le mapping de la couture —
- * primitive → opération/montant, et `ProviderResponse`/severity → résultat engine. La stratégie
- * est écrite mais NON bindée (active au lot 3b) ; ce test garantit que la bascule sera un flip.
+ * Test unitaire du `ProviderGatewayAdapter` (implémentation du port ExternalMovementGateway).
+ * Vérifie le mapping de la couture — primitive → opération/montant, et `ProviderResponse`/severity
+ * → résultat engine (PENDING/redirect ou `ProviderInitiationError`).
  */
 
 const fakeAdapter = { providerName: 'hub2' }
@@ -56,11 +56,11 @@ function baseCtx(overrides: Record<string, any> = {}) {
   }
 }
 
-function makeStrategy(resolver: FakeResolver): LocalGatewayStrategy {
-  return new LocalGatewayStrategy(resolver as any)
+function makeGateway(resolver: FakeResolver): ProviderGatewayAdapter {
+  return new ProviderGatewayAdapter(resolver as any)
 }
 
-test.group('LocalGatewayStrategy | routage', () => {
+test.group('ProviderGatewayAdapter | routage', () => {
   test('initiateIn (deposit) route un checkout avec le montant net', async ({ assert }) => {
     const resolver = new FakeResolver()
 
@@ -71,7 +71,7 @@ test.group('LocalGatewayStrategy | routage', () => {
       })
     )
 
-    const result = await makeStrategy(resolver).initiateIn(baseCtx() as any)
+    const result = await makeGateway(resolver).initiateIn(baseCtx() as any)
 
     assert.equal(resolver.lastResolve!.operation, 'checkout')
     assert.equal(resolver.lastResolve!.operationType, 'mobile-money')
@@ -89,7 +89,7 @@ test.group('LocalGatewayStrategy | routage', () => {
     const resolver = new FakeResolver()
     resolver.setResponse(ProviderResponse.success({ providerReference: 'hub2-payout' }))
 
-    const result = await makeStrategy(resolver).initiateOut(baseCtx({ walletId: 7 }) as any)
+    const result = await makeGateway(resolver).initiateOut(baseCtx({ walletId: 7 }) as any)
 
     assert.equal(resolver.lastInvoke!.operation, 'payout')
     assert.equal(resolver.lastInvoke!.request.amount, 4900)
@@ -104,7 +104,7 @@ test.group('LocalGatewayStrategy | routage', () => {
     const resolver = new FakeResolver()
     resolver.setResponse(ProviderResponse.success({ providerReference: 'hub2-inter' }))
 
-    const result = await makeStrategy(resolver).initiateOutToOut(
+    const result = await makeGateway(resolver).initiateOutToOut(
       baseCtx({ operator: 'moov' }) as any
     )
 
@@ -118,7 +118,7 @@ test.group('LocalGatewayStrategy | routage', () => {
     const resolver = new FakeResolver()
     resolver.setResponse(ProviderResponse.success({ providerReference: 'r' }))
 
-    await makeStrategy(resolver).initiateIn(baseCtx({ paymentMethod: 'credit-card' }) as any)
+    await makeGateway(resolver).initiateIn(baseCtx({ paymentMethod: 'credit-card' }) as any)
 
     assert.equal(resolver.lastResolve!.operationType, 'credit-card')
   })
@@ -128,7 +128,7 @@ test.group('LocalGatewayStrategy | routage', () => {
   }) => {
     const resolver = new FakeResolver()
 
-    const error = await makeStrategy(resolver)
+    const error = await makeGateway(resolver)
       .initiateIn(baseCtx({ paymentMethod: 'wallet' }) as any)
       .then(
         () => null,
@@ -141,7 +141,7 @@ test.group('LocalGatewayStrategy | routage', () => {
   })
 })
 
-test.group('LocalGatewayStrategy | mapping des échecs par severity', () => {
+test.group('ProviderGatewayAdapter | mapping des échecs par severity', () => {
   test('échec DEFINITIVE → ProviderInitiationError non-retryable (500)', async ({ assert }) => {
     const resolver = new FakeResolver()
     resolver.setResponse(
@@ -152,7 +152,7 @@ test.group('LocalGatewayStrategy | mapping des échecs par severity', () => {
       })
     )
 
-    const error = await makeStrategy(resolver)
+    const error = await makeGateway(resolver)
       .initiateIn(baseCtx() as any)
       .then(
         () => null,
@@ -177,7 +177,7 @@ test.group('LocalGatewayStrategy | mapping des échecs par severity', () => {
       })
     )
 
-    const error = await makeStrategy(resolver)
+    const error = await makeGateway(resolver)
       .initiateOut(baseCtx() as any)
       .then(
         () => null,
@@ -191,6 +191,7 @@ test.group('LocalGatewayStrategy | mapping des échecs par severity', () => {
 
   test('échec CONFIGURATION → revue requise', async ({ assert }) => {
     const resolver = new FakeResolver()
+
     resolver.setResponse(
       ProviderResponse.failure({
         errorCode: 'BAD_CONFIG',
@@ -199,7 +200,7 @@ test.group('LocalGatewayStrategy | mapping des échecs par severity', () => {
       })
     )
 
-    const error = await makeStrategy(resolver)
+    const error = await makeGateway(resolver)
       .initiateIn(baseCtx() as any)
       .then(
         () => null,

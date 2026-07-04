@@ -4,7 +4,7 @@ import type {
   ExternalOutCommand,
   MovementResult,
 } from '#features/money_movement/domain/types/money_movement_types'
-import ExternalMovementStrategy from '#features/money_movement/domain/interfaces/external_movement_strategy'
+import ExternalMovementGateway from '#features/money_movement/domain/interfaces/external_movement_gateway'
 import WalletService from '#features/wallet/application/services/wallet_service'
 import TransactionService from '#features/transactions/application/services/transaction_service'
 import PaymentService from '#features/transactions/application/services/payment_service'
@@ -26,7 +26,7 @@ import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_servic
  * Use case de la primitive `initiateExternalOut` (débit compte → opérateur, async → PENDING).
  * Flux transfert : validations compte/limites + frais + fonds, puis SA trx courte { débit wallet
  * immédiat (réservation), records PENDING, écriture ledger }, puis initiation externe déléguée à
- * la stratégie (job). Le settlement (COMPLETED ou FAILED + re-crédit) arrive au webhook.
+ * le gateway. Le settlement (COMPLETED ou FAILED + re-crédit) arrive au webhook.
  */
 @inject()
 export default class ExternalOutUseCase {
@@ -38,7 +38,7 @@ export default class ExternalOutUseCase {
     private readonly feeResolver: FeeResolver,
     private readonly partyValidator: PartyValidator,
     private readonly activity: MoneyActivityEmitter,
-    private readonly strategy: ExternalMovementStrategy,
+    private readonly gateway: ExternalMovementGateway,
     private readonly runner: ExternalInitiationRunner
   ) {}
 
@@ -154,7 +154,7 @@ export default class ExternalOutUseCase {
         failureEventData: { reference: transactionReference, amount },
       },
       () =>
-        this.strategy.initiateOut({
+        this.gateway.initiateOut({
           transactionId,
           transactionReference,
           paymentId,
