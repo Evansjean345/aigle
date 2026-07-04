@@ -144,6 +144,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   HUB2_API_SECRET: Env.schema.string.optional(),
   HUB2_API_SANDBOX_SECRET: Env.schema.string.optional(),
   HUB2_API_ENDPOINT: Env.schema.string.optional(),
+  // Secrets de signature des webhooks Hub2 (réception directe, Lot 3b) — un par webhook enregistré.
+  HUB2_WH_TRANSFER_SUCCESS_SECRET: Env.schema.string.optional(),
+  HUB2_WH_TRANSFER_FAILED_SECRET: Env.schema.string.optional(),
+  HUB2_WH_PAYMENT_SUCCESS_SECRET: Env.schema.string.optional(),
+  HUB2_WH_PAYMENT_FAILED_SECRET: Env.schema.string.optional(),
 
   /*
   |----------------------------------------------------------
@@ -154,5 +159,5 @@ export default await Env.create(new URL('../', import.meta.url), {
   */
   WAVE_API_KEY: Env.schema.string.optional(),
   WAVE_API_URL: Env.schema.string.optional(),
-  WAVE_API_AGGREGATED_MERCHANT_ID: Env.schema.string.optional()
+  WAVE_API_AGGREGATED_MERCHANT_ID: Env.schema.string.optional(),
 })
