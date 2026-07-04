@@ -6,12 +6,12 @@ import {
   WalletToWalletRequestDto,
   WalletToWalletResponseDTO,
   type RecipientResolution,
-} from '#features/operations/application/dtos/wallet_to_wallet.dto'
+} from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
 import WalletToWalletTransactionFailed from '#core/transactions/application/events/wallet_to_wallet_transaction_failed'
 import IdempotencyProvider from '#core/transactions/domain/interfaces/idempotency_provider'
 import RecipientLocator, {
   TransferMode,
-} from '#features/operations/application/services/recipient_locator'
+} from '#aiglesend/operations/application/services/recipient_locator'
 import transferLog from '#shared/infrastructure/logging/transfer_log'
 import IdentityGate from '#core/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'

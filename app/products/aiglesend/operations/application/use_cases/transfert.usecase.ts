@@ -1,7 +1,7 @@
 import {
   TransfertRequestDto,
   TransfertResponseDTO,
-} from '#features/operations/application/dtos/transfert.dto'
+} from '#aiglesend/operations/application/dtos/transfert.dto'
 import { inject } from '@adonisjs/core'
 import User from '#core/user/domain/models/user'
 import { TransactionType } from '#core/transactions/domain/enums/transaction_type'

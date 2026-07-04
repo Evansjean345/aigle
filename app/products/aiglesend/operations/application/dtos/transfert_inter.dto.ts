@@ -1,12 +1,12 @@
 import type { Infer } from '@vinejs/vine/types'
-import { type interTransfertValidator } from '#features/operations/presentation/mobile/validators/transfert_inter_validator'
+import { type interTransfertValidator } from '#aiglesend/operations/presentation/mobile/validators/transfert_inter_validator'
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 import {
   buildRequestContext,
   type ContextSource,
   type OperationResponseData,
-} from '#features/operations/application/dtos/operation.dto'
+} from '#aiglesend/operations/application/dtos/operation.dto'
 
 // ── RequestDto (input controller → use case) ───────────────────────────
 

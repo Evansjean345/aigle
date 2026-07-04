@@ -4,7 +4,7 @@ import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_servic
 import {
   buildRequestContext,
   type ContextSource,
-} from '#features/operations/application/dtos/operation.dto'
+} from '#aiglesend/operations/application/dtos/operation.dto'
 
 // ── RequestDto (input controller → use case) ───────────────────────────
 

@@ -1,8 +1,8 @@
 import { HttpContext } from '@adonisjs/core/http'
-import { depositValidator } from '#features/operations/presentation/mobile/validators/deposit_validator'
-import DepositUseCase from '#features/operations/application/use_cases/deposit.usecase'
+import { depositValidator } from '#aiglesend/operations/presentation/mobile/validators/deposit_validator'
+import DepositUseCase from '#aiglesend/operations/application/use_cases/deposit.usecase'
 import { inject } from '@adonisjs/core'
-import { DepositRequestDto } from '#features/operations/application/dtos/deposit.dto'
+import { DepositRequestDto } from '#aiglesend/operations/application/dtos/deposit.dto'
 import User from '#core/user/domain/models/user'
 
 @inject()

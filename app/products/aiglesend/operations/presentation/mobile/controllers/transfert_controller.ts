@@ -1,13 +1,13 @@
 import { HttpContext } from '@adonisjs/core/http'
-import { transfertValidator } from '#features/operations/presentation/mobile/validators/transfert_validator'
-import TransfertUseCase from '#features/operations/application/use_cases/transfert.usecase'
+import { transfertValidator } from '#aiglesend/operations/presentation/mobile/validators/transfert_validator'
+import TransfertUseCase from '#aiglesend/operations/application/use_cases/transfert.usecase'
 import { inject } from '@adonisjs/core'
-import { TransfertRequestDto } from '#features/operations/application/dtos/transfert.dto'
-import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
-import { TransferMode } from '#features/operations/application/services/recipient_locator'
+import { TransfertRequestDto } from '#aiglesend/operations/application/dtos/transfert.dto'
+import WalletToWalletUseCase from '#aiglesend/operations/application/use_cases/wallet_to_wallet.use_case'
+import { TransferMode } from '#aiglesend/operations/application/services/recipient_locator'
 import { PaymentMethod } from '#core/transactions/domain/enums/payment_method'
 import User from '#core/user/domain/models/user'
-import { WalletToWalletRequestDto } from '#features/operations/application/dtos/wallet_to_wallet.dto'
+import { WalletToWalletRequestDto } from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
 
 /**
  * Controller responsible for handling user transactions.

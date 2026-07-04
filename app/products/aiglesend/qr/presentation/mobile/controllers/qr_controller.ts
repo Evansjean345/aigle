@@ -1,6 +1,6 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import QrJwtService from '#features/qr/application/services/qr_jwt_service'
+import QrJwtService from '#aiglesend/qr/application/services/qr_jwt_service'
 
 /**
  * QrController handles QR token issuance, verification, and resolution.

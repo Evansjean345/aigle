@@ -6,8 +6,8 @@ import Payment from '#core/transactions/domain/models/payment'
 import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
 import { TransactionDirection } from '#core/transactions/domain/enums/transaction_direction'
 import { PaymentStatus } from '#core/transactions/domain/enums/payment_status'
-import InterTransfertUseCase from '#features/operations/application/use_cases/transfert_inter.usecase'
-import { InterTransfertRequestDto } from '#features/operations/application/dtos/transfert_inter.dto'
+import InterTransfertUseCase from '#aiglesend/operations/application/use_cases/transfert_inter.usecase'
+import { InterTransfertRequestDto } from '#aiglesend/operations/application/dtos/transfert_inter.dto'
 import {
   createUserWithWallet,
   reloadBalance,

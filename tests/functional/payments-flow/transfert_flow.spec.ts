@@ -9,8 +9,8 @@ import { TransactionStatus } from '#core/transactions/domain/enums/transaction_s
 import { TransactionDirection } from '#core/transactions/domain/enums/transaction_direction'
 import { PaymentStatus } from '#core/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#core/transactions/domain/enums/payment_step'
-import TransfertUseCase from '#features/operations/application/use_cases/transfert.usecase'
-import { TransfertRequestDto } from '#features/operations/application/dtos/transfert.dto'
+import TransfertUseCase from '#aiglesend/operations/application/use_cases/transfert.usecase'
+import { TransfertRequestDto } from '#aiglesend/operations/application/dtos/transfert.dto'
 import {
   createUserWithWallet,
   reloadBalance,

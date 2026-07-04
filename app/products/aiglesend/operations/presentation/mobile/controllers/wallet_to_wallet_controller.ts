@@ -1,9 +1,9 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
-import { walletToWalletValidator } from '#features/operations/presentation/mobile/validators/wallet_to_wallet_validator'
-import { TransferMode } from '#features/operations/application/services/recipient_locator'
-import { WalletToWalletRequestDto } from '#features/operations/application/dtos/wallet_to_wallet.dto'
+import WalletToWalletUseCase from '#aiglesend/operations/application/use_cases/wallet_to_wallet.use_case'
+import { walletToWalletValidator } from '#aiglesend/operations/presentation/mobile/validators/wallet_to_wallet_validator'
+import { TransferMode } from '#aiglesend/operations/application/services/recipient_locator'
+import { WalletToWalletRequestDto } from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
 import User from '#core/user/domain/models/user'
 
 /**

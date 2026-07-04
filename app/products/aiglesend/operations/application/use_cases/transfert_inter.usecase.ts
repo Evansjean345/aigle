@@ -1,30 +1,31 @@
 import {
-  DepositRequestDto,
-  DepositResponseDTO,
-} from '#features/operations/application/dtos/deposit.dto'
+  InterTransfertRequestDto,
+  InterTransfertResponseDTO,
+} from '#aiglesend/operations/application/dtos/transfert_inter.dto'
 import { inject } from '@adonisjs/core'
 import User from '#core/user/domain/models/user'
 import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
 import IdempotencyProvider from '#core/transactions/domain/interfaces/idempotency_provider'
-import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import IdentityGate from '#core/authentication/application/services/identity_gate'
+import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 import MoneyMovementEngine from '#core/money_movement/domain/interfaces/money_movement_engine'
 import type {
-  ExternalInCommand,
+  ExternalToExternalCommand,
   MovementResult,
 } from '#core/money_movement/domain/types/money_movement_types'
 
 /**
- * Use case deposit — routeur mince (Lot 2, L2-D6).
+ * Use case transfert_inter — routeur mince (Lot 2, L2-D6).
  *
- * Gardes produit (blocage, appareil, téléphone débiteur) → mapping payload → `ExternalInCommand`
- * → `engine.initiateExternalIn` → effets de bord produit (audit) + réponse. Toute la mécanique
- * argent (frais, records, initiation externe, statuts) vit dans le core.
+ * Gardes produit (blocage, throttle, appareil, téléphone débiteur) → mapping payload →
+ * `ExternalToExternalCommand` → `engine.initiateExternalToExternal` → audit + réponse. Les records
+ * (transaction EXTERNAL + 2 payments), l'absence de mouvement wallet et l'initiation de la jambe 1
+ * vivent dans le core. La jambe 2 (webhook) est inchangée au Lot 2.
  */
 @inject()
-export default class DepositUseCase {
+export default class InterTransfertUseCase {
   constructor(
     private readonly identityGate: IdentityGate,
     private readonly idempotency: IdempotencyProvider,
@@ -32,49 +33,61 @@ export default class DepositUseCase {
   ) {}
 
   async execute(
-    payload: DepositRequestDto,
+    payload: InterTransfertRequestDto,
     user: User,
     idempotencyKey?: string
-  ): Promise<DepositResponseDTO> {
+  ): Promise<InterTransfertResponseDTO> {
     transactionLog.info(
-      'DEPOSIT_START',
-      { user: { id: user.id, uid: user.usersUid }, payload: { ...payload } },
-      'Starting deposit process'
+      'INTER_TRANSFER_START',
+      {
+        user: { id: user.id, uid: user.usersUid },
+        payload: { ...payload, pinCode: payload.pinCode ? '****' : undefined },
+      },
+      'Starting inter-network transfer process'
     )
 
     await this.identityGate.authorize({
       user,
-      kind: 'deposit',
+      kind: 'transfert_inter',
       deviceInfo: payload.deviceInfo,
       geoIpLocation: payload.geoIpLocation,
-      debitPhone: { phone: payload.phone, providerId: payload.providerId },
+      debitPhone: { phone: payload.debiteurPhone, providerId: payload.providerFromId },
     })
 
-    const command: ExternalInCommand = {
+    const command: ExternalToExternalCommand = {
       idempotencyKey: idempotencyKey ?? '',
       amount: Number(payload.amount),
       currency: 'XOF',
       initiatedBy: user.usersUid,
       type: payload.serviceType as TransactionType,
-      toAccountId: user.usersUid,
-      source: { operator: payload.providerCode, msisdn: payload.phone, country: 'ci' },
+      source: { operator: payload.providerFromCode, msisdn: payload.debiteurPhone, country: 'ci' },
+      destination: {
+        operator: payload.providerToCode,
+        msisdn: payload.beneficiairePhone,
+        country: 'ci',
+      },
       feeContext: {
         serviceTypeCode: payload.serviceType,
-        paymentMethodCode: payload.paymentMethodCode,
-        providerFromCode: payload.providerCode,
+        paymentMethodCode: payload.paymentMethodDepositCode,
+        providerFromCode: payload.providerFromCode,
+        providerToCode: payload.providerToCode,
+        includeFees: payload.includeFees,
       },
       metadata: {
-        paymentMethodCode: payload.paymentMethodCode,
+        paymentMethodDepositCode: payload.paymentMethodDepositCode,
+        paymentMethodTransfertCode: payload.paymentMethodTransfertCode,
+        pinCode: payload.pinCode,
         deviceInfo: payload.deviceInfo,
         geoIpLocation: payload.geoIpLocation,
       },
     }
 
-    const result = await this.engine.initiateExternalIn(command)
+    const result = await this.engine.initiateExternalToExternal(command)
+
     this.emitAudit(result, payload, user)
 
-    const response: DepositResponseDTO = {
-      message: 'transaction initiated',
+    const response: InterTransfertResponseDTO = {
+      message: 'Initialisation du dépot inter effectuée',
       data: {
         transactionReference: result.reference,
         status: result.status,
@@ -90,9 +103,9 @@ export default class DepositUseCase {
     if (idempotencyKey) {
       await this.idempotency.update(idempotencyKey, JSON.stringify(response)).catch((error) => {
         transactionLog.error(
-          'DEPOSIT_CHECKOUT_FAILED',
+          'INTER_TRANSFER_IDEMPOTENCY_UPDATE_FAILED',
           { transaction: { reference: result.reference }, error: error.message },
-          'Idempotency cache update failed for deposit'
+          'Failed to update idempotency cache for inter-transfer'
         )
       })
     }
@@ -101,14 +114,14 @@ export default class DepositUseCase {
   }
 
   /**
-   * Émet l'événement d'audit produit du dépôt (contexte requête : IP, user-agent, géo).
+   * Émet l'événement d'audit produit du transfert inter-réseaux (contexte requête).
    * @private
    */
-  private emitAudit(result: MovementResult, payload: DepositRequestDto, user: User): void {
+  private emitAudit(result: MovementResult, payload: InterTransfertRequestDto, user: User): void {
     emitter
       .emit('activity:audit', {
         eventCategory: 'TRANSACTION',
-        eventAction: 'DEPOSIT_INITIATED',
+        eventAction: 'INTER_TRANSFER_INITIATED',
         actorId: String(user.id),
         actorType: 'User',
         targetType: 'Transaction',
@@ -122,8 +135,10 @@ export default class DepositUseCase {
           amount: result.amount,
           fees: result.fees,
           total: result.total,
-          provider: payload.providerCode,
-          paymentMethod: payload.paymentMethodCode,
+          providerFrom: payload.providerFromCode,
+          providerTo: payload.providerToCode,
+          paymentMethodDeposit: payload.paymentMethodDepositCode,
+          paymentMethodTransfert: payload.paymentMethodTransfertCode,
           geoCountry: payload.geoIpLocation?.countryCode ?? null,
           geoCity: payload.geoIpLocation?.city ?? null,
           isVpn: payload.geoIpLocation?.isVpn ?? null,

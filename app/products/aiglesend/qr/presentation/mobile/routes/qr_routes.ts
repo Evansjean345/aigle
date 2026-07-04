@@ -1,7 +1,7 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 
-const QrController = () => import('#features/qr/presentation/mobile/controllers/qr_controller')
+const QrController = () => import('#aiglesend/qr/presentation/mobile/controllers/qr_controller')
 
 export default function mobileQrRoutes() {
   router

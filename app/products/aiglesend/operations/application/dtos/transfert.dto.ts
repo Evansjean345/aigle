@@ -1,16 +1,15 @@
-import type { Infer } from '@vinejs/vine/types'
-import { type depositValidator } from '#features/operations/presentation/mobile/validators/deposit_validator'
+import { type TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
+import { type TransfertValidator } from '#aiglesend/operations/presentation/mobile/validators/transfert_validator'
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 import {
   buildRequestContext,
   type ContextSource,
-  type OperationResponseData,
-} from '#features/operations/application/dtos/operation.dto'
+} from '#aiglesend/operations/application/dtos/operation.dto'
 
 // ── RequestDto (input controller → use case) ───────────────────────────
 
-export class DepositRequestDto {
+export class TransfertRequestDto {
   declare amount: number
   declare providerId: number
   declare providerCode: string
@@ -18,6 +17,8 @@ export class DepositRequestDto {
   declare serviceType: string
   declare paymentMethodCode: string
   declare paymentMethodId: number
+  declare pinCode: string
+  declare include_fees?: boolean
   declare deviceInfo: DeviceHeadersInfo
   declare geoIpLocation: GeoIpLocation
   declare ipAddress?: string | null
@@ -25,13 +26,13 @@ export class DepositRequestDto {
   declare requestId?: string | null
 
   static fromRequest(
-    payload: Infer<typeof depositValidator>,
+    payload: TransfertValidator,
     deviceInfos?: DeviceHeadersInfo,
     geoIpLocation?: GeoIpLocation,
     context?: ContextSource
-  ): DepositRequestDto {
+  ): TransfertRequestDto {
     const ctx = buildRequestContext(deviceInfos, geoIpLocation, context)
-    const dto = new DepositRequestDto()
+    const dto = new TransfertRequestDto()
     dto.amount = payload.amount
     dto.serviceType = payload.service_type
     dto.providerCode = payload.provider_code
@@ -39,6 +40,8 @@ export class DepositRequestDto {
     dto.paymentMethodCode = payload.payment_method_code
     dto.paymentMethodId = payload.payment_method_id
     dto.phone = payload.phone
+    dto.pinCode = payload.pincode
+    dto.include_fees = payload.include_fees
     Object.assign(dto, ctx)
     return dto
   }
@@ -46,7 +49,10 @@ export class DepositRequestDto {
 
 // ── ResponseDTO (output HTTP → client) ──────────────────────────────────
 
-export interface DepositResponseDTO {
+export interface TransfertResponseDTO {
   message: string
-  data: OperationResponseData
+  data: {
+    transactionReference: string
+    status: TransactionStatus
+  }
 }

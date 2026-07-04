@@ -11,9 +11,9 @@ import { TransactionDirection } from '#core/transactions/domain/enums/transactio
 import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
 import { PaymentStatus } from '#core/transactions/domain/enums/payment_status'
 import { PaymentMethod } from '#core/transactions/domain/enums/payment_method'
-import WalletToWalletUseCase from '#features/operations/application/use_cases/wallet_to_wallet.use_case'
-import { WalletToWalletRequestDto } from '#features/operations/application/dtos/wallet_to_wallet.dto'
-import { TransferMode } from '#features/operations/application/services/recipient_locator'
+import WalletToWalletUseCase from '#aiglesend/operations/application/use_cases/wallet_to_wallet.use_case'
+import { WalletToWalletRequestDto } from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
+import { TransferMode } from '#aiglesend/operations/application/services/recipient_locator'
 import { createUserWithWallet, reloadBalance, swapGuards } from './mocks/operations_fixtures.js'
 
 /**

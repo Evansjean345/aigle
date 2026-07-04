@@ -8,8 +8,8 @@ import { TransactionDirection } from '#core/transactions/domain/enums/transactio
 import { PaymentStatus } from '#core/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#core/transactions/domain/enums/payment_step'
 import { ProviderResponse } from '#core/provider_gateway/domain/value_objects/provider_response'
-import DepositUseCase from '#features/operations/application/use_cases/deposit.usecase'
-import { DepositRequestDto } from '#features/operations/application/dtos/deposit.dto'
+import DepositUseCase from '#aiglesend/operations/application/use_cases/deposit.usecase'
+import { DepositRequestDto } from '#aiglesend/operations/application/dtos/deposit.dto'
 import {
   createUserWithWallet,
   reloadBalance,
