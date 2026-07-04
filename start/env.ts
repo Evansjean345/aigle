@@ -134,30 +134,34 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   /*
   |----------------------------------------------------------
-  | Provider Hub2 (mobile money) — provider_gateway
+  | Agrégateur Hub2 (mobile money / carte) — provider_gateway
   |----------------------------------------------------------
-  | Optionnelles au Lot 1 (additif, adapter pas encore branché).
-  | À passer en requises au Lot 2 (bascule HTTP→local).
+  | Appelé EN DIRECT (aiglehub absorbé, aiglesend = couche racine). Requises.
+  | HUB2_API_ENV ('sandbox' | 'live') sélectionne le secret d'API utilisé.
   */
-  HUB2_API_ENV: Env.schema.string.optional(),
-  HUB2_API_KEY: Env.schema.string.optional(),
-  HUB2_API_SECRET: Env.schema.string.optional(),
-  HUB2_API_SANDBOX_SECRET: Env.schema.string.optional(),
-  HUB2_API_ENDPOINT: Env.schema.string.optional(),
-  // Secrets de signature des webhooks Hub2 (réception directe, Lot 3b) — un par webhook enregistré.
-  HUB2_WH_TRANSFER_SUCCESS_SECRET: Env.schema.string.optional(),
-  HUB2_WH_TRANSFER_FAILED_SECRET: Env.schema.string.optional(),
-  HUB2_WH_PAYMENT_SUCCESS_SECRET: Env.schema.string.optional(),
-  HUB2_WH_PAYMENT_FAILED_SECRET: Env.schema.string.optional(),
+  HUB2_API_ENV: Env.schema.string(),
+  HUB2_API_KEY: Env.schema.string(),
+  HUB2_API_SECRET: Env.schema.string(),
+  HUB2_API_SANDBOX_SECRET: Env.schema.string(),
+  HUB2_API_ENDPOINT: Env.schema.string(),
+  // Secrets de signature des webhooks Hub2 (réception directe) — un par webhook enregistré.
+  HUB2_WH_TRANSFER_SUCCESS_SECRET: Env.schema.string(),
+  HUB2_WH_TRANSFER_FAILED_SECRET: Env.schema.string(),
+  HUB2_WH_PAYMENT_SUCCESS_SECRET: Env.schema.string(),
+  HUB2_WH_PAYMENT_FAILED_SECRET: Env.schema.string(),
 
   /*
   |----------------------------------------------------------
-  | Provider Wave (mobile money direct) — provider_gateway
+  | Agrégateur Wave (mobile money direct) — provider_gateway
   |----------------------------------------------------------
-  | Optionnelles au Lot 1 (Wave dormant, routé via Hub2).
-  | À passer en requises à l'activation de Wave.
+  | Appelé EN DIRECT. Requises. Dormant tant que Wave n'est pas ajouté aux
+  | PROVIDER_MANIFESTS (le routage retombe alors sur Hub2), mais la config
+  | doit être présente.
   */
-  WAVE_API_KEY: Env.schema.string.optional(),
-  WAVE_API_URL: Env.schema.string.optional(),
-  WAVE_API_AGGREGATED_MERCHANT_ID: Env.schema.string.optional(),
+  WAVE_API_KEY: Env.schema.string(),
+  WAVE_API_URL: Env.schema.string(),
+  WAVE_API_AGGREGATED_MERCHANT_ID: Env.schema.string(),
+  // Secrets de signature des webhooks Wave (réception directe).
+  WAVE_WEBHOOK_CHECKOUT_SUCCESS_SECRET: Env.schema.string(),
+  WAVE_WEBHOOK_CHECKOUT_ERRORS_SECRET: Env.schema.string(),
 })
