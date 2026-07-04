@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
-import { Exception } from '@adonisjs/core/exceptions'
 import MoneyMovementEngine from '#features/money_movement/domain/interfaces/money_movement_engine'
+import MovementNotImplementedException from '#features/money_movement/infrastructure/exceptions/movement_not_implemented_exception'
 import type {
   InternalMoveCommand,
   ExternalOutCommand,
@@ -64,7 +64,7 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
 
   /** Contre-passation — différée (L2-D3). */
   async reverse(_cmd: ReverseCommand): Promise<MovementResult> {
-    throw this.notImplemented('reverse')
+    throw new MovementNotImplementedException('reverse')
   }
 
   /**
@@ -78,17 +78,7 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
       case 'transfert':
         return this.settleTransfert.handle(cmd)
       default:
-        throw new Exception(`settle(${cmd.kind}) n'est pas encore implémenté (Lot 3)`, {
-          status: 501,
-          code: 'E_NOT_IMPLEMENTED',
-        })
+        throw new MovementNotImplementedException(`settle(${cmd.kind})`)
     }
-  }
-
-  private notImplemented(primitive: string): Exception {
-    return new Exception(`MoneyMovementEngine.${primitive} n'est pas encore implémenté (Lot 2)`, {
-      status: 501,
-      code: 'E_NOT_IMPLEMENTED',
-    })
   }
 }
