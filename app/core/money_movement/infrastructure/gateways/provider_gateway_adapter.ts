@@ -1,5 +1,7 @@
 import { inject } from '@adonisjs/core'
+import emitter from '@adonisjs/core/services/emitter'
 import ExternalMovementGateway from '#core/money_movement/domain/interfaces/external_movement_gateway'
+import { redactSensitive } from '#shared/infrastructure/logging/redact_sensitive'
 import type {
   ExternalInitiationBase,
   ExternalOutInitiation,
@@ -67,6 +69,9 @@ export default class ProviderGatewayAdapter implements ExternalMovementGateway {
 
     const request = ProviderRequest.create({
       transactionId: ctx.transactionReference,
+      // Référence client stable exigée par les providers (Hub2 rejette un customerReference
+      // non-string) — l'identifiant utilisateur interne joue ce rôle.
+      customerReference: ctx.userId,
       amount,
       currency: 'XOF',
       provider: adapter.providerName,
@@ -75,8 +80,66 @@ export default class ProviderGatewayAdapter implements ExternalMovementGateway {
       metadata: { provider: ctx.operator },
     })
 
-    const response = await this.resolver.invoke(adapter, operation, request)
+    // Trace forensique de l'I/O provider dans transaction_logs (brut redacté). Best-effort.
+    this.logSent(ctx, adapter.providerName, operation, {
+      customerReference: ctx.userId,
+      purchaseReference: ctx.transactionReference,
+      amount,
+      currency: 'XOF',
+      phoneNumber: request.phoneNumber,
+    })
+
+    let response: ProviderResponse
+    try {
+      response = await this.resolver.invoke(adapter, operation, request)
+    } catch (error) {
+      this.logResponse(ctx, adapter.providerName, operation, false, {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw error
+    }
+
+    this.logResponse(ctx, adapter.providerName, operation, response.isSuccess, response.rawData)
     return this.mapResponse(response)
+  }
+
+  /** Journalise l'appel sortant vers le provider (transaction_logs). Best-effort, non bloquant. */
+  private logSent(
+    ctx: ExternalInitiationBase,
+    provider: string,
+    operation: ProviderOperation,
+    rawRequest: Record<string, unknown>
+  ): void {
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'SENT_TO_AGGREGATOR',
+        transactionId: ctx.transactionReference,
+        provider,
+        reference: ctx.transactionReference,
+        operation,
+        rawRequest: redactSensitive(rawRequest) as Record<string, unknown>,
+      })
+      .catch(() => {})
+  }
+
+  /** Journalise la réponse brute du provider (succès ou corps d'erreur). Best-effort. */
+  private logResponse(
+    ctx: ExternalInitiationBase,
+    provider: string,
+    operation: ProviderOperation,
+    success: boolean,
+    rawResponse: Record<string, unknown>
+  ): void {
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'AGGREGATOR_RESPONSE_RECEIVED',
+        transactionId: ctx.transactionReference,
+        provider,
+        success,
+        operation,
+        rawResponse: redactSensitive(rawResponse) as Record<string, unknown>,
+      })
+      .catch(() => {})
   }
 
   /**

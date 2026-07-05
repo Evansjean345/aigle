@@ -72,7 +72,12 @@ class TransactionLogService {
           transactionId: data.transactionId,
           eventType: 'SENT_TO_AGGREGATOR',
           status: 'PROCESSING',
-          payload: { provider: data.provider, reference: data.reference },
+          payload: {
+            provider: data.provider,
+            reference: data.reference,
+            ...(data.operation ? { operation: data.operation } : {}),
+            ...(data.rawRequest ? { rawRequest: data.rawRequest } : {}),
+          },
           actorType: 'SYSTEM' as const,
         }
 
@@ -178,6 +183,8 @@ class TransactionLogService {
           payload: {
             provider: data.provider,
             success: data.success,
+            ...(data.operation ? { operation: data.operation } : {}),
+            ...(data.rawResponse ? { rawResponse: data.rawResponse } : {}),
           },
           errorMessage: data.errorMessage,
           actorType: 'SYSTEM' as const,

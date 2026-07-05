@@ -27,7 +27,15 @@ export type TransactionLogEventData =
       balanceBefore: number
       balanceAfter: number
     }
-  | { event: 'SENT_TO_AGGREGATOR'; transactionId: string; provider: string; reference: string }
+  | {
+      event: 'SENT_TO_AGGREGATOR'
+      transactionId: string
+      provider: string
+      reference: string
+      operation?: string
+      /** Snapshot brut de la requête envoyée au provider (redactée). */
+      rawRequest?: Record<string, unknown>
+    }
   | {
       event: 'WEBHOOK_RECEIVED'
       reference: string
@@ -68,6 +76,9 @@ export type TransactionLogEventData =
       provider: string
       success: boolean
       errorMessage?: string
+      operation?: string
+      /** Réponse brute du provider (succès ou corps d'erreur, redactée). */
+      rawResponse?: Record<string, unknown>
     }
   | {
       event: 'LEDGER_ENTRY_CREATED'

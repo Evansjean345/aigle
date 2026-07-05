@@ -1,5 +1,7 @@
 import { inject } from '@adonisjs/core'
+import emitter from '@adonisjs/core/services/emitter'
 import Transaction from '#core/transactions/domain/models/transaction'
+import { redactSensitive } from '#shared/infrastructure/logging/redact_sensitive'
 import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
 import { PaymentStatus } from '#core/transactions/domain/enums/payment_status'
 import MoneyMovementEngine from '#core/money_movement/domain/interfaces/money_movement_engine'
@@ -29,6 +31,16 @@ export default class SettleProviderWebhookUseCase {
   ) {}
 
   async handle(event: ProviderWebhookEvent): Promise<void> {
+    // Trace forensique de la réception (transaction_logs), AVANT tout traitement : même si la
+    // transaction est introuvable ou que le settlement échoue, on garde le brut reçu. Best-effort.
+    emitter
+      .emit('activity:transaction-log', {
+        event: 'WEBHOOK_RECEIVED',
+        reference: event.reference,
+        webhookPayload: redactSensitive(event.rawData) as Record<string, unknown>,
+      })
+      .catch(() => {})
+
     const transaction = await Transaction.query().where('reference', event.reference).first()
 
     if (!transaction) {
