@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import User from '#core/identity/user/domain/models/user'
@@ -16,8 +17,8 @@ const CI_COUNTRY_ID = 52
  * account_id dérivé (= owner_ref) et de façon idempotente.
  *
  * Non couvert par la suite payments-flow (qui seed les wallets directement).
- * Le chemin owner=organisation (wallet sans user) est caractérisé avec la
- * feature business, une fois les colonnes user relâchées en nullable.
+ * Couvre les deux natures de propriétaire : user (wallet lié au users_uid) et
+ * organisation (wallet sans user, user_id null — colonne relâchée en nullable).
  */
 async function createUser(): Promise<User> {
   const phone = `+22507${Math.floor(1_000_000 + Math.random() * 8_999_999)}`
@@ -75,5 +76,35 @@ test.group('Fondation account | openFor(user)', (group) => {
 
     const wallets = await Wallet.query().where('account_id', user.usersUid)
     assert.lengthOf(wallets, 1)
+  })
+})
+
+test.group('Fondation account | openFor(organisation)', (group) => {
+  group.each.setup(async () => {
+    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
+    await db.beginGlobalTransaction()
+    return async () => {
+      await db.rollbackGlobalTransaction()
+      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
+    }
+  })
+
+  test('crée un compte + wallet sans user propriétaire (user_id null)', async ({ assert }) => {
+    const organisationId = randomUUID()
+    const provisioning = await app.container.make(AccountProvisioningService)
+
+    const accountId = await provisioning.openFor(AccountOwnerType.ORGANISATION, organisationId)
+
+    // account_id dérivé = owner_ref = organisation_id
+    assert.equal(accountId, organisationId)
+
+    const account = await Account.query().where('owner_ref', organisationId).firstOrFail()
+    assert.equal(account.ownerType, AccountOwnerType.ORGANISATION)
+    assert.equal(account.accountId, organisationId)
+
+    const wallet = await Wallet.query().where('account_id', organisationId).firstOrFail()
+    assert.isNull(wallet.userId)
+    assert.equal(Number(wallet.balance), 0)
+    assert.equal(wallet.currencySymbol, 'XOF')
   })
 })
