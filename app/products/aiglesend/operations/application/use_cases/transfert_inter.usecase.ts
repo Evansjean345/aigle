@@ -4,17 +4,17 @@ import {
 } from '#aiglesend/operations/application/dtos/transfert_inter.dto'
 import { inject } from '@adonisjs/core'
 import type { OperationActor } from '#aiglesend/operations/application/types/operation_actor'
-import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
-import IdempotencyProvider from '#core/transactions/domain/interfaces/idempotency_provider'
+import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
+import IdempotencyProvider from '#core/money/transactions/domain/interfaces/idempotency_provider'
 import IdentityGate from '#core/authentication/application/services/identity_gate'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
-import MoneyMovementEngine from '#core/money_movement/domain/interfaces/money_movement_engine'
+import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
 import type {
   ExternalToExternalCommand,
   MovementResult,
-} from '#core/money_movement/domain/types/money_movement_types'
+} from '#core/money/money_movement/domain/types/money_movement_types'
 
 /**
  * Use case transfert_inter — routeur mince (Lot 2, L2-D6).

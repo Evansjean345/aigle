@@ -13,11 +13,11 @@ import UserRepositoryImpl from '#core/user/infrastructure/repositories/user_repo
 import OtpRepository from '#core/otp/domain/interfaces/otp_repository'
 import OtpRepositoryImpl from '#core/otp/infrastructure/repositories/otp_repository_impl'
 
-import WalletRepository from '#core/wallet/domain/interfaces/wallet_repository'
-import WalletRepositoryImpl from '#core/wallet/infrastructure/repositories/wallet_repository_impl'
+import WalletRepository from '#core/money/wallet/domain/interfaces/wallet_repository'
+import WalletRepositoryImpl from '#core/money/wallet/infrastructure/repositories/wallet_repository_impl'
 
-import ServiceProviderFeesRepository from '#core/fees/domain/interfaces/service_provider_fees_repository'
-import { ServiceProviderFeesRepositoryImpl } from '#core/fees/infrastructure/repositories/service_provider_fees_repository_impl'
+import ServiceProviderFeesRepository from '#core/money/fees/domain/interfaces/service_provider_fees_repository'
+import { ServiceProviderFeesRepositoryImpl } from '#core/money/fees/infrastructure/repositories/service_provider_fees_repository_impl'
 
 import CountryRepository from '#core/country/domain/interfaces/country_repository'
 import CountryRepositoryImpl from '#core/country/infrastructure/repositories/country_repository_impl'
@@ -50,8 +50,8 @@ import PermissionRepository from '#core/team/domain/interfaces/permission_reposi
 import PermissionRepositoryImpl from '#core/team/infrastructure/repositories/permission_repository_impl'
 import DebitPhoneRepository from '#core/user/domain/interfaces/debit_phone_repository'
 import DebitPhoneRepositoryImpl from '#core/user/infrastructure/repositories/debit_phone_repository_impl'
-import WalletAdjustmentRepository from '#core/wallet/domain/interfaces/wallet_adjustment_repository'
-import WalletAdjustmentRepositoryImpl from '#core/wallet/infrastructure/repositories/wallet_adjustment_repository_impl'
+import WalletAdjustmentRepository from '#core/money/wallet/domain/interfaces/wallet_adjustment_repository'
+import WalletAdjustmentRepositoryImpl from '#core/money/wallet/infrastructure/repositories/wallet_adjustment_repository_impl'
 import AuditLogRepository from '#core/audit/domain/interfaces/audit_log_repository'
 import AuditLogRepositoryImpl from '#core/audit/infrastructure/repositories/audit_log_repository_impl'
 

@@ -1,17 +1,17 @@
 import emitter from '@adonisjs/core/services/emitter'
-import WalletToWalletTransactionCompleted from '#core/transactions/application/events/wallet_to_wallet_transaction_completed'
-import DepositTransactionCompleted from '#core/transactions/application/events/deposit_transaction_completed'
-import TransfertTransactionCompleted from '#core/transactions/application/events/transfert_transaction_completed'
-import WalletToWalletTransactionFailed from '#core/transactions/application/events/wallet_to_wallet_transaction_failed'
-import DepositTransactionFailed from '#core/transactions/application/events/deposit_transaction_failed'
-import TransfertTransactionFailed from '#core/transactions/application/events/transfert_transaction_failed'
-import TransfertInterTransactionFailed from '#core/transactions/application/events/transfert_inter_transaction_failed'
+import WalletToWalletTransactionCompleted from '#core/money/transactions/application/events/wallet_to_wallet_transaction_completed'
+import DepositTransactionCompleted from '#core/money/transactions/application/events/deposit_transaction_completed'
+import TransfertTransactionCompleted from '#core/money/transactions/application/events/transfert_transaction_completed'
+import WalletToWalletTransactionFailed from '#core/money/transactions/application/events/wallet_to_wallet_transaction_failed'
+import DepositTransactionFailed from '#core/money/transactions/application/events/deposit_transaction_failed'
+import TransfertTransactionFailed from '#core/money/transactions/application/events/transfert_transaction_failed'
+import TransfertInterTransactionFailed from '#core/money/transactions/application/events/transfert_inter_transaction_failed'
 import KycDocumentSubmitted from '#core/kyc/application/events/kyc_document_submitted'
 import KycDocumentProcessed from '#core/kyc/application/events/kyc_document_processed'
 import UserKycStatusUpdated from '#core/user/application/events/user_kyc_status_updated'
 import NewDeviceDetected from '#core/device/application/events/new_device_detected'
 import UserStateChanged from '#core/user/application/events/user_state_changed'
-import WalletStatusChanged from '#core/wallet/application/events/wallet_status_changed'
+import WalletStatusChanged from '#core/money/wallet/application/events/wallet_status_changed'
 
 const AuditListener = () => import('#core/audit/application/listeners/audit_listener')
 
@@ -19,10 +19,10 @@ const WalletToWalletTransactionPushNotificationListener = () =>
   import('#core/notifications/application/listeners/on_wallet_to_wallet_transaction_notification')
 
 const PersistUserTransactionsVolumeListener = () =>
-  import('#core/transactions/application/listeners/persist_user_transactions_volume')
+  import('#core/money/transactions/application/listeners/persist_user_transactions_volume')
 
 const ResetSecurityCountersOnSuccessListener = () =>
-  import('#core/risk/application/listeners/reset_security_counters_on_success')
+  import('#core/money/risk/application/listeners/reset_security_counters_on_success')
 
 const OnDepositSuccessNotification = () =>
   import('#core/notifications/application/listeners/on_deposit_success_notification')
@@ -53,10 +53,10 @@ const OnUserStateChangedNotification = () =>
 const OnWalletStatusChangedNotification = () =>
   import('#core/notifications/application/listeners/on_wallet_status_changed_notification')
 const HandleTransactionFailure = () =>
-  import('#core/risk/application/listeners/handle_transaction_failure')
+  import('#core/money/risk/application/listeners/handle_transaction_failure')
 
 import { type AuditRecordInput } from '#core/audit/infrastructure/audit_service'
-import { type TransactionLogEventData } from '#core/transactions/application/types/transaction_log_event_data'
+import { type TransactionLogEventData } from '#core/money/transactions/application/types/transaction_log_event_data'
 import { type AdminProviderErrorAlertEvent } from '#core/notifications/domain/events/admin_alert_events'
 import { type SecurityAlertEvent } from '#core/audit/application/types/security_alert_event'
 
@@ -101,7 +101,7 @@ emitter.listen(WalletToWalletTransactionFailed, [HandleTransactionFailure])
 emitter.listen(TransfertInterTransactionFailed, [HandleTransactionFailure])
 
 const TransactionLogListener = () =>
-  import('#core/transactions/application/listeners/transaction_log_listener')
+  import('#core/money/transactions/application/listeners/transaction_log_listener')
 
 const OnProviderErrorAlert = () =>
   import('#core/notifications/application/listeners/on_provider_error_alert')

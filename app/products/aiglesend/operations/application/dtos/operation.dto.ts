@@ -1,4 +1,4 @@
-import { type TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
+import { type TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 import { Exception } from '@adonisjs/core/exceptions'

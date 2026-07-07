@@ -1,14 +1,14 @@
 import { inject } from '@adonisjs/core'
 import type { OperationActor } from '#aiglesend/operations/application/types/operation_actor'
-import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
-import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
+import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
+import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import {
   WalletToWalletRequestDto,
   WalletToWalletResponseDTO,
   type RecipientResolution,
 } from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
-import WalletToWalletTransactionFailed from '#core/transactions/application/events/wallet_to_wallet_transaction_failed'
-import IdempotencyProvider from '#core/transactions/domain/interfaces/idempotency_provider'
+import WalletToWalletTransactionFailed from '#core/money/transactions/application/events/wallet_to_wallet_transaction_failed'
+import IdempotencyProvider from '#core/money/transactions/domain/interfaces/idempotency_provider'
 import RecipientLocator, {
   TransferMode,
 } from '#aiglesend/operations/application/services/recipient_locator'
@@ -16,11 +16,11 @@ import transferLog from '#shared/infrastructure/logging/transfer_log'
 import IdentityGate from '#core/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
-import MoneyMovementEngine from '#core/money_movement/domain/interfaces/money_movement_engine'
+import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
 import type {
   InternalMoveCommand,
   MovementResult,
-} from '#core/money_movement/domain/types/money_movement_types'
+} from '#core/money/money_movement/domain/types/money_movement_types'
 
 interface AuditContext {
   ipAddress?: string | null

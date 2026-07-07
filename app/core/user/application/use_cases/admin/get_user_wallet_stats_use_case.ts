@@ -1,9 +1,9 @@
 import { inject } from '@adonisjs/core'
 import UserRepository from '#core/user/domain/interfaces/user_repository'
-import TransactionVolumeCache from '#core/transactions/domain/interfaces/transaction_volume_cache'
+import TransactionVolumeCache from '#core/money/transactions/domain/interfaces/transaction_volume_cache'
 import { Exception } from '@adonisjs/core/exceptions'
 import { AdminUserWalletStatsDto } from '#core/user/application/dtos/admin_user_wallet_stats_dto'
-import TransactionRepository from '#core/transactions/domain/interfaces/transaction_repository'
+import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
 
 @inject()
 export default class GetUserWalletStatsUseCase {

@@ -1,5 +1,5 @@
-import Payment from '#core/transactions/domain/models/payment'
-import Transaction from '#core/transactions/domain/models/transaction'
+import Payment from '#core/money/transactions/domain/models/payment'
+import Transaction from '#core/money/transactions/domain/models/transaction'
 import { PaymentStatus, PaymentStep } from '#shared/enums/payment_enums'
 import {
   TransactionDirection,

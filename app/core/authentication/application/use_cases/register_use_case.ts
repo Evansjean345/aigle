@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
-import WalletService from '#core/wallet/application/services/wallet_service'
+import WalletService from '#core/money/wallet/application/services/wallet_service'
 import {
   RegisterRequestDto,
   RegisterResponseDto,

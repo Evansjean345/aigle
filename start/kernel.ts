@@ -35,11 +35,11 @@ router.use([
  */
 export const middleware = router.named({
   auth: () => import('#core/authentication/presentation/middleware/auth_middleware'),
-  idempotency: () => import('#core/transactions/presentation/middleware/idempotency_middleware'),
+  idempotency: () => import('#core/money/transactions/presentation/middleware/idempotency_middleware'),
   device: () => import('#shared/middleware/device_middleware'),
   permission: () => import('#core/team/presentation/middleware/permission_middleware'),
   geoip: () => import('#shared/middleware/geoip_middleware'),
   apiKey: () => import('../app/wrappers/aigle_business/mobile/middleware/api_key_middleware.js'),
   verify_hub2_signature: () =>
-    import('#core/webhooks/presentation/provider/middleware/verify_hub2_signature_middleware'),
+    import('#core/money/webhooks/presentation/provider/middleware/verify_hub2_signature_middleware'),
 })

@@ -11,12 +11,6 @@ export interface ListServiceProviderMethodsQuery {
   paymentMethodId?: number
   providerFromId?: number
   providerToId?: number
-  /**
-   * Filtre par type de réseau:
-   * - 'inter': uniquement les inter-réseaux (providerFrom != providerTo et providerTo != null)
-   * - 'intra': uniquement les intra-réseaux (providerFrom == providerTo ou providerTo == null)
-   * - undefined: tous
-   */
   networkType?: 'inter' | 'intra'
 }
 

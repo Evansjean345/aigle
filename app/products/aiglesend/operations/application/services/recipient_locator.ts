@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import type { OperationActor } from '#aiglesend/operations/application/types/operation_actor'
-import WalletService from '#core/wallet/application/services/wallet_service'
-import { type RecipientAccountResult } from '#core/wallet/application/dtos/wallet.dto'
+import WalletService from '#core/money/wallet/application/services/wallet_service'
+import { type RecipientAccountResult } from '#core/money/wallet/application/dtos/wallet.dto'
 import {
   WalletToWalletRequestDto,
   type RecipientResolution,
@@ -9,8 +9,8 @@ import {
 import CountryRepository from '#core/country/domain/interfaces/country_repository'
 import ModeUnsupportedException from '#aiglesend/operations/domain/exceptions/mode_unsupported_exception'
 import InvalidAmountException from '#aiglesend/operations/domain/exceptions/invalid_amount_exception'
-import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
-import { PaymentMethod } from '#core/transactions/domain/enums/payment_method'
+import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
+import { PaymentMethod } from '#core/money/transactions/domain/enums/payment_method'
 
 /** Mode d'adressage produit du bénéficiaire d'un transfert wallet-to-wallet. */
 export enum TransferMode {

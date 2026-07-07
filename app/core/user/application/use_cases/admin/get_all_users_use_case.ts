@@ -4,7 +4,7 @@ import {
   AdminUserListItemResponseDto,
   AdminUsersListResponseDto,
 } from '#core/user/application/dtos/admin/users.response.dto'
-import TransactionVolumeCache from '#core/transactions/domain/interfaces/transaction_volume_cache'
+import TransactionVolumeCache from '#core/money/transactions/domain/interfaces/transaction_volume_cache'
 import { DateTime } from 'luxon'
 
 @inject()

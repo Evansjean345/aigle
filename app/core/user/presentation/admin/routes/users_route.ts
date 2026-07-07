@@ -4,10 +4,10 @@ import { middleware } from '#start/kernel'
 const UsersController = () => import('#core/user/presentation/admin/controllers/users_controller')
 
 const AdminTransactionController = () =>
-  import('#core/transactions/presentation/admin/controllers/transactions_controller')
+  import('#core/money/transactions/presentation/admin/controllers/transactions_controller')
 
 const LedgersController = () =>
-  import('#core/ledger/presentation/admin/controllers/ledgers_controller')
+  import('#core/money/ledger/presentation/admin/controllers/ledgers_controller')
 
 const KycController = () => import('#core/kyc/presentation/admin/controllers/kyc_controller')
 

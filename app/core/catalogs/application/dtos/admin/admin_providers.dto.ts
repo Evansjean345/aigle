@@ -2,9 +2,6 @@ import type { DateTime } from 'luxon'
 import type Provider from '#core/catalogs/domain/models/provider'
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import type { ProviderType, ProviderStatus } from '#core/catalogs/domain/enums/provider_enums'
-
-// Enums métier + contrat repository vivent dans le domaine (DDD strict). Ré-exportés ici pour que
-// controllers/use cases continuent de les importer depuis le DTO.
 export type { ProviderType, ProviderStatus } from '#core/catalogs/domain/enums/provider_enums'
 export type {
   ListProvidersQuery,

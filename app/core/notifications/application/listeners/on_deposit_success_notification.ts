@@ -1,5 +1,5 @@
 import NotificationService from '#core/notifications/application/services/notification_service'
-import DepositTransactionCompleted from '#core/transactions/application/events/deposit_transaction_completed'
+import DepositTransactionCompleted from '#core/money/transactions/application/events/deposit_transaction_completed'
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import { inject } from '@adonisjs/core'

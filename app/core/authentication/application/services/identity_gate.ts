@@ -3,8 +3,8 @@ import AccountValidationService from '#core/user/application/services/account_va
 import DebitPhoneValidationService from '#core/user/application/services/debit_phone_validation_service'
 import UserRepository from '#core/user/domain/interfaces/user_repository'
 import UserAccountNotFoundException from '#core/authentication/domain/exceptions/user_account_not_found_exception'
-import TransactionThrottleCache from '#core/risk/domain/interfaces/transaction_throttle_cache'
-import TransactionFailureCache from '#core/risk/domain/interfaces/transaction_failure_cache'
+import TransactionThrottleCache from '#core/money/risk/domain/interfaces/transaction_throttle_cache'
+import TransactionFailureCache from '#core/money/risk/domain/interfaces/transaction_failure_cache'
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 

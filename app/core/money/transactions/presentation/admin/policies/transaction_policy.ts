@@ -1,0 +1,85 @@
+import { BasePolicy } from '@adonisjs/bouncer'
+import type Admin from '#core/team/domain/models/admin'
+import { adminHasPermission } from '#core/team/application/authorization/permission_helpers'
+import { TRANSACTION_PERMISSIONS } from '#core/money/transactions/presentation/admin/permissions.config'
+
+export default class TransactionPolicy extends BasePolicy {
+  /**
+   * Retrieves and verifies a user's permission to view transactions.
+   *
+   * @param {Admin} user - The admin user whose permissions will be checked.
+   * @return {Promise<boolean>} A promise that resolves to true if the user has the required permission, otherwise false.
+   */
+  async viewTransactions(user: Admin): Promise<boolean> {
+    return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionsRead)
+  }
+
+  /**
+   * Checks if the given admin user has permission to view user data.
+   *
+   * @param {Admin} user The admin user whose permissions will be checked.
+   * @return {Promise<boolean>} A promise resolving to true if the user has the required permission, otherwise false.
+   */
+  async viewTransaction(user: Admin): Promise<boolean> {
+    return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionRead)
+  }
+
+  /**
+   * Retrieves and verifies if the admin user has permission to view the transactions report.
+   *
+   * @param {Admin} user - The admin user object requesting access to the transactions report.
+   * @return {Promise<boolean>} A promise that resolves to a boolean value indicating whether the user has the required permissions.
+   */
+  async viewTransactionsReport(user: Admin): Promise<boolean> {
+    return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionsReportRead)
+  }
+
+  /**
+   * Retrieves and verifies the user's permission to view transaction records.
+   *
+   * @param {Admin} user - The admin user whose permissions are to be checked.
+   * @return {Promise<boolean>} A promise that resolves to a boolean indicating whether the user has permission to view transactions.
+   */
+  async viewUserTransactions(user: Admin): Promise<boolean> {
+    return adminHasPermission(user, TRANSACTION_PERMISSIONS.userTransactionsRead)
+  }
+
+  /**
+   * Retrieves the user transactions report for the specified admin if they have the required permissions.
+   *
+   * @param {Admin} user - The admin user requesting to view the user transactions report.
+   * @return {Promise<boolean>} A promise that resolves to true if the admin has permission to view the report, otherwise false.
+   */
+  async viewUserTransactionsReport(user: Admin): Promise<boolean> {
+    return adminHasPermission(user, TRANSACTION_PERMISSIONS.userTransactionsReportRead)
+  }
+
+  /**
+   * Determines if the given admin user has permission to view transaction ledger.
+   *
+   * @param {Admin} user - The admin user whose permissions are being checked.
+   * @return {Promise<boolean>} A promise that resolves to true if the user has the 'transaction_ledger.read' permission, otherwise false.
+   */
+  async viewLedger(user: Admin): Promise<boolean> {
+    return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionLedgerRead)
+  }
+
+  /**
+   * Determines whether the given admin user has permission to execute a refund.
+   *
+   * @param {Admin} user - The admin user to check refund execution permissions for.
+   * @return {Promise<boolean>} A promise resolving to true if the user has transaction refund execute permission, false otherwise.
+   */
+  async executeRefund(user: Admin): Promise<boolean> {
+    return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionRefundExecute)
+  }
+
+  /**
+   * Checks whether the specified admin user has permission to view refunds.
+   * @param {Admin} user - The admin user whose permissions are being checked.
+   * @return {Promise<boolean>} A promise that resolves to true if the user has permission to view refunds, false otherwise.
+   */
+  async viewRefunds(user: Admin): Promise<boolean> {
+    return adminHasPermission(user, TRANSACTION_PERMISSIONS.transactionsRefundsRead)
+  }
+}

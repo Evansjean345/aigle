@@ -1,4 +1,4 @@
-import { type TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
+import { type TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import { type TransfertValidator } from '#aiglesend/operations/presentation/mobile/validators/transfert_validator'
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'

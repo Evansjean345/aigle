@@ -1,0 +1,124 @@
+import { HttpContext } from '@adonisjs/core/http'
+import { inject } from '@adonisjs/core'
+import UpdateWalletStatusUseCase from '#core/money/wallet/application/use_cases/admin/update_wallet_status_use_case'
+import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
+import emitter from '@adonisjs/core/services/emitter'
+import { AuditResult } from '#core/audit/domain/enums'
+
+@inject()
+export default class AdminWalletController {
+  /**
+   * Constructs an instance of the class.
+   *
+   * @param {UpdateWalletStatusUseCase} updateWalletStatusUseCase - The use case responsible for updating the wallet status.
+   */
+  constructor(private readonly updateWalletStatusUseCase: UpdateWalletStatusUseCase) {}
+
+  /**
+   * Activates a wallet by updating its status to active.
+   *
+   * @param {Object} context - The HTTP context object.
+   * @param {Object} context.params - The parameters from the request.
+   * @param {string} context.params.userId - The ID of the user whose wallet is being activated.
+   * @param {Object} context.response - The response object used to send a response back.
+   * @return {Promise<void>} The response indicating the wallet activation result.
+   */
+  async activate({ params, response, auth, request }: HttpContext): Promise<void> {
+    const { userId } = params
+    try {
+      await this.updateWalletStatusUseCase.execute({
+        userId,
+        status: WalletStatus.Active,
+      })
+
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'WALLET',
+          eventAction: 'ACTIVATE_WALLET',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: userId,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          newValues: { status: WalletStatus.Active },
+          result: AuditResult.SUCCESS,
+        })
+        .catch(() => {})
+
+      return response.ok({ message: 'Wallet activated successfully' })
+    } catch (error) {
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'WALLET',
+          eventAction: 'ACTIVATE_WALLET',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: userId,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.FAILURE,
+          errorMessage: (error as Error)?.message,
+        })
+        .catch(() => {})
+      throw error
+    }
+  }
+
+  /**
+   * Deactivates a wallet by setting its status to inactive.
+   *
+   * @param {Object} context - The context object containing request and response data.
+   * @param {Object} context.params - The parameters extracted from the request.
+   * @param {string} context.params.userId - The ID of the user whose wallet is to be deactivated.
+   * @param {Object} context.response - The response object to send the result.
+   * @return {Promise<void>} Returns a response indicating the wallet was successfully deactivated.
+   */
+  async deactivate({ params, response, auth, request }: HttpContext): Promise<void> {
+    const { userId } = params
+    try {
+      await this.updateWalletStatusUseCase.execute({
+        userId,
+        status: WalletStatus.Inactive,
+      })
+
+      emitter.emit('activity:audit', {
+        eventCategory: 'WALLET',
+        eventAction: 'DEACTIVATE_WALLET',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: userId,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        newValues: { status: WalletStatus.Inactive },
+        result: AuditResult.SUCCESS,
+      })
+
+      return response.ok({ message: 'Wallet deactivated successfully' })
+    } catch (error) {
+      emitter.emit('activity:audit', {
+        eventCategory: 'WALLET',
+        eventAction: 'DEACTIVATE_WALLET',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: userId,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.FAILURE,
+        errorMessage: (error as Error)?.message,
+      })
+      throw error
+    }
+  }
+}
