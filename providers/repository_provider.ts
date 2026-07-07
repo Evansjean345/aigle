@@ -60,6 +60,8 @@ import AuditLogRepository from '#core/audit/domain/interfaces/audit_log_reposito
 import AuditLogRepositoryImpl from '#core/audit/infrastructure/repositories/audit_log_repository_impl'
 import AuditRecorder from '#core/audit/domain/interfaces/audit_recorder'
 import { AuditService } from '#core/audit/infrastructure/audit_service'
+import AccountRepository from '#core/money/account/domain/interfaces/account_repository'
+import AccountRepositoryImpl from '#core/money/account/infrastructure/repositories/account_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -96,6 +98,7 @@ export default class RepositoryProvider {
       [WalletAdjustmentRepository, WalletAdjustmentRepositoryImpl],
       [AuditLogRepository, AuditLogRepositoryImpl],
       [AuditRecorder, AuditService],
+      [AccountRepository, AccountRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {
