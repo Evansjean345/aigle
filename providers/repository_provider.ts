@@ -14,6 +14,8 @@ import UserRepository from '#core/identity/user/domain/interfaces/user_repositor
 import UserRepositoryImpl from '#core/identity/user/infrastructure/repositories/user_repository_impl'
 import OtpRepository from '#core/identity/otp/domain/interfaces/otp_repository'
 import OtpRepositoryImpl from '#core/identity/otp/infrastructure/repositories/otp_repository_impl'
+import OtpDeliveryDispatcher from '#core/identity/otp/domain/interfaces/otp_delivery_dispatcher'
+import OtpDeliveryDispatcherImpl from '#core/identity/otp/infrastructure/delivery/otp_delivery_dispatcher_impl'
 
 import WalletRepository from '#core/money/wallet/domain/interfaces/wallet_repository'
 import WalletRepositoryImpl from '#core/money/wallet/infrastructure/repositories/wallet_repository_impl'
@@ -72,6 +74,7 @@ export default class RepositoryProvider {
       [WalletRepository, WalletRepositoryImpl],
       [CountryRepository, CountryRepositoryImpl],
       [OtpRepository, OtpRepositoryImpl],
+      [OtpDeliveryDispatcher, OtpDeliveryDispatcherImpl],
       [ServiceTypeRepository, ServiceTypeRepositoryImpl],
       [PaymentMethodRepository, PaymentMethodRepositoryImpl],
       [ProviderRepository, ProviderRepositoryImpl],

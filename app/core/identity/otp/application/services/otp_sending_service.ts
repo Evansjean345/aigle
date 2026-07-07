@@ -1,14 +1,12 @@
 import { inject } from '@adonisjs/core'
 import hash from '@adonisjs/core/services/hash'
 import { DateTime } from 'luxon'
-import { Exception } from '@adonisjs/core/exceptions'
 import OtpRepository from '#core/identity/otp/domain/interfaces/otp_repository'
 import Otp from '#core/identity/otp/domain/models/otp'
 import OtpMessageTemplate from '#core/identity/otp/domain/templates/otp_message_template'
 import DefaultOtpTemplate from '#core/identity/otp/domain/templates/default_otp_template'
 import OtpCreationException from '#core/identity/otp/domain/exceptions/otp_creation_exception'
-import SmsOtpDelivery from '#core/identity/otp/infrastructure/delivery/sms_otp_delivery'
-import EmailOtpDelivery from '#core/identity/otp/infrastructure/delivery/email_otp_delivery'
+import OtpDeliveryDispatcher from '#core/identity/otp/domain/interfaces/otp_delivery_dispatcher'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import crypto from 'node:crypto'
 import { maskPhone } from '#shared/utils/utiles'
@@ -17,13 +15,11 @@ import { maskPhone } from '#shared/utils/utiles'
 export default class OtpSendingService {
   /**
    * @param otpRepository - The repository for managing OTP (One-Time Password) entities.
-   * @param smsDelivery - The service responsible for sending OTP via SMS.
-   * @param emailDelivery - The service responsible for sending OTP via email.
+   * @param deliveryDispatcher - The dispatcher routing the OTP to the right delivery channel.
    */
   constructor(
     private readonly otpRepository: OtpRepository,
-    private readonly smsDelivery: SmsOtpDelivery,
-    private readonly emailDelivery: EmailOtpDelivery
+    private readonly deliveryDispatcher: OtpDeliveryDispatcher
   ) {}
 
   /**
@@ -64,19 +60,7 @@ export default class OtpSendingService {
 
       const { code } = await this.createOtp(userId, identifier, target, template.expirySeconds)
 
-      switch (target) {
-        case 'mobile':
-          await this.smsDelivery.send(identifier, code, template)
-          break
-        case 'email':
-          await this.emailDelivery.send(identifier, code, template)
-          break
-        default:
-          throw new Exception(`Unsupported target: ${target}`, {
-            status: 500,
-            code: 'OTP_UNSUPPORTED_TARGET',
-          })
-      }
+      await this.deliveryDispatcher.deliver(target, identifier, code, template)
 
       securityLog.info(
         'OTP_SENT',
