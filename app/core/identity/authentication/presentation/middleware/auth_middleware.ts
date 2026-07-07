@@ -6,8 +6,19 @@ import AccountBlockedException from '#core/identity/authentication/domain/except
 import '#shared/authentication/authenticated_actor'
 
 /**
- * Auth middleware is used authenticate HTTP requests and deny
- * access to unauthenticated users.
+ * Middleware d'authentification : vérifie le token (access tokens AdonisJS), refuse les non
+ * authentifiés / comptes bloqués, puis injecte l'acteur réduit dans `ctx.authActor`.
+ *
+ * POURQUOI DANS identity (et pas shared, contrairement à device/geoip) : ce middleware s'EXÉCUTE
+ * partout (transversal d'exécution) MAIS il CONNAÎT le contexte identity — il lit `user.status`
+ * (model User), lève une exception d'auth. Le critère de placement n'est pas « peuple-t-il ctx »
+ * (device/geoip le font aussi) mais « dépend-il d'une feature » : device/geoip lisent des headers/IP
+ * bruts (agnostiques → shared) ; auth connaît User (→ identity, le contexte propriétaire). Le mettre
+ * dans shared ré-introduirait la violation shared→feature nettoyée au durcissement #5.
+ *
+ * Il PRODUIT le contrat transverse `ctx.authActor` (défini dans shared, sans dépendance) : c'est
+ * l'ACL d'auth d'identity qui, au bord, réduit `ctx.auth.user` (model) en vue neutre. À l'extraction
+ * micro-services, l'API gateway jouerait ce rôle (claims du token) sans appel inter-service.
  */
 export default class AuthMiddleware {
   /**
@@ -25,6 +36,7 @@ export default class AuthMiddleware {
     await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
 
     const user = ctx.auth.user
+
     if (user && user.status === UserStatus.BLOCKED) {
       throw new AccountBlockedException()
     }
