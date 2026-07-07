@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import Transaction from '#core/money/transactions/domain/models/transaction'
-import Device from '#core/device/domain/models/device'
+import Device from '#core/identity/device/domain/models/device'
 
 export default class TransactionSecurityContext extends BaseModel {
   public static table = 'transaction_security_contexts'

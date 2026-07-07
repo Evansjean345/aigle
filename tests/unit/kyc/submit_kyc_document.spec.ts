@@ -1,12 +1,12 @@
 import { test } from '@japa/runner'
 import { v4 as uuidv4 } from 'uuid'
-import SubmitKycDocumentUsecase from '#core/kyc/application/usecases/mobile/submit_kyc_document.usecase'
-import type KycDocumentRepository from '#core/kyc/domain/interfaces/kyc_document_repository'
+import SubmitKycDocumentUsecase from '#core/identity/kyc/application/usecases/mobile/submit_kyc_document.usecase'
+import type KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import type FileStorageService from '#shared/infrastructure/services/file_storage_service'
-import { KycDocumentStatus, KycDocumentType } from '#core/kyc/domain/enum/kyc_enum'
-import type KycDocument from '#core/kyc/domain/models/kyc_document'
-import KycAlreadySubmittedException from '#core/kyc/domain/exceptions/kyc_already_submitted_exception'
-import MissingKycDocumentsException from '#core/kyc/domain/exceptions/missing_kyc_documents_exception'
+import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
+import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
+import KycAlreadySubmittedException from '#core/identity/kyc/domain/exceptions/kyc_already_submitted_exception'
+import MissingKycDocumentsException from '#core/identity/kyc/domain/exceptions/missing_kyc_documents_exception'
 
 test.group('Kyc | Submit Use Case', () => {
   test('devrait empêcher une soumission si un KYC est déjà APPROVED', async ({ assert }) => {

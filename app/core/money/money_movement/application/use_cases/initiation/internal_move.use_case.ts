@@ -22,7 +22,7 @@ import { PaymentMethod } from '#core/money/transactions/domain/enums/payment_met
 import { LedgerDirection } from '#core/money/ledger/domain/ledger_enums'
 import WalletToWalletTransactionCompleted from '#core/money/transactions/application/events/wallet_to_wallet_transaction_completed'
 import transferLog from '#shared/infrastructure/logging/transfer_log'
-import type User from '#core/user/domain/models/user'
+import type User from '#core/identity/user/domain/models/user'
 import type Transaction from '#core/money/transactions/domain/models/transaction'
 import type Wallet from '#core/money/wallet/domain/models/wallet'
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'

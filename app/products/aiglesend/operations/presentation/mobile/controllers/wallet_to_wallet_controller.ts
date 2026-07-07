@@ -4,7 +4,7 @@ import WalletToWalletUseCase from '#aiglesend/operations/application/use_cases/w
 import { walletToWalletValidator } from '#aiglesend/operations/presentation/mobile/validators/wallet_to_wallet_validator'
 import { TransferMode } from '#aiglesend/operations/application/services/recipient_locator'
 import { WalletToWalletRequestDto } from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
-import User from '#core/user/domain/models/user'
+import User from '#core/identity/user/domain/models/user'
 
 /**
  * Controller responsible for handling wallet-to-wallet operations.

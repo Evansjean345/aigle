@@ -7,7 +7,7 @@ import type { OperationActor } from '#aiglesend/operations/application/types/ope
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import IdempotencyProvider from '#core/money/transactions/domain/interfaces/idempotency_provider'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
-import IdentityGate from '#core/authentication/application/services/identity_gate'
+import IdentityGate from '#core/identity/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'

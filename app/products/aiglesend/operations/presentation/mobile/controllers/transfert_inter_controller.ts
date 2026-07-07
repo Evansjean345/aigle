@@ -3,7 +3,7 @@ import { inject } from '@adonisjs/core'
 import InterTransfertUseCase from '#aiglesend/operations/application/use_cases/transfert_inter.usecase'
 import { InterTransfertRequestDto } from '#aiglesend/operations/application/dtos/transfert_inter.dto'
 import { interTransfertValidator } from '#aiglesend/operations/presentation/mobile/validators/transfert_inter_validator'
-import User from '#core/user/domain/models/user'
+import User from '#core/identity/user/domain/models/user'
 
 @inject()
 export default class TransfertInterController {

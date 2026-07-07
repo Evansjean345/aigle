@@ -2,7 +2,7 @@
 import { BaseModel, beforeSave, belongsTo, column } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import { v4 as uuidv4 } from 'uuid'
-import User from '#core/user/domain/models/user'
+import User from '#core/identity/user/domain/models/user'
 import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
 
 export default class Wallet extends BaseModel {

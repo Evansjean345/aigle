@@ -1,8 +1,8 @@
 import NotificationService from '#core/notifications/application/services/notification_service'
-import UserKycStatusUpdated from '#core/user/application/events/user_kyc_status_updated'
+import UserKycStatusUpdated from '#core/identity/user/application/events/user_kyc_status_updated'
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
-import { UserKycStatus } from '#core/user/domain/enum'
+import { UserKycStatus } from '#core/identity/user/domain/enum'
 import { inject } from '@adonisjs/core'
 
 @inject()

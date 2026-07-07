@@ -3,7 +3,7 @@ import { depositValidator } from '#aiglesend/operations/presentation/mobile/vali
 import DepositUseCase from '#aiglesend/operations/application/use_cases/deposit.usecase'
 import { inject } from '@adonisjs/core'
 import { DepositRequestDto } from '#aiglesend/operations/application/dtos/deposit.dto'
-import User from '#core/user/domain/models/user'
+import User from '#core/identity/user/domain/models/user'
 
 @inject()
 export default class DepositController {

@@ -1,6 +1,6 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#core/money/transactions/infrastructure/repositories/transaction_repository_impl'
-import User from '#core/user/domain/models/user'
+import User from '#core/identity/user/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'

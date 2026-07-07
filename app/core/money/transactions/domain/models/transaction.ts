@@ -14,7 +14,7 @@ import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations
 import Payment from '#core/money/transactions/domain/models/payment'
 import TransactionLogEntry from '#core/money/transactions/domain/models/transaction_log_entry'
 import TransactionSecurityContext from '#core/money/transactions/domain/models/transaction_security_context'
-import User from '#core/user/domain/models/user'
+import User from '#core/identity/user/domain/models/user'
 import Ledger from '#core/money/ledger/domain/models/ledger'
 import Refund from '#core/money/transactions/domain/models/refund'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'

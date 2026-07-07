@@ -1,5 +1,5 @@
 import type Ledger from '#core/money/ledger/domain/models/ledger'
-import { UserKycStatus } from '#core/user/domain/enum'
+import { UserKycStatus } from '#core/identity/user/domain/enum'
 
 export class LedgerTransactionDto {
   declare id: number

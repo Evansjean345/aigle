@@ -34,7 +34,7 @@ router.use([
  * the routes or the routes group.
  */
 export const middleware = router.named({
-  auth: () => import('#core/authentication/presentation/middleware/auth_middleware'),
+  auth: () => import('#core/identity/authentication/presentation/middleware/auth_middleware'),
   idempotency: () => import('#core/money/transactions/presentation/middleware/idempotency_middleware'),
   device: () => import('#shared/middleware/device_middleware'),
   permission: () => import('#core/team/presentation/middleware/permission_middleware'),

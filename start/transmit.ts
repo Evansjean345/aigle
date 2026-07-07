@@ -1,6 +1,6 @@
 import transmit from '@adonisjs/transmit/services/main'
 import { middleware } from '#start/kernel'
-import KycPolicy from '#core/kyc/presentation/admin/policies/kyc_policy'
+import KycPolicy from '#core/identity/kyc/presentation/admin/policies/kyc_policy'
 import type Admin from '#core/team/domain/models/admin'
 
 /**

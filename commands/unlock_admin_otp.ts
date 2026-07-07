@@ -1,7 +1,7 @@
 import { BaseCommand, args, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import AdminRepository from '#core/team/domain/interfaces/admin_repository'
-import AdminOtpAttemptGuard from '#core/authentication/application/services/admin/admin_otp_attempt_guard'
+import AdminOtpAttemptGuard from '#core/identity/authentication/application/services/admin/admin_otp_attempt_guard'
 
 /**
  * Clears the brute-force lockout state for an admin's email-scoped OTP guard
@@ -72,7 +72,7 @@ export default class UnlockAdminOtp extends BaseCommand {
 
     if (this.includePassword) {
       const { default: AdminAttemptGuard } =
-        await import('#core/authentication/application/services/admin/admin_attempt_guard')
+        await import('#core/identity/authentication/application/services/admin/admin_attempt_guard')
       const passwordGuard = await this.app.container.make(AdminAttemptGuard)
       await passwordGuard.recordSuccess(email)
       this.logger.success(`Password guard cleared (auth:admin:* for ${email})`)

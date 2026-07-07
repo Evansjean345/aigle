@@ -6,7 +6,7 @@ import { TransfertRequestDto } from '#aiglesend/operations/application/dtos/tran
 import WalletToWalletUseCase from '#aiglesend/operations/application/use_cases/wallet_to_wallet.use_case'
 import { TransferMode } from '#aiglesend/operations/application/services/recipient_locator'
 import { PaymentMethod } from '#core/money/transactions/domain/enums/payment_method'
-import User from '#core/user/domain/models/user'
+import User from '#core/identity/user/domain/models/user'
 import { WalletToWalletRequestDto } from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
 
 /**

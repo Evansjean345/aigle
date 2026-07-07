@@ -13,7 +13,7 @@ import RecipientLocator, {
   TransferMode,
 } from '#aiglesend/operations/application/services/recipient_locator'
 import transferLog from '#shared/infrastructure/logging/transfer_log'
-import IdentityGate from '#core/authentication/application/services/identity_gate'
+import IdentityGate from '#core/identity/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'

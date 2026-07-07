@@ -1,7 +1,7 @@
 import { test } from '@japa/runner'
-import IdentityGate from '#core/authentication/application/services/identity_gate'
-import UserAccountNotFoundException from '#core/authentication/domain/exceptions/user_account_not_found_exception'
-import type User from '#core/user/domain/models/user'
+import IdentityGate from '#core/identity/authentication/application/services/identity_gate'
+import UserAccountNotFoundException from '#core/identity/authentication/domain/exceptions/user_account_not_found_exception'
+import type User from '#core/identity/user/domain/models/user'
 
 /**
  * Test unitaire d'IdentityGate — la façade d'autorisation du chemin argent.

@@ -1,9 +1,9 @@
 import NotificationService from '#core/notifications/application/services/notification_service'
 import { Notification } from '#core/notifications/domain/notification'
 import { inject } from '@adonisjs/core'
-import Device from '#core/device/domain/models/device'
-import DeviceService from '#core/device/application/services/device_service'
-import { DeviceStatus } from '#core/device/domain/enums'
+import Device from '#core/identity/device/domain/models/device'
+import DeviceService from '#core/identity/device/application/services/device_service'
+import { DeviceStatus } from '#core/identity/device/domain/enums'
 
 interface NewDeviceDetectedPayload {
   userId: string

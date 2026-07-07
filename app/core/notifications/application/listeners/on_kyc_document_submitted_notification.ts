@@ -1,5 +1,5 @@
 import NotificationService from '#core/notifications/application/services/notification_service'
-import KycDocumentSubmitted from '#core/kyc/application/events/kyc_document_submitted'
+import KycDocumentSubmitted from '#core/identity/kyc/application/events/kyc_document_submitted'
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import { inject } from '@adonisjs/core'

@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import User from '#core/user/domain/models/user'
+import User from '#core/identity/user/domain/models/user'
 import TransactionVolumeCache from '#core/money/transactions/domain/interfaces/transaction_volume_cache'
 import { TransactionQuotasResult } from '#core/money/transactions/application/dtos/transaction_quotas_result'
 import { Exception } from '@adonisjs/core/exceptions'

@@ -1,4 +1,4 @@
-﻿import ServiceProviderMethod from '#core/catalogs/domain/models/service_provider_method'
+﻿import ServiceProviderMethod from '#core/catalog/catalogs/domain/models/service_provider_method'
 import { type FeeRule } from '#core/money/fees/domain/fee_types'
 import { type SpmRuleLookup } from '#core/money/fees/domain/interfaces/service_provider_fees_repository'
 import type ServiceProviderFeesRepository from '#core/money/fees/domain/interfaces/service_provider_fees_repository'

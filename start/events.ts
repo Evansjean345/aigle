@@ -6,11 +6,11 @@ import WalletToWalletTransactionFailed from '#core/money/transactions/applicatio
 import DepositTransactionFailed from '#core/money/transactions/application/events/deposit_transaction_failed'
 import TransfertTransactionFailed from '#core/money/transactions/application/events/transfert_transaction_failed'
 import TransfertInterTransactionFailed from '#core/money/transactions/application/events/transfert_inter_transaction_failed'
-import KycDocumentSubmitted from '#core/kyc/application/events/kyc_document_submitted'
-import KycDocumentProcessed from '#core/kyc/application/events/kyc_document_processed'
-import UserKycStatusUpdated from '#core/user/application/events/user_kyc_status_updated'
-import NewDeviceDetected from '#core/device/application/events/new_device_detected'
-import UserStateChanged from '#core/user/application/events/user_state_changed'
+import KycDocumentSubmitted from '#core/identity/kyc/application/events/kyc_document_submitted'
+import KycDocumentProcessed from '#core/identity/kyc/application/events/kyc_document_processed'
+import UserKycStatusUpdated from '#core/identity/user/application/events/user_kyc_status_updated'
+import NewDeviceDetected from '#core/identity/device/application/events/new_device_detected'
+import UserStateChanged from '#core/identity/user/application/events/user_state_changed'
 import WalletStatusChanged from '#core/money/wallet/application/events/wallet_status_changed'
 
 const AuditListener = () => import('#core/audit/application/listeners/audit_listener')
@@ -31,7 +31,7 @@ const OnTransfertSuccessNotification = () =>
   import('#core/notifications/application/listeners/on_transfert_success_notification')
 
 const OnUserKycStatusUpdate = () =>
-  import('#core/user/application/listeners/on_user_kyc_status_update')
+  import('#core/identity/user/application/listeners/on_user_kyc_status_update')
 
 const OnKycDocumentSubmittedNotification = () =>
   import('#core/notifications/application/listeners/on_kyc_document_submitted_notification')
@@ -40,10 +40,10 @@ const OnKycDocumentProcessedNotification = () =>
   import('#core/notifications/application/listeners/on_kyc_document_processed_notification')
 
 const OnKycSubmittedAdminBroadcast = () =>
-  import('#core/kyc/application/listeners/on_kyc_submitted_admin_broadcast')
+  import('#core/identity/kyc/application/listeners/on_kyc_submitted_admin_broadcast')
 
 const OnKycProcessedAdminBroadcast = () =>
-  import('#core/kyc/application/listeners/on_kyc_processed_admin_broadcast')
+  import('#core/identity/kyc/application/listeners/on_kyc_processed_admin_broadcast')
 
 const OnNewDeviceDetectedNotification = () =>
   import('#core/notifications/application/listeners/on_new_device_detected_notification')

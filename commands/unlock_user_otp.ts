@@ -1,8 +1,8 @@
 import { BaseCommand, args, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
-import UserRepository from '#core/user/domain/interfaces/user_repository'
-import UserOtpAttemptGuard from '#core/authentication/application/services/user_otp_attempt_guard'
-import { UserStatus } from '#core/user/domain/enum'
+import UserRepository from '#core/identity/user/domain/interfaces/user_repository'
+import UserOtpAttemptGuard from '#core/identity/authentication/application/services/user_otp_attempt_guard'
+import { UserStatus } from '#core/identity/user/domain/enum'
 import { normalizePhone } from '#shared/utils/utiles'
 
 /**
@@ -67,7 +67,7 @@ export default class UnlockUserOtp extends BaseCommand {
 
     if (this.includePin) {
       const { default: PinAttemptGuard } =
-        await import('#core/authentication/application/services/pin_attempt_guard')
+        await import('#core/identity/authentication/application/services/pin_attempt_guard')
       const pinGuard = await this.app.container.make(PinAttemptGuard)
       await pinGuard.recordSuccess(user.id)
       this.logger.success(`PIN guard cleared (auth:pin:* for user #${user.id})`)

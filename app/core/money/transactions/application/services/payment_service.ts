@@ -2,7 +2,7 @@
 import PaymentRepository from '#core/money/transactions/domain/interfaces/payment_repository'
 import Payment from '#core/money/transactions/domain/models/payment'
 import Transaction from '#core/money/transactions/domain/models/transaction'
-import User from '#core/user/domain/models/user'
+import User from '#core/identity/user/domain/models/user'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { PaymentStatus } from '#core/money/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#core/money/transactions/domain/enums/payment_step'

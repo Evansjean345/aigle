@@ -4,7 +4,7 @@ import { Expo } from 'expo-server-sdk'
 import { Notification } from '#core/notifications/domain/notification'
 import { inject } from '@adonisjs/core'
 import { Exception } from '@adonisjs/core/exceptions'
-import DeviceService from '#core/device/application/services/device_service'
+import DeviceService from '#core/identity/device/application/services/device_service'
 import notificationLog from '#shared/infrastructure/logging/notification_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 

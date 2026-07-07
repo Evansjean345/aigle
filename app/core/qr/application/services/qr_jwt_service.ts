@@ -2,8 +2,8 @@
 import redis from '@adonisjs/redis/services/main'
 import crypto from 'node:crypto'
 import config from '@adonisjs/core/services/config'
-import User from '#core/user/domain/models/user'
-import UserRepository from '#core/user/domain/interfaces/user_repository'
+import User from '#core/identity/user/domain/models/user'
+import UserRepository from '#core/identity/user/domain/interfaces/user_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
 

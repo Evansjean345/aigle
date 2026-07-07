@@ -1,9 +1,9 @@
 import { inject } from '@adonisjs/core'
 import NotificationService from '#core/notifications/application/services/notification_service'
-import UserStateChanged from '#core/user/application/events/user_state_changed'
+import UserStateChanged from '#core/identity/user/application/events/user_state_changed'
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
-import { UserStatus } from '#core/user/domain/enum'
+import { UserStatus } from '#core/identity/user/domain/enum'
 
 @inject()
 export default class OnUserStateChangedNotification {

@@ -1,9 +1,9 @@
 import { inject } from '@adonisjs/core'
-import AccountValidationService from '#core/user/application/services/account_validation_service'
+import AccountValidationService from '#core/identity/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#core/money/transactions/application/services/transaction_limit_validation_service'
 import type { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import type { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
-import type User from '#core/user/domain/models/user'
+import type User from '#core/identity/user/domain/models/user'
 
 /**
  * Brique partagée de l'engine : valide une partie prenante d'un mouvement (compte actif +

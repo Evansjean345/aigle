@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import KycPolicy from '#core/kyc/presentation/admin/policies/kyc_policy'
+import KycPolicy from '#core/identity/kyc/presentation/admin/policies/kyc_policy'
 
 function makeAdmin(roleSlug: string, perms: string[] = []) {
   return {

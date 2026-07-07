@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import FeeCalculatorService, {
   type FeeCalculationResult,
 } from '#core/money/fees/application/services/fee_calculator_service'
-import CatalogResolver from '#core/catalogs/application/services/catalog_resolver'
+import CatalogResolver from '#core/catalog/catalogs/application/services/catalog_resolver'
 import type { FeeContextInput } from '#core/money/money_movement/domain/types/money_movement_types'
 
 /**
