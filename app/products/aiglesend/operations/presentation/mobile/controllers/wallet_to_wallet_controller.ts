@@ -1,4 +1,5 @@
 import { HttpContext } from '@adonisjs/core/http'
+import User from '#core/identity/user/domain/models/user'
 import { inject } from '@adonisjs/core'
 import WalletToWalletUseCase from '#aiglesend/operations/application/use_cases/wallet_to_wallet.use_case'
 import { walletToWalletValidator } from '#aiglesend/operations/presentation/mobile/validators/wallet_to_wallet_validator'
@@ -23,19 +24,13 @@ export default class WalletToWalletController {
    * @param {Request} HttpContext.request - The HTTP request object for processing payload and input.
    * @param {Response} HttpContext.response - The HTTP response object for sending back responses.
    */
-  async handle({
-    request,
-    response,
-    authActor,
-    deviceInfo,
-    geoLocation,
-  }: HttpContext): Promise<void> {
+  async handle({ request, response, auth, deviceInfo, geoLocation }: HttpContext): Promise<void> {
     console.log('walletToWalletController')
     console.log(deviceInfo)
 
     const payload = await request.validateUsing(walletToWalletValidator)
 
-    const user = authActor!
+    const user = auth.user! as User
     const idempotencyKey = request.header('X-Idempotency-Key')
     const mode = payload.token ? TransferMode.BY_QRCODE : TransferMode.BY_PHONE
 

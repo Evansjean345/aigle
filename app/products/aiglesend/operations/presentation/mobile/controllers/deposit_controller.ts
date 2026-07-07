@@ -1,4 +1,5 @@
 import { HttpContext } from '@adonisjs/core/http'
+import User from '#core/identity/user/domain/models/user'
 import { depositValidator } from '#aiglesend/operations/presentation/mobile/validators/deposit_validator'
 import DepositUseCase from '#aiglesend/operations/application/use_cases/deposit.usecase'
 import { inject } from '@adonisjs/core'
@@ -21,14 +22,8 @@ export default class DepositController {
    * @param {Object} context.response - The HTTP response object for sending responses.
    * @return {Promise<void>} A promise that resolves to the HTTP response object with a success message.
    */
-  async handle({
-    request,
-    response,
-    authActor,
-    deviceInfo,
-    geoLocation,
-  }: HttpContext): Promise<void> {
-    const user = authActor!
+  async handle({ request, response, auth, deviceInfo, geoLocation }: HttpContext): Promise<void> {
+    const user = auth.user! as User
     const idempotencyKey = request.header('X-Idempotency-Key')
 
     const payload = await request.validateUsing(depositValidator)

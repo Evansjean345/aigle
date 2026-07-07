@@ -1,4 +1,5 @@
 import { HttpContext } from '@adonisjs/core/http'
+import User from '#core/identity/user/domain/models/user'
 import { transfertValidator } from '#aiglesend/operations/presentation/mobile/validators/transfert_validator'
 import TransfertUseCase from '#aiglesend/operations/application/use_cases/transfert.usecase'
 import { inject } from '@adonisjs/core'
@@ -34,17 +35,11 @@ export default class TransfertController {
    * @param {Object} HttpContext.auth - The authentication object containing the authenticated user.
    * @return {Promise<void>} The HTTP response containing the result of the transfer operation.
    */
-  async handle({
-    request,
-    response,
-    authActor,
-    deviceInfo,
-    geoLocation,
-  }: HttpContext): Promise<void> {
+  async handle({ request, response, auth, deviceInfo, geoLocation }: HttpContext): Promise<void> {
     console.log('debugging payload')
     console.log(request.all())
 
-    const user = authActor!
+    const user = auth.user! as User
     const idempotencyKey = request.header('X-Idempotency-Key')
     const payload = await request.validateUsing(transfertValidator)
 
