@@ -91,9 +91,16 @@ module.exports = {
     },
     {
       name: 'presentation-sans-modeles-ni-infra',
-      comment: 'La présentation passe par application, jamais directement domain/models ou infra.',
+      comment:
+        'La présentation passe par application, jamais directement domain/models ou infra. ' +
+        'EXEMPTION AUTORISATION : policies et permission middleware sont la couche d’autorisation ' +
+        '(Bouncer) — connaître le model d’identité est leur raison d’être (Admin aujourd’hui, rôles ' +
+        'user-par-organisation au module business demain). Exemptés durablement, pas un hack.',
       severity: 'warn',
-      from: { path: `${FEATURE_ROOT}/presentation` },
+      from: {
+        path: `${FEATURE_ROOT}/presentation`,
+        pathNot: '(/policies/|/presentation/middleware/permission)',
+      },
       to: { path: `${TO_LAYER}(domain/models|infrastructure)/` },
     },
 

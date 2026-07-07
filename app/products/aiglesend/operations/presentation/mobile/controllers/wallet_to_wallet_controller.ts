@@ -4,7 +4,7 @@ import WalletToWalletUseCase from '#aiglesend/operations/application/use_cases/w
 import { walletToWalletValidator } from '#aiglesend/operations/presentation/mobile/validators/wallet_to_wallet_validator'
 import { TransferMode } from '#aiglesend/operations/application/services/recipient_locator'
 import { WalletToWalletRequestDto } from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
-import User from '#core/identity/user/domain/models/user'
+import { toAuthenticatedActor } from '#core/identity/authentication/application/authenticated_actor'
 
 /**
  * Controller responsible for handling wallet-to-wallet operations.
@@ -30,7 +30,7 @@ export default class WalletToWalletController {
 
     const payload = await request.validateUsing(walletToWalletValidator)
 
-    const user = auth.user! as User
+    const user = toAuthenticatedActor(auth.user)
     const idempotencyKey = request.header('X-Idempotency-Key')
     const mode = payload.token ? TransferMode.BY_QRCODE : TransferMode.BY_PHONE
 

@@ -3,7 +3,7 @@ import { inject } from '@adonisjs/core'
 import InterTransfertUseCase from '#aiglesend/operations/application/use_cases/transfert_inter.usecase'
 import { InterTransfertRequestDto } from '#aiglesend/operations/application/dtos/transfert_inter.dto'
 import { interTransfertValidator } from '#aiglesend/operations/presentation/mobile/validators/transfert_inter_validator'
-import User from '#core/identity/user/domain/models/user'
+import { toAuthenticatedActor } from '#core/identity/authentication/application/authenticated_actor'
 
 @inject()
 export default class TransfertInterController {
@@ -24,7 +24,7 @@ export default class TransfertInterController {
    * @return {Promise<void>} A promise that resolves when the inter-transfer handling is complete.
    */
   async handle({ request, response, auth, deviceInfo, geoLocation }: HttpContext): Promise<void> {
-    const user = auth.user! as User
+    const user = toAuthenticatedActor(auth.user)
     const idempotencyKey = request.header('X-Idempotency-Key')
     const payload = await request.validateUsing(interTransfertValidator)
     const result = await this.interTransfertUseCase.execute(
