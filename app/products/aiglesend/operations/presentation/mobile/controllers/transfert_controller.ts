@@ -36,14 +36,12 @@ export default class TransfertController {
    * @return {Promise<void>} The HTTP response containing the result of the transfer operation.
    */
   async handle({ request, response, auth, deviceInfo, geoLocation }: HttpContext): Promise<void> {
-    console.log('debugging payload')
-    console.log(request.all())
-
     const user = auth.user! as User
     const idempotencyKey = request.header('X-Idempotency-Key')
     const payload = await request.validateUsing(transfertValidator)
 
     const paymentMethod = payload.payment_method_code
+
     const context = {
       userAgent: request.header('user-agent') ?? null,
       requestId: request.header('x-request-id') ?? null,

@@ -25,9 +25,6 @@ export default class WalletToWalletController {
    * @param {Response} HttpContext.response - The HTTP response object for sending back responses.
    */
   async handle({ request, response, auth, deviceInfo, geoLocation }: HttpContext): Promise<void> {
-    console.log('walletToWalletController')
-    console.log(deviceInfo)
-
     const payload = await request.validateUsing(walletToWalletValidator)
 
     const user = auth.user! as User
