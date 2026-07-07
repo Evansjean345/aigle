@@ -13,6 +13,7 @@ import mobileQrRoutes from '#aiglesend/qr/presentation/mobile/routes/qr_routes'
 import mobileKycRoutes from '#core/identity/kyc/presentation/mobile/routes/kyc_routes'
 import mobileDeviceRoutes from '#core/identity/device/presentation/mobile/routes/device_routes'
 import mobileDebitPhoneRoutes from '#core/identity/user/presentation/mobile/routes/debit_phone_routes'
+import mobileBusinessRoutes from '#aiglebusiness/organisation/presentation/mobile/routes/business_routes'
 
 router
   .group(() => {
@@ -27,6 +28,7 @@ router
     router.group(mobileKycRoutes)
     router.group(mobileDeviceRoutes)
     router.group(mobileDebitPhoneRoutes)
+    router.group(mobileBusinessRoutes)
   })
   .prefix('/api')
 

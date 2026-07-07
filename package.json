@@ -30,6 +30,7 @@
     "#config/*": "./config/*.js",
     "#core/*": "./app/core/*.js",
     "#aiglesend/*": "./app/products/aiglesend/*.js",
+    "#aiglebusiness/*": "./app/products/aiglebusiness/*.js",
     "#shared/*": "./app/shared/*.js",
     "#generated/*": "./.adonisjs/server/*.js",
     "#transformers/*": "./app/transformers/*.js"
