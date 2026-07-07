@@ -11,11 +11,10 @@ import EmailOtpDelivery from '#core/identity/otp/infrastructure/delivery/email_o
  * et route la cible vers le bon canal (mobile → sms, email → email).
  */
 @inject()
-export default class OtpDeliveryDispatcherImpl extends OtpDeliveryDispatcher {
+export default class OtpDeliveryDispatcherImpl implements OtpDeliveryDispatcher {
   private readonly strategies: OtpDeliveryStrategy[]
 
   constructor(smsDelivery: SmsOtpDelivery, emailDelivery: EmailOtpDelivery) {
-    super()
     this.strategies = [smsDelivery, emailDelivery]
   }
 
