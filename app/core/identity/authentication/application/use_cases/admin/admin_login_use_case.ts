@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import AdminAuthService from '#core/identity/authentication/application/services/admin/admin_auth_service'
 import AdminOtpAttemptGuard from '#core/identity/authentication/application/services/admin/admin_otp_attempt_guard'
 import OtpSendingService from '#core/identity/otp/application/services/otp_sending_service'
-import AdminLoginOtpTemplate from '#core/identity/otp/infrastructure/templates/admin_login_otp_template'
+import AdminLoginOtpTemplate from '#core/identity/otp/domain/templates/admin_login_otp_template'
 import {
   AdminLoginRequestDto,
   AdminLoginChallengeDto,

@@ -7,7 +7,7 @@ import OtpSendingService from '#core/identity/otp/application/services/otp_sendi
 import DebitPhone from '#core/identity/user/domain/models/debit_phone'
 import { normalizePhone } from '#shared/utils/utiles'
 import securityLog from '#shared/infrastructure/logging/security_log'
-import DebitPhoneOtpTemplate from '#core/identity/otp/infrastructure/templates/debit_phone_otp_template'
+import DebitPhoneOtpTemplate from '#core/identity/otp/domain/templates/debit_phone_otp_template'
 import UserRepository from '#core/identity/user/domain/interfaces/user_repository'
 import UserOtpAttemptGuard from '#core/identity/authentication/application/services/user_otp_attempt_guard'
 import UserAccountNotFoundException from '#core/identity/authentication/domain/exceptions/user_account_not_found_exception'

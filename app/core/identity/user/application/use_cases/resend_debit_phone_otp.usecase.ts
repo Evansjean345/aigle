@@ -8,7 +8,7 @@ import UserOtpAttemptGuard from '#core/identity/authentication/application/servi
 import UserAccountNotFoundException from '#core/identity/authentication/domain/exceptions/user_account_not_found_exception'
 import { normalizePhone } from '#shared/utils/utiles'
 import securityLog from '#shared/infrastructure/logging/security_log'
-import DebitPhoneOtpTemplate from '#core/identity/otp/infrastructure/templates/debit_phone_otp_template'
+import DebitPhoneOtpTemplate from '#core/identity/otp/domain/templates/debit_phone_otp_template'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 import type { AuditContext } from '#core/identity/user/application/use_cases/add_debit_phone.usecase'

@@ -6,7 +6,7 @@ import OtpSendingService from '#core/identity/otp/application/services/otp_sendi
 import AdminOtpAttemptGuard from '#core/identity/authentication/application/services/admin/admin_otp_attempt_guard'
 import { SetupAdminPasswordRequestDto } from '#core/identity/authentication/application/dtos/admin/setup_admin_password.dto'
 import { DateTime } from 'luxon'
-import AdminSetupOtpTemplate from '#core/identity/otp/infrastructure/templates/admin_setup_otp_template'
+import AdminSetupOtpTemplate from '#core/identity/otp/domain/templates/admin_setup_otp_template'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 
