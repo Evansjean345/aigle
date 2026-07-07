@@ -34,10 +34,10 @@ router.use([
  * the routes or the routes group.
  */
 export const middleware = router.named({
-  auth: () => import('#shared/middleware/auth_middleware'),
-  idempotency: () => import('#shared/middleware/idempotency_middleware'),
+  auth: () => import('#core/authentication/presentation/middleware/auth_middleware'),
+  idempotency: () => import('#core/transactions/presentation/middleware/idempotency_middleware'),
   device: () => import('#shared/middleware/device_middleware'),
-  permission: () => import('#shared/middleware/permission_middleware'),
+  permission: () => import('#core/team/presentation/middleware/permission_middleware'),
   geoip: () => import('#shared/middleware/geoip_middleware'),
   apiKey: () => import('../app/wrappers/aigle_business/mobile/middleware/api_key_middleware.js'),
   verify_hub2_signature: () =>

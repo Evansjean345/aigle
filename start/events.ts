@@ -55,7 +55,7 @@ const OnWalletStatusChangedNotification = () =>
 const HandleTransactionFailure = () =>
   import('#core/risk/application/listeners/handle_transaction_failure')
 
-import { type AuditRecordInput } from '#shared/infrastructure/logging/audit_service'
+import { type AuditRecordInput } from '#core/audit/infrastructure/audit_service'
 import { type TransactionLogEventData } from '#core/transactions/application/types/transaction_log_event_data'
 import { type AdminProviderErrorAlertEvent } from '#core/notifications/domain/events/admin_alert_events'
 import { type SecurityAlertEvent } from '#core/audit/application/types/security_alert_event'

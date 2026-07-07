@@ -1,6 +1,6 @@
 import { BasePolicy } from '@adonisjs/bouncer'
 import type Admin from '#core/team/domain/models/admin'
-import { adminHasPermission } from '#shared/authorization/permission_helpers'
+import { adminHasPermission } from '#core/team/application/authorization/permission_helpers'
 import { LEDGER_PERMISSIONS } from '#core/ledger/presentation/admin/permissions.config'
 
 /**

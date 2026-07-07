@@ -1,6 +1,6 @@
 import { BasePolicy } from '@adonisjs/bouncer'
 import type Admin from '#core/team/domain/models/admin'
-import { adminHasPermission } from '#shared/authorization/permission_helpers'
+import { adminHasPermission } from '#core/team/application/authorization/permission_helpers'
 import { AUDIT_PERMISSIONS } from '#core/audit/presentation/admin/permissions.config'
 
 export default class AuditPolicy extends BasePolicy {

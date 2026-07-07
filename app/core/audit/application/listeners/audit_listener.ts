@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
-import { AuditRecordInput } from '#shared/infrastructure/logging/audit_service'
-import auditService from '#shared/infrastructure/logging/audit_service'
+import { AuditRecordInput } from '#core/audit/infrastructure/audit_service'
+import auditService from '#core/audit/infrastructure/audit_service'
 import ledgerLog from '#shared/infrastructure/logging/ledger_log'
 
 @inject()

@@ -1,5 +1,5 @@
 import { BaseEvent } from '@adonisjs/core/events'
-import { type AuditRecordInput } from '#shared/infrastructure/logging/audit_service'
+import { type AuditRecordInput } from '#core/audit/infrastructure/audit_service'
 
 export default class AuditLogged extends BaseEvent {
   /**
