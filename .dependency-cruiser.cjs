@@ -43,32 +43,40 @@ module.exports = {
     },
 
     // ── Frontières inter-contexte métier (WARN : durcissement #2/#3 en cours) ──
+    //
+    // Décision d'architecture (2026-07-07) :
+    //  · SHARED KERNEL STRUCTUREL : les MODÈLES de domaine (domain/models) forment un noyau
+    //    partagé assumé — les relations Lucid inter-contexte (User↔Transaction/Wallet, FK +
+    //    preloads, atomicité) sont légitimes. On exempte donc `from: domain/models`. Seules
+    //    les couches application/infra/présentation respectent la frontière stricte (à résorber
+    //    par ID/contrat, cf. OperationActor, IdentityGate.authorize(userId)).
+    //  · catalog = RÉFÉRENTIEL / shared kernel en LECTURE : pays, catalogue provider sont de la
+    //    donnée de référence lisible par tout contexte. La règle money/identity ⇏ catalog est
+    //    donc RETIRÉE. On garde l'inverse (catalog ⇏ money/identity) : le référentiel reste
+    //    autonome et ne connaît pas les contextes métier.
     {
       name: 'money-independant-de-identity',
       comment:
-        'Le contexte money ne dépend pas du contexte identity (frontière bounded context). ' +
-        'À résorber par ID/contrat (cf. OperationActor, IdentityGate.authorize(userId)).',
+        'La couche non-domaine de money ne dépend pas du contexte identity (frontière bounded ' +
+        'context). À résorber par ID/contrat. Les domain/models sont exemptés (shared kernel).',
       severity: 'warn',
-      from: { path: '^app/core/money/' },
+      from: { path: '^app/core/money/', pathNot: '/domain/models/' },
       to: { path: '^#core/identity/' },
     },
     {
       name: 'identity-independant-de-money',
-      comment: 'Le contexte identity ne dépend pas du contexte money.',
+      comment:
+        'La couche non-domaine de identity ne dépend pas du contexte money. Les domain/models ' +
+        'sont exemptés (shared kernel structurel, relations Lucid inverses).',
       severity: 'warn',
-      from: { path: '^app/core/identity/' },
+      from: { path: '^app/core/identity/', pathNot: '/domain/models/' },
       to: { path: '^#core/money/' },
     },
     {
-      name: 'contextes-independants-de-catalog',
-      comment: 'money/identity ne dépendent pas directement du référentiel catalog (passer par ID).',
-      severity: 'warn',
-      from: { path: '^app/core/(money|identity)/' },
-      to: { path: '^#core/catalog/' },
-    },
-    {
       name: 'catalog-independant-des-contextes-metier',
-      comment: 'Le référentiel catalog ne dépend pas de money/identity.',
+      comment:
+        'Le référentiel catalog ne dépend pas de money/identity (autonomie du référentiel). ' +
+        'NB : l’inverse est autorisé — catalog est un shared kernel lisible par tous.',
       severity: 'warn',
       from: { path: '^app/core/catalog/' },
       to: { path: '^#core/(money|identity)/' },
