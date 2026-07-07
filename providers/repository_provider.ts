@@ -7,6 +7,8 @@ import UserDeviceRepository from '#core/identity/device/domain/interfaces/user_d
 import UserDeviceRepositoryImpl from '#core/identity/device/infrastructure/repositories/user_device_repository_impl'
 import AppVersionRepository from '#core/identity/device/domain/interfaces/app_version_repository'
 import AppVersionRepositoryImpl from '#core/identity/device/infrastructure/repositories/app_version_repository_impl'
+import AppVersionCache from '#core/identity/device/domain/interfaces/app_version_cache'
+import AppVersionCacheService from '#core/identity/device/infrastructure/services/app_version_cache_service'
 
 import UserRepository from '#core/identity/user/domain/interfaces/user_repository'
 import UserRepositoryImpl from '#core/identity/user/infrastructure/repositories/user_repository_impl'
@@ -77,6 +79,7 @@ export default class RepositoryProvider {
       [DeviceRepository, DeviceRepositoryImpl],
       [UserDeviceRepository, UserDeviceRepositoryImpl],
       [AppVersionRepository, AppVersionRepositoryImpl],
+      [AppVersionCache, AppVersionCacheService],
       [KycDocumentRepository, KycDocumentRepositoryImpl],
       [KycLevelRepository, KycLevelRepositoryImpl],
       [ResetPasswordTokenProvider, RedisResetPasswordTokenProvider],

@@ -3,7 +3,7 @@ import AppVersionRepository from '#core/identity/device/domain/interfaces/app_ve
 import AppVersion from '#core/identity/device/domain/models/app_version'
 import { DateTime } from 'luxon'
 import AppVersionNotFoundException from '#core/identity/device/domain/exceptions/app_version_not_found_exception'
-import AppVersionCacheService from '#core/identity/device/infrastructure/services/app_version_cache_service'
+import AppVersionCache from '#core/identity/device/domain/interfaces/app_version_cache'
 
 @inject()
 export default class UpdateAppVersionUseCase {
@@ -11,11 +11,11 @@ export default class UpdateAppVersionUseCase {
    * Initializes a new instance of the class with the specified AppVersionRepository.
    *
    * @param {AppVersionRepository} appVersionRepository - The repository instance responsible for managing app version data.
-   * @param {AppVersionCacheService} appVersionCacheService
+   * @param {AppVersionCache} appVersionCacheService
    */
   constructor(
     private appVersionRepository: AppVersionRepository,
-    private appVersionCacheService: AppVersionCacheService
+    private appVersionCacheService: AppVersionCache
   ) {}
 
   /**

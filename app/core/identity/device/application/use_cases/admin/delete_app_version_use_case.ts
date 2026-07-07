@@ -1,13 +1,13 @@
 import { inject } from '@adonisjs/core'
 import AppVersionRepository from '#core/identity/device/domain/interfaces/app_version_repository'
 import AppVersionNotFoundException from '#core/identity/device/domain/exceptions/app_version_not_found_exception'
-import AppVersionCacheService from '#core/identity/device/infrastructure/services/app_version_cache_service'
+import AppVersionCache from '#core/identity/device/domain/interfaces/app_version_cache'
 
 @inject()
 export default class DeleteAppVersionUseCase {
   constructor(
     private appVersionRepository: AppVersionRepository,
-    private appVersionCacheService: AppVersionCacheService
+    private appVersionCacheService: AppVersionCache
   ) {}
 
   async execute(id: number): Promise<void> {

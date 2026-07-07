@@ -2,13 +2,13 @@ import { inject } from '@adonisjs/core'
 import AppVersionRepository from '#core/identity/device/domain/interfaces/app_version_repository'
 import AppVersion from '#core/identity/device/domain/models/app_version'
 import { DateTime } from 'luxon'
-import AppVersionCacheService from '#core/identity/device/infrastructure/services/app_version_cache_service'
+import AppVersionCache from '#core/identity/device/domain/interfaces/app_version_cache'
 
 @inject()
 export default class CreateAppVersionUseCase {
   constructor(
     private appVersionRepository: AppVersionRepository,
-    private appVersionCacheService: AppVersionCacheService
+    private appVersionCacheService: AppVersionCache
   ) {}
 
   async execute(data: any): Promise<AppVersion> {

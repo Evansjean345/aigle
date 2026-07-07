@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import AppVersionRepository from '#core/identity/device/domain/interfaces/app_version_repository'
 import { DeviceType } from '#core/identity/device/domain/enums'
-import AppVersionCacheService from '#core/identity/device/infrastructure/services/app_version_cache_service'
+import AppVersionCache from '#core/identity/device/domain/interfaces/app_version_cache'
 
 export enum UpdateStatus {
   UP_TO_DATE = 'UP_TO_DATE',
@@ -15,11 +15,11 @@ export default class CheckAppUpdateUseCase {
    * Creates an instance of the class.
    *
    * @param {AppVersionRepository} appVersionRepository - The repository to manage application version data.
-   * @param {AppVersionCacheService} appVersionCacheService
+   * @param {AppVersionCache} appVersionCacheService
    */
   constructor(
     private appVersionRepository: AppVersionRepository,
-    private appVersionCacheService: AppVersionCacheService
+    private appVersionCacheService: AppVersionCache
   ) {}
 
   /**

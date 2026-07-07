@@ -2,9 +2,10 @@ import { inject } from '@adonisjs/core'
 import cache from '@adonisjs/cache/services/main'
 import { DeviceType } from '#core/identity/device/domain/enums'
 import AppVersion from '#core/identity/device/domain/models/app_version'
+import AppVersionCache from '#core/identity/device/domain/interfaces/app_version_cache'
 
 @inject()
-export default class AppVersionCacheService {
+export default class AppVersionCacheService implements AppVersionCache {
   /**
    * A string constant used as a prefix for cache keys.
    * This prefix can be applied to all cache keys within the application
