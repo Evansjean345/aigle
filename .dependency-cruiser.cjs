@@ -84,10 +84,19 @@ module.exports = {
     },
     {
       name: 'application-sans-infra-ni-presentation',
-      comment: "L'application ne dépend pas de l'infrastructure ni de la présentation.",
+      comment:
+        "L'application ne dépend pas de l'infrastructure ni de la présentation. " +
+        'EXEMPTION étroite : un DTO applicatif peut IMPORTER-TYPE le validator Vine de ' +
+        'présentation dont il dérive la forme du payload (Infer<typeof validator>) — le schéma ' +
+        'Vine est la source de vérité du contrat de payload HTTP, le couplage reste type-only ' +
+        '(aucune dépendance runtime). Toute autre dépendance vers presentation/ ou infrastructure/ ' +
+        'reste interdite.',
       severity: 'warn',
       from: { path: `${FEATURE_ROOT}/application` },
-      to: { path: `${TO_LAYER}(infrastructure|presentation)/` },
+      to: {
+        path: `${TO_LAYER}(infrastructure|presentation)/`,
+        pathNot: '/presentation/.*/validators/',
+      },
     },
     {
       name: 'presentation-sans-modeles-ni-infra',

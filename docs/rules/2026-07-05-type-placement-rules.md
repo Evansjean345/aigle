@@ -137,6 +137,33 @@ Résultat : `domain/` autonome, `presentation → application → domain` respec
 
 ---
 
+## Exemption — DTO applicatif ↔ validator Vine (contrat de payload)
+
+Un DTO applicatif (`application/dtos/*.dto.ts`) peut **importer-TYPE** le validator
+Vine de présentation dont il dérive la forme du payload :
+
+```ts
+import type { Infer } from '@vinejs/vine/types'
+import { type depositValidator } from '#aiglesend/operations/presentation/mobile/validators/deposit_validator'
+
+static fromRequest(payload: Infer<typeof depositValidator>, ...) { ... }
+```
+
+**Pourquoi c'est toléré** (contre la règle générale `application ⇏ presentation`) :
+- Le schéma Vine **est** la source de vérité du contrat de payload HTTP ; le dupliquer
+  côté application créerait deux définitions à maintenir en phase.
+- Le couplage est **strictement type-only** (`import type` / `Infer<>`) : aucune
+  dépendance runtime, rien n'est exécuté depuis la présentation.
+
+**Bornes de l'exemption** (encodées dans `.dependency-cruiser.cjs`, règle
+`application-sans-infra-ni-presentation`, `to.pathNot: '/presentation/.*/validators/'`) :
+- N'exempte QUE les imports vers `presentation/**/validators/` — tout autre import
+  application → `presentation/` ou → `infrastructure/` reste interdit.
+- Réservé aux imports **type-only**. Un import runtime d'un validator depuis
+  l'application est un signal à revoir (déplacer la logique en présentation).
+
+---
+
 ## Migration
 
 - **Nouveau code** : applique ces règles immédiatement.
