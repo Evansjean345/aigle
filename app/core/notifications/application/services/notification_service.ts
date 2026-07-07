@@ -1,10 +1,9 @@
 import NotificationChannel from '#core/notifications/domain/interfaces/notification_channel'
+import PushNotificationChannel from '#core/notifications/domain/interfaces/push_notification_channel'
+import SmsNotificationChannel from '#core/notifications/domain/interfaces/sms_notification_channel'
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import { inject } from '@adonisjs/core'
-import ExpoPushNotificationChannel from '#core/notifications/infrastructure/channels/expo_push_notification_channel'
-import Sms_notification_channel from '#core/notifications/infrastructure/channels/sms_notification_channel'
-import EmailNotificationChannel from '#core/notifications/infrastructure/channels/email_notification_channel'
 
 @inject()
 export default class NotificationService {
@@ -20,14 +19,14 @@ export default class NotificationService {
   /**
    * Initializes a new instance of the class with the specified notification channels.
    *
-   * @param {ExpoPushNotificationChannel} expoPushChannel - The Expo Push Notification channel to be used.
-   * @param {Sms_notification_channel} smsChannel - The SMS notification channel to be used.
-   * @param {EmailNotificationChannel} emailChannel - The Email notification channel to be used.
+   * @param {PushNotificationChannel} expoPushChannel - The push notification channel (supports token targeting).
+   * @param {SmsNotificationChannel} smsChannel - The SMS notification channel (supports raw SMS).
+   * @param {NotificationChannel} emailChannel - The email notification channel.
    */
   constructor(
-    private expoPushChannel: ExpoPushNotificationChannel,
-    private smsChannel: Sms_notification_channel,
-    private emailChannel: EmailNotificationChannel
+    private expoPushChannel: PushNotificationChannel,
+    private smsChannel: SmsNotificationChannel,
+    private emailChannel: NotificationChannel
   ) {
     this.channels = [this.expoPushChannel, this.smsChannel, this.emailChannel]
   }

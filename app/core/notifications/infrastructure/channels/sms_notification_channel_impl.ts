@@ -1,4 +1,4 @@
-import type NotificationChannel from '#core/notifications/domain/interfaces/notification_channel'
+import SmsNotificationChannel from '#core/notifications/domain/interfaces/sms_notification_channel'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import { type Notification } from '#core/notifications/domain/notification'
 import env from '#start/env'
@@ -10,7 +10,7 @@ import { maskPhone } from '#shared/utils/utiles'
  * SMS Notification Channel using MTarget API.
  * Sends SMS notifications to users via the MTarget SMS gateway.
  */
-export default class SmsNotificationChannel implements NotificationChannel {
+export default class SmsNotificationChannelImpl implements SmsNotificationChannel {
   name = NotificationChannelType.SMS
 
   private readonly apiUrl: string

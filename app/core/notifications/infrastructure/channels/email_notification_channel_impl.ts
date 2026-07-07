@@ -6,7 +6,7 @@ import { mailFromEmail } from '#config/mail'
 import notificationLog from '#shared/infrastructure/logging/notification_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 
-export default class EmailNotificationChannel implements NotificationChannel {
+export default class EmailNotificationChannelImpl implements NotificationChannel {
   name = NotificationChannelType.Email
 
   /**

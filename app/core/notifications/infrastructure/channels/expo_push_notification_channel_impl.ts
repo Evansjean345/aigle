@@ -1,4 +1,4 @@
-import NotificationChannel from '#core/notifications/domain/interfaces/notification_channel'
+import PushNotificationChannel from '#core/notifications/domain/interfaces/push_notification_channel'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import { Expo } from 'expo-server-sdk'
 import { Notification } from '#core/notifications/domain/notification'
@@ -9,7 +9,7 @@ import notificationLog from '#shared/infrastructure/logging/notification_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 
 @inject()
-export default class ExpoPushNotificationChannel implements NotificationChannel {
+export default class ExpoPushNotificationChannelImpl implements PushNotificationChannel {
   name = NotificationChannelType.PushNotification
   #expoInstance: Expo
 
