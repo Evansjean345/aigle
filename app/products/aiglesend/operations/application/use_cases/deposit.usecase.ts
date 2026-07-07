@@ -3,7 +3,7 @@ import {
   DepositResponseDTO,
 } from '#aiglesend/operations/application/dtos/deposit.dto'
 import { inject } from '@adonisjs/core'
-import User from '#core/user/domain/models/user'
+import type { OperationActor } from '#aiglesend/operations/application/types/operation_actor'
 import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
 import IdempotencyProvider from '#core/transactions/domain/interfaces/idempotency_provider'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
@@ -33,7 +33,7 @@ export default class DepositUseCase {
 
   async execute(
     payload: DepositRequestDto,
-    user: User,
+    user: OperationActor,
     idempotencyKey?: string
   ): Promise<DepositResponseDTO> {
     transactionLog.info(
@@ -43,7 +43,7 @@ export default class DepositUseCase {
     )
 
     await this.identityGate.authorize({
-      user,
+      userId: user.usersUid,
       kind: 'deposit',
       deviceInfo: payload.deviceInfo,
       geoIpLocation: payload.geoIpLocation,
@@ -104,7 +104,11 @@ export default class DepositUseCase {
    * Émet l'événement d'audit produit du dépôt (contexte requête : IP, user-agent, géo).
    * @private
    */
-  private emitAudit(result: MovementResult, payload: DepositRequestDto, user: User): void {
+  private emitAudit(
+    result: MovementResult,
+    payload: DepositRequestDto,
+    user: OperationActor
+  ): void {
     emitter
       .emit('activity:audit', {
         eventCategory: 'TRANSACTION',

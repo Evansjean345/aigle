@@ -1,7 +1,8 @@
 import { inject } from '@adonisjs/core'
-import User from '#core/user/domain/models/user'
 import AccountValidationService from '#core/user/application/services/account_validation_service'
 import DebitPhoneValidationService from '#core/user/application/services/debit_phone_validation_service'
+import UserRepository from '#core/user/domain/interfaces/user_repository'
+import UserAccountNotFoundException from '#core/authentication/domain/exceptions/user_account_not_found_exception'
 import TransactionThrottleCache from '#core/risk/domain/interfaces/transaction_throttle_cache'
 import TransactionFailureCache from '#core/risk/domain/interfaces/transaction_failure_cache'
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
@@ -10,8 +11,14 @@ import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_servic
 /** Nature de l'opération argent — détermine le sous-ensemble de gardes appliqué. */
 export type MoneyOperationKind = 'deposit' | 'transfert' | 'transfert_inter' | 'wallet_to_wallet'
 
+/**
+ * L'entrée référence l'utilisateur par son `userId` (usersUid), pas par le model `User` : la
+ * frontière produit↔core passe par ID (bounded context strict). IdentityGate résout le model
+ * FRAIS depuis le core au moment de l'autorisation — état à jour (blocage/fraude) + le produit
+ * ne manipule jamais le model `User`. Voir docs/rules/type-placement.
+ */
 export interface AuthorizeMoneyOperationInput {
-  user: User
+  userId: string
   kind: MoneyOperationKind
   deviceInfo?: DeviceHeadersInfo
   geoIpLocation?: GeoIpLocation
@@ -24,12 +31,20 @@ export default class IdentityGate {
   constructor(
     private readonly accountValidation: AccountValidationService,
     private readonly debitPhoneValidation: DebitPhoneValidationService,
+    private readonly userRepository: UserRepository,
     private readonly throttleCache: TransactionThrottleCache,
     private readonly failureCache: TransactionFailureCache
   ) {}
 
   async authorize(input: AuthorizeMoneyOperationInput): Promise<void> {
-    const { user, kind } = input
+    const { kind } = input
+
+    // Résout le model User frais depuis le core (frontière par ID).
+    const user = await this.userRepository.findById(input.userId)
+    if (!user) {
+      throw new UserAccountNotFoundException()
+    }
+
     const checks: Promise<unknown>[] = []
 
     // Toutes les opérations : pas bloqué + appareil de confiance.

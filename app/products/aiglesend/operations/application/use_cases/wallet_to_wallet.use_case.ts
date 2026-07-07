@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import User from '#core/user/domain/models/user'
+import type { OperationActor } from '#aiglesend/operations/application/types/operation_actor'
 import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
 import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
 import {
@@ -51,14 +51,14 @@ export default class WalletToWalletUseCase {
    */
   async execute(
     payload: WalletToWalletRequestDto,
-    currentUser: User,
+    currentUser: OperationActor,
     mode: TransferMode,
     idempotencyKey?: string
   ): Promise<WalletToWalletResponseDTO> {
     this.logTransferStart(currentUser, mode, payload)
 
     await this.identityGate.authorize({
-      user: currentUser,
+      userId: currentUser.usersUid,
       kind: 'wallet_to_wallet',
       deviceInfo: payload.deviceInfo,
       geoIpLocation: payload.geoIpLocation,
@@ -83,7 +83,7 @@ export default class WalletToWalletUseCase {
   private async dispatchToEngine(
     recipient: RecipientResolution,
     payload: WalletToWalletRequestDto,
-    currentUser: User,
+    currentUser: OperationActor,
     auditContext: AuditContext,
     idempotencyKey?: string
   ): Promise<WalletToWalletResponseDTO> {
@@ -151,7 +151,7 @@ export default class WalletToWalletUseCase {
   private emitAudit(
     result: MovementResult,
     recipient: RecipientResolution,
-    currentUser: User,
+    currentUser: OperationActor,
     payload: WalletToWalletRequestDto,
     auditContext: AuditContext
   ): void {
@@ -187,7 +187,7 @@ export default class WalletToWalletUseCase {
    * @private
    */
   private logTransferStart(
-    user: User,
+    user: OperationActor,
     mode: TransferMode,
     payload: WalletToWalletRequestDto
   ): void {

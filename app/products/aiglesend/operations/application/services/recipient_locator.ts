@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import User from '#core/user/domain/models/user'
+import type { OperationActor } from '#aiglesend/operations/application/types/operation_actor'
 import WalletService from '#core/wallet/application/services/wallet_service'
 import { type RecipientAccountResult } from '#core/wallet/application/dtos/wallet.dto'
 import {
@@ -42,7 +42,7 @@ export default class RecipientLocator {
    */
   async locate(
     payload: WalletToWalletRequestDto,
-    currentUser: User,
+    currentUser: OperationActor,
     mode: TransferMode
   ): Promise<RecipientResolution> {
     const senderCountry = await this.countryRepository.findCountryBy('id', currentUser.countryId)

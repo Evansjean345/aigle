@@ -3,7 +3,7 @@ import {
   TransfertResponseDTO,
 } from '#aiglesend/operations/application/dtos/transfert.dto'
 import { inject } from '@adonisjs/core'
-import User from '#core/user/domain/models/user'
+import type { OperationActor } from '#aiglesend/operations/application/types/operation_actor'
 import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
 import IdempotencyProvider from '#core/transactions/domain/interfaces/idempotency_provider'
 import IdentityGate from '#core/authentication/application/services/identity_gate'
@@ -34,7 +34,7 @@ export default class TransfertUseCase {
 
   async execute(
     payload: TransfertRequestDto,
-    user: User,
+    user: OperationActor,
     idempotencyKey?: string
   ): Promise<TransfertResponseDTO> {
     paymentLog.info(
@@ -47,7 +47,7 @@ export default class TransfertUseCase {
     )
 
     await this.identityGate.authorize({
-      user,
+      userId: user.usersUid,
       kind: 'transfert',
       deviceInfo: payload.deviceInfo,
       geoIpLocation: payload.geoIpLocation,
@@ -111,7 +111,11 @@ export default class TransfertUseCase {
    * Émet l'événement d'audit produit du transfert (contexte requête : IP, user-agent, géo).
    * @private
    */
-  private emitAudit(result: MovementResult, payload: TransfertRequestDto, user: User): void {
+  private emitAudit(
+    result: MovementResult,
+    payload: TransfertRequestDto,
+    user: OperationActor
+  ): void {
     emitter
       .emit('activity:audit', {
         eventCategory: 'TRANSACTION',
