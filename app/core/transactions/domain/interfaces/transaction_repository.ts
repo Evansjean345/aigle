@@ -51,6 +51,19 @@ export default abstract class TransactionRepository {
   abstract findByReference(reference: string, preloads?: string[]): Promise<Transaction | null>
 
   /**
+   * Charge une transaction par référence AVEC un verrou `forUpdate` dans la trx fournie (settlement :
+   * garantit l'idempotence en sérialisant les callbacks opérateur concurrents).
+   *
+   * @param {string} reference - Référence unique de la transaction.
+   * @param {TransactionClientContract} trx - La trx DB dans laquelle poser le verrou.
+   * @return {Promise<Transaction | null>} La transaction verrouillée, ou null si absente.
+   */
+  abstract lockByReference(
+    reference: string,
+    trx: TransactionClientContract
+  ): Promise<Transaction | null>
+
+  /**
    * Finds a transaction by its reference and associated user ID.
    *
    * @param {string} reference - The unique reference identifier of the transaction.

@@ -7,7 +7,6 @@ import { TransactionStatus } from '#core/transactions/domain/enums/transaction_s
 import { PaymentStatus } from '#core/transactions/domain/enums/payment_status'
 import PaymentService from '#core/transactions/application/services/payment_service'
 import TransactionService from '#core/transactions/application/services/transaction_service'
-import TransactionNotFoundException from '#core/transactions/domain/exceptions/transaction_not_found_exception'
 import PaymentNotFoundException from '#core/transactions/domain/exceptions/payment_not_found_exception'
 import ProviderErrorService from '#shared/infrastructure/services/provider_error_service'
 import { AdminAction } from '#shared/enums/provider_error_enums'
@@ -49,14 +48,7 @@ export default class SettlementSupport {
     reference: string,
     trx: TransactionClientContract
   ): Promise<{ transaction: Transaction; payments: Payment[] }> {
-    const transaction = await Transaction.query({ client: trx })
-      .where('reference', reference)
-      .forUpdate()
-      .first()
-
-    if (!transaction) {
-      throw new TransactionNotFoundException('Transaction introuvable')
-    }
+    const transaction = await this.transactionService.lockByReference(reference, trx)
 
     const payments = await this.paymentService.findByTransaction(transaction.transactionsUid, trx)
     if (payments.length === 0) {

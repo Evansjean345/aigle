@@ -132,6 +132,16 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
     return await query.where('reference', reference).first()
   }
 
+  async lockByReference(
+    reference: string,
+    trx: TransactionClientContract
+  ): Promise<Transaction | null> {
+    return await Transaction.query({ client: trx })
+      .where('reference', reference)
+      .forUpdate()
+      .first()
+  }
+
   /**
    * Finds a transaction based on the provided reference and user ID.
    *

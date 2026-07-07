@@ -370,4 +370,19 @@ export default class TransactionService {
     )
     return transaction
   }
+
+  /**
+   * Charge une transaction par référence avec verrou `forUpdate` dans la trx donnée (settlement).
+   * Le contexte transactions encapsule son propre `forUpdate` — les appelants (money_movement) ne
+   * font plus de `Transaction.query()` brut.
+   *
+   * @throws {TransactionNotFoundException} si la référence est introuvable.
+   */
+  async lockByReference(reference: string, trx: TransactionClientContract): Promise<Transaction> {
+    const transaction = await this.transactionRepository.lockByReference(reference, trx)
+    if (!transaction) {
+      throw new TransactionNotFoundException()
+    }
+    return transaction
+  }
 }
