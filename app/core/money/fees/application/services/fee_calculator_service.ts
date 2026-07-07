@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import { Exception } from '@adonisjs/core/exceptions'
 import { FeeContext, FeeRule } from '#core/money/fees/domain/fee_types'
-import { ServiceProviderFeesRepositoryImpl } from '#core/money/fees/infrastructure/repositories/service_provider_fees_repository_impl'
+import ServiceProviderFeesRepository from '#core/money/fees/domain/interfaces/service_provider_fees_repository'
 
 export interface FeeCalculationResult {
   amount: number
@@ -15,7 +15,7 @@ export interface FeeCalculationResult {
  */
 @inject()
 export default class FeeCalculatorService {
-  constructor(private readonly feesRepo: ServiceProviderFeesRepositoryImpl) {}
+  constructor(private readonly feesRepo: ServiceProviderFeesRepository) {}
 
   /**
    * Calculates the fee based on the provided fee rule and context.
