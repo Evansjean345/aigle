@@ -3,6 +3,7 @@ import type { NextFn } from '@adonisjs/core/types/http'
 import type { Authenticators } from '@adonisjs/auth/types'
 import { UserStatus } from '#core/identity/user/domain/enum'
 import AccountBlockedException from '#core/identity/authentication/domain/exceptions/account_blocked_exception'
+import '#shared/authentication/authenticated_actor'
 
 /**
  * Auth middleware is used authenticate HTTP requests and deny
@@ -26,6 +27,17 @@ export default class AuthMiddleware {
     const user = ctx.auth.user
     if (user && user.status === UserStatus.BLOCKED) {
       throw new AccountBlockedException()
+    }
+
+    // Enrichit le contexte avec l'acteur authentifié réduit (contrat transverse), UNE fois au bord :
+    // les controllers le lisent sans connaître le model User. Seul un User porte usersUid/countryId
+    // (les routes admin utilisent Admin → authActor reste undefined, comme attendu).
+    if (user && 'usersUid' in user) {
+      ctx.authActor = {
+        id: (user as { id: number }).id,
+        usersUid: (user as { usersUid: string }).usersUid,
+        countryId: (user as { countryId: number }).countryId,
+      }
     }
 
     return next()

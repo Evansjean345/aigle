@@ -6,7 +6,6 @@ import { TransfertRequestDto } from '#aiglesend/operations/application/dtos/tran
 import WalletToWalletUseCase from '#aiglesend/operations/application/use_cases/wallet_to_wallet.use_case'
 import { TransferMode } from '#aiglesend/operations/application/services/recipient_locator'
 import { PaymentMethod } from '#core/money/transactions/domain/enums/payment_method'
-import { toAuthenticatedActor } from '#core/identity/authentication/application/authenticated_actor'
 import { WalletToWalletRequestDto } from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
 
 /**
@@ -35,11 +34,17 @@ export default class TransfertController {
    * @param {Object} HttpContext.auth - The authentication object containing the authenticated user.
    * @return {Promise<void>} The HTTP response containing the result of the transfer operation.
    */
-  async handle({ request, response, auth, deviceInfo, geoLocation }: HttpContext): Promise<void> {
+  async handle({
+    request,
+    response,
+    authActor,
+    deviceInfo,
+    geoLocation,
+  }: HttpContext): Promise<void> {
     console.log('debugging payload')
     console.log(request.all())
 
-    const user = toAuthenticatedActor(auth.user)
+    const user = authActor!
     const idempotencyKey = request.header('X-Idempotency-Key')
     const payload = await request.validateUsing(transfertValidator)
 
