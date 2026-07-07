@@ -1,13 +1,15 @@
 import { inject } from '@adonisjs/core'
-import { AuditRecordInput } from '#core/audit/infrastructure/audit_service'
-import auditService from '#core/audit/infrastructure/audit_service'
+import { type AuditRecordInput } from '#core/audit/domain/audit_record_input'
+import AuditRecorder from '#core/audit/domain/interfaces/audit_recorder'
 import ledgerLog from '#shared/infrastructure/logging/ledger_log'
 
 @inject()
 export default class AuditListener {
+  constructor(private readonly auditRecorder: AuditRecorder) {}
+
   async handle(data: AuditRecordInput): Promise<void> {
     try {
-      await auditService.record(data)
+      await this.auditRecorder.record(data)
     } catch (error) {
       ledgerLog.error(
         'AUDIT_DB_FALLBACK',

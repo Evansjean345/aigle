@@ -1,44 +1,12 @@
 import AuditLog from '#core/audit/domain/models/audit_log'
 import { randomUUID } from 'node:crypto'
-
-export type AuditRecordInput = {
-  // Event structure
-  eventCategory?: string | null
-  eventAction?: string | null
-
-  // Actor
-  actorId?: string | number | null
-  actorType?: string | null
-  actorRole?: string | null
-
-  // Initiator
-  initiatedById?: string | number | null
-  initiatedByType?: string | null
-
-  // Target
-  targetType?: string | null
-  targetId?: string | null
-
-  // Request context
-  requestId?: string | null
-  ipAddress?: string | null
-  userAgent?: string | null
-
-  // Data
-  oldValues?: Record<string, unknown> | null
-  newValues?: Record<string, unknown> | null
-  metadata?: Record<string, unknown> | null
-
-  // Outcome
-  result?: string | null
-  errorCode?: string | null
-  errorMessage?: string | null
-}
+import { type AuditRecordInput } from '#core/audit/domain/audit_record_input'
+import AuditRecorder from '#core/audit/domain/interfaces/audit_recorder'
 
 /**
  * A service for handling audit logging within the application.
  */
-class AuditService {
+export class AuditService implements AuditRecorder {
   /**
    * Records an audit log entry with the given input details.
    *
@@ -75,6 +43,3 @@ class AuditService {
     })
   }
 }
-
-const auditService = new AuditService()
-export default auditService

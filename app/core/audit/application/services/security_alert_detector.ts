@@ -4,7 +4,7 @@ import { SecurityAlertType, AlertSeverity, AuditResult } from '#core/audit/domai
 import securityLog from '#shared/infrastructure/logging/security_log'
 import emitter from '@adonisjs/core/services/emitter'
 import SlidingWindowCounter from '#shared/domain/cache/sliding_window_counter'
-import type { AuditRecordInput } from '#core/audit/infrastructure/audit_service'
+import type { AuditRecordInput } from '#core/audit/domain/audit_record_input'
 
 const AUTH_FAIL_TO_METHOD: Record<string, string> = {
   USER_OTP_FAILED: 'OTP',
