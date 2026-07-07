@@ -4,6 +4,9 @@ build
 tmp
 geo-database
 
+# Fichier de schéma auto-généré par `node ace migration:run` (régénérable)
+database/schema.ts
+
 # Secrets — environment files
 .env
 .env.*
