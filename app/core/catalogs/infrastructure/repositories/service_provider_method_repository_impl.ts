@@ -2,7 +2,7 @@
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import type ServiceProviderMethodRepository from '#core/catalogs/domain/interfaces/service_provider_method_repository'
 import {
-  type ListServiceProviderMethodsRequestDto,
+  type ListServiceProviderMethodsQuery,
   type CreateServiceProviderMethodCommand,
   type UpdateServiceProviderMethodCommand,
 } from '#core/catalogs/application/dtos/admin/admin_service_provider_methods.dto'
@@ -16,11 +16,11 @@ export default class ServiceProviderMethodRepositoryImpl implements ServiceProvi
   /**
    * Handles the pagination and retrieval of service provider methods based on the provided parameters.
    *
-   * @param {ListServiceProviderMethodsRequestDto} params - The parameters for filtering and pagination.
+   * @param {ListServiceProviderMethodsQuery} params - The parameters for filtering and pagination.
    * @return {Promise<ModelPaginatorContract<ServiceProviderMethod>>} Returns a paginated set of service provider methods based on the given parameters.
    */
   async paginate(
-    params: ListServiceProviderMethodsRequestDto
+    params: ListServiceProviderMethodsQuery
   ): Promise<ModelPaginatorContract<ServiceProviderMethod>> {
     const {
       page = 1,

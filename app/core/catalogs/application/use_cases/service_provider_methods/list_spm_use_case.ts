@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import ServiceProviderMethodRepository from '#core/catalogs/domain/interfaces/service_provider_method_repository'
 import {
-  type ListServiceProviderMethodsRequestDto,
+  type ListServiceProviderMethodsQuery,
   ServiceProviderMethodListResponseDTO,
 } from '#core/catalogs/application/dtos/admin/admin_service_provider_methods.dto'
 
@@ -9,7 +9,7 @@ import {
 export default class ListSpmUseCase {
   constructor(private readonly repository: ServiceProviderMethodRepository) {}
 
-  async execute(params: ListServiceProviderMethodsRequestDto) {
+  async execute(params: ListServiceProviderMethodsQuery) {
     const paginator = await this.repository.paginate(params)
     return ServiceProviderMethodListResponseDTO.fromPaginator(paginator)
   }

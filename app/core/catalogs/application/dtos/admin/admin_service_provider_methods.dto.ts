@@ -5,7 +5,7 @@ import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 // Contrat repository (filtre de liste + Command) vit dans le domaine (DDD strict). Ré-exporté ici
 // pour que controllers/use cases continuent de l'importer depuis le DTO.
 export type {
-  ListServiceProviderMethodsRequestDto,
+  ListServiceProviderMethodsQuery,
   CreateServiceProviderMethodCommand,
   UpdateServiceProviderMethodCommand,
 } from '#core/catalogs/domain/types/service_provider_method_repository_types'

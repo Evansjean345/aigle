@@ -7,7 +7,7 @@ import type { ProviderType, ProviderStatus } from '#core/catalogs/domain/enums/p
 // controllers/use cases continuent de les importer depuis le DTO.
 export type { ProviderType, ProviderStatus } from '#core/catalogs/domain/enums/provider_enums'
 export type {
-  ListProvidersRequestDto,
+  ListProvidersQuery,
   CreateProviderCommand,
   UpdateProviderCommand,
 } from '#core/catalogs/domain/types/provider_repository_types'

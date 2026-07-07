@@ -4,7 +4,7 @@ import ProviderRepository from '#core/catalogs/domain/interfaces/provider_reposi
 import {
   type CreateProviderRequestDto,
   type UpdateProviderRequestDto,
-  type ListProvidersRequestDto,
+  type ListProvidersQuery,
   type ProviderStatus,
   type ProviderType,
   ProviderResponseDTO,
@@ -27,10 +27,10 @@ export default class ProvidersUseCase {
   /**
    * Retrieves a paginated list of providers.
    *
-   * @param {ListProvidersRequestDto} params - The parameters used for filtering and paginating the providers.
+   * @param {ListProvidersQuery} params - The parameters used for filtering and paginating the providers.
    * @return The paginated result containing the list of providers.
    */
-  async list(params: ListProvidersRequestDto) {
+  async list(params: ListProvidersQuery) {
     const paginator = await this.repository.paginate(params)
     return ProviderListResponseDTO.fromPaginator(paginator)
   }

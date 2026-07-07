@@ -5,7 +5,7 @@ import type { ProviderType, ProviderStatus } from '#core/catalogs/domain/enums/p
  * repository ; l'application construit les Command depuis ses RequestDto HTTP. Placés en domain
  * pour que le port ne dépende pas de la couche application (DDD strict).
  */
-export interface ListProvidersRequestDto {
+export interface ListProvidersQuery {
   page?: number
   limit?: number
   q?: string

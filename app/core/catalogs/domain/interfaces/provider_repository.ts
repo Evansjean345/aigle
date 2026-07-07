@@ -1,13 +1,13 @@
 ﻿import type Provider from '#core/catalogs/domain/models/provider'
 import type { ProviderStatus } from '#core/catalogs/domain/enums/provider_enums'
 import type {
-  ListProvidersRequestDto,
+  ListProvidersQuery,
   CreateProviderCommand,
   UpdateProviderCommand,
 } from '#core/catalogs/domain/types/provider_repository_types'
 
 export default abstract class ProviderRepository {
-  abstract paginate(params: ListProvidersRequestDto): Promise<any>
+  abstract paginate(params: ListProvidersQuery): Promise<any>
   abstract findByIdOrFail(id: number): Promise<Provider>
   abstract findByCode(code: string): Promise<Provider>
   abstract create(data: CreateProviderCommand): Promise<Provider>

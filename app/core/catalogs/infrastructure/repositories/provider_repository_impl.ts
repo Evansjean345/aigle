@@ -3,7 +3,7 @@ import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import type ProviderRepository from '#core/catalogs/domain/interfaces/provider_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 import {
-  type ListProvidersRequestDto,
+  type ListProvidersQuery,
   type CreateProviderCommand,
   type UpdateProviderCommand,
   type ProviderStatus,
@@ -17,14 +17,14 @@ export default class ProviderRepositoryImpl implements ProviderRepository {
   /**
    * Retrieves paginated and filtered results of providers based on specified query parameters.
    *
-   * @param {ListProvidersRequestDto} params - Object containing query parameters for pagination and filtering.
+   * @param {ListProvidersQuery} params - Object containing query parameters for pagination and filtering.
    * @param {number} [params.page=1] - The page number to retrieve.
    * @param {number} [params.limit=20] - The number of items per page.
    * @param {string} [params.q] - A search query to filter by `code` or `name`.
    * @param {string} [params.type] - A provider type to further filter the results.
    * @return {Promise<object>} - A promise resolving to the paginated results, including metadata about pagination.
    */
-  async paginate(params: ListProvidersRequestDto): Promise<ModelPaginatorContract<Provider>> {
+  async paginate(params: ListProvidersQuery): Promise<ModelPaginatorContract<Provider>> {
     const { page = 1, limit = 20, q, type, status } = params
     const query = Provider.query().orderBy('id', 'desc')
     if (q) {

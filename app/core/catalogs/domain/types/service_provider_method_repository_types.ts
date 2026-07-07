@@ -3,7 +3,7 @@
  * le port ne dépende pas de la couche application (DDD strict) ; l'application construit les Command
  * depuis ses RequestDto HTTP.
  */
-export interface ListServiceProviderMethodsRequestDto {
+export interface ListServiceProviderMethodsQuery {
   page?: number
   limit?: number
   isActive?: boolean
