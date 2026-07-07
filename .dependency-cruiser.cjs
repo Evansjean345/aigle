@@ -1,22 +1,33 @@
 /*
- * Règles de frontières — monolithe modulaire Aigle (couches physiques core / products).
+ * Règles de frontières — monolithe modulaire Aigle.
  *
  * NB résolution : depcruise ne mappe pas les subpath imports (`#core/*`, `#aiglesend/*`) vers les
- * .ts. On matche donc le `from` sur le chemin réel du module source (`app/core/...`,
- * `app/products/...`) et le `to` sur la forme alias résolue (`#core/...`, `#aiglesend/...`).
+ * .ts. On matche donc le `from` sur le chemin RÉEL du module source (`app/core/...`,
+ * `app/products/...`) et le `to` sur la forme ALIAS résolue (`#core/...`, `#aiglesend/...`).
  *
- * Couches (séparation PHYSIQUE, Lot 5 — objectif d'indépendance / extractibilité) :
- *   - CORE     : app/core/<feature>/            (plateforme partagée, extractible)
- *       · identité : user · device · authentication · otp · kyc
- *       · argent   : money_movement · wallet · ledger · transactions · fees · provider_gateway
- *       · transverse : catalogs · country · notifications · audit · webhooks · team
- *   - PRODUIT  : app/products/<app>/<feature>/  (aiglesend : operations, qr ; aiglebusiness à venir)
- * Invariant structurant : le PRODUIT dépend du CORE, jamais l'inverse (condition d'extractibilité).
+ * Structure physique (Lot 5 + bounded contexts) :
+ *   - PRODUIT    : app/products/<app>/<feature>/        (aiglesend : operations, qr ; aiglebusiness à venir)
+ *   - CORE, en bounded contexts :
+ *       · CONTEXTES MÉTIER : app/core/(money|identity|catalog)/<feature>/
+ *           money    = money_movement · transactions · wallet · ledger · fees · risk · webhooks · provider_gateway
+ *           identity = user · authentication · otp · device · kyc
+ *           catalog  = catalogs · country
+ *       · SUPPORTING (autonomes, dépendables par tous) : app/core/(audit|notifications|team|qr)/
  *
- * Racines de couche pour les règles DDD (core = 1 niveau, produit = 2 niveaux app/feature) :
- *   from réel  : app/(core/[^/]+|products/[^/]+/[^/]+)
- *   to alias   : #(core|aiglesend)/[^/]+
+ * Invariants :
+ *   1. Le PRODUIT dépend du CORE, jamais l'inverse (extractibilité du core).  [ERROR]
+ *   2. Un contexte MÉTIER ne dépend pas d'un AUTRE contexte métier (frontière bounded context) —
+ *      en cours de durcissement (#2/#3), donc WARN tant que les violations ne sont pas résorbées.
+ *      L'intra-contexte est autorisé (money/transactions ↔ money/wallet). Les supporting sont
+ *      dépendables librement.
  */
+
+// Racine de feature (contient domain/application/infrastructure/presentation), quelle que soit la
+// profondeur du contexte : money/identity/catalog ont 2 niveaux, supporting 1 niveau, produit 2.
+const FEATURE_ROOT =
+  '^app/(?:core/(?:money|identity|catalog)/[^/]+|core/(?:audit|notifications|team|qr)|products/[^/]+/[^/]+)'
+// Cible alias, couche supérieure atteinte (peu importe la profondeur du contexte).
+const TO_LAYER = '^#(?:core|aiglesend)/.+/'
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
@@ -25,33 +36,67 @@ module.exports = {
       name: 'core-ne-depend-pas-du-produit',
       comment:
         'Le CORE (et shared) ne connaît jamais le PRODUIT : aucun module core/shared ne doit ' +
-        'importer une feature produit (app/products/**, alias #aiglesend|#aiglebusiness). ' +
-        'Condition de l’extractibilité du core en service/librairie.',
+        'importer une feature produit (#aiglesend|#aiglebusiness). Condition de l’extractibilité.',
       severity: 'error',
       from: { path: '^app/(core|shared)/' },
       to: { path: '^#(aiglesend|aiglebusiness)/' },
     },
+
+    // ── Frontières inter-contexte métier (WARN : durcissement #2/#3 en cours) ──
+    {
+      name: 'money-independant-de-identity',
+      comment:
+        'Le contexte money ne dépend pas du contexte identity (frontière bounded context). ' +
+        'À résorber par ID/contrat (cf. OperationActor, IdentityGate.authorize(userId)).',
+      severity: 'warn',
+      from: { path: '^app/core/money/' },
+      to: { path: '^#core/identity/' },
+    },
+    {
+      name: 'identity-independant-de-money',
+      comment: 'Le contexte identity ne dépend pas du contexte money.',
+      severity: 'warn',
+      from: { path: '^app/core/identity/' },
+      to: { path: '^#core/money/' },
+    },
+    {
+      name: 'contextes-independants-de-catalog',
+      comment: 'money/identity ne dépendent pas directement du référentiel catalog (passer par ID).',
+      severity: 'warn',
+      from: { path: '^app/core/(money|identity)/' },
+      to: { path: '^#core/catalog/' },
+    },
+    {
+      name: 'catalog-independant-des-contextes-metier',
+      comment: 'Le référentiel catalog ne dépend pas de money/identity.',
+      severity: 'warn',
+      from: { path: '^app/core/catalog/' },
+      to: { path: '^#core/(money|identity)/' },
+    },
+
+    // ── Couches DDD (WARN : durcissement en cours) ──
     {
       name: 'domaine-pur',
       comment: 'Le domaine ne dépend pas des autres couches (application/infra/présentation).',
       severity: 'warn',
-      from: { path: '^app/(core/[^/]+|products/[^/]+/[^/]+)/domain' },
-      to: { path: '^#(core|aiglesend)/[^/]+/(application|infrastructure|presentation)' },
+      from: { path: `${FEATURE_ROOT}/domain` },
+      to: { path: `${TO_LAYER}(application|infrastructure|presentation)/` },
     },
     {
       name: 'application-sans-infra-ni-presentation',
       comment: "L'application ne dépend pas de l'infrastructure ni de la présentation.",
       severity: 'warn',
-      from: { path: '^app/(core/[^/]+|products/[^/]+/[^/]+)/application' },
-      to: { path: '^#(core|aiglesend)/[^/]+/(infrastructure|presentation)' },
+      from: { path: `${FEATURE_ROOT}/application` },
+      to: { path: `${TO_LAYER}(infrastructure|presentation)/` },
     },
     {
       name: 'presentation-sans-modeles-ni-infra',
       comment: 'La présentation passe par application, jamais directement domain/models ou infra.',
       severity: 'warn',
-      from: { path: '^app/(core/[^/]+|products/[^/]+/[^/]+)/presentation' },
-      to: { path: '^#(core|aiglesend)/[^/]+/(domain/models|infrastructure)' },
+      from: { path: `${FEATURE_ROOT}/presentation` },
+      to: { path: `${TO_LAYER}(domain/models|infrastructure)/` },
     },
+
     {
       name: 'shared-sans-couches',
       comment: "shared ne dépend d'aucune feature (core ou produit).",
