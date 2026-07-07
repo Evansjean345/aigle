@@ -21,11 +21,6 @@ import '#shared/authentication/authenticated_actor'
  * micro-services, l'API gateway jouerait ce rôle (claims du token) sans appel inter-service.
  */
 export default class AuthMiddleware {
-  /**
-   * The URL to redirect to, when authentication fails
-   */
-  redirectTo = '/login'
-
   async handle(
     ctx: HttpContext,
     next: NextFn,
@@ -33,7 +28,9 @@ export default class AuthMiddleware {
       guards?: (keyof Authenticators)[]
     } = {}
   ) {
-    await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
+    // API pure : le tokensGuard lève E_UNAUTHORIZED_ACCESS (401 JSON) sur échec. Pas de loginRoute
+    // (option réservée aux guards session/web pour rediriger — ignorée par le tokens guard).
+    await ctx.auth.authenticateUsing(options.guards)
 
     const user = ctx.auth.user
 
