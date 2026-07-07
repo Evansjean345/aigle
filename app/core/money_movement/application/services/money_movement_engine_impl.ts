@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import MoneyMovementEngine from '#core/money_movement/domain/interfaces/money_movement_engine'
-import MovementNotImplementedException from '#core/money_movement/infrastructure/exceptions/movement_not_implemented_exception'
+import MovementNotImplementedException from '#core/money_movement/domain/exceptions/movement_not_implemented_exception'
 import type {
   InternalMoveCommand,
   ExternalOutCommand,

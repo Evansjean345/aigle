@@ -4,11 +4,11 @@ import { inject } from '@adonisjs/core'
 import TransactionVolumeCache from '#core/transactions/domain/interfaces/transaction_volume_cache'
 import KycLevel from '#core/kyc/domain/models/kyc_level'
 import { TransactionDirection } from '#core/transactions/domain/enums/transaction_direction'
-import BalanceLimitExceededException from '#core/transactions/infrastructure/exceptions/balance_limit_exceeded_exception'
-import DailyLimitExceededException from '#core/transactions/infrastructure/exceptions/daily_limit_exceeded_exception'
-import KycLevelNotFoundException from '#core/transactions/infrastructure/exceptions/kyc_level_not_found_exception'
-import MonthlyLimitExceededException from '#core/transactions/infrastructure/exceptions/monthly_limit_exceeded_exception'
-import SingleLimitExceededException from '#core/transactions/infrastructure/exceptions/single_limit_exceeded_exception'
+import BalanceLimitExceededException from '#core/transactions/domain/exceptions/balance_limit_exceeded_exception'
+import DailyLimitExceededException from '#core/transactions/domain/exceptions/daily_limit_exceeded_exception'
+import KycLevelNotFoundException from '#core/transactions/domain/exceptions/kyc_level_not_found_exception'
+import MonthlyLimitExceededException from '#core/transactions/domain/exceptions/monthly_limit_exceeded_exception'
+import SingleLimitExceededException from '#core/transactions/domain/exceptions/single_limit_exceeded_exception'
 
 interface TransactionLimitParams {
   user: User

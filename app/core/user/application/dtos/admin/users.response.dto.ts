@@ -1,6 +1,6 @@
-import { UserKycStatus, UserStatus } from '#core/user/domain/enum'
-import { KycDocumentStatus, KycDocumentType } from '#core/kyc/domain/enum/kyc_enum'
-import { DateTime } from 'luxon'
+import { type UserKycStatus, type UserStatus } from '#core/user/domain/enum'
+import { type KycDocumentStatus, type KycDocumentType } from '#core/kyc/domain/enum/kyc_enum'
+import { type DateTime } from 'luxon'
 import type User from '#core/user/domain/models/user'
 
 export class AdminUserListItemResponseDto {
@@ -30,10 +30,7 @@ export class AdminUserListItemResponseDto {
     currency?: string
   }
 
-  static fromUser(
-    user: User,
-    options?: { monthlyVolume: number }
-  ): AdminUserListItemResponseDto {
+  static fromUser(user: User, options?: { monthlyVolume: number }): AdminUserListItemResponseDto {
     const dto = new AdminUserListItemResponseDto()
     dto.usersUid = user.usersUid
     dto.fullname = [user.firstname, user.lastname].filter(Boolean).join(' ').trim()

@@ -1,5 +1,5 @@
-import KycDocument from '#core/kyc/domain/models/kyc_document'
-import { KycDocumentStatus } from '#core/kyc/domain/enum/kyc_enum'
+import type KycDocument from '#core/kyc/domain/models/kyc_document'
+import { type KycDocumentStatus } from '#core/kyc/domain/enum/kyc_enum'
 
 export default abstract class KycDocumentRepository {
   /**

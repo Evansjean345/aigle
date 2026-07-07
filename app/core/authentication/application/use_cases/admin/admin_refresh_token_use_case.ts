@@ -7,7 +7,7 @@ import {
   toAdminRefreshTokenResponse,
 } from '#core/authentication/application/dtos/admin/admin_login.dto'
 import { Secret } from '@adonisjs/core/helpers'
-import InvalidRefreshTokenException from '#core/authentication/infrastructure/exceptions/invalid_refresh_token_exception'
+import InvalidRefreshTokenException from '#core/authentication/domain/exceptions/invalid_refresh_token_exception'
 import { DateTime } from 'luxon'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'

@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import RoleRepository from '#core/team/domain/interfaces/role_repository'
-import RoleNotFoundException from '#core/team/infrastructure/exceptions/role_not_found_exception'
+import RoleNotFoundException from '#core/team/domain/exceptions/role_not_found_exception'
 import emitter from '@adonisjs/core/services/emitter'
 import Admin from '#core/team/domain/models/admin'
 import { AuditResult } from '#core/audit/domain/enums'

@@ -1,11 +1,7 @@
 import type { DateTime } from 'luxon'
 import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import type Refund from '#core/transactions/domain/models/refund'
-import type {
-  RefundReason,
-  RefundStatus,
-  RefundType,
-} from '#core/transactions/domain/enums/refund'
+import type { RefundReason, RefundStatus, RefundType } from '#core/transactions/domain/enums/refund'
 
 // ── RequestDto (input use case) ─────────────────────────────────────
 

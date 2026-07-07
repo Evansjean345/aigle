@@ -1,8 +1,7 @@
 ﻿import ServiceProviderMethod from '#core/catalogs/domain/models/service_provider_method'
-import { FeeRule } from '#core/fees/domain/fee_types'
-import ServiceProviderFeesRepository, {
-  SpmRuleLookup,
-} from '#core/fees/domain/interfaces/service_provider_fees_repository'
+import { type FeeRule } from '#core/fees/domain/fee_types'
+import { type SpmRuleLookup } from '#core/fees/domain/interfaces/service_provider_fees_repository'
+import type ServiceProviderFeesRepository from '#core/fees/domain/interfaces/service_provider_fees_repository'
 
 /**
  * ServiceProviderFeesRepositoryImpl is an implementation of the ServiceProviderFeesRepository interface

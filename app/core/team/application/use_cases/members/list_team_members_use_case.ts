@@ -1,8 +1,5 @@
 import { inject } from '@adonisjs/core'
-import {
-  AdminResponseDto,
-  PaginatedAdminResponseDto,
-} from '#core/team/application/dtos/member.dto'
+import { AdminResponseDto, PaginatedAdminResponseDto } from '#core/team/application/dtos/member.dto'
 import AdminRepository from '#core/team/domain/interfaces/admin_repository'
 
 @inject()

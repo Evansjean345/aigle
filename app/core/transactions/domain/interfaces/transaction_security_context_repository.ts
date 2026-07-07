@@ -1,5 +1,5 @@
-import TransactionSecurityContext from '#core/transactions/domain/models/transaction_security_context'
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type TransactionSecurityContext from '#core/transactions/domain/models/transaction_security_context'
+import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 export default abstract class TransactionSecurityContextRepository {
   /**

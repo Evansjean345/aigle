@@ -7,8 +7,8 @@ import {
   type RecipientResolution,
 } from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
 import CountryRepository from '#core/country/domain/interfaces/country_repository'
-import ModeUnsupportedException from '#aiglesend/operations/infrastructure/exceptions/mode_unsupported_exception'
-import InvalidAmountException from '#aiglesend/operations/infrastructure/exceptions/invalid_amount_exception'
+import ModeUnsupportedException from '#aiglesend/operations/domain/exceptions/mode_unsupported_exception'
+import InvalidAmountException from '#aiglesend/operations/domain/exceptions/invalid_amount_exception'
 import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
 import { PaymentMethod } from '#core/transactions/domain/enums/payment_method'
 

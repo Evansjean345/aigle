@@ -4,7 +4,6 @@ import app from '@adonisjs/core/services/app'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 declare module '@adonisjs/core/http' {
-  // eslint-disable-next-line @typescript-eslint/no-shadow
   interface HttpContext {
     geoLocation: GeoIpLocation
   }

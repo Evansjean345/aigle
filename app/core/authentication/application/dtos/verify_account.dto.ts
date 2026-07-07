@@ -1,4 +1,4 @@
-import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
+import { type GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 export class VerifyAccountRequestDto {
   declare phone: string

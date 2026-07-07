@@ -1,4 +1,4 @@
-import { BaseLog, BaseLogContext } from '#shared/infrastructure/logging/base_log'
+import { BaseLog, type BaseLogContext } from '#shared/infrastructure/logging/base_log'
 
 export interface SecurityLogContext extends BaseLogContext {}
 

@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import redis from '@adonisjs/redis/services/main'
-import TransactionVolumeCache from '#core/transactions/domain/interfaces/transaction_volume_cache'
+import type TransactionVolumeCache from '#core/transactions/domain/interfaces/transaction_volume_cache'
 
 /**
  * A class that provides caching mechanisms for tracking and retrieving transaction volumes

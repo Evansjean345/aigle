@@ -3,7 +3,7 @@ import ProcessKycDocumentUseCase from '#core/kyc/application/usecases/admin/proc
 import type KycDocumentRepository from '#core/kyc/domain/interfaces/kyc_document_repository'
 import { KycDocumentStatus, KycDocumentType } from '#core/kyc/domain/enum/kyc_enum'
 import KycDocument from '#core/kyc/domain/models/kyc_document'
-import KycDocumentNotFoundException from '#core/kyc/infrastructure/exceptions/kyc_document_not_found_exception'
+import KycDocumentNotFoundException from '#core/kyc/domain/exceptions/kyc_document_not_found_exception'
 
 test.group('Kyc | Process Use Case', () => {
   test("devrait lever une exception si le document n'existe pas", async ({ assert }) => {

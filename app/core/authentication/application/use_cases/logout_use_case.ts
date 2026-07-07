@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import User from '#core/user/domain/models/user'
-import LogoutException from '#core/authentication/infrastructure/exceptions/logout_exception'
+import LogoutException from '#core/authentication/domain/exceptions/logout_exception'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 

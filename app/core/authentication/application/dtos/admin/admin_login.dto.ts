@@ -37,11 +37,7 @@ export class AdminLoginResponseDto {
     }
   }
 
-  static fromAdmin(
-    admin: Admin,
-    accessToken: Token,
-    refreshToken: Token
-  ): AdminLoginResponseDto {
+  static fromAdmin(admin: Admin, accessToken: Token, refreshToken: Token): AdminLoginResponseDto {
     const dto = new AdminLoginResponseDto()
     dto.access_token = accessToken
     dto.refresh_token = refreshToken

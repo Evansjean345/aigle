@@ -1,4 +1,4 @@
-import AppVersionRepository from '#core/device/domain/interfaces/app_version_repository'
+import type AppVersionRepository from '#core/device/domain/interfaces/app_version_repository'
 import AppVersion from '#core/device/domain/models/app_version'
 
 export default class AppVersionRepositoryImpl implements AppVersionRepository {

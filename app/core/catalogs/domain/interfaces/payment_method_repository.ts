@@ -1,4 +1,4 @@
-﻿import PaymentMethod from '#core/catalogs/domain/models/payment_method'
+﻿import type PaymentMethod from '#core/catalogs/domain/models/payment_method'
 
 export interface ListPaymentMethodsParams {
   page?: number

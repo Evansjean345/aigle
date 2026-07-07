@@ -1,6 +1,6 @@
 import Role from '#core/team/domain/models/role'
-import RoleRepository from '#core/team/domain/interfaces/role_repository'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import type RoleRepository from '#core/team/domain/interfaces/role_repository'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 export default class RoleRepositoryImpl implements RoleRepository {
   /**

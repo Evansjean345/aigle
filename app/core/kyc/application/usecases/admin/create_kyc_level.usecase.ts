@@ -2,7 +2,7 @@ import KycLevelRepository from '#core/kyc/domain/interfaces/kyc_level_repository
 import { inject } from '@adonisjs/core'
 import { CreateKycLevelDto, KycLevelResponseDto } from '#core/kyc/application/dto/kyc_level.dto'
 import KycLevel from '#core/kyc/domain/models/kyc_level'
-import KycLevelAlreadyExistsException from '#core/kyc/infrastructure/exceptions/kyc_level_already_exists_exception'
+import KycLevelAlreadyExistsException from '#core/kyc/domain/exceptions/kyc_level_already_exists_exception'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 

@@ -5,7 +5,7 @@ import ProviderRepository from '#core/catalogs/domain/interfaces/provider_reposi
 import OtpSendingService from '#core/otp/application/services/otp_sending_service'
 import UserRepository from '#core/user/domain/interfaces/user_repository'
 import UserOtpAttemptGuard from '#core/authentication/application/services/user_otp_attempt_guard'
-import UserAccountNotFoundException from '#core/authentication/infrastructure/exceptions/user_account_not_found_exception'
+import UserAccountNotFoundException from '#core/authentication/domain/exceptions/user_account_not_found_exception'
 import { normalizePhone } from '#shared/utils/utiles'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import DebitPhoneOtpTemplate from '#core/otp/infrastructure/templates/debit_phone_otp_template'

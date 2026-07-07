@@ -1,7 +1,7 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#core/transactions/domain/interfaces/transaction_repository'
 import { MobileTransactionResponseDTO } from '#core/transactions/application/dto/mobile_transaction.dto'
-import TransactionNotFoundException from '#core/transactions/infrastructure/exceptions/transaction_not_found_exception'
+import TransactionNotFoundException from '#core/transactions/domain/exceptions/transaction_not_found_exception'
 
 /**
  * A use case for retrieving transaction details for a specific user based on a transaction reference.

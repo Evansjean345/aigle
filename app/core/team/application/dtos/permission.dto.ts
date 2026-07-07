@@ -1,4 +1,4 @@
-import { PaginationMeta } from '#core/team/application/dtos/member.dto'
+import { type PaginationMeta } from '#core/team/application/dtos/member.dto'
 
 export interface CreatePermissionRequestDto {
   slug: string

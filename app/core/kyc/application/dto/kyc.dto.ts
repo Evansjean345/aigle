@@ -1,4 +1,4 @@
-import { KycDocumentType } from '#core/kyc/domain/enum/kyc_enum'
+import { type KycDocumentType } from '#core/kyc/domain/enum/kyc_enum'
 import type KycDocument from '#core/kyc/domain/models/kyc_document'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 

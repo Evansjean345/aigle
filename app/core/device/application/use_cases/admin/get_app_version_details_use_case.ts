@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import AppVersionRepository from '#core/device/domain/interfaces/app_version_repository'
 import AppVersion from '#core/device/domain/models/app_version'
-import AppVersionNotFoundException from '#core/device/infrastructure/exceptions/app_version_not_found_exception'
+import AppVersionNotFoundException from '#core/device/domain/exceptions/app_version_not_found_exception'
 
 @inject()
 export default class GetAppVersionDetailsUseCase {

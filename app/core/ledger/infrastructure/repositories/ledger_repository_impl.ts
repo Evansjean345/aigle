@@ -1,10 +1,10 @@
 import Ledger from '#core/ledger/domain/models/ledger'
-import LedgerRepository from '#core/ledger/domain/interfaces/ledger_repository'
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type LedgerRepository from '#core/ledger/domain/interfaces/ledger_repository'
+import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
-import { LedgerDirection, LedgerOperationType } from '#core/ledger/domain/ledger_enums'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import { LedgerDirection, type LedgerOperationType } from '#core/ledger/domain/ledger_enums'
 
 /**
  * Implementation of the LedgerRepository interface for managing ledger entities.

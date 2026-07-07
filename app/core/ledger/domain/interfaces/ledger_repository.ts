@@ -1,7 +1,7 @@
-import Ledger from '#core/ledger/domain/models/ledger'
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
-import { LedgerOperationType } from '#core/ledger/domain/ledger_enums'
+import type Ledger from '#core/ledger/domain/models/ledger'
+import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import { type LedgerOperationType } from '#core/ledger/domain/ledger_enums'
 
 export default abstract class LedgerRepository {
   /**

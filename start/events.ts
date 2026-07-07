@@ -106,8 +106,7 @@ const TransactionLogListener = () =>
 const OnProviderErrorAlert = () =>
   import('#core/notifications/application/listeners/on_provider_error_alert')
 
-const OnSecurityAlert = () =>
-  import('#core/notifications/application/listeners/on_security_alert')
+const OnSecurityAlert = () => import('#core/notifications/application/listeners/on_security_alert')
 
 const SecurityAlertDetectorListener = () =>
   import('#core/audit/application/services/security_alert_detector')

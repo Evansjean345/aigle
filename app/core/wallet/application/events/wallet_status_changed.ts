@@ -1,5 +1,5 @@
 import { BaseEvent } from '@adonisjs/core/events'
-import { WalletStatus } from '#core/wallet/domain/enums/wallet_status'
+import { type WalletStatus } from '#core/wallet/domain/enums/wallet_status'
 
 /**
  * Représente un événement déclenché lorsque le statut du wallet d'un utilisateur change.

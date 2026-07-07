@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import DeviceRepository from '#core/device/domain/interfaces/device_repository'
-import DeviceNotFoundException from '#core/device/infrastructure/exceptions/device_not_found_exception'
+import DeviceNotFoundException from '#core/device/domain/exceptions/device_not_found_exception'
 import Transaction from '#core/transactions/domain/models/transaction'
 import type { DeviceTransactionListItemDto } from '#core/device/application/dto/admin_device_transaction.dto'
 
@@ -33,12 +33,7 @@ export default class GetDeviceTransactionsUseCase {
     }
 
     const query = Transaction.query()
-      .join(
-        'transaction_security_contexts as sc',
-        'sc.transaction_id',
-        '=',
-        'transactions.id'
-      )
+      .join('transaction_security_contexts as sc', 'sc.transaction_id', '=', 'transactions.id')
       .join('users as u', 'u.users_uid', '=', 'transactions.users_uid')
       .where('sc.fingerprint_hash', device.fingerprintHash)
       .select(
@@ -92,10 +87,7 @@ export default class GetDeviceTransactionsUseCase {
       user: {
         userId: tx.$extras.u_users_uid,
         phone: tx.$extras.u_phone ?? '',
-        fullname: [tx.$extras.u_firstname, tx.$extras.u_lastname]
-          .filter(Boolean)
-          .join(' ')
-          .trim(),
+        fullname: [tx.$extras.u_firstname, tx.$extras.u_lastname].filter(Boolean).join(' ').trim(),
       },
       securityContext: {
         ipAddress: tx.$extras.sc_ip_address ?? '',

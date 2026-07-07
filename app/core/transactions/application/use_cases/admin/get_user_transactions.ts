@@ -4,7 +4,7 @@ import {
   AdminTransactionResponseDTO,
   PaginatedAdminTransactionsResponseDTO,
 } from '#core/transactions/application/dto/admin_transaction.dto'
-import InvalidUserIdException from '#core/transactions/infrastructure/exceptions/invalid_user_id_exception'
+import InvalidUserIdException from '#core/transactions/domain/exceptions/invalid_user_id_exception'
 
 @inject()
 export default class GetUserTransactionsUseCase {

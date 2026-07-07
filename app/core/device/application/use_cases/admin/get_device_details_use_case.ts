@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import DeviceRepository from '#core/device/domain/interfaces/device_repository'
 import UserDeviceRepository from '#core/device/domain/interfaces/user_device_repository'
-import DeviceNotFoundException from '#core/device/infrastructure/exceptions/device_not_found_exception'
+import DeviceNotFoundException from '#core/device/domain/exceptions/device_not_found_exception'
 import { AdminDeviceDetailDto } from '#core/device/application/dto/admin_device.dto'
 
 @inject()

@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import ProviderGatewayAdapter from '#core/money_movement/infrastructure/gateways/provider_gateway_adapter'
-import ProviderInitiationError from '#core/money_movement/infrastructure/exceptions/provider_initiation_error'
+import ProviderInitiationError from '#core/money_movement/domain/exceptions/provider_initiation_error'
 import { ProviderResponse } from '#core/provider_gateway/domain/value_objects/provider_response'
 import { type ProviderRequest } from '#core/provider_gateway/domain/value_objects/provider_request'
 import { ErrorSeverity } from '#core/provider_gateway/domain/enums/error_severity'

@@ -1,4 +1,4 @@
-﻿import User from '#core/user/domain/models/user'
+﻿import type User from '#core/user/domain/models/user'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 export interface ChangePinCodeDTO {

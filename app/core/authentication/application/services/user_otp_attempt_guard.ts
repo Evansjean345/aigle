@@ -5,8 +5,8 @@ import UserRepository from '#core/user/domain/interfaces/user_repository'
 import SlidingWindowCounter from '#shared/domain/cache/sliding_window_counter'
 import TimedFlag from '#shared/domain/cache/timed_flag'
 import { UserStatus } from '#core/user/domain/enum'
-import AccountBlockedException from '#core/authentication/infrastructure/exceptions/account_blocked_exception'
-import UserOtpTemporarilyBlockedException from '#core/authentication/infrastructure/exceptions/user_otp_temporarily_blocked_exception'
+import AccountBlockedException from '#core/authentication/domain/exceptions/account_blocked_exception'
+import UserOtpTemporarilyBlockedException from '#core/authentication/domain/exceptions/user_otp_temporarily_blocked_exception'
 import { SecurityAlertType, AlertSeverity, AuditResult } from '#core/audit/domain/enums'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import emitter from '@adonisjs/core/services/emitter'
@@ -142,11 +142,7 @@ export default class UserOtpAttemptGuard {
     }
   }
 
-  private async autoBlockUser(
-    user: User,
-    ipAddress: string | null,
-    count: number
-  ): Promise<void> {
+  private async autoBlockUser(user: User, ipAddress: string | null, count: number): Promise<void> {
     user.status = UserStatus.BLOCKED
 
     try {

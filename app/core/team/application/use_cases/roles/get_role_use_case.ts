@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import { RoleResponseDto } from '#core/team/application/dtos/role.dto'
 import RoleRepository from '#core/team/domain/interfaces/role_repository'
-import RoleNotFoundException from '#core/team/infrastructure/exceptions/role_not_found_exception'
+import RoleNotFoundException from '#core/team/domain/exceptions/role_not_found_exception'
 
 @inject()
 export default class GetRoleUseCase {

@@ -1,9 +1,12 @@
 ﻿import UserRepository from '#core/user/domain/interfaces/user_repository'
 import WalletService from '#core/wallet/application/services/wallet_service'
-import { toWalletOverviewResult, type WalletOverviewResult } from '#core/wallet/application/dtos/wallet.dto'
+import {
+  toWalletOverviewResult,
+  type WalletOverviewResult,
+} from '#core/wallet/application/dtos/wallet.dto'
 import { inject } from '@adonisjs/core'
 import TransactionRepository from '#core/transactions/domain/interfaces/transaction_repository'
-import UserAccountNotFoundException from '#core/authentication/infrastructure/exceptions/user_account_not_found_exception'
+import UserAccountNotFoundException from '#core/authentication/domain/exceptions/user_account_not_found_exception'
 
 @inject()
 export default class GetUserWalletOverviewUseCase {

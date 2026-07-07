@@ -1,6 +1,6 @@
 import Admin from '#core/team/domain/models/admin'
-import AdminRepository from '#core/team/domain/interfaces/admin_repository'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import type AdminRepository from '#core/team/domain/interfaces/admin_repository'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 export default class AdminRepositoryImpl implements AdminRepository {
   /**

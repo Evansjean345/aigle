@@ -1,5 +1,5 @@
 import redis from '@adonisjs/redis/services/main'
-import ResetPasswordTokenProvider from '#core/authentication/domain/interfaces/reset_password_token_provider'
+import type ResetPasswordTokenProvider from '#core/authentication/domain/interfaces/reset_password_token_provider'
 
 export default class RedisResetPasswordTokenProvider implements ResetPasswordTokenProvider {
   private prefix = 'auth:reset_token:'

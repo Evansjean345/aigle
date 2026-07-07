@@ -27,12 +27,7 @@ export default class KycSubmitionController {
    * @param {object} HttpContext.auth - The authentication object to verify user login status.
    * @return {Promise<void>} A Promise that resolves to the created KYC document response.
    */
-  async submitKycDocuments({
-    request,
-    response,
-    auth,
-    geoLocation,
-  }: HttpContext): Promise<void> {
+  async submitKycDocuments({ request, response, auth, geoLocation }: HttpContext): Promise<void> {
     if (!(await auth.check())) return response.unauthorized()
 
     const payload = await request.validateUsing(kycDocumentValidator, {

@@ -1,6 +1,6 @@
 import Otp from '#core/otp/domain/models/otp'
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import OtpRepository from '#core/otp/domain/interfaces/otp_repository'
+import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type OtpRepository from '#core/otp/domain/interfaces/otp_repository'
 
 export default class OtpRepositoryImpl implements OtpRepository {
   async save(data: Otp, trx?: TransactionClientContract): Promise<Otp> {

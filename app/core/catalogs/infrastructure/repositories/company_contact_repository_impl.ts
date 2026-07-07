@@ -1,5 +1,5 @@
 import CompanyContact from '#core/catalogs/domain/models/company_contact'
-import CompanyContactRepository from '#core/catalogs/domain/interfaces/company_contact_repository'
+import type CompanyContactRepository from '#core/catalogs/domain/interfaces/company_contact_repository'
 
 export default class CompanyContactRepositoryImpl implements CompanyContactRepository {
   /**

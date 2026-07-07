@@ -8,7 +8,7 @@ import { TransactionStatus } from '#core/transactions/domain/enums/transaction_s
 import WalletService from '#core/wallet/application/services/wallet_service'
 import PaymentService from '#core/transactions/application/services/payment_service'
 import RefundService from '#core/transactions/application/services/refund_service'
-import TransactionAlreadyRefundedException from '#core/transactions/infrastructure/exceptions/transaction_already_refunded_exception'
+import TransactionAlreadyRefundedException from '#core/transactions/domain/exceptions/transaction_already_refunded_exception'
 import { AuditResult } from '#core/audit/domain/enums'
 import MoneyActivityEmitter from '#core/money_movement/application/services/money_activity_emitter'
 import SettlementSupport from '#core/money_movement/application/services/settlement_support'

@@ -1,4 +1,4 @@
-import { FeeRule } from '#shared/domain/fees/fee_types'
+import { type FeeRule } from '#shared/domain/fees/fee_types'
 
 export interface SpmRuleLookup {
   serviceTypeId: number

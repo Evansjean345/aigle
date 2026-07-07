@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import { PermissionResponseDto } from '#core/team/application/dtos/permission.dto'
 import PermissionRepository from '#core/team/domain/interfaces/permission_repository'
-import PermissionNotFoundException from '#core/team/infrastructure/exceptions/permission_not_found_exception'
+import PermissionNotFoundException from '#core/team/domain/exceptions/permission_not_found_exception'
 
 @inject()
 export default class GetPermissionUseCase {

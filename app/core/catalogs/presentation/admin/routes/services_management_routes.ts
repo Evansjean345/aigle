@@ -9,9 +9,7 @@ const ProvidersController = () =>
 const ServiceProviderMethodsController = () =>
   import('#core/catalogs/presentation/admin/controllers/service_provider_methods_controller')
 const AdminCompanyContactsController = () =>
-  import(
-    '#core/catalogs/presentation/admin/controllers/admin_company_contacts_controller'
-  )
+  import('#core/catalogs/presentation/admin/controllers/admin_company_contacts_controller')
 
 export default function adminServicesManagementRoutes() {
   return router

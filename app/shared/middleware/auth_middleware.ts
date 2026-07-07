@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import type { Authenticators } from '@adonisjs/auth/types'
 import { UserStatus } from '#core/user/domain/enum'
-import AccountBlockedException from '#core/authentication/infrastructure/exceptions/account_blocked_exception'
+import AccountBlockedException from '#core/authentication/domain/exceptions/account_blocked_exception'
 
 /**
  * Auth middleware is used authenticate HTTP requests and deny

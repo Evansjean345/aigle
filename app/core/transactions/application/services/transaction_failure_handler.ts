@@ -11,9 +11,9 @@ import type { ClassifiedError } from '#shared/infrastructure/services/error_clas
 import { ErrorSeverity, ErrorCategory, AdminAction } from '#shared/enums/provider_error_enums'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
-import TransactionAlreadyFailedException from '#core/transactions/infrastructure/exceptions/transaction_already_failed_exception'
-import TransactionAlreadyRefundedException from '#core/transactions/infrastructure/exceptions/transaction_already_refunded_exception'
-import PaymentAlreadyFailedException from '#core/transactions/infrastructure/exceptions/payment_already_failed_exception'
+import TransactionAlreadyFailedException from '#core/transactions/domain/exceptions/transaction_already_failed_exception'
+import TransactionAlreadyRefundedException from '#core/transactions/domain/exceptions/transaction_already_refunded_exception'
+import PaymentAlreadyFailedException from '#core/transactions/domain/exceptions/payment_already_failed_exception'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 export interface TransactionFailureOptions {

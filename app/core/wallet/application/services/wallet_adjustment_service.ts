@@ -6,7 +6,7 @@ import LedgerService from '#core/ledger/application/services/ledger_service'
 import WalletAdjustmentRepository from '#core/wallet/domain/interfaces/wallet_adjustment_repository'
 import { AdjustmentType, AdjustmentStatus } from '#core/wallet/domain/enums/wallet_adjustment'
 import { LedgerDirection } from '#core/ledger/domain/ledger_enums'
-import AdjustmentFailedException from '#core/wallet/infrastructure/exceptions/adjustment_failed_exception'
+import AdjustmentFailedException from '#core/wallet/domain/exceptions/adjustment_failed_exception'
 import type {
   WalletAdjustmentCommand,
   WalletAdjustmentResult,

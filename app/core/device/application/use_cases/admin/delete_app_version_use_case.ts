@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import AppVersionRepository from '#core/device/domain/interfaces/app_version_repository'
-import AppVersionNotFoundException from '#core/device/infrastructure/exceptions/app_version_not_found_exception'
+import AppVersionNotFoundException from '#core/device/domain/exceptions/app_version_not_found_exception'
 import AppVersionCacheService from '#core/device/infrastructure/services/app_version_cache_service'
 
 @inject()

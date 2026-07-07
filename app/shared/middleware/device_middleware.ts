@@ -17,7 +17,6 @@ export interface DeviceHeadersInfo {
  * Étend le HttpContext pour inclure les informations device
  */
 declare module '@adonisjs/core/http' {
-  // eslint-disable-next-line @typescript-eslint/no-shadow
   interface HttpContext {
     deviceInfo?: DeviceHeadersInfo
   }

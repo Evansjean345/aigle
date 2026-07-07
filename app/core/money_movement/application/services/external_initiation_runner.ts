@@ -5,7 +5,7 @@ import ProviderErrorReporter from '#shared/infrastructure/services/provider_erro
 import { PROVIDER_SEVERITY_MAP } from '#shared/enums/provider_error_severity_map'
 import { ErrorSeverity } from '#shared/enums/provider_error_enums'
 import type { ClassifiedError } from '#shared/infrastructure/services/error_classifier'
-import ProviderInitiationError from '#core/money_movement/infrastructure/exceptions/provider_initiation_error'
+import ProviderInitiationError from '#core/money_movement/domain/exceptions/provider_initiation_error'
 import type { FlowEventName } from '#core/transactions/application/jobs/dispatch_flow_event_job'
 import type { ExternalInitiationResult } from '#core/money_movement/domain/types/money_movement_types'
 

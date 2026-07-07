@@ -1,5 +1,5 @@
-import Role from '#core/team/domain/models/role'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import type Role from '#core/team/domain/models/role'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 export default abstract class RoleRepository {
   /**

@@ -14,11 +14,11 @@ import QrJwtService, { TOKEN_ERRORS } from '#core/qr/application/services/qr_jwt
 import { normalizePhone } from '#shared/utils/utiles'
 import UserRepository from '#core/user/domain/interfaces/user_repository'
 import { WalletStatus } from '#core/wallet/domain/enums/wallet_status'
-import WalletNotFoundException from '#core/wallet/infrastructure/exceptions/wallet_not_found_exception'
-import InvalidAmountException from '#core/wallet/infrastructure/exceptions/invalid_amount_exception'
-import InsufficientFundsException from '#core/wallet/infrastructure/exceptions/insufficient_funds_exception'
-import SelfTransferException from '#core/wallet/infrastructure/exceptions/self_transfer_exception'
-import UnregisteredAccountException from '#core/user/infrastructure/exceptions/unregistered_account_exception'
+import WalletNotFoundException from '#core/wallet/domain/exceptions/wallet_not_found_exception'
+import InvalidAmountException from '#core/wallet/domain/exceptions/invalid_amount_exception'
+import InsufficientFundsException from '#core/wallet/domain/exceptions/insufficient_funds_exception'
+import SelfTransferException from '#core/wallet/domain/exceptions/self_transfer_exception'
+import UnregisteredAccountException from '#core/user/domain/exceptions/unregistered_account_exception'
 import WalletStatusChanged from '#core/wallet/application/events/wallet_status_changed'
 
 /**

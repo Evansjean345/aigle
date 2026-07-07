@@ -1,4 +1,4 @@
-import DebitPhone from '#core/user/domain/models/debit_phone'
+import type DebitPhone from '#core/user/domain/models/debit_phone'
 
 /**
  * An abstract class representing a repository for managing DebitPhone entities.

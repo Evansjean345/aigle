@@ -6,8 +6,8 @@ import AdminOtpAttemptGuard from '#core/authentication/application/services/admi
 import AdminLoginOtpTemplate from '#core/otp/infrastructure/templates/admin_login_otp_template'
 import AdminSetupOtpTemplate from '#core/otp/infrastructure/templates/admin_setup_otp_template'
 import { AdminLoginResponseDto } from '#core/authentication/application/dtos/admin/admin_login.dto'
-import AdminNotFoundException from '#core/team/infrastructure/exceptions/admin_not_found_exception'
-import OtpLockedException from '#core/otp/infrastructure/exceptions/otp_locked_exception'
+import AdminNotFoundException from '#core/team/domain/exceptions/admin_not_found_exception'
+import OtpLockedException from '#core/otp/domain/exceptions/otp_locked_exception'
 import emitter from '@adonisjs/core/services/emitter'
 
 import { AuditResult } from '#core/audit/domain/enums'

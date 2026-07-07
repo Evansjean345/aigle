@@ -1,8 +1,7 @@
 ﻿import PaymentMethod from '#core/catalogs/domain/models/payment_method'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
-import PaymentMethodRepository, {
-  ListPaymentMethodsParams,
-} from '#core/catalogs/domain/interfaces/payment_method_repository'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import { type ListPaymentMethodsParams } from '#core/catalogs/domain/interfaces/payment_method_repository'
+import type PaymentMethodRepository from '#core/catalogs/domain/interfaces/payment_method_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 
 /**

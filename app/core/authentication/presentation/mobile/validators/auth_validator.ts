@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine'
-import { InferInput } from '@vinejs/vine/types'
+import { type InferInput } from '@vinejs/vine/types'
 
 const deviceSchema = vine.object({
   fingerprint_hash: vine.string().trim(),

@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import PermissionRepository from '#core/team/domain/interfaces/permission_repository'
-import PermissionNotFoundException from '#core/team/infrastructure/exceptions/permission_not_found_exception'
+import PermissionNotFoundException from '#core/team/domain/exceptions/permission_not_found_exception'
 import emitter from '@adonisjs/core/services/emitter'
 import Admin from '#core/team/domain/models/admin'
 import { AuditResult } from '#core/audit/domain/enums'

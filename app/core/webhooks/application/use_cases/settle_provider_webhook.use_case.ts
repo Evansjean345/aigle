@@ -6,7 +6,7 @@ import { TransactionType } from '#core/transactions/domain/enums/transaction_typ
 import { PaymentStatus } from '#core/transactions/domain/enums/payment_status'
 import MoneyMovementEngine from '#core/money_movement/domain/interfaces/money_movement_engine'
 import PaymentService from '#core/transactions/application/services/payment_service'
-import TransactionNotFoundException from '#core/transactions/infrastructure/exceptions/transaction_not_found_exception'
+import TransactionNotFoundException from '#core/transactions/domain/exceptions/transaction_not_found_exception'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import type { ProviderWebhookEvent } from '#core/webhooks/domain/value_objects/provider_webhook_event'
 import type { SettlementKind } from '#core/money_movement/domain/types/money_movement_types'

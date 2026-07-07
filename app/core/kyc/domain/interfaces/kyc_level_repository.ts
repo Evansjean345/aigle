@@ -1,4 +1,4 @@
-import KycLevel from '#core/kyc/domain/models/kyc_level'
+import type KycLevel from '#core/kyc/domain/models/kyc_level'
 
 /**
  * A repository interface for managing KYC (Know Your Customer) levels.

@@ -1,6 +1,6 @@
 import KycLevelRepository from '#core/kyc/domain/interfaces/kyc_level_repository'
 import { inject } from '@adonisjs/core'
-import KycLevelNotFoundException from '#core/kyc/infrastructure/exceptions/kyc_level_not_found_exception'
+import KycLevelNotFoundException from '#core/kyc/domain/exceptions/kyc_level_not_found_exception'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 import type { AdminAuditContext } from '#core/kyc/application/usecases/admin/create_kyc_level.usecase'

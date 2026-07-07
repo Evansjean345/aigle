@@ -8,7 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
       table.enum('device_type', ['ios', 'android']).notNullable()
       table.string('version_number').notNullable() // La última versión disponible
-      table.string('min_version').notNullable()    // La versión mínima requerida (obsolescencia)
+      table.string('min_version').notNullable() // La versión mínima requerida (obsolescencia)
       table.boolean('critical_update').defaultTo(false)
       table.date('release_date').notNullable()
       table.string('download_url').nullable()

@@ -7,7 +7,6 @@ import { LedgerDirection, LedgerOperationType } from '#core/ledger/domain/ledger
 import ledgerLog from '#shared/infrastructure/logging/ledger_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 
-
 /**
  * Service for handling ledger-related operations, such as creating ledger entries
  * and recording different types of transactions (deposits, transfers, etc.).

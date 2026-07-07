@@ -26,7 +26,7 @@ export const updateKycLevelValidator = vine.compile(
     monthlyLimit: vine.number().min(0).optional(),
     balanceLimit: vine.number().min(0).optional(),
     isActive: vine.boolean().optional(),
-    isArchived:vine.boolean().optional(),
+    isArchived: vine.boolean().optional(),
   })
 )
 

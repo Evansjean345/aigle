@@ -91,7 +91,7 @@ export default class Ledger extends BaseModel {
   static search = scope((query, searchTerm: string) => {
     query.where((subQuery) => {
       subQuery
-        .orWhereHas("transaction", (transactionQuery) => {
+        .orWhereHas('transaction', (transactionQuery) => {
           transactionQuery.where('reference', 'like', `%${searchTerm}%`)
         })
         .orWhereHas('wallet', (walletQuery) => {

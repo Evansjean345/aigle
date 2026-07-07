@@ -1,8 +1,7 @@
 ﻿import ServiceType from '#core/catalogs/domain/models/service_type'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
-import ServiceTypeRepository, {
-  ListServiceTypesParams,
-} from '#core/catalogs/domain/interfaces/service_type_repository'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import { type ListServiceTypesParams } from '#core/catalogs/domain/interfaces/service_type_repository'
+import type ServiceTypeRepository from '#core/catalogs/domain/interfaces/service_type_repository'
 import { Exception } from '@adonisjs/core/exceptions'
 
 /**

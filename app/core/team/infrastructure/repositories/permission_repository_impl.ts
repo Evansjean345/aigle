@@ -1,6 +1,6 @@
 import Permission from '#core/team/domain/models/permission'
-import PermissionRepository from '#core/team/domain/interfaces/permission_repository'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import type PermissionRepository from '#core/team/domain/interfaces/permission_repository'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 export default class PermissionRepositoryImpl implements PermissionRepository {
   /**

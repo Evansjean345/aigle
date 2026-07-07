@@ -1,5 +1,5 @@
-﻿import Payment from '#core/transactions/domain/models/payment'
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+﻿import type Payment from '#core/transactions/domain/models/payment'
+import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 /**
  * Abstract repository for managing Payment entities.

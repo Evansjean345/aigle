@@ -1,10 +1,7 @@
 import type { DateTime } from 'luxon'
 import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import type WalletAdjustment from '#core/wallet/domain/models/wallet_adjustment'
-import type {
-  AdjustmentType,
-  AdjustmentReason,
-} from '#core/wallet/domain/enums/wallet_adjustment'
+import type { AdjustmentType, AdjustmentReason } from '#core/wallet/domain/enums/wallet_adjustment'
 
 // ── RequestDto (input use case) ─────────────────────────────────────
 

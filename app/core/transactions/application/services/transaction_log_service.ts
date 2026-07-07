@@ -1,5 +1,5 @@
 import TransactionLogEntry from '#core/transactions/domain/models/transaction_log_entry'
-import { TransactionLogEventData } from '#core/transactions/application/types/transaction_log_event_data'
+import { type TransactionLogEventData } from '#core/transactions/application/types/transaction_log_event_data'
 
 class TransactionLogService {
   /**

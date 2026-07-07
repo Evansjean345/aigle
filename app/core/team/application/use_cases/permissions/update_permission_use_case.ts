@@ -4,8 +4,8 @@ import {
   PermissionResponseDto,
 } from '#core/team/application/dtos/permission.dto'
 import PermissionRepository from '#core/team/domain/interfaces/permission_repository'
-import PermissionNotFoundException from '#core/team/infrastructure/exceptions/permission_not_found_exception'
-import PermissionSlugAlreadyExistsException from '#core/team/infrastructure/exceptions/permission_slug_already_exists_exception'
+import PermissionNotFoundException from '#core/team/domain/exceptions/permission_not_found_exception'
+import PermissionSlugAlreadyExistsException from '#core/team/domain/exceptions/permission_slug_already_exists_exception'
 import Admin from '#core/team/domain/models/admin'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'

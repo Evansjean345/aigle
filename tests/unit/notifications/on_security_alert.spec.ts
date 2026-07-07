@@ -115,7 +115,11 @@ test.group('OnSecurityAlert | edge cases', (group) => {
     await listener.handle(buildEvent())
 
     assert.lengthOf(mails, 0)
-    assert.lengthOf(audit.captured, 1, 'audit should still be emitted when no recipients configured')
+    assert.lengthOf(
+      audit.captured,
+      1,
+      'audit should still be emitted when no recipients configured'
+    )
   })
 
   test('mail dispatcher throws: fallback logged, no exception bubbles up', async ({ assert }) => {

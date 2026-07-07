@@ -93,9 +93,6 @@ export type ScannedRoutes = {
     'admin_wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'event_stream': { paramsTuple?: []; params?: {} }
-    'subscribe': { paramsTuple?: []; params?: {} }
-    'unsubscribe': { paramsTuple?: []; params?: {} }
     'auth.check_phone': { paramsTuple?: []; params?: {} }
     'auth.register': { paramsTuple?: []; params?: {} }
     'auth.verify_credentials': { paramsTuple?: []; params?: {} }
@@ -117,14 +114,11 @@ export type ScannedRoutes = {
     'transfert': { paramsTuple?: []; params?: {} }
     'transfert_inter': { paramsTuple?: []; params?: {} }
     'wallet_to_wallet': { paramsTuple?: []; params?: {} }
-    'deposit_webhook.deposit_success': { paramsTuple?: []; params?: {} }
-    'deposit_webhook.deposit_failure': { paramsTuple?: []; params?: {} }
-    'transfer_webhook.transfer_success': { paramsTuple?: []; params?: {} }
-    'transfer_webhook.transfer_failure': { paramsTuple?: []; params?: {} }
-    'transfert_inter_webhook.inter_success': { paramsTuple?: []; params?: {} }
-    'transfert_inter_webhook.inter_failure': { paramsTuple?: []; params?: {} }
-    'transfert_inter_webhook.inter_second_success': { paramsTuple?: []; params?: {} }
-    'transfert_inter_webhook.inter_second_failure': { paramsTuple?: []; params?: {} }
+    'provider.hub2.payments.success': { paramsTuple?: []; params?: {} }
+    'provider.hub2.payments.failed': { paramsTuple?: []; params?: {} }
+    'provider.hub2.transfers.success': { paramsTuple?: []; params?: {} }
+    'provider.hub2.transfers.failed': { paramsTuple?: []; params?: {} }
+    'provider.wave': { paramsTuple?: []; params?: {} }
     'mobile_transactions.list': { paramsTuple?: []; params?: {} }
     'mobile_transactions.get_transaction_quota': { paramsTuple?: []; params?: {} }
     'mobile_transactions.details': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
@@ -143,6 +137,9 @@ export type ScannedRoutes = {
     'debit_phone.verify': { paramsTuple?: []; params?: {} }
     'debit_phone.resend': { paramsTuple?: []; params?: {} }
     'health': { paramsTuple?: []; params?: {} }
+    'event_stream': { paramsTuple?: []; params?: {} }
+    'subscribe': { paramsTuple?: []; params?: {} }
+    'unsubscribe': { paramsTuple?: []; params?: {} }
   }
   GET: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
@@ -192,7 +189,6 @@ export type ScannedRoutes = {
     'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'event_stream': { paramsTuple?: []; params?: {} }
     'auth.user_auth': { paramsTuple?: []; params?: {} }
     'auth.session_status': { paramsTuple?: []; params?: {} }
     'wallet_over_view': { paramsTuple?: []; params?: {} }
@@ -207,6 +203,7 @@ export type ScannedRoutes = {
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
     'debit_phone.index': { paramsTuple?: []; params?: {} }
     'health': { paramsTuple?: []; params?: {} }
+    'event_stream': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
@@ -256,7 +253,6 @@ export type ScannedRoutes = {
     'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'event_stream': { paramsTuple?: []; params?: {} }
     'auth.user_auth': { paramsTuple?: []; params?: {} }
     'auth.session_status': { paramsTuple?: []; params?: {} }
     'wallet_over_view': { paramsTuple?: []; params?: {} }
@@ -271,6 +267,7 @@ export type ScannedRoutes = {
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
     'debit_phone.index': { paramsTuple?: []; params?: {} }
     'health': { paramsTuple?: []; params?: {} }
+    'event_stream': { paramsTuple?: []; params?: {} }
   }
   POST: {
     'admin_management.login': { paramsTuple?: []; params?: {} }
@@ -289,8 +286,6 @@ export type ScannedRoutes = {
     'kyc.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_app_version.store': { paramsTuple?: []; params?: {} }
     'admin_wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
-    'subscribe': { paramsTuple?: []; params?: {} }
-    'unsubscribe': { paramsTuple?: []; params?: {} }
     'auth.check_phone': { paramsTuple?: []; params?: {} }
     'auth.register': { paramsTuple?: []; params?: {} }
     'auth.verify_credentials': { paramsTuple?: []; params?: {} }
@@ -306,14 +301,11 @@ export type ScannedRoutes = {
     'transfert': { paramsTuple?: []; params?: {} }
     'transfert_inter': { paramsTuple?: []; params?: {} }
     'wallet_to_wallet': { paramsTuple?: []; params?: {} }
-    'deposit_webhook.deposit_success': { paramsTuple?: []; params?: {} }
-    'deposit_webhook.deposit_failure': { paramsTuple?: []; params?: {} }
-    'transfer_webhook.transfer_success': { paramsTuple?: []; params?: {} }
-    'transfer_webhook.transfer_failure': { paramsTuple?: []; params?: {} }
-    'transfert_inter_webhook.inter_success': { paramsTuple?: []; params?: {} }
-    'transfert_inter_webhook.inter_failure': { paramsTuple?: []; params?: {} }
-    'transfert_inter_webhook.inter_second_success': { paramsTuple?: []; params?: {} }
-    'transfert_inter_webhook.inter_second_failure': { paramsTuple?: []; params?: {} }
+    'provider.hub2.payments.success': { paramsTuple?: []; params?: {} }
+    'provider.hub2.payments.failed': { paramsTuple?: []; params?: {} }
+    'provider.hub2.transfers.success': { paramsTuple?: []; params?: {} }
+    'provider.hub2.transfers.failed': { paramsTuple?: []; params?: {} }
+    'provider.wave': { paramsTuple?: []; params?: {} }
     'pin_code.change_pin_code': { paramsTuple?: []; params?: {} }
     'qr.issue': { paramsTuple?: []; params?: {} }
     'qr.resolve': { paramsTuple?: []; params?: {} }
@@ -322,6 +314,8 @@ export type ScannedRoutes = {
     'debit_phone.store': { paramsTuple?: []; params?: {} }
     'debit_phone.verify': { paramsTuple?: []; params?: {} }
     'debit_phone.resend': { paramsTuple?: []; params?: {} }
+    'subscribe': { paramsTuple?: []; params?: {} }
+    'unsubscribe': { paramsTuple?: []; params?: {} }
   }
   PUT: {
     'team_management.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

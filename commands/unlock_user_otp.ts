@@ -66,9 +66,8 @@ export default class UnlockUserOtp extends BaseCommand {
     this.logger.success(`OTP guard cleared (auth:user:otp:* for user #${user.id})`)
 
     if (this.includePin) {
-      const { default: PinAttemptGuard } = await import(
-        '#core/authentication/application/services/pin_attempt_guard'
-      )
+      const { default: PinAttemptGuard } =
+        await import('#core/authentication/application/services/pin_attempt_guard')
       const pinGuard = await this.app.container.make(PinAttemptGuard)
       await pinGuard.recordSuccess(user.id)
       this.logger.success(`PIN guard cleared (auth:pin:* for user #${user.id})`)
@@ -81,9 +80,7 @@ export default class UnlockUserOtp extends BaseCommand {
     } else if (this.reactivate && user.status !== UserStatus.BLOCKED) {
       this.logger.info(`Account is not blocked (status=${user.status}) — no change`)
     } else if (!this.reactivate && user.status === UserStatus.BLOCKED) {
-      this.logger.warning(
-        'Account is BLOCKED. Pass --reactivate if you also want to re-enable it.'
-      )
+      this.logger.warning('Account is BLOCKED. Pass --reactivate if you also want to re-enable it.')
     }
   }
 }

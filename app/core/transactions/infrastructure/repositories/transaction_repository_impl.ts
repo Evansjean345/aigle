@@ -1,7 +1,7 @@
-﻿import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+﻿import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Transaction from '#core/transactions/domain/models/transaction'
-import TransactionRepository from '#core/transactions/domain/interfaces/transaction_repository'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import type TransactionRepository from '#core/transactions/domain/interfaces/transaction_repository'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
 import db from '@adonisjs/lucid/services/db'
 import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
@@ -139,7 +139,11 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    * @param {string} userId - The unique identifier of the user associated with the transaction.
    * @return {Promise<Transaction | null>} A promise that resolves to the matching transaction object if found, or null if no match is found.
    */
-  async findByReferenceAndUserId(reference: string, userId: string, preloads?: string[]): Promise<Transaction | null> {
+  async findByReferenceAndUserId(
+    reference: string,
+    userId: string,
+    preloads?: string[]
+  ): Promise<Transaction | null> {
     const query = Transaction.query()
       .preload('payment')
       .where('reference', reference)

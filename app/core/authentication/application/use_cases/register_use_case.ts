@@ -9,7 +9,7 @@ import OtpSendingService from '#core/otp/application/services/otp_sending_servic
 import CountryRepository from '#core/country/domain/interfaces/country_repository'
 import UserRepository from '#core/user/domain/interfaces/user_repository'
 import { concartPhoneNumber, maskPhone } from '#shared/utils/utiles'
-import UserAlreadyExistsException from '#core/authentication/infrastructure/exceptions/user_already_exists_exception'
+import UserAlreadyExistsException from '#core/authentication/domain/exceptions/user_already_exists_exception'
 import User from '#core/user/domain/models/user'
 import { UserStatus } from '#core/user/domain/enum'
 import securityLog from '#shared/infrastructure/logging/security_log'

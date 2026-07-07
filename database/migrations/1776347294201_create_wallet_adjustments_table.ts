@@ -24,9 +24,7 @@ export default class extends BaseSchema {
         .inTable('transactions')
         .onDelete('SET NULL')
 
-      table
-        .enum('type', ['credit', 'debit'])
-        .notNullable()
+      table.enum('type', ['credit', 'debit']).notNullable()
 
       table
         .enum('reason', [
@@ -39,10 +37,7 @@ export default class extends BaseSchema {
         ])
         .notNullable()
 
-      table
-        .enum('status', ['executed'])
-        .notNullable()
-        .defaultTo('executed')
+      table.enum('status', ['executed']).notNullable().defaultTo('executed')
 
       table.decimal('amount', 15, 4).notNullable()
       table.decimal('balance_before', 15, 4).notNullable()

@@ -3,8 +3,8 @@ import PinAttemptGuard from '#core/authentication/application/services/pin_attem
 import type SlidingWindowCounter from '#shared/domain/cache/sliding_window_counter'
 import type TimedFlag from '#shared/domain/cache/timed_flag'
 import { UserStatus } from '#core/user/domain/enum'
-import AccountBlockedException from '#core/authentication/infrastructure/exceptions/account_blocked_exception'
-import PinTemporarilyBlockedException from '#core/authentication/infrastructure/exceptions/pin_temporarily_blocked_exception'
+import AccountBlockedException from '#core/authentication/domain/exceptions/account_blocked_exception'
+import PinTemporarilyBlockedException from '#core/authentication/domain/exceptions/pin_temporarily_blocked_exception'
 import type UserRepository from '#core/user/domain/interfaces/user_repository'
 import type User from '#core/user/domain/models/user'
 

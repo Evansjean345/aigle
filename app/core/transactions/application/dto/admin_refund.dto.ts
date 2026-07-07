@@ -1,10 +1,6 @@
 import type { DateTime } from 'luxon'
 import type Refund from '#core/transactions/domain/models/refund'
-import type {
-  RefundReason,
-  RefundStatus,
-  RefundType,
-} from '#core/transactions/domain/enums/refund'
+import type { RefundReason, RefundStatus, RefundType } from '#core/transactions/domain/enums/refund'
 
 export class AdminRefundResponseDTO {
   declare id: number

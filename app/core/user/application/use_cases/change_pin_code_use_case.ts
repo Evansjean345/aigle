@@ -110,18 +110,6 @@ export default class ChangePinCodeUseCase {
       })
       .catch((_) => {})
 
-    // Optionally revoke current token for security (keep user logged in on next login)
-    // try {
-    //   if ((input.user as any).currentAccessToken?.identifier) {
-    //     await User.accessTokens.delete(
-    //       user as User,
-    //       (input.user as any).currentAccessToken.identifier
-    //     )
-    //   }
-    // } catch (_) {
-    //   // Ignore token revoke errors to avoid blocking password change
-    // }
-
     return { success: true }
   }
 }

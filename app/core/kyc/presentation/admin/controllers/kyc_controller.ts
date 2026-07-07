@@ -207,7 +207,11 @@ export default class KycController {
       requestId,
       ipAddress,
       userAgent,
-      newValues: { status: payload.status, comment: payload.comment, validUntil: payload.validUntil },
+      newValues: {
+        status: payload.status,
+        comment: payload.comment,
+        validUntil: payload.validUntil,
+      },
       result: AuditResult.SUCCESS,
       metadata: {
         geoCountry: geoLocation?.countryCode ?? null,

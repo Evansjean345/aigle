@@ -1,5 +1,5 @@
-import { PermissionResponseDto } from '#core/team/application/dtos/permission.dto'
-import { PaginationMeta } from '#core/team/application/dtos/member.dto'
+import { type PermissionResponseDto } from '#core/team/application/dtos/permission.dto'
+import { type PaginationMeta } from '#core/team/application/dtos/member.dto'
 
 export interface CreateRoleRequestDto {
   name: string

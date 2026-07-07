@@ -8,10 +8,10 @@ import { PaymentStatus } from '#core/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#core/transactions/domain/enums/payment_step'
 import { ProviderErrorDefinition } from '#shared/infrastructure/services/provider_error_service'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
-import PaymentAlreadyFailedException from '#core/transactions/infrastructure/exceptions/payment_already_failed_exception'
-import PaymentAlreadySuccessfulException from '#core/transactions/infrastructure/exceptions/payment_already_successful_exception'
-import PaymentNotFoundException from '#core/transactions/infrastructure/exceptions/payment_not_found_exception'
-import InvalidStatusTransitionException from '#core/transactions/infrastructure/exceptions/invalid_status_transition_exception'
+import PaymentAlreadyFailedException from '#core/transactions/domain/exceptions/payment_already_failed_exception'
+import PaymentAlreadySuccessfulException from '#core/transactions/domain/exceptions/payment_already_successful_exception'
+import PaymentNotFoundException from '#core/transactions/domain/exceptions/payment_not_found_exception'
+import InvalidStatusTransitionException from '#core/transactions/domain/exceptions/invalid_status_transition_exception'
 
 /**
  * Service class for handling payment-related operations.

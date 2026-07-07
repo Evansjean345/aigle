@@ -1,9 +1,9 @@
 import { inject } from '@adonisjs/core'
 import User from '#core/user/domain/models/user'
 import DeviceService from '#core/device/application/services/device_service'
-import DeviceNotFoundException from '#core/device/infrastructure/exceptions/device_not_found_exception'
+import DeviceNotFoundException from '#core/device/domain/exceptions/device_not_found_exception'
 import UserRepository from '#core/user/domain/interfaces/user_repository'
-import UserAccountNotFoundException from '#core/authentication/infrastructure/exceptions/user_account_not_found_exception'
+import UserAccountNotFoundException from '#core/authentication/domain/exceptions/user_account_not_found_exception'
 
 @inject()
 export default class RevokeUserDeviceUseCase {

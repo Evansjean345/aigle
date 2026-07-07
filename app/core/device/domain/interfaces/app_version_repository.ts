@@ -1,4 +1,4 @@
-import AppVersion from '../models/app_version.js'
+import type AppVersion from '../models/app_version.js'
 
 export default abstract class AppVersionRepository {
   /**

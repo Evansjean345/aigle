@@ -15,9 +15,7 @@ export default class OnKycProcessedAdminBroadcast {
 
   async handle(event: KycDocumentProcessed) {
     try {
-      const pendingCount = await this.kycDocumentRepository.countByStatus(
-        KycDocumentStatus.PENDING
-      )
+      const pendingCount = await this.kycDocumentRepository.countByStatus(KycDocumentStatus.PENDING)
 
       transmit.broadcast('admin/kyc/queue', {
         type: 'kyc.processed',

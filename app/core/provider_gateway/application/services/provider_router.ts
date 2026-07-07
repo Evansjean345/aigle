@@ -3,8 +3,8 @@ import type {
   ProviderOperation,
   ProviderRail,
 } from '#core/provider_gateway/domain/types/provider_capabilities'
-import { NoProviderForContextError } from '#core/provider_gateway/infrastructure/exceptions/no_provider_for_context_error'
-import { AmbiguousProviderError } from '#core/provider_gateway/infrastructure/exceptions/ambiguous_provider_error'
+import { NoProviderForContextError } from '#core/provider_gateway/domain/exceptions/no_provider_for_context_error'
+import { AmbiguousProviderError } from '#core/provider_gateway/domain/exceptions/ambiguous_provider_error'
 
 export interface RoutingContext {
   rail: ProviderRail

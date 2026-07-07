@@ -2,7 +2,7 @@
 import { CheckPhoneResponseDto } from '#core/authentication/application/dtos/check_phone.dto'
 import CountryRepository from '#core/country/domain/interfaces/country_repository'
 import { concartPhoneNumber } from '#shared/utils/utiles'
-import PhoneNotFoundException from '#core/authentication/infrastructure/exceptions/phone_not_found_exception'
+import PhoneNotFoundException from '#core/authentication/domain/exceptions/phone_not_found_exception'
 import UserRepository from '#core/user/domain/interfaces/user_repository'
 
 /**

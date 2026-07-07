@@ -1,7 +1,7 @@
-﻿import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import User from '#core/user/domain/models/user'
-import { ExtractModelRelations } from '@adonisjs/lucid/types/relations'
-import { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+﻿import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type User from '#core/user/domain/models/user'
+import { type ExtractModelRelations } from '@adonisjs/lucid/types/relations'
+import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 /**
  * Abstract class representing a repository for managing User entities.

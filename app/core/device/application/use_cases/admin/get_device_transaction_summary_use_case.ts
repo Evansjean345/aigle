@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import DeviceRepository from '#core/device/domain/interfaces/device_repository'
-import DeviceNotFoundException from '#core/device/infrastructure/exceptions/device_not_found_exception'
+import DeviceNotFoundException from '#core/device/domain/exceptions/device_not_found_exception'
 import type { DeviceTransactionSummaryDto } from '#core/device/application/dto/admin_device_transaction.dto'
 
 @inject()

@@ -1,9 +1,8 @@
 ﻿import Wallet from '#core/wallet/domain/models/wallet'
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import WalletRepository, {
-  AdjustedBalance,
-} from '#core/wallet/domain/interfaces/wallet_repository'
-import { WalletStatus } from '#core/wallet/domain/enums/wallet_status'
+import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { type AdjustedBalance } from '#core/wallet/domain/interfaces/wallet_repository'
+import type WalletRepository from '#core/wallet/domain/interfaces/wallet_repository'
+import { type WalletStatus } from '#core/wallet/domain/enums/wallet_status'
 
 /**
  * Implementation of the `WalletRepository` interface, providing

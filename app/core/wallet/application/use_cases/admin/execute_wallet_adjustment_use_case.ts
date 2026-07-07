@@ -6,7 +6,7 @@ import {
   type ExecuteWalletAdjustmentRequestDto,
   WalletAdjustmentResponseDTO,
 } from '#core/wallet/application/dtos/admin/admin_wallet_adjustment.dto'
-import TransactionNotFoundException from '#core/transactions/infrastructure/exceptions/transaction_not_found_exception'
+import TransactionNotFoundException from '#core/transactions/domain/exceptions/transaction_not_found_exception'
 
 @inject()
 export default class ExecuteWalletAdjustmentUseCase {

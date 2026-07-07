@@ -1,5 +1,5 @@
-import { Notification } from '#core/notifications/domain/notification'
-import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
+import { type Notification } from '#core/notifications/domain/notification'
+import { type NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 
 /**
  * Defines the interface for a notification channel.

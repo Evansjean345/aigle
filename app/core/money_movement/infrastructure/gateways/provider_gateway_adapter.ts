@@ -19,7 +19,7 @@ import type { ProviderResponse } from '#core/provider_gateway/domain/value_objec
 import type { ProviderOperation } from '#core/provider_gateway/domain/types/provider_capabilities'
 import { ErrorSeverity } from '#core/provider_gateway/domain/enums/error_severity'
 import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
-import ProviderInitiationError from '#core/money_movement/infrastructure/exceptions/provider_initiation_error'
+import ProviderInitiationError from '#core/money_movement/domain/exceptions/provider_initiation_error'
 import UnroutablePaymentMethodException from '#core/money_movement/infrastructure/exceptions/unroutable_payment_method_exception'
 
 /**

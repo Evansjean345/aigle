@@ -12,9 +12,9 @@ import Wallet from '#core/wallet/domain/models/wallet'
 import { RefundReason, RefundStatus, RefundType } from '#core/transactions/domain/enums/refund'
 import { TransactionStatus } from '#core/transactions/domain/enums/transaction_status'
 import { TransactionType } from '#core/transactions/domain/enums/transaction_type'
-import TransactionAlreadyRefundedException from '#core/transactions/infrastructure/exceptions/transaction_already_refunded_exception'
-import TransactionNotRefundableException from '#core/transactions/infrastructure/exceptions/transaction_not_refundable_exception'
-import RefundFailedException from '#core/transactions/infrastructure/exceptions/refund_failed_exception'
+import TransactionAlreadyRefundedException from '#core/transactions/domain/exceptions/transaction_already_refunded_exception'
+import TransactionNotRefundableException from '#core/transactions/domain/exceptions/transaction_not_refundable_exception'
+import RefundFailedException from '#core/transactions/domain/exceptions/refund_failed_exception'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 
 interface RefundServiceParams {

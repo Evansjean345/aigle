@@ -1,6 +1,6 @@
-import { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Payment from '#core/transactions/domain/models/payment'
-import PaymentRepository from '#core/transactions/domain/interfaces/payment_repository'
+import type PaymentRepository from '#core/transactions/domain/interfaces/payment_repository'
 
 export default class PaymentRepositoryImpl implements PaymentRepository {
   async save(payment: Payment, trx?: TransactionClientContract): Promise<Payment> {

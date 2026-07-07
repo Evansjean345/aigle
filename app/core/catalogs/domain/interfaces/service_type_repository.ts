@@ -1,4 +1,4 @@
-﻿import ServiceType from '#core/catalogs/domain/models/service_type'
+﻿import type ServiceType from '#core/catalogs/domain/models/service_type'
 
 export interface ListServiceTypesParams {
   page?: number

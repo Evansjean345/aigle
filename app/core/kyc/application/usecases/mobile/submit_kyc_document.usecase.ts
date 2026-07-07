@@ -1,18 +1,15 @@
 import KycDocumentRepository from '#core/kyc/domain/interfaces/kyc_document_repository'
 import { inject } from '@adonisjs/core'
-import {
-  KycDocumentRequestDto,
-  KycDocumentResponseDto,
-} from '#core/kyc/application/dto/kyc.dto'
+import { KycDocumentRequestDto, KycDocumentResponseDto } from '#core/kyc/application/dto/kyc.dto'
 import FileStorageService from '#shared/infrastructure/services/file_storage_service'
 import { KycDocumentStatus } from '#core/kyc/domain/enum/kyc_enum'
 import KycDocument from '#core/kyc/domain/models/kyc_document'
 import KycDocumentSubmitted from '#core/kyc/application/events/kyc_document_submitted'
 import { KycAttemp } from '#core/kyc/domain/models/kyc_attemp'
-import KycAlreadySubmittedException from '#core/kyc/infrastructure/exceptions/kyc_already_submitted_exception'
-import MissingKycDocumentsException from '#core/kyc/infrastructure/exceptions/missing_kyc_documents_exception'
+import KycAlreadySubmittedException from '#core/kyc/domain/exceptions/kyc_already_submitted_exception'
+import MissingKycDocumentsException from '#core/kyc/domain/exceptions/missing_kyc_documents_exception'
 
-import KycDocumentNotFoundException from '#core/kyc/infrastructure/exceptions/kyc_document_not_found_exception'
+import KycDocumentNotFoundException from '#core/kyc/domain/exceptions/kyc_document_not_found_exception'
 import kycLog from '#shared/infrastructure/logging/kyc_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import emitter from '@adonisjs/core/services/emitter'

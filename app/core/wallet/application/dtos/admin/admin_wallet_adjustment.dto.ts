@@ -1,9 +1,6 @@
 import type { DateTime } from 'luxon'
 import type WalletAdjustment from '#core/wallet/domain/models/wallet_adjustment'
-import type {
-  AdjustmentType,
-  AdjustmentReason,
-} from '#core/wallet/domain/enums/wallet_adjustment'
+import type { AdjustmentType, AdjustmentReason } from '#core/wallet/domain/enums/wallet_adjustment'
 import type Transaction from '#core/transactions/domain/models/transaction'
 
 // ── RequestDto (input use case) ─────────────────────────────────────
