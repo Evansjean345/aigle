@@ -74,7 +74,6 @@ export default class RepositoryProvider {
       [WalletRepository, WalletRepositoryImpl],
       [CountryRepository, CountryRepositoryImpl],
       [OtpRepository, OtpRepositoryImpl],
-      [OtpDeliveryDispatcher, OtpDeliveryDispatcherImpl],
       [ServiceTypeRepository, ServiceTypeRepositoryImpl],
       [PaymentMethodRepository, PaymentMethodRepositoryImpl],
       [ProviderRepository, ProviderRepositoryImpl],
@@ -104,6 +103,13 @@ export default class RepositoryProvider {
         return new implementation()
       })
     }
+
+    // Liaisons dont l'implémentation a des dépendances de constructeur : passer par
+    // container.make (et non `new`) pour que @inject résolve le graphe (ex :
+    // OtpDeliveryDispatcherImpl → Sms/EmailOtpDelivery → NotificationService).
+    this.app.container.singleton(OtpDeliveryDispatcher, () =>
+      this.app.container.make(OtpDeliveryDispatcherImpl)
+    )
   }
 
   /**
