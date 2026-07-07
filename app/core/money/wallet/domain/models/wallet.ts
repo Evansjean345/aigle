@@ -13,7 +13,10 @@ export default class Wallet extends BaseModel {
   declare walletsUid: string
 
   @column()
-  declare userId: string
+  declare userId: string | null
+
+  @column()
+  declare accountId: string | null
 
   @column()
   declare balance: number

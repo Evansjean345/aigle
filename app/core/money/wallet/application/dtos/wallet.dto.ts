@@ -5,7 +5,7 @@ import type Transaction from '#core/money/transactions/domain/models/transaction
 
 export class WalletCreatedResult {
   declare id: string
-  declare usersId: string
+  declare usersId: string | null
   declare currencySymbol?: string
   declare balance: number
   declare qrcode: string

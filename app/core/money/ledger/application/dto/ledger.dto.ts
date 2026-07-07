@@ -13,7 +13,7 @@ export interface LedgerUserDto {
   firstname: string
   lastname: string
   pictureUrl: string | null
-  userUid: string
+  userUid: string | null
 }
 
 export interface LedgerWalletDto {

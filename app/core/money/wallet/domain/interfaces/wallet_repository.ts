@@ -33,6 +33,18 @@ export default abstract class WalletRepository {
   abstract findByUserId(userId: string, trx?: TransactionClientContract): Promise<Wallet | null>
 
   /**
+   * Fetches the wallet by its owning account id (clé pivot account).
+   *
+   * @param {string} accountId - The account id owning the wallet.
+   * @param trx - Optional transaction client.
+   * @return {Promise<Wallet | null>} The wallet, or null if none.
+   */
+  abstract findByAccountId(
+    accountId: string,
+    trx?: TransactionClientContract
+  ): Promise<Wallet | null>
+
+  /**
    * Finds a wallet by its primary key ID.
    *
    * @param {number} id - The wallet ID.

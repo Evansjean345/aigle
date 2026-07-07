@@ -67,6 +67,38 @@ export default class WalletService {
   }
 
   /**
+   * Crée le wallet d'un compte (account) s'il n'existe pas déjà, sinon renvoie
+   * l'existant. Porte de création alignée sur le pivot account : le wallet
+   * appartient à un accountId. Pour un compte consumer, `userId` porte le
+   * users_uid (colonnes user conservées) ; pour un compte d'organisation,
+   * `userId` est null (pas de user propriétaire).
+   *
+   * @param accountId - Le compte propriétaire du wallet.
+   * @param userId - users_uid pour un compte consumer, null pour un compte org.
+   * @param trx - Transaction optionnelle (atomicité orchestrée par l'appelant).
+   */
+  async createForAccount(
+    accountId: string,
+    userId: string | null,
+    trx?: TransactionClientContract
+  ): Promise<WalletCreatedResult> {
+    const existing = await this.walletRepository.findByAccountId(accountId, trx)
+    if (existing) return WalletCreatedResult.fromWallet(existing)
+
+    const walletCreated = await this.walletRepository.create(
+      {
+        accountId,
+        userId,
+        currencySymbol: 'XOF',
+        balance: 0,
+        qrcodeToken: randomUUID(),
+      },
+      trx
+    )
+    return WalletCreatedResult.fromWallet(walletCreated)
+  }
+
+  /**
    * Retrieves a wallet associated with a specific user ID.
    *
    * @param walletId
