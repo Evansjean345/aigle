@@ -4,10 +4,10 @@ import { ProviderResponse } from '#core/money/provider_gateway/domain/value_obje
 import { ProviderCallError } from '#core/money/provider_gateway/infrastructure/exceptions/provider_call_error'
 import { ErrorSeverity } from '#core/money/provider_gateway/domain/enums/error_severity'
 import ErrorClassifier from '#core/money/provider_gateway/infrastructure/error_classifier'
-import ErrorMessageTranslator from '#core/money/provider_gateway/infrastructure/error_message_translator'
+import ErrorMessageTranslator from '#core/money/provider_gateway/domain/errors/error_message_translator'
 import { resolveOrangeFlow } from '#core/money/provider_gateway/infrastructure/adapters/hub2/orange_payment_flow'
 import { HUB2_ERROR_MAP } from '#core/money/provider_gateway/infrastructure/adapters/hub2/hub2_error_map'
-import { HUB2_CLIENT_ERRORS } from '#core/money/provider_gateway/infrastructure/adapters/hub2/hub2_client_errors'
+import { HUB2_CLIENT_ERRORS } from '#core/money/provider_gateway/domain/errors/hub2_client_errors'
 import { apiEnv, apiKey, apiSecret, apiUrl } from '#config/hub2'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 

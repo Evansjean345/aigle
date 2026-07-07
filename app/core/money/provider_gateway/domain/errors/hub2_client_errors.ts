@@ -1,4 +1,4 @@
-import type { ClientError } from '#core/money/provider_gateway/infrastructure/error_message_translator'
+import type { ClientError } from '#core/money/provider_gateway/domain/errors/error_message_translator'
 
 export const HUB2_CLIENT_ERRORS: Record<string, ClientError> = {
   // ── Payments (checkout / pay-in) ──────────────────

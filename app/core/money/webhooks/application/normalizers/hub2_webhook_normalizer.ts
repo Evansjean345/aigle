@@ -1,6 +1,6 @@
 import type { ProviderWebhookEvent } from '#core/money/webhooks/domain/value_objects/provider_webhook_event'
-import ErrorMessageTranslator from '#core/money/provider_gateway/infrastructure/error_message_translator'
-import { HUB2_CLIENT_ERRORS } from '#core/money/provider_gateway/infrastructure/adapters/hub2/hub2_client_errors'
+import ErrorMessageTranslator from '#core/money/provider_gateway/domain/errors/error_message_translator'
+import { HUB2_CLIENT_ERRORS } from '#core/money/provider_gateway/domain/errors/hub2_client_errors'
 
 /**
  * Normalise les webhooks Hub2 en `ProviderWebhookEvent` (Lot 3b). Porté d'aiglehub.

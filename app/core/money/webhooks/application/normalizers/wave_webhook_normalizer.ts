@@ -1,6 +1,6 @@
 import type { ProviderWebhookEvent } from '#core/money/webhooks/domain/value_objects/provider_webhook_event'
-import ErrorMessageTranslator from '#core/money/provider_gateway/infrastructure/error_message_translator'
-import { WAVE_CLIENT_ERRORS } from '#core/money/provider_gateway/infrastructure/adapters/wave/wave_client_errors'
+import ErrorMessageTranslator from '#core/money/provider_gateway/domain/errors/error_message_translator'
+import { WAVE_CLIENT_ERRORS } from '#core/money/provider_gateway/domain/errors/wave_client_errors'
 
 /**
  * Normalise les webhooks Wave en `ProviderWebhookEvent` (Lot 3b). Porté d'aiglehub.

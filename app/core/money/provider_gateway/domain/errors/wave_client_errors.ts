@@ -1,4 +1,4 @@
-import type { ClientError } from '#core/money/provider_gateway/infrastructure/error_message_translator'
+import type { ClientError } from '#core/money/provider_gateway/domain/errors/error_message_translator'
 
 export const WAVE_CLIENT_ERRORS: Record<string, ClientError> = {
   // ── Client (visibles par le marchand) ─────────────

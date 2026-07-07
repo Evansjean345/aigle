@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
-import { HUB2_CLIENT_ERRORS } from '#core/money/provider_gateway/infrastructure/adapters/hub2/hub2_client_errors'
-import { WAVE_CLIENT_ERRORS } from '#core/money/provider_gateway/infrastructure/adapters/wave/wave_client_errors'
+import { HUB2_CLIENT_ERRORS } from '#core/money/provider_gateway/domain/errors/hub2_client_errors'
+import { WAVE_CLIENT_ERRORS } from '#core/money/provider_gateway/domain/errors/wave_client_errors'
 import { ProviderErrorCode } from '#shared/enums/provider_error_enums'
 import ProviderErrorService from '#shared/infrastructure/services/provider_error_service'
 
