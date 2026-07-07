@@ -41,6 +41,7 @@ export default class IdentityGate {
 
     // Résout le model User frais depuis le core (frontière par ID).
     const user = await this.userRepository.findById(input.userId)
+
     if (!user) {
       throw new UserAccountNotFoundException()
     }

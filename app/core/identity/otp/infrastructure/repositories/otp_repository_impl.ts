@@ -22,6 +22,7 @@ export default class OtpRepositoryImpl implements OtpRepository {
 
   async delete(identifier: string, target: 'mobile' | 'email'): Promise<void> {
     const query = Otp.query().where('target', target)
+
     if (target === 'email') {
       query.where('email', identifier)
     } else {

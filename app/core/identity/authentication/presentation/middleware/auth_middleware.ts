@@ -3,6 +3,7 @@ import type { NextFn } from '@adonisjs/core/types/http'
 import type { Authenticators } from '@adonisjs/auth/types'
 import { UserStatus } from '#core/identity/user/domain/enum'
 import AccountBlockedException from '#core/identity/authentication/domain/exceptions/account_blocked_exception'
+import type User from '#core/identity/user/domain/models/user'
 
 export default class AuthMiddleware {
   async handle(
@@ -14,7 +15,7 @@ export default class AuthMiddleware {
   ) {
     await ctx.auth.authenticateUsing(options.guards)
 
-    const user = ctx.auth.user
+    const user = ctx.auth.user as User
 
     if (user && user.status === UserStatus.BLOCKED) {
       throw new AccountBlockedException()
