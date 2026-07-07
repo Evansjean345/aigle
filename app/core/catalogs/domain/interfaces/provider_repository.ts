@@ -1,10 +1,10 @@
 ﻿import type Provider from '#core/catalogs/domain/models/provider'
-import {
-  type ListProvidersRequestDto,
-  type CreateProviderCommand,
-  type UpdateProviderCommand,
-  type ProviderStatus,
-} from '#core/catalogs/application/dtos/admin/admin_providers.dto'
+import type { ProviderStatus } from '#core/catalogs/domain/enums/provider_enums'
+import type {
+  ListProvidersRequestDto,
+  CreateProviderCommand,
+  UpdateProviderCommand,
+} from '#core/catalogs/domain/types/provider_repository_types'
 
 export default abstract class ProviderRepository {
   abstract paginate(params: ListProvidersRequestDto): Promise<any>

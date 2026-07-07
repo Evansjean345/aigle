@@ -1,7 +1,7 @@
 import { type UserKycStatus, type UserStatus } from '#core/user/domain/enum'
 import { type DateTime } from 'luxon'
 import { type KycDocumentStatus, type KycDocumentType } from '#core/kyc/domain/enum/kyc_enum'
-import { type ProviderType } from '#core/catalogs/application/dtos/admin/admin_providers.dto'
+import { type ProviderType } from '#core/catalogs/domain/enums/provider_enums'
 import type User from '#core/user/domain/models/user'
 
 export class AdminUserDeviceResponseDto {

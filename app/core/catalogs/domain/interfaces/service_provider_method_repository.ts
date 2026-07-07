@@ -1,9 +1,9 @@
 import type ServiceProviderMethod from '#core/catalogs/domain/models/service_provider_method'
-import {
-  type ListServiceProviderMethodsRequestDto,
-  type CreateServiceProviderMethodCommand,
-  type UpdateServiceProviderMethodCommand,
-} from '#core/catalogs/application/dtos/admin/admin_service_provider_methods.dto'
+import type {
+  ListServiceProviderMethodsRequestDto,
+  CreateServiceProviderMethodCommand,
+  UpdateServiceProviderMethodCommand,
+} from '#core/catalogs/domain/types/service_provider_method_repository_types'
 
 export default abstract class ServiceProviderMethodRepository {
   abstract paginate(params: ListServiceProviderMethodsRequestDto): Promise<any>

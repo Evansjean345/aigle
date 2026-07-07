@@ -2,24 +2,15 @@ import type { DateTime } from 'luxon'
 import type ServiceProviderMethod from '#core/catalogs/domain/models/service_provider_method'
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
-// ── RequestDto (input controller → use case) ──────────────────────────
+// Contrat repository (filtre de liste + Command) vit dans le domaine (DDD strict). Ré-exporté ici
+// pour que controllers/use cases continuent de l'importer depuis le DTO.
+export type {
+  ListServiceProviderMethodsRequestDto,
+  CreateServiceProviderMethodCommand,
+  UpdateServiceProviderMethodCommand,
+} from '#core/catalogs/domain/types/service_provider_method_repository_types'
 
-export interface ListServiceProviderMethodsRequestDto {
-  page?: number
-  limit?: number
-  isActive?: boolean
-  serviceTypeId?: number
-  paymentMethodId?: number
-  providerFromId?: number
-  providerToId?: number
-  /**
-   * Filtre par type de réseau:
-   * - 'inter': uniquement les inter-réseaux (providerFrom != providerTo et providerTo != null)
-   * - 'intra': uniquement les intra-réseaux (providerFrom == providerTo ou providerTo == null)
-   * - undefined: tous
-   */
-  networkType?: 'inter' | 'intra'
-}
+// ── RequestDto (input controller → use case) ──────────────────────────
 
 export interface CreateServiceProviderMethodRequestDto {
   serviceTypeId: number
@@ -39,32 +30,6 @@ export interface UpdateServiceProviderMethodRequestDto {
   providerFromId?: number
   providerToId?: number | null
   feeFixed?: number
-  feePercent?: number
-  minAmount?: number
-  currency?: string
-  isActive?: boolean
-}
-
-// ── Command (input use case → repository) ───────────────────────────
-
-export interface CreateServiceProviderMethodCommand {
-  serviceTypeId: number
-  paymentMethodId: number
-  providerFromId: number
-  providerToId?: number | null
-  feeFixed?: bigint | number
-  feePercent?: number
-  minAmount?: number
-  currency?: string
-  isActive?: boolean
-}
-
-export interface UpdateServiceProviderMethodCommand {
-  serviceTypeId?: number
-  paymentMethodId?: number
-  providerFromId?: number
-  providerToId?: number | null
-  feeFixed?: bigint | number
   feePercent?: number
   minAmount?: number
   currency?: string

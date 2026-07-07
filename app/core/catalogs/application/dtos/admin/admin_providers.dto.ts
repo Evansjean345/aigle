@@ -1,19 +1,18 @@
 import type { DateTime } from 'luxon'
 import type Provider from '#core/catalogs/domain/models/provider'
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import type { ProviderType, ProviderStatus } from '#core/catalogs/domain/enums/provider_enums'
 
-export type ProviderType = 'mobile_money' | 'bank' | 'wallet'
-export type ProviderStatus = 'active' | 'inactive'
+// Enums métier + contrat repository vivent dans le domaine (DDD strict). Ré-exportés ici pour que
+// controllers/use cases continuent de les importer depuis le DTO.
+export type { ProviderType, ProviderStatus } from '#core/catalogs/domain/enums/provider_enums'
+export type {
+  ListProvidersRequestDto,
+  CreateProviderCommand,
+  UpdateProviderCommand,
+} from '#core/catalogs/domain/types/provider_repository_types'
 
 // ── RequestDto (input controller → use case) ──────────────────────────
-
-export interface ListProvidersRequestDto {
-  page?: number
-  limit?: number
-  q?: string
-  type?: ProviderType
-  status?: ProviderStatus
-}
 
 export interface CreateProviderRequestDto {
   code: string
@@ -23,22 +22,6 @@ export interface CreateProviderRequestDto {
 }
 
 export interface UpdateProviderRequestDto {
-  code?: string
-  name?: string
-  type?: ProviderType
-  logo?: string | null
-}
-
-// ── Command (input use case → repository) ───────────────────────────
-
-export interface CreateProviderCommand {
-  code: string
-  name: string
-  type: ProviderType
-  logo?: string | null
-}
-
-export interface UpdateProviderCommand {
   code?: string
   name?: string
   type?: ProviderType
