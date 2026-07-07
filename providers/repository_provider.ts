@@ -62,6 +62,8 @@ import AuditRecorder from '#core/audit/domain/interfaces/audit_recorder'
 import { AuditService } from '#core/audit/infrastructure/audit_service'
 import AccountRepository from '#core/money/account/domain/interfaces/account_repository'
 import AccountRepositoryImpl from '#core/money/account/infrastructure/repositories/account_repository_impl'
+import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
+import OrganisationRepositoryImpl from '#aiglebusiness/organisation/infrastructure/repositories/organisation_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -99,6 +101,7 @@ export default class RepositoryProvider {
       [AuditLogRepository, AuditLogRepositoryImpl],
       [AuditRecorder, AuditService],
       [AccountRepository, AccountRepositoryImpl],
+      [OrganisationRepository, OrganisationRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {
