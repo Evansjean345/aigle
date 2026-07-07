@@ -1,6 +1,6 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
-import User from '#core/identity/user/domain/models/user'
+import { AccountRef } from '#core/money/transactions/domain/types/account_ref'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
@@ -45,7 +45,7 @@ export default class TransactionService {
    * @param {string} [payload.reference] - An optional reference for the transaction.
    * @param {string} [payload.description] - A description or note about the transaction.
    * @param {Record<string, any>} [payload.metadata] - Additional metadata to associate with the transaction.
-   * @param {User} user - The user performing the transaction.
+   * @param {AccountRef} user - The account holder performing the transaction (contrat money, pas le modèle identity).
    * @param {DeviceHeadersInfo} [deviceInfo] - The device information from headers.
    * @param geoIpLocation
    * @param {TransactionClientContract} [trx] - An optional transaction client to manage database operations.
@@ -67,7 +67,7 @@ export default class TransactionService {
       metadata?: Record<string, any>
     },
     walletId: number,
-    user: User,
+    user: AccountRef,
     deviceInfo?: DeviceHeadersInfo,
     geoIpLocation?: GeoIpLocation,
     trx?: TransactionClientContract
@@ -92,7 +92,7 @@ export default class TransactionService {
     transaction.totalAmount = Number(payload.total_amount || 0)
     transaction.operationType = payload.operation_type
     transaction.usersId = user.id
-    transaction.usersUid = user.usersUid!
+    transaction.usersUid = user.usersUid
 
     if (payload.fees !== undefined) transaction.fees = Number(payload.fees)
     if (payload.reference) {

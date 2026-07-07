@@ -2,7 +2,7 @@
 import PaymentRepository from '#core/money/transactions/domain/interfaces/payment_repository'
 import Payment from '#core/money/transactions/domain/models/payment'
 import Transaction from '#core/money/transactions/domain/models/transaction'
-import User from '#core/identity/user/domain/models/user'
+import { AccountRef } from '#core/money/transactions/domain/types/account_ref'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { PaymentStatus } from '#core/money/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#core/money/transactions/domain/enums/payment_step'
@@ -38,7 +38,7 @@ export default class PaymentService {
    * @param {string} [payload.step] - The current step of the payment process (optional).
    * @param {string} [payload.status] - The current status of the payment (optional).
    * @param {Transaction} transaction - The transaction object associated with this payment.
-   * @param {User} user - The user who initiated the payment.
+   * @param {AccountRef} user - The account holder who initiated the payment (contrat money).
    * @param {TransactionClientContract} [trx] - The transaction client contract for database operations (optional).
    *
    * @return {Promise<Payment>} The saved payment object.
@@ -52,7 +52,7 @@ export default class PaymentService {
       status?: PaymentStatus
     },
     transaction: Transaction,
-    user: User,
+    user: AccountRef,
     trx?: TransactionClientContract
   ): Promise<Payment> {
     transactionLog.info(
