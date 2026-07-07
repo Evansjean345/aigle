@@ -38,10 +38,14 @@ docker-compose.yml
 docker-compose.*.yml
 !docker-compose.dev.yml
 monitoring
-docs
+docs/*
+!docs/rules/
 
 *.sql
 *.md
+
+# Conventions d'équipe versionnées (règles d'architecture) — exception à docs/ et *.md
+!docs/rules/**
 
 database_updates.sql
 insert_tables.sql
