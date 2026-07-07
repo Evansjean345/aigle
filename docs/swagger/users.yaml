@@ -66,12 +66,21 @@ paths:
     get:
       operationId: listDebitPhones
       summary: Liste des téléphones de débit
-      description: Récupère la liste des téléphones de débit enregistrés et vérifiés de l'utilisateur.
+      description: |
+        Récupère le(s) téléphone(s) de débit de l'utilisateur pour un opérateur donné.
+        Le paramètre de requête `providerCode` est **obligatoire** (absent → `400 MISSING_PROVIDER_CODE`).
       tags:
         - Téléphones de débit
       security:
         - BearerAuth: []
       parameters:
+        - name: providerCode
+          in: query
+          required: true
+          description: Code opérateur (ex. moov, orange).
+          schema:
+            type: string
+          example: "moov"
         - $ref: '#/components/parameters/DeviceFingerprint'
         - $ref: '#/components/parameters/DeviceUid'
         - $ref: '#/components/parameters/DevicePlatform'
@@ -79,7 +88,7 @@ paths:
         - $ref: '#/components/parameters/DeviceOsVersion'
       responses:
         '200':
-          description: Liste des téléphones de débit
+          description: Téléphone(s) de débit pour l'opérateur (structure — TODO à confirmer)
           content:
             application/json:
               schema:
@@ -88,17 +97,19 @@ paths:
                   $ref: '#/components/schemas/DebitPhone'
               example:
                 - id: 1
-                  phone: "+22890001234"
-                  providerCode: "ORANGE_CI"
-                  label: "Mon Orange"
+                  phone: "+2250708123456"
+                  providerCode: "moov"
+                  label: "Mon Moov"
                   isVerified: true
                   createdAt: "2026-02-15T10:00:00Z"
-                - id: 2
-                  phone: "+22890005678"
-                  providerCode: "MTN_CI"
-                  label: null
-                  isVerified: true
-                  createdAt: "2026-03-01T08:30:00Z"
+        '400':
+          description: Paramètre providerCode manquant
+          content:
+            application/json:
+              example:
+                message: "Le paramètre 'providerCode' est requis."
+                status: 400
+                code: "MISSING_PROVIDER_CODE"
         '401':
           description: Non autorisé
     post:
@@ -124,12 +135,12 @@ paths:
             schema:
               $ref: '#/components/schemas/StoreDebitPhoneRequest'
             example:
-              phone: "+22890009876"
-              providerCode: "ORANGE_CI"
-              label: "Mon Orange Pro"
+              phone: "0708123456"
+              providerCode: "moov"
+              label: "Mon Moov Pro"
       responses:
-        '201':
-          description: Téléphone ajouté — OTP envoyé pour vérification
+        '200':
+          description: Téléphone ajouté — OTP envoyé pour vérification (structure — TODO à confirmer)
           content:
             application/json:
               example:
@@ -171,8 +182,8 @@ paths:
                   type: string
                   description: Code OTP reçu par SMS
             example:
-              phone: "+22890009876"
-              codeOtp: "4829"
+              phone: "0708123456"
+              codeOtp: "123456"
       responses:
         '200':
           description: Téléphone vérifié avec succès
@@ -221,8 +232,8 @@ paths:
                   type: string
                   description: Code du fournisseur associé
             example:
-              phone: "+22890009876"
-              providerCode: "ORANGE_CI"
+              phone: "0708123456"
+              providerCode: "moov"
       responses:
         '200':
           description: OTP renvoyé

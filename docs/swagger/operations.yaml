@@ -2,11 +2,17 @@ paths:
   /api/mobile/operations/deposit:
     post:
       operationId: createDeposit
-      summary: Effectuer un dépôt
+      summary: Effectuer un dépôt (cash-in)
       description: |
-        Initie une opération de dépôt sur le portefeuille de l'utilisateur.
-        Le dépôt est traité de manière asynchrone via le fournisseur de paiement.
-        Nécessite un header `X-Idempotency-Key` unique pour éviter les doublons.
+        Initie un **dépôt** depuis un compte mobile money vers le portefeuille de l'utilisateur.
+
+        **Traitement asynchrone** : la réponse renvoie immédiatement `status: pending`. Le crédit
+        définitif (`success` / `failed`) arrive via un **webhook opérateur** (voir la ressource
+        Webhooks). Avec un provider synchrone (ex. Wave), la réponse peut contenir un
+        `redirectUrl` que le client doit ouvrir pour autoriser le paiement.
+
+        Middlewares : `auth`, `device`, `geoip`, `idempotency`. Pas de code PIN requis.
+        Header `X-Idempotency-Key` obligatoire.
       tags:
         - Opérations
       security:
@@ -26,42 +32,63 @@ paths:
               $ref: '#/components/schemas/DepositRequest'
             example:
               amount: 5000
-              service_type: "depot"
-              provider_id: 1
-              provider_code: "ORANGE_CI"
-              payment_method_code: "MOBILE_MONEY"
+              service_type: "deposit"
+              provider_code: "moov"
+              provider_id: 3
+              payment_method_code: "mobile-money"
               payment_method_id: 1
-              phone: "+22890001234"
-              pincode: "12345"
+              phone: "0708123456"
       responses:
-        '201':
-          description: Dépôt initié avec succès
+        '200':
+          description: Dépôt initié (en attente de règlement opérateur)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OperationResponse'
-              example:
-                reference: "DEP-20260309-A1B2C3"
-                status: "pending"
-                amount: 5000
-                fees: 50
-                totalAmount: 5050
-                message: "Dépôt initié avec succès"
+              examples:
+                pending:
+                  summary: Provider asynchrone
+                  value:
+                    message: "transaction initiated"
+                    data:
+                      transactionReference: "aig_tx_9f3a2c"
+                      status: "pending"
+                redirect:
+                  summary: Provider synchrone (ex. Wave)
+                  value:
+                    message: "transaction initiated"
+                    data:
+                      transactionReference: "aig_tx_9f3a2c"
+                      status: "pending"
+                      redirectUrl: "https://pay.wave.com/c/cos-1a2b3c"
+                      type: "redirect"
         '400':
           $ref: '#/components/responses/OperationBadRequest'
         '401':
-          description: Non autorisé
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/DuplicateTransaction'
         '422':
-          description: Erreur de validation
+          $ref: '#/components/responses/ValidationError'
 
   /api/mobile/operations/transfert:
     post:
       operationId: createTransfer
-      summary: Effectuer un transfert
+      summary: Effectuer un transfert (cash-out)
       description: |
-        Initie un transfert d'argent vers un autre utilisateur via un fournisseur de paiement.
-        Le code PIN est obligatoire pour valider l'opération.
-        Nécessite un header `X-Idempotency-Key` unique.
+        Initie un **transfert** du portefeuille vers un compte mobile money. Le portefeuille est
+        débité immédiatement (réservation), puis `status: pending` ; `success` / `failed`
+        arrivent par webhook. En cas d'échec, le débit est remboursé (`refunded`). **Code PIN
+        requis.**
+
+        **Routage selon `payment_method_code`** :
+          - `mobile-money` → transfert externe vers l'opérateur (décrit ici, réponse
+            `data.transactionReference`).
+          - `wallet` → redirigé en interne vers `wallet-to-wallet` (par téléphone) ; la réponse
+            suit alors le format wallet-to-wallet (`data.reference`).
+          - toute autre valeur → `400` « Payment method not supported ».
+
+        Middlewares : `auth`, `device`, `geoip`, `idempotency`.
       tags:
         - Opérations
       security:
@@ -80,44 +107,52 @@ paths:
             schema:
               $ref: '#/components/schemas/TransferRequest'
             example:
-              amount: 10000
+              amount: 5000
               service_type: "transfert"
-              provider_id: 1
-              provider_code: "ORANGE_CI"
-              payment_method_code: "MOBILE_MONEY"
+              provider_code: "orange"
+              provider_id: 2
+              payment_method_code: "mobile-money"
               payment_method_id: 1
-              phone: "+22890005678"
+              phone: "0709876543"
               pincode: "12345"
               include_fees: false
       responses:
-        '201':
-          description: Transfert initié avec succès
+        '200':
+          description: Transfert initié (en attente de règlement opérateur)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OperationResponse'
               example:
-                reference: "TRF-20260309-D4E5F6"
-                status: "pending"
-                amount: 10000
-                fees: 100
-                totalAmount: 10100
-                message: "Transfert initié avec succès"
+                message: "transfert initié"
+                data:
+                  transactionReference: "aig_tx_4b7e1d"
+                  status: "pending"
         '400':
           $ref: '#/components/responses/OperationBadRequest'
         '401':
-          description: Non autorisé
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/DuplicateTransaction'
         '422':
-          description: Erreur de validation
+          $ref: '#/components/responses/ValidationError'
 
   /api/mobile/operations/transfert-inter:
     post:
       operationId: createInterTransfer
-      summary: Effectuer un transfert inter-réseau
+      summary: Effectuer un transfert inter-réseaux (saga 2 jambes)
       description: |
-        Initie un transfert d'argent entre deux fournisseurs différents (ex: Orange vers MTN).
-        L'opération se déroule en deux étapes gérées via les webhooks.
-        Nécessite un header `X-Idempotency-Key` unique.
+        Transfert **inter-réseaux** (opérateur A → opérateur B) via aiglesend, en **saga à 2
+        jambes** : cash-in depuis le compte débiteur (`debitaire`), puis cash-out vers le
+        bénéficiaire (`beneficiaire`). Renvoie `status: pending` ; la 2ᵉ jambe est déclenchée au
+        webhook de règlement de la 1ʳᵉ. Un `redirectUrl` peut apparaître si la 1ʳᵉ jambe passe
+        par un provider synchrone.
+
+        **PIN** : le validateur de cette opération **n'exige pas** de `pincode` (contrairement à
+        `transfert`) ; la garde d'identité valide le téléphone débiteur, pas le PIN. `debitaire.pincode`
+        est lu s'il est fourni. **TODO à confirmer** si un PIN doit être exigé ici.
+
+        Middlewares : `auth`, `device`, `geoip`, `idempotency`.
       tags:
         - Opérations
       security:
@@ -136,51 +171,56 @@ paths:
             schema:
               $ref: '#/components/schemas/InterTransferRequest'
             example:
-              amount: 15000
-              service_type: "transfert_inter"
+              amount: 5000
+              service_type: "inter_reseau"
               include_fees: false
               debitaire:
-                phone: "+22890001234"
-                provider_code: "ORANGE_CI"
-                provider_id: 1
-                payment_method_code: "MOBILE_MONEY"
+                phone: "0708123456"
+                provider_code: "moov"
+                provider_id: 3
+                payment_method_code: "mobile-money"
                 payment_method_id: 1
-                pincode: "12345"
               beneficiaire:
-                phone: "+22890005678"
-                provider_code: "MTN_CI"
+                phone: "0709876543"
+                provider_code: "orange"
                 provider_id: 2
-                payment_method_code: "MOBILE_MONEY"
+                payment_method_code: "mobile-money"
                 payment_method_id: 1
       responses:
-        '201':
-          description: Transfert inter-réseau initié
+        '200':
+          description: Transfert inter-réseaux initié (1ʳᵉ jambe en attente)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/OperationResponse'
               example:
-                reference: "TRI-20260309-G7H8I9"
-                status: "pending"
-                amount: 15000
-                fees: 200
-                totalAmount: 15200
-                message: "Transfert inter-réseau initié avec succès"
+                message: "Initialisation du dépot inter effectuée"
+                data:
+                  transactionReference: "aig_tx_71c9a4"
+                  status: "pending"
         '400':
           $ref: '#/components/responses/OperationBadRequest'
         '401':
-          description: Non autorisé
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/DuplicateTransaction'
         '422':
-          description: Erreur de validation
+          $ref: '#/components/responses/ValidationError'
 
   /api/mobile/operations/wallet-to-wallet:
     post:
       operationId: createWalletToWallet
-      summary: Transfert wallet à wallet
+      summary: Transfert wallet-à-wallet (interne, instantané)
       description: |
-        Effectue un transfert instantané entre portefeuilles Aigle Send.
-        Le destinataire peut être identifié par son numéro de téléphone ou un token QR code.
-        Le code PIN est obligatoire.
+        Transfert **interne instantané** entre deux portefeuilles aiglesend. Pas d'opérateur
+        externe, **pas de webhook** : le statut est **définitif dans la réponse** (`success`).
+        Le bénéficiaire est identifié par `recipient_phone` (mode téléphone) ou par `token`
+        (mode QR — si `token` est fourni). **Code PIN requis.**
+
+        ⚠️ La réponse renvoie le champ sous le nom **`reference`** (et non `transactionReference`
+        comme les autres opérations).
+
+        Middlewares : `auth`, `device`, `geoip`, `idempotency`.
       tags:
         - Opérations
       security:
@@ -199,29 +239,29 @@ paths:
             schema:
               $ref: '#/components/schemas/WalletToWalletRequest'
             example:
-              recipient_phone: "+22890005678"
-              amount: 2500
+              recipient_phone: "0709876543"
+              amount: 5000
               pincode: "12345"
       responses:
-        '201':
-          description: Transfert wallet effectué
+        '200':
+          description: Transfert wallet-à-wallet effectué (définitif)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OperationResponse'
+                $ref: '#/components/schemas/WalletTransferResponse'
               example:
-                reference: "W2W-20260309-J1K2L3"
-                status: "completed"
-                amount: 2500
-                fees: 0
-                totalAmount: 2500
-                message: "Transfert effectué avec succès"
+                message: "Transfert wallet-to-wallet effectué avec succès"
+                data:
+                  reference: "aig_tx_a1b2c3"
+                  status: "success"
         '400':
           $ref: '#/components/responses/OperationBadRequest'
         '401':
-          description: Non autorisé
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/DuplicateTransaction'
         '422':
-          description: Erreur de validation
+          $ref: '#/components/responses/ValidationError'
 
 components:
   parameters:
@@ -230,14 +270,60 @@ components:
       in: header
       required: true
       description: |
-        Clé d'idempotence unique (UUID v4 recommandé).
-        Garantit qu'une opération ne sera pas exécutée en double en cas de retry.
+        Clé d'idempotence unique par opération métier (UUID v4 recommandé). Rejouer la même clé
+        renvoie la réponse d'origine ; une clé encore en cours de traitement renvoie `409`.
+        Header absent → `400`.
       schema:
         type: string
         format: uuid
-      example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+      example: "7f3a2c10-9e11-4b2a-8c3d-1a2b3c4d5e6f"
 
   schemas:
+    OperationStatus:
+      type: string
+      description: |
+        Cycle de vie : `pending` → `success` | `failed` → `refunded` (remboursement du débit
+        après échec d'un transfert).
+      enum: [pending, success, failed, refunded]
+
+    OperationResponseData:
+      type: object
+      properties:
+        transactionReference:
+          type: string
+          description: Référence opaque de la transaction (générée par le serveur).
+        status:
+          $ref: '#/components/schemas/OperationStatus'
+        redirectUrl:
+          type: string
+          description: Optionnel — URL à ouvrir pour les providers synchrones (ex. Wave).
+        type:
+          type: string
+          description: Optionnel — type de règlement provider, si fourni.
+
+    OperationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/OperationResponseData'
+
+    WalletTransferResponse:
+      type: object
+      description: Réponse spécifique à wallet-to-wallet (champ `reference`, statut définitif).
+      properties:
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            reference:
+              type: string
+              description: Référence opaque de la transaction.
+            status:
+              $ref: '#/components/schemas/OperationStatus'
+
     DepositRequest:
       type: object
       required:
@@ -252,30 +338,25 @@ components:
         amount:
           type: number
           minimum: 1
-          description: Montant du dépôt
+          description: Montant du dépôt (entier, XOF).
         service_type:
           type: string
-          description: Type de service
-        provider_id:
-          type: integer
-          description: ID du fournisseur de paiement
+          description: Code du type de service (doit exister dans `service_types.code`).
         provider_code:
           type: string
-          description: Code du fournisseur (ex ORANGE_CI, MTN_CI)
+          description: Code opérateur source (doit exister dans `providers.code`), ex. `moov`.
+        provider_id:
+          type: integer
+          description: Id opérateur source (doit exister dans `providers.id`).
         payment_method_code:
           type: string
-          description: Code de la méthode de paiement
+          description: Code du moyen de paiement (doit exister dans `payment_methods.code`).
         payment_method_id:
           type: integer
-          description: ID de la méthode de paiement
+          description: Id du moyen de paiement (doit exister dans `payment_methods.id`).
         phone:
           type: string
-          description: Numéro de téléphone pour le dépôt
-        pincode:
-          type: string
-          minLength: 5
-          maxLength: 5
-          description: Code PIN (requis pour certains fournisseurs comme Orange)
+          description: Numéro mobile money débité (compte opérateur du client).
 
     TransferRequest:
       type: object
@@ -292,29 +373,33 @@ components:
         amount:
           type: number
           minimum: 1
-          description: Montant du transfert
+          description: Montant du transfert (entier, XOF).
         service_type:
           type: string
-        provider_id:
-          type: integer
+          description: Code du type de service (doit exister dans `service_types.code`).
         provider_code:
           type: string
+          description: Code opérateur bénéficiaire (doit exister dans `providers.code`).
+        provider_id:
+          type: integer
+          description: Id opérateur bénéficiaire (doit exister dans `providers.id`).
         payment_method_code:
           type: string
+          description: '`mobile-money` (externe) ou `wallet` (redirige vers wallet-to-wallet).'
         payment_method_id:
           type: integer
+          description: Id du moyen de paiement (doit exister dans `payment_methods.id`).
         phone:
           type: string
-          description: Numéro du bénéficiaire
+          description: Numéro du bénéficiaire.
         pincode:
           type: string
           minLength: 5
           maxLength: 5
-          description: Code PIN de l'expéditeur
+          description: Code PIN de l'utilisateur (exactement 5 caractères).
         include_fees:
           type: boolean
-          default: false
-          description: Inclure les frais dans le montant
+          description: Si `true`, les frais sont inclus dans le montant.
 
     InterTransferRequest:
       type: object
@@ -327,54 +412,41 @@ components:
         amount:
           type: number
           minimum: 1
-          description: Montant du transfert
+          description: Montant (entier, XOF).
         service_type:
           type: string
+          description: Code du type de service (doit exister dans `service_types.code`), ex. `inter_reseau`.
         include_fees:
           type: boolean
-          default: false
+          description: Inclure les frais dans le montant.
         debitaire:
-          type: object
-          required:
-            - phone
-            - provider_code
-            - provider_id
-            - payment_method_code
-            - payment_method_id
-          properties:
-            phone:
-              type: string
-            provider_code:
-              type: string
-            provider_id:
-              type: integer
-            payment_method_code:
-              type: string
-            payment_method_id:
-              type: integer
-            pincode:
-              type: string
-              minLength: 5
-              maxLength: 5
+          $ref: '#/components/schemas/InterTransferLeg'
         beneficiaire:
-          type: object
-          required:
-            - phone
-            - provider_code
-            - provider_id
-            - payment_method_code
-            - payment_method_id
-          properties:
-            phone:
-              type: string
-            provider_code:
-              type: string
-            provider_id:
-              type: integer
-            payment_method_code:
-              type: string
-            payment_method_id:
-              type: integer
+          $ref: '#/components/schemas/InterTransferLeg'
+
+    InterTransferLeg:
+      type: object
+      required:
+        - phone
+        - provider_code
+        - provider_id
+        - payment_method_code
+        - payment_method_id
+      properties:
+        phone:
+          type: string
+        provider_code:
+          type: string
+          description: Doit exister dans `providers.code`.
+        provider_id:
+          type: integer
+          description: Doit exister dans `providers.id`.
+        payment_method_code:
+          type: string
+          description: Doit exister dans `payment_methods.code`.
+        payment_method_id:
+          type: integer
+          description: Doit exister dans `payment_methods.id`.
 
     WalletToWalletRequest:
       type: object
@@ -382,44 +454,60 @@ components:
         - amount
         - pincode
       properties:
-        token:
-          type: string
-          description: Token QR code du destinataire (alternatif à recipient_phone)
         recipient_phone:
           type: string
-          description: Numéro de téléphone du destinataire (alternatif à token)
+          description: Numéro du bénéficiaire (mode téléphone — alternatif à `token`).
+        token:
+          type: string
+          description: Jeton QR du bénéficiaire (mode QR — si présent, prioritaire).
         amount:
           type: number
           minimum: 1
-          description: Montant du transfert
+          description: Montant (entier ≥ 1, XOF).
         pincode:
           type: string
           minLength: 5
           maxLength: 5
-          description: Code PIN de l'expéditeur
-
-    OperationResponse:
-      type: object
-      properties:
-        reference:
-          type: string
-          description: Référence unique de l'opération
-        status:
-          type: string
-          enum: [pending, completed, failed]
-        amount:
-          type: number
-        fees:
-          type: number
-        totalAmount:
-          type: number
-        message:
-          type: string
+          description: Code PIN de l'expéditeur (exactement 5 caractères).
 
   responses:
     OperationBadRequest:
-      description: Opération rejetée (solde insuffisant, quota dépassé, etc.)
+      description: |
+        Requête rejetée : header device manquant (`MISSING_DEVICE_HEADERS`), `X-Idempotency-Key`
+        absent, méthode de paiement non supportée, ou refus métier (solde insuffisant, plafond…).
+      content:
+        application/json:
+          examples:
+            missingDevice:
+              value:
+                message: "Missing required device headers: X-Device-Fingerprint, X-Device-Uid"
+                status: 400
+                code: "MISSING_DEVICE_HEADERS"
+            missingIdempotency:
+              value:
+                message: "X-Idempotency-Key header is missing."
+            unsupportedMethod:
+              value:
+                message: "Payment method not supported"
+    Unauthorized:
+      description: Token absent ou invalide.
       content:
         application/json:
           example:
-            message: "Solde insuffisant pour effectuer cette opération"
+            message: "Unauthorized"
+            status: 401
+    DuplicateTransaction:
+      description: Idempotence — transaction déjà en cours ou déjà traitée.
+      content:
+        application/json:
+          example:
+            message: "Cette transaction est déjà en cours de traitement."
+            code: "E_DUPLICATE_TRANSACTION"
+    ValidationError:
+      description: Échec de validation (tableau de messages Vine).
+      content:
+        application/json:
+          example:
+            - message: "The provider_code field must be defined"
+              rule: "required"
+              field: "provider_code"

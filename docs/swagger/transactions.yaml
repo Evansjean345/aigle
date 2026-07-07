@@ -4,7 +4,10 @@ paths:
     get:
       operationId: listMobileTransactions
       summary: Liste des transactions
-      description: Récupère la liste paginée des transactions de l'utilisateur connecté avec filtrage optionnel.
+      description: |
+        Récupère la liste paginée des transactions de l'utilisateur connecté. Seul le paramètre
+        `page` est lu par le contrôleur. Structure exacte de la réponse : **TODO à confirmer**
+        (serializer non lu).
       tags:
         - Transactions
       security:
@@ -12,26 +15,10 @@ paths:
       parameters:
         - name: page
           in: query
+          description: Numéro de page (pagination).
           schema:
             type: integer
             default: 1
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 20
-        - name: type
-          in: query
-          description: Filtrer par type d'opération
-          schema:
-            type: string
-            enum: [depot, transfert, transfert_inter, wallet_to_wallet]
-        - name: status
-          in: query
-          description: Filtrer par statut
-          schema:
-            type: string
-            enum: [pending, completed, failed]
         - $ref: '#/components/parameters/DeviceFingerprint'
         - $ref: '#/components/parameters/DeviceUid'
         - $ref: '#/components/parameters/DevicePlatform'
@@ -51,23 +38,17 @@ paths:
                   currentPage: 1
                   lastPage: 3
                 data:
-                  - reference: "TRF-20260308-A1B2C3"
+                  - reference: "aig_tx_4b7e1d"
                     type: "transfert"
                     amount: 5000
-                    fees: 50
-                    status: "completed"
-                    providerCode: "ORANGE_CI"
-                    senderPhone: "+22890001234"
-                    receiverPhone: "+22890005678"
+                    status: "success"
+                    providerCode: "orange"
                     createdAt: "2026-03-08T14:22:00Z"
-                  - reference: "DEP-20260307-D4E5F6"
-                    type: "depot"
+                  - reference: "aig_tx_9f3a2c"
+                    type: "deposit"
                     amount: 10000
-                    fees: 100
-                    status: "completed"
-                    providerCode: "MTN_CI"
-                    senderPhone: "+22890001234"
-                    receiverPhone: null
+                    status: "success"
+                    providerCode: "moov"
                     createdAt: "2026-03-07T09:15:00Z"
         '401':
           description: Non autorisé
@@ -129,22 +110,18 @@ paths:
         - $ref: '#/components/parameters/DeviceOsVersion'
       responses:
         '200':
-          description: Détails de la transaction
+          description: Détails de la transaction (structure exacte — TODO à confirmer)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TransactionDetail'
               example:
-                reference: "TRF-20260308-A1B2C3"
+                reference: "aig_tx_4b7e1d"
                 type: "transfert"
                 amount: 5000
-                fees: 50
-                totalAmount: 5050
-                status: "completed"
-                providerCode: "ORANGE_CI"
-                paymentMethodCode: "MOBILE_MONEY"
-                senderPhone: "+22890001234"
-                receiverPhone: "+22890005678"
+                status: "success"
+                providerCode: "orange"
+                paymentMethodCode: "mobile-money"
                 createdAt: "2026-03-08T14:22:00Z"
                 updatedAt: "2026-03-08T14:22:35Z"
         '401':
@@ -185,8 +162,9 @@ paths:
               schema:
                 type: string
                 description: |
-                  Flux SSE avec des événements au format :
-                  `data: {"reference":"TRF-...","status":"completed","amount":5000}`
+                  Flux SSE. Un événement `data:` est émis avec l'état courant de la transaction :
+                  `data: {"reference":"aig_tx_4b7e1d","status":"success", ...}`
+                  (le contrôleur émet un seul événement avec le détail de la transaction).
         '401':
           description: Non autorisé
 

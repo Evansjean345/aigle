@@ -4,8 +4,9 @@ paths:
       operationId: checkPhone
       summary: Vérifier un numéro de téléphone
       description: |
-        Vérifie si un numéro de téléphone est déjà enregistré dans le système.
-        Utilisé avant l'inscription pour éviter les doublons.
+        Vérifie qu'un numéro correspond à un compte existant (le numéro local est concaténé à
+        l'indicatif du pays côté serveur). Renvoie `201` si le compte existe, `404` sinon.
+        Middleware `geoip` (pas d'authentification, pas de headers device).
       tags:
         - Auth
       requestBody:
@@ -15,21 +16,30 @@ paths:
             schema:
               $ref: '#/components/schemas/CheckPhoneRequest'
             example:
-              phone: "+22890001234"
+              phone: "0708123456"
               country_id: 1
       responses:
-        '200':
-          description: Vérification effectuée
+        '201':
+          description: Le numéro correspond à un compte
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  exists:
-                    type: boolean
-                    description: Indique si le numéro est déjà enregistré
+                  message:
+                    type: string
+                  phone:
+                    type: string
+                    description: Numéro normalisé au format international.
               example:
-                exists: false
+                message: "phone exists"
+                phone: "+2250708123456"
+        '404':
+          description: Numéro introuvable
+          content:
+            application/json:
+              example:
+                message: "Numéro de téléphone introuvable"
         '422':
           $ref: '#/components/responses/ValidationError'
 
@@ -38,8 +48,9 @@ paths:
       operationId: registerUser
       summary: Inscription d'un nouvel utilisateur
       description: |
-        Enregistre un nouvel utilisateur avec ses informations personnelles et son appareil.
-        Un OTP est envoyé pour la vérification du compte.
+        Crée un compte (statut `inactive`) et son portefeuille, puis envoie un OTP de
+        vérification. **Ne renvoie pas de token** — l'appareil est fourni dans le **corps**
+        (`deviceInfo`), pas dans les headers. Middleware `geoip`.
       tags:
         - Auth
       requestBody:
@@ -49,15 +60,15 @@ paths:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
             example:
-              firstname: "Aminata"
-              lastname: "Diallo"
-              email: "aminata.diallo@email.com"
-              phone: "+22890001234"
+              firstname: "Awa"
+              lastname: "Traoré"
+              email: "awa.traore@example.ci"
+              phone: "0708123456"
               pincode: "12345"
               country_id: 1
               deviceInfo:
-                fingerprint_hash: "a1b2c3d4e5f6"
-                device_uid: "DEV-UUID-001"
+                fingerprint_hash: "9f8c7b6a5d4e3f21"
+                device_uid: "550e8400-e29b-41d4-a716-446655440000"
                 platform: "android"
                 brand: "Samsung"
                 model: "Galaxy S24"
@@ -67,29 +78,31 @@ paths:
                 is_rooted: false
       responses:
         '201':
-          description: Utilisateur créé — OTP envoyé pour vérification
+          description: Compte créé — OTP envoyé pour vérification
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RegisterResponse'
+                $ref: '#/components/schemas/OtpSentResponse'
               example:
-                id: 42
-                firstname: "Aminata"
-                lastname: "Diallo"
-                phone: "+22890001234"
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                message: "Un code de vérification a été envoyé à ce numéro"
+                phone: "+2250708123456"
+        '409':
+          description: Un compte existe déjà pour ce numéro
+          content:
+            application/json:
+              example:
+                message: "User already exists"
         '422':
           $ref: '#/components/responses/ValidationError'
 
   /api/mobile/auth/verify-credentials:
     post:
       operationId: verifyCredentials
-      summary: Connexion utilisateur
+      summary: Connexion (téléphone + PIN) → envoi OTP
       description: |
-        Authentifie l'utilisateur avec son téléphone et code PIN.
-        Retourne un token JWT et le profil utilisateur.
-        Enregistre ou vérifie l'appareil utilisé.
+        Valide le téléphone et le code PIN, puis **envoie un OTP par SMS**. **Ne renvoie pas de
+        token** : le token est émis à l'étape `verify-account`. L'appareil est fourni dans le
+        **corps** (`devicePayload`). Middleware `geoip`.
       tags:
         - Auth
       requestBody:
@@ -99,12 +112,12 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
             example:
-              phone: "+22890001234"
+              phone: "0708123456"
               codepin: "12345"
               country_id: 1
               devicePayload:
-                fingerprint_hash: "a1b2c3d4e5f6"
-                device_uid: "DEV-UUID-001"
+                fingerprint_hash: "9f8c7b6a5d4e3f21"
+                device_uid: "550e8400-e29b-41d4-a716-446655440000"
                 platform: "android"
                 brand: "Samsung"
                 model: "Galaxy S24"
@@ -113,34 +126,32 @@ paths:
                 is_emulator: false
                 is_rooted: false
       responses:
-        '200':
-          description: Authentification réussie
+        '201':
+          description: Identifiants validés — OTP envoyé
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthTokenResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
               example:
-                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                user:
-                  id: 42
-                  firstname: "Aminata"
-                  lastname: "Diallo"
-                  phone: "+22890001234"
-                  email: "aminata.diallo@email.com"
-                  status: "active"
-                  kycLevel: 1
+                message: "OTP sent successfully"
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Numéro introuvable
         '422':
           $ref: '#/components/responses/ValidationError'
 
   /api/mobile/auth/verify-account:
     post:
       operationId: verifyAccount
-      summary: Vérification du compte via OTP
+      summary: Vérification OTP → émission du token
       description: |
-        Vérifie le compte utilisateur avec le code OTP reçu par SMS.
-        Finalise l'inscription et authentifie l'utilisateur.
+        Vérifie l'OTP reçu par SMS, fait confiance à l'appareil (device trust) et **émet le token
+        Bearer**. Utilisé aussi bien après inscription qu'après connexion. Headers device requis
+        (middleware `device`), pas de `BearerAuth`.
       tags:
         - Auth
       parameters:
@@ -156,18 +167,35 @@ paths:
             schema:
               $ref: '#/components/schemas/VerifyAccountRequest'
             example:
-              phone: "+22890001234"
-              otp: "4829"
+              phone: "0708123456"
+              otp: "1234"
               country_id: 1
       responses:
-        '200':
-          description: Compte vérifié et utilisateur authentifié
+        '201':
+          description: Compte vérifié et utilisateur authentifié (token émis)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthTokenResponse'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+              example:
+                user:
+                  id: "usr_3f9a2c10"
+                  accountNumber: "AIG-0007412"
+                  firstname: "Awa"
+                  lastname: "Traoré"
+                  phone: "+2250708123456"
+                  accountType: "personal"
+                  pictureUrl: ""
+                  status: "active"
+                  kycLevel: "level_0"
+                  kycStatus: "pending"
+                  country: { id: 1, name: "Côte d'Ivoire", code: "CI", flag: "🇨🇮" }
+                token: "oat_MTIz.YWJjZGVmZ2hpamtsbW5v..."
+                type: "Bearer"
+        '403':
+          description: Compte bloqué
+        '404':
+          description: Numéro introuvable
         '422':
           $ref: '#/components/responses/ValidationError'
 
@@ -176,8 +204,8 @@ paths:
       operationId: sendOtp
       summary: Envoyer un code OTP
       description: |
-        Envoie un code OTP par SMS au numéro de téléphone spécifié.
-        Soumis au rate limiting pour éviter les abus.
+        (Ré)envoie un OTP par SMS. **Rate-limité** (`otpThrottle`). Headers device requis.
+        Renvoie `201` si envoyé, `200` si throttlé (avec `sent: false` et `waitTime`).
       tags:
         - Auth
       parameters:
@@ -193,30 +221,36 @@ paths:
             schema:
               $ref: '#/components/schemas/CheckPhoneRequest'
             example:
-              phone: "+22890001234"
+              phone: "0708123456"
               country_id: 1
       responses:
-        '200':
-          description: OTP envoyé avec succès
+        '201':
+          description: OTP envoyé
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
+                $ref: '#/components/schemas/OtpSendResult'
               example:
-                message: "OTP envoyé avec succès"
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
+                message: "Code OTP envoyé avec succès"
+                sent: true
+        '200':
+          description: OTP non renvoyé (throttlé)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OtpSendResult'
+              example:
+                message: "Veuillez patienter 45 secondes avant de renvoyer un code OTP."
+                sent: false
+                waitTime: 45
+        '404':
+          description: Numéro introuvable
 
   /api/mobile/auth/forgot-password/request:
     post:
       operationId: forgotPasswordRequest
       summary: Demander la réinitialisation du code PIN
-      description: Envoie un OTP pour initier la réinitialisation du code PIN.
+      description: Envoie un OTP pour initier la réinitialisation du code PIN. Headers device requis.
       tags:
         - Auth
       parameters:
@@ -232,30 +266,29 @@ paths:
             schema:
               $ref: '#/components/schemas/CheckPhoneRequest'
             example:
-              phone: "+22890001234"
+              phone: "0708123456"
               country_id: 1
       responses:
-        '200':
+        '201':
           description: OTP de réinitialisation envoyé
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
+                $ref: '#/components/schemas/OtpSendResult'
               example:
-                message: "OTP envoyé avec succès"
-        '400':
-          $ref: '#/components/responses/BadRequest'
+                message: "Code OTP envoyé avec succès"
+                sent: true
+        '200':
+          description: OTP non renvoyé (throttlé)
 
   /api/mobile/auth/forgot-password/verify:
     post:
       operationId: forgotPasswordVerify
       summary: Vérifier l'OTP de réinitialisation
       description: |
-        Vérifie le code OTP pour la réinitialisation du code PIN.
-        Retourne un `reset_token` temporaire nécessaire pour l'étape suivante.
+        Vérifie le code OTP pour la réinitialisation du PIN et retourne un `reset_token`
+        temporaire nécessaire à l'étape `reset`. Structure exacte de la réponse : **TODO à
+        confirmer** (voir `verify_forgot_password_otp_use_case`).
       tags:
         - Auth
       parameters:
@@ -271,32 +304,26 @@ paths:
             schema:
               $ref: '#/components/schemas/VerifyAccountRequest'
             example:
-              phone: "+22890001234"
-              otp: "4829"
+              phone: "0708123456"
+              otp: "1234"
               country_id: 1
       responses:
-        '200':
+        '201':
           description: OTP vérifié — token de réinitialisation retourné
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  reset_token:
-                    type: string
-                    description: Token temporaire pour la réinitialisation
               example:
                 reset_token: "rst_a1b2c3d4e5f6g7h8"
-        '400':
-          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /api/mobile/auth/forgot-password/reset:
     post:
       operationId: forgotPasswordReset
       summary: Réinitialiser le code PIN
       description: |
-        Réinitialise le code PIN de l'utilisateur après vérification de l'OTP.
-        Nécessite le `reset_token` obtenu à l'étape précédente.
+        Réinitialise le PIN après vérification de l'OTP. Nécessite le `reset_token` obtenu à
+        l'étape `verify`. Headers device requis.
       tags:
         - Auth
       parameters:
@@ -312,25 +339,18 @@ paths:
             schema:
               $ref: '#/components/schemas/ForgotPasswordResetRequest'
             example:
-              phone: "+22890001234"
+              phone: "0708123456"
               reset_token: "rst_a1b2c3d4e5f6g7h8"
-              new_pincode: "54321"
-              confirm_pincode: "54321"
+              new_pincode: "67890"
+              confirm_pincode: "67890"
               country_id: 1
       responses:
-        '200':
-          description: Code PIN réinitialisé avec succès
+        '201':
+          description: Code PIN réinitialisé
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
               example:
                 message: "Code PIN réinitialisé avec succès"
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '422':
           $ref: '#/components/responses/ValidationError'
 
@@ -338,7 +358,9 @@ paths:
     get:
       operationId: getAuthProfile
       summary: Profil de l'utilisateur connecté
-      description: Récupère le profil complet de l'utilisateur actuellement authentifié, incluant les informations du wallet.
+      description: |
+        Récupère le profil de l'utilisateur authentifié (même objet `user` que `verify-account`).
+        Headers device requis.
       tags:
         - Auth
       security:
@@ -357,20 +379,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthenticatedProfileResponse'
               example:
-                id: 42
-                usersUid: "550e8400-e29b-41d4-a716-446655440000"
-                firstname: "Aminata"
-                lastname: "Diallo"
-                phone: "+22890001234"
-                email: "aminata.diallo@email.com"
+                id: "usr_3f9a2c10"
+                accountNumber: "AIG-0007412"
+                firstname: "Awa"
+                lastname: "Traoré"
+                phone: "+2250708123456"
+                accountType: "personal"
+                pictureUrl: ""
                 status: "active"
-                kycLevel: 1
-                kycStatus: "approved"
-                accountNumber: "AGL-000042"
-                wallet:
-                  balance: 25000
-                  currencySymbol: "XOF"
-                  status: "active"
+                kycLevel: "level_0"
+                kycStatus: "pending"
+                country: { id: 1, name: "Côte d'Ivoire", code: "CI", flag: "🇨🇮" }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/mobile/auth/session-status:
+    get:
+      operationId: getSessionStatus
+      summary: État de verrouillage du compte
+      description: |
+        Renvoie l'état de verrouillage du compte (compte bloqué, lockout PIN temporaire) pour
+        valider un déverrouillage biométrique local contre les règles serveur. Structure exacte :
+        **TODO à confirmer** (voir `get_session_status_use_case`). Headers device requis.
+      tags:
+        - Auth
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      responses:
+        '200':
+          description: État de session
+          content:
+            application/json:
+              schema:
+                type: object
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -378,7 +425,7 @@ paths:
     post:
       operationId: logout
       summary: Déconnexion
-      description: Déconnecte l'utilisateur et invalide le token d'accès courant.
+      description: Déconnecte l'utilisateur et invalide le token courant. Headers device requis.
       tags:
         - Auth
       security:
@@ -400,8 +447,8 @@ paths:
       operationId: checkPin
       summary: Vérifier le code PIN
       description: |
-        Vérifie la validité du code PIN de l'utilisateur authentifié.
-        Soumis au rate limiting pour protéger contre les attaques par force brute.
+        Vérifie la validité du code PIN de l'utilisateur authentifié (protégé contre la force
+        brute). Headers device requis.
       tags:
         - Auth
       security:
@@ -425,11 +472,11 @@ paths:
                   type: string
                   minLength: 5
                   maxLength: 5
-                  description: Code PIN à 5 chiffres
+                  description: Code PIN à 5 caractères
             example:
               pincode: "12345"
       responses:
-        '200':
+        '201':
           description: Résultat de la vérification
           content:
             application/json:
@@ -447,6 +494,40 @@ paths:
         '429':
           $ref: '#/components/responses/TooManyRequests'
 
+  /api/mobile/auth/user-info:
+    post:
+      operationId: getUserInfo
+      summary: Infos utilisateur (partenaire, clé API)
+      description: |
+        Réservé aux **partenaires** : protégé par le middleware `apiKey` (et non par un token
+        utilisateur). Renvoie les infos publiques de l'utilisateur, ou `404` (`USER_NOT_FOUND`).
+        Modalités de la clé API : **TODO à confirmer**.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckPhoneRequest'
+            example:
+              phone: "0708123456"
+              country_id: 1
+      responses:
+        '200':
+          description: Infos utilisateur
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Utilisateur introuvable
+          content:
+            application/json:
+              example:
+                message: "Utilisateur introuvable"
+                code: "USER_NOT_FOUND"
+
 components:
   schemas:
     CheckPhoneRequest:
@@ -457,11 +538,11 @@ components:
       properties:
         phone:
           type: string
-          description: Numéro de téléphone au format international
-          example: "+22890001234"
+          description: Numéro local (sans indicatif ; l'indicatif vient de `country_id`).
+          example: "0708123456"
         country_id:
           type: integer
-          description: Identifiant du pays
+          description: Identifiant du pays (doit exister dans `countries.id`).
           example: 1
 
     DevicePayload:
@@ -469,11 +550,6 @@ components:
       required:
         - fingerprint_hash
         - device_uid
-        - platform
-        - brand
-        - model
-        - os_version
-        - app_version
         - is_emulator
         - is_rooted
       properties:
@@ -485,19 +561,19 @@ components:
           description: Identifiant unique de l'appareil
         platform:
           type: string
-          description: Plateforme (ios, android)
+          description: Plateforme (ios, android) — optionnel
         brand:
           type: string
-          description: Marque de l'appareil
+          description: Marque de l'appareil — optionnel
         model:
           type: string
-          description: Modèle de l'appareil
+          description: Modèle de l'appareil — optionnel
         os_version:
           type: string
-          description: Version du système d'exploitation
+          description: Version de l'OS — optionnel
         app_version:
           type: string
-          description: Version de l'application
+          description: Version de l'application — optionnel
         is_emulator:
           type: boolean
           description: Indique si l'appareil est un émulateur
@@ -517,39 +593,43 @@ components:
       properties:
         firstname:
           type: string
-          description: Prénom de l'utilisateur
         lastname:
           type: string
-          description: Nom de famille
         email:
           type: string
           format: email
           description: Adresse email (optionnel)
         phone:
           type: string
-          description: Numéro de téléphone au format international
         pincode:
           type: string
           minLength: 5
           maxLength: 5
-          description: Code PIN à 5 chiffres
+          description: Code PIN à 5 caractères
         country_id:
           type: integer
-          description: Identifiant du pays
         deviceInfo:
           $ref: '#/components/schemas/DevicePayload'
 
-    RegisterResponse:
+    OtpSentResponse:
       type: object
       properties:
-        id:
-          type: integer
-        firstname:
-          type: string
-        lastname:
+        message:
           type: string
         phone:
           type: string
+          description: Numéro normalisé au format international.
+
+    OtpSendResult:
+      type: object
+      properties:
+        message:
+          type: string
+        sent:
+          type: boolean
+        waitTime:
+          type: integer
+          description: Présent si throttlé — secondes avant nouvel envoi.
 
     LoginRequest:
       type: object
@@ -561,15 +641,13 @@ components:
       properties:
         phone:
           type: string
-          description: Numéro de téléphone
         codepin:
           type: string
           minLength: 5
           maxLength: 5
-          description: Code PIN à 5 chiffres
+          description: Code PIN à 5 caractères
         country_id:
           type: integer
-          description: Identifiant du pays
         devicePayload:
           $ref: '#/components/schemas/DevicePayload'
 
@@ -582,15 +660,13 @@ components:
       properties:
         phone:
           type: string
-          description: Numéro de téléphone
         otp:
           type: string
           minLength: 4
           maxLength: 4
-          description: Code OTP à 4 chiffres
+          description: Code OTP à 4 caractères
         country_id:
           type: integer
-          description: Identifiant du pays
 
     ForgotPasswordResetRequest:
       type: object
@@ -603,86 +679,73 @@ components:
       properties:
         phone:
           type: string
-          description: Numéro de téléphone
         reset_token:
           type: string
-          description: Token de réinitialisation obtenu via /forgot-password/verify
+          description: Token obtenu via /forgot-password/verify
         new_pincode:
           type: string
           minLength: 5
           maxLength: 5
-          description: Nouveau code PIN à 5 chiffres
         confirm_pincode:
           type: string
           minLength: 5
           maxLength: 5
-          description: Confirmation du nouveau code PIN (doit correspondre)
+          description: Doit être égal à new_pincode
         country_id:
           type: integer
-          description: Identifiant du pays
-
-    AuthTokenResponse:
-      type: object
-      properties:
-        token:
-          type: string
-          description: Token JWT d'accès
-        user:
-          type: object
-          properties:
-            id:
-              type: integer
-            firstname:
-              type: string
-            lastname:
-              type: string
-            phone:
-              type: string
-            email:
-              type: string
-              nullable: true
-            status:
-              type: string
-              enum: [active, blocked, pending]
-            kycLevel:
-              type: integer
 
     AuthenticatedProfileResponse:
       type: object
+      description: Profil sérialisé (AuthenticatedProfileResponseDto).
       properties:
         id:
-          type: integer
-        usersUid:
           type: string
-          format: uuid
+          description: Identifiant public de l'utilisateur (usersUid).
+        accountNumber:
+          type: string
         firstname:
           type: string
         lastname:
           type: string
         phone:
           type: string
-        email:
+        accountType:
+          type: string
+        pictureUrl:
           type: string
           nullable: true
+          description: Vide tant que le KYC n'est pas vérifié.
         status:
           type: string
-          enum: [active, blocked, pending]
+          enum: [active, inactive, blocked]
         kycLevel:
-          type: integer
+          type: string
         kycStatus:
           type: string
-          nullable: true
-        accountNumber:
-          type: string
-        wallet:
+        country:
           type: object
           properties:
-            balance:
-              type: number
-            currencySymbol:
+            id:
+              type: integer
+            name:
               type: string
-            status:
+            code:
               type: string
+            flag:
+              type: string
+
+    AuthTokenResponse:
+      type: object
+      description: Réponse d'authentification (verify-account).
+      properties:
+        user:
+          $ref: '#/components/schemas/AuthenticatedProfileResponse'
+        token:
+          type: string
+          description: Token d'accès Bearer (opaque).
+        type:
+          type: string
+          enum: [Bearer]
 
   parameters:
     DeviceFingerprint:
@@ -692,7 +755,7 @@ components:
       description: Empreinte unique de l'appareil
       schema:
         type: string
-      example: "a1b2c3d4e5f6"
+      example: "9f8c7b6a5d4e3f21"
     DeviceUid:
       name: X-Device-Uid
       in: header
@@ -700,7 +763,7 @@ components:
       description: Identifiant unique de l'appareil
       schema:
         type: string
-      example: "DEV-UUID-001"
+      example: "550e8400-e29b-41d4-a716-446655440000"
     DevicePlatform:
       name: X-Device-Platform
       in: header
@@ -729,38 +792,18 @@ components:
 
   responses:
     ValidationError:
-      description: Erreur de validation des données
+      description: Erreur de validation (tableau de messages Vine)
       content:
         application/json:
-          schema:
-            type: object
-            properties:
-              errors:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    rule:
-                      type: string
-                    field:
-                      type: string
-                    message:
-                      type: string
           example:
-            errors:
-              - rule: "required"
-                field: "phone"
-                message: "Le champ phone est requis"
+            - rule: "required"
+              field: "phone"
+              message: "The phone field must be defined"
 
     BadRequest:
       description: Requête invalide
       content:
         application/json:
-          schema:
-            type: object
-            properties:
-              message:
-                type: string
           example:
             message: "Requête invalide"
 
@@ -768,28 +811,14 @@ components:
       description: Non autorisé — token manquant ou invalide
       content:
         application/json:
-          schema:
-            type: object
-            properties:
-              errors:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    message:
-                      type: string
           example:
-            errors:
-              - message: "Unauthorized access"
+            message: "Unauthorized"
+            status: 401
 
     TooManyRequests:
       description: Trop de requêtes — rate limit atteint
       content:
         application/json:
-          schema:
-            type: object
-            properties:
-              message:
-                type: string
           example:
             message: "Too many requests. Please try again later."
+            retryAfterSeconds: 30

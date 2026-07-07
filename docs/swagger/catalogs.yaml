@@ -49,25 +49,26 @@ paths:
       operationId: getPaymentOptionsTo
       summary: Options de paiement destination
       description: |
-        Récupère les fournisseurs de destination pour un transfert inter-réseau.
-        Filtré par le fournisseur source via le query parameter `fromProviderCode`.
+        Récupère les options de paiement de destination (côté bénéficiaire) pour un transfert
+        inter-réseaux, filtrées par le fournisseur source via le query parameter obligatoire
+        `fromProviderCode`. Route publique (pas d'authentification dans l'état actuel du code).
       tags:
         - Services
       parameters:
         - name: serviceType
           in: path
           required: true
-          description: Code du type de service
+          description: Code du type de service (doit exister dans service_types.code).
           schema:
             type: string
-          example: "transfert_inter"
+          example: "inter_reseau"
         - name: fromProviderCode
           in: query
           required: true
-          description: Code du fournisseur source
+          description: Code du fournisseur source (absent → 400 FROM_PROVIDER_REQUIRED).
           schema:
             type: string
-          example: "ORANGE_CI"
+          example: "moov"
         - $ref: '#/components/parameters/DeviceFingerprint'
         - $ref: '#/components/parameters/DeviceUid'
         - $ref: '#/components/parameters/DevicePlatform'
@@ -82,6 +83,13 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PaymentOption'
+        '400':
+          description: Paramètre fromProviderCode manquant
+          content:
+            application/json:
+              example:
+                code: "FROM_PROVIDER_REQUIRED"
+                message: "fromProviderCode is required"
         '404':
           description: Type de service non trouvé
 

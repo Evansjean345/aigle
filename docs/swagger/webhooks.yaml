@@ -1,146 +1,144 @@
 paths:
-  /api/mobile/webhooks/deposit/success:
+  /api/provider-webhooks/hub2/payments/success:
     post:
-      operationId: webhookDepositSuccess
-      summary: Callback dépôt réussi
+      operationId: hub2PaymentSuccessWebhook
+      summary: Webhook Hub2 — paiement réussi
       description: |
-        Webhook appelé par le fournisseur de paiement lorsqu'un dépôt est confirmé.
-        Met à jour le statut de la transaction et crédite le portefeuille de l'utilisateur.
+        **Entrant, appelé par Hub2** (pas par le client mobile). Notifie le règlement réussi d'un
+        paiement (checkout) et déclenche la mise à jour de la transaction correspondante.
+
+        **Signature** : le middleware `verify_hub2_signature` (route `payments.success`) recalcule
+        `HMAC-SHA256(rawBody, secret)` en hex et le compare, en temps constant, à `s1` puis `s0`
+        du header **`hub2-signature`** (fenêtre de rotation du secret). Secret manquant, corps ou
+        header absent, ou signature invalide → `401`.
+
+        **Réponse** : toujours `200` avec un corps `{}`, même sur type non supporté ou données
+        invalides (on acquitte la réception pour éviter les retries Hub2 ; les échecs de
+        traitement sont journalisés). Aucun `BearerAuth`.
       tags:
         - Webhooks
+      parameters:
+        - $ref: '#/components/parameters/Hub2Signature'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WebhookPayload'
+              $ref: '#/components/schemas/Hub2WebhookEvent'
+            example:
+              type: "payment_intent.succeeded"
+              data:
+                id: "pi_hub2_88f21a"
+                purchaseReference: "aig_tx_9f3a2c"
       responses:
         '200':
-          description: Webhook traité avec succès
-        '400':
-          description: Payload invalide
-        '429':
-          description: Trop de requêtes — rate limit atteint
+          $ref: '#/components/responses/WebhookAck'
+        '401':
+          $ref: '#/components/responses/WebhookSignatureError'
 
-  /api/mobile/webhooks/deposit/failure:
+  /api/provider-webhooks/hub2/payments/failed:
     post:
-      operationId: webhookDepositFailure
-      summary: Callback dépôt échoué
+      operationId: hub2PaymentFailedWebhook
+      summary: Webhook Hub2 — paiement échoué
       description: |
-        Webhook appelé par le fournisseur lorsqu'un dépôt échoue.
-        Met à jour le statut de la transaction en "failed".
+        **Entrant, appelé par Hub2.** Notifie l'échec d'un paiement (checkout). Le code d'échec
+        natif (`data.lastPaymentFailure.code` / `data.failureCause.code` / `data.code`) est
+        traduit en `ProviderErrorCode` canonique. Signature vérifiée (route `payments.failed`).
+        Réponse toujours `200 {}`.
       tags:
         - Webhooks
+      parameters:
+        - $ref: '#/components/parameters/Hub2Signature'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WebhookPayload'
+              $ref: '#/components/schemas/Hub2WebhookEvent'
+            example:
+              type: "payment_intent.payment_failed"
+              data:
+                id: "pi_hub2_88f21a"
+                purchaseReference: "aig_tx_9f3a2c"
+                lastPaymentFailure:
+                  code: "insufficient_funds"
+                  message: "Solde insuffisant"
       responses:
         '200':
-          description: Webhook traité avec succès
-        '400':
-          description: Payload invalide
-        '429':
-          description: Trop de requêtes
+          $ref: '#/components/responses/WebhookAck'
+        '401':
+          $ref: '#/components/responses/WebhookSignatureError'
 
-  /api/mobile/webhooks/transfer/success:
+  /api/provider-webhooks/hub2/transfers/success:
     post:
-      operationId: webhookTransferSuccess
-      summary: Callback transfert réussi
+      operationId: hub2TransferSuccessWebhook
+      summary: Webhook Hub2 — transfert (payout) réussi
       description: |
-        Webhook appelé lorsqu'un transfert simple est confirmé par le fournisseur.
-        Finalise la transaction et met à jour les soldes.
+        **Entrant, appelé par Hub2.** Notifie le règlement réussi d'un transfert (payout). La
+        référence est lue dans `data.reference`. Signature vérifiée (route `transfers.success`).
+        Réponse toujours `200 {}`.
       tags:
         - Webhooks
+      parameters:
+        - $ref: '#/components/parameters/Hub2Signature'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WebhookPayload'
+              $ref: '#/components/schemas/Hub2WebhookEvent'
+            example:
+              type: "transfer.succeeded"
+              data:
+                id: "tr_hub2_4b7e1d"
+                reference: "aig_tx_4b7e1d"
       responses:
         '200':
-          description: Webhook traité avec succès
-        '400':
-          description: Payload invalide
-        '429':
-          description: Trop de requêtes
+          $ref: '#/components/responses/WebhookAck'
+        '401':
+          $ref: '#/components/responses/WebhookSignatureError'
 
-  /api/mobile/webhooks/transfer/failure:
+  /api/provider-webhooks/hub2/transfers/failed:
     post:
-      operationId: webhookTransferFailure
-      summary: Callback transfert échoué
-      description: Webhook appelé lorsqu'un transfert simple échoue.
-      tags:
-        - Webhooks
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WebhookPayload'
-      responses:
-        '200':
-          description: Webhook traité avec succès
-        '400':
-          description: Payload invalide
-        '429':
-          description: Trop de requêtes
-
-  /api/mobile/webhooks/transfer-inter/success:
-    post:
-      operationId: webhookInterTransferSuccess
-      summary: Callback transfert inter-réseau réussi (1ère étape)
+      operationId: hub2TransferFailedWebhook
+      summary: Webhook Hub2 — transfert (payout) échoué
       description: |
-        Webhook appelé lorsque la première étape d'un transfert inter-réseau est confirmée
-        (débit chez le fournisseur source). Déclenche automatiquement la deuxième étape
-        (crédit chez le fournisseur destination).
+        **Entrant, appelé par Hub2.** Notifie l'échec d'un transfert (payout) ; déclenche le
+        remboursement du débit (`refunded`) le cas échéant. Signature vérifiée (route
+        `transfers.failed`). Réponse toujours `200 {}`.
       tags:
         - Webhooks
+      parameters:
+        - $ref: '#/components/parameters/Hub2Signature'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WebhookPayload'
+              $ref: '#/components/schemas/Hub2WebhookEvent'
+            example:
+              type: "transfer.failed"
+              data:
+                id: "tr_hub2_4b7e1d"
+                reference: "aig_tx_4b7e1d"
+                failureCause:
+                  code: "provider_unavailable"
+                  message: "Opérateur injoignable"
       responses:
         '200':
-          description: Webhook traité — 2ème étape initiée
-        '400':
-          description: Payload invalide
-        '429':
-          description: Trop de requêtes
+          $ref: '#/components/responses/WebhookAck'
+        '401':
+          $ref: '#/components/responses/WebhookSignatureError'
 
-  /api/mobile/webhooks/transfer-inter/failure:
+  /api/provider-webhooks/wave:
     post:
-      operationId: webhookInterTransferFailure
-      summary: Callback transfert inter-réseau échoué (1ère étape)
-      description: Webhook appelé lorsque la première étape d'un transfert inter-réseau échoue.
-      tags:
-        - Webhooks
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WebhookPayload'
-      responses:
-        '200':
-          description: Webhook traité
-        '400':
-          description: Payload invalide
-        '429':
-          description: Trop de requêtes
-
-  /api/mobile/webhooks/transfer-inter/second/success:
-    post:
-      operationId: webhookInterTransferSecondSuccess
-      summary: Callback transfert inter-réseau réussi (2ème étape)
+      operationId: waveWebhook
+      summary: Webhook Wave
       description: |
-        Webhook appelé lorsque la deuxième étape d'un transfert inter-réseau est confirmée
-        (crédit chez le fournisseur destination). La transaction complète est marquée comme terminée.
+        **Entrant, appelé par Wave.** Règle les opérations passées par Wave (normalisées par le
+        `WaveWebhookNormalizer`). Le schéma de charge utile et la vérification de signature Wave
+        sont **TODO à confirmer** (voir `wave_webhook_controller` / `wave_webhook_normalizer`).
+        Réponse `200` attendue.
       tags:
         - Webhooks
       requestBody:
@@ -148,58 +146,87 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/WebhookPayload'
+              type: object
+              description: Charge utile Wave — TODO à confirmer.
       responses:
         '200':
-          description: Webhook traité — transaction complétée
-        '400':
-          description: Payload invalide
-        '429':
-          description: Trop de requêtes
-
-  /api/mobile/webhooks/transfer-inter/second/failure:
-    post:
-      operationId: webhookInterTransferSecondFailure
-      summary: Callback transfert inter-réseau échoué (2ème étape)
-      description: |
-        Webhook appelé lorsque la deuxième étape d'un transfert inter-réseau échoue.
-        Nécessite une intervention manuelle pour résoudre l'état intermédiaire.
-      tags:
-        - Webhooks
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/WebhookPayload'
-      responses:
-        '200':
-          description: Webhook traité
-        '400':
-          description: Payload invalide
-        '429':
-          description: Trop de requêtes
+          $ref: '#/components/responses/WebhookAck'
 
 components:
-  schemas:
-    WebhookPayload:
-      type: object
+  parameters:
+    Hub2Signature:
+      name: hub2-signature
+      in: header
+      required: true
       description: |
-        Payload envoyé par le fournisseur de paiement.
-        Le format exact dépend du fournisseur utilisé.
-        Le système identifie la transaction via la référence contenue dans le payload.
+        Signature HMAC-SHA256 du corps brut, encodée en hex. Contient une ou deux signatures :
+        `s1` (secret courant) et `s0` (ancien secret, fenêtre de rotation). Ex.
+        `s1=3a7f...e2, s0=91bc...d4`.
+      schema:
+        type: string
+      example: "s1=3a7f0c9e2b1d..., s0=91bcd4e5f6a7..."
+
+  schemas:
+    Hub2WebhookEvent:
+      type: object
+      required:
+        - type
+        - data
       properties:
-        reference:
+        type:
           type: string
-          description: Référence de la transaction
-        status:
-          type: string
-          description: Statut retourné par le fournisseur
-        provider_reference:
-          type: string
-          description: Référence unique côté fournisseur
-        amount:
-          type: number
-        metadata:
+          description: Type d'événement Hub2.
+          enum:
+            - payment_intent.succeeded
+            - payment_intent.payment_failed
+            - transfer.succeeded
+            - transfer.failed
+        data:
           type: object
-          description: Données additionnelles du fournisseur
+          description: |
+            Charge utile de l'événement. Pour les checkouts, la référence aiglesend est dans
+            `purchaseReference` ; pour les transferts, dans `reference`. `data.id` = référence
+            provider. En cas d'échec, `lastPaymentFailure`/`failureCause`/`code` portent le code
+            natif traduit vers un `ProviderErrorCode`.
+          properties:
+            id:
+              type: string
+              description: Référence côté provider Hub2.
+            purchaseReference:
+              type: string
+              description: Référence aiglesend (événements checkout/payment_intent).
+            reference:
+              type: string
+              description: Référence aiglesend (événements transfer).
+            lastPaymentFailure:
+              type: object
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+            failureCause:
+              type: object
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+
+  responses:
+    WebhookAck:
+      description: Accusé de réception (toujours renvoyé, corps vide).
+      content:
+        application/json:
+          example: {}
+    WebhookSignatureError:
+      description: Signature invalide, header/corps manquant, ou webhook non configuré.
+      content:
+        application/json:
+          examples:
+            invalidSignature:
+              value:
+                error: "Invalid signature"
+            notConfigured:
+              value:
+                error: "Webhook not configured"

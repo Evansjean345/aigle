@@ -3,10 +3,11 @@ paths:
   /api/mobile/qr/issue:
     post:
       operationId: issueQrCode
-      summary: Générer un QR code
+      summary: Émettre un jeton QR
       description: |
-        Génère un QR code unique lié au portefeuille de l'utilisateur.
-        Ce QR code peut être scanné par un autre utilisateur pour initier un transfert wallet-à-wallet.
+        Émet un jeton QR (JWT court) pour l'utilisateur **authentifié** (le futur bénéficiaire).
+        Le scanneur appellera `wallet-to-wallet` avec ce `token`. Aucun corps requis. Headers
+        device requis. Réponse `200`.
       tags:
         - QR Code
       security:
@@ -17,38 +18,40 @@ paths:
         - $ref: '#/components/parameters/DevicePlatform'
         - $ref: '#/components/parameters/AppVersion'
         - $ref: '#/components/parameters/DeviceOsVersion'
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                amount:
-                  type: number
-                  minimum: 1
-                  description: Montant pré-défini pour le QR code (optionnel)
-            example:
-              amount: 5000
       responses:
-        '201':
-          description: QR code généré
+        '200':
+          description: Jeton QR émis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  exp:
+                    type: integer
+                    description: Expiration (timestamp epoch, secondes).
+                  nonce:
+                    type: string
+                    description: Nonce anti-rejeu.
+              example:
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                exp: 1751731200
+                nonce: "a1b2c3d4"
+        '401':
+          description: Non autorisé
           content:
             application/json:
               example:
-                token: "qr_a1b2c3d4e5f6g7h8i9j0"
-                amount: 5000
-                expiresAt: "2026-03-09T15:30:00Z"
-        '401':
-          description: Non autorisé
+                code: "UNAUTHORIZED"
 
   /api/mobile/qr/resolve:
     post:
       operationId: resolveQrCode
-      summary: Résoudre un QR code
+      summary: Résoudre un jeton QR (léger)
       description: |
-        Résout un QR code scanné et retourne les informations du propriétaire.
-        Utilisé pour afficher les détails du bénéficiaire avant un transfert.
+        Résolution légère : renvoie l'identité publique du bénéficiaire (pour afficher « Vous
+        payez à … »). Ne consomme pas le nonce. Headers device requis (pas d'authentification).
       tags:
         - QR Code
       parameters:
@@ -64,31 +67,43 @@ paths:
             schema:
               type: object
               required:
-                - qr_token
+                - token
               properties:
-                qr_token:
+                token:
                   type: string
-                  description: Token du QR code scanné
+                  description: Jeton QR scanné.
             example:
-              qr_token: "qr_a1b2c3d4e5f6g7h8i9j0"
+              token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
       responses:
         '200':
-          description: QR code résolu
+          description: Jeton résolu
           content:
             application/json:
               example:
-                firstname: "Aminata"
-                lastname: "Diallo"
-                phone: "+22890001234"
-                amount: 5000
-        '404':
-          description: QR code invalide ou expiré
+                ok: true
+                userId: "usr_9a8b7c"
+                name: "Awa Traoré"
+                phone: "+2250708123456"
+        '400':
+          description: Jeton absent ou invalide
+          content:
+            application/json:
+              examples:
+                tokenRequired:
+                  value:
+                    code: "TOKEN_REQUIRED"
+                invalid:
+                  value:
+                    ok: false
+                    code: "TOKEN_INVALID"
 
   /api/mobile/qr/verify:
     post:
       operationId: verifyQrCode
-      summary: Vérifier la validité d'un QR code
-      description: Vérifie si un QR code est valide et non expiré, sans retourner les détails du propriétaire.
+      summary: Vérifier un jeton QR (strict)
+      description: |
+        Vérification stricte (expiration + rejeu), à utiliser au moment de consommer le QR.
+        Headers device requis.
       tags:
         - QR Code
       parameters:
@@ -104,20 +119,46 @@ paths:
             schema:
               type: object
               required:
-                - qr_token
+                - token
               properties:
-                qr_token:
+                token:
                   type: string
             example:
-              qr_token: "qr_a1b2c3d4e5f6g7h8i9j0"
+              token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
       responses:
         '200':
-          description: Résultat de la vérification
+          description: Jeton valide
           content:
             application/json:
               example:
-                isValid: true
-                expiresAt: "2026-03-09T15:30:00Z"
+                ok: true
+        '400':
+          description: Jeton absent
+          content:
+            application/json:
+              example:
+                code: "TOKEN_REQUIRED"
+        '409':
+          description: Jeton déjà utilisé (rejeu)
+          content:
+            application/json:
+              example:
+                ok: false
+                code: "TOKEN_REPLAY"
+        '410':
+          description: Jeton expiré
+          content:
+            application/json:
+              example:
+                ok: false
+                code: "TOKEN_EXPIRED"
+        '422':
+          description: Jeton invalide
+          content:
+            application/json:
+              example:
+                ok: false
+                code: "TOKEN_INVALID"
 
   # ─── MOBILE : KYC ───────────────────────────────────────
   /api/mobile/kyc/submit-documents:
@@ -125,9 +166,9 @@ paths:
       operationId: submitKycDocuments
       summary: Soumettre les documents KYC
       description: |
-        Soumet les documents d'identité pour la vérification KYC.
-        Les fichiers acceptés sont PNG et JPG.
-        Le verso du document est requis pour les cartes d'identité et permis de conduire.
+        Soumet les documents d'identité pour la vérification KYC (`multipart/form-data`).
+        Formats acceptés : PNG/JPG/JPEG. Le **verso** est requis pour `CNI` et `PERMIS_CONDUIT`.
+        Headers device requis.
       tags:
         - KYC
       security:
@@ -151,23 +192,23 @@ paths:
               properties:
                 document_type:
                   type: string
-                  enum: [id_card, passport, driver_license]
-                  description: Type de document d'identité
+                  enum: [CNI, PASSPORT, PERMIS_CONDUIT]
+                  description: Type de document (valeurs de KycDocumentType).
                 document_recto:
                   type: string
                   format: binary
-                  description: Photo recto du document (PNG/JPG, max 5 Mo)
+                  description: Photo recto (PNG/JPG/JPEG, max 5 Mo).
                 document_verso:
                   type: string
                   format: binary
-                  description: Photo verso du document (PNG/JPG, max 5 Mo — requis pour id_card et driver_license)
+                  description: Photo verso (PNG/JPG/JPEG, max 5 Mo) — requis si document_type ∈ {CNI, PERMIS_CONDUIT}.
                 selfie_image:
                   type: string
                   format: binary
-                  description: Photo selfie de l'utilisateur (PNG/JPG, max 10 Mo)
+                  description: Photo selfie (PNG/JPG/JPEG, max 10 Mo).
       responses:
         '201':
-          description: Documents soumis pour vérification
+          description: Documents soumis pour vérification (structure — TODO à confirmer)
           content:
             application/json:
               example:
@@ -176,7 +217,7 @@ paths:
         '401':
           description: Non autorisé
         '422':
-          description: Erreur de validation (fichier trop volumineux, format invalide, etc.)
+          description: Erreur de validation (fichier trop volumineux, format invalide, verso manquant, etc.)
 
   # ─── ADMIN : KYC Documents ──────────────────────────────
   /api/admin/kyc:

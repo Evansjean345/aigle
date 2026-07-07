@@ -115,8 +115,15 @@ paths:
           content:
             application/json:
               example:
-                deviceId: "d1a2b3c4-e5f6-7890-abcd-ef1234567890"
+                userDeviceId: 42
                 pushToken: "fcm_new_token_xyz789"
+        '400':
+          description: Identifiants d'appareil manquants dans les headers
+          content:
+            application/json:
+              example:
+                message: "Fingerprint and Device UID are required in headers"
+                code: "DEVICE_IDENTIFIERS_REQUIRED"
         '401':
           description: Non autorisé
         '422':
