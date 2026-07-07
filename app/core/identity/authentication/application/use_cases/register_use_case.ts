@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
-import WalletService from '#core/money/wallet/application/services/wallet_service'
+import AccountProvisioningService from '#core/money/account/application/services/account_provisioning_service'
+import { AccountOwnerType } from '#core/money/account/domain/enums/account_owner_type'
 import {
   RegisterRequestDto,
   RegisterResponseDto,
@@ -26,14 +27,14 @@ export default class RegisterUseCase {
    *
    * @param {UserRepository} userRepository - The repository used for managing user data.
    * @param {CountryRepository} countryRepository - The repository used for managing country data.
-   * @param {WalletService} walletService - The service used for managing wallet operations.
+   * @param {AccountProvisioningService} accountProvisioning - Porte d'ouverture de compte money (account + wallet).
    * @param {OtpSendingService} otpSendingService - The service used for sending OTPs.
    * @param {DeviceService} deviceService - The service used for managing device-related operations.
    */
   constructor(
     protected userRepository: UserRepository,
     protected countryRepository: CountryRepository,
-    private readonly walletService: WalletService,
+    private readonly accountProvisioning: AccountProvisioningService,
     private readonly otpSendingService: OtpSendingService,
     private readonly deviceService: DeviceService
   ) {}
@@ -97,7 +98,7 @@ export default class RegisterUseCase {
 
       const userCreated = await this.userRepository.save(user, trx)
 
-      await this.walletService.createForUser(userCreated.usersUid, trx)
+      await this.accountProvisioning.openFor(AccountOwnerType.USER, userCreated.usersUid, trx)
       await trx.commit()
 
       if (data.deviceInfoPayload) {
