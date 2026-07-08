@@ -56,6 +56,8 @@ back-office admin (§4.6) → bases extensibles.
 | # | Décision | Alternatives écartées | Raison | Date |
 |---|----------|----------------------|--------|------|
 | 1 | RBAC org **riche** : catalogue de permissions en CODE + rôles composables par l'org + assignés aux membres (même pattern que le back-office admin §4.6) | Rôles fixes code-only (pas assez flexible) ; plat legacy booléens (ingérable) | User « tout prendre + poser les bonnes bases » ; cohérence avec le RBAC §4.6 déjà établi | 2026-07-08 |
+| 2 | **A1 — RBAC produit-owned** : tables + catalogue dans aiglebusiness, indépendant du RBAC team du core | A2 réutiliser core/team (couple business→team, mélange admins/users) ; A3 hybride | Sujets distincts (users membres ≠ admins staff), portée par-org vs globale, invariant produit↛core | 2026-07-08 |
+| 3 | Permissions = **slugs en code seulement** (permissions.config.ts), pas de table permission ni sync ; org_role_permissions stocke le slug | Table permission synchronisée (comme admin) | Permissions business fixes, source unique = code, plus simple | 2026-07-08 |
 
 ## Découpage (validé 2026-07-08)
 
@@ -67,6 +69,22 @@ back-office admin (§4.6) → bases extensibles.
 | C — Rôles éditables | CRUD des rôles de l'org (composer depuis le catalogue) | A | à faire |
 
 Ordre : A → B → D → C.
+
+## Lot A — Design
+
+### Architecture (validée)
+
+- **Feature** `app/products/aiglebusiness/membership/` (4 couches), sœur de `organisation` ;
+  référence `organisation_id` par valeur.
+- **Catalogue de permissions en CODE** (`permissions.config.ts`) = slugs des capacités business,
+  source de vérité unique. Pas de table permission ni de sync. `org_role_permissions` stocke le
+  slug (validé contre le catalogue à l'écriture).
+- **Rôle** = par org, compose des permissions du catalogue ; rôles par défaut seedés (`is_system`).
+- **Membre** = user rattaché à une org avec un rôle.
+- **Tables** :
+  - `org_roles` (id, organisation_id, slug, name, is_system, timestamps ; UNIQUE org_id+slug)
+  - `org_role_permissions` (role_id, permission_slug)
+  - `org_members` (id, organisation_id, user_id, role_id, status, timestamps ; UNIQUE org_id+user_id)
 
 ## Hors-scope (à confirmer)
 
