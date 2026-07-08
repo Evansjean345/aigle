@@ -368,6 +368,8 @@ paths:
               example:
                 code: E_MEMBER_ALREADY_EXISTS
                 message: Cet utilisateur est déjà membre de cette organisation
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /api/business/organisations/{organisationId}/members/{memberId}/resend:
     post:
@@ -394,6 +396,8 @@ paths:
           $ref: '#/components/responses/MembersManageForbidden'
         '404':
           $ref: '#/components/responses/MemberNotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /api/business/organisations/{organisationId}/members/{memberId}/role:
     patch:
@@ -489,6 +493,8 @@ paths:
           $ref: '#/components/responses/InvitationInvalid'
         '410':
           $ref: '#/components/responses/InvitationExpired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
 
   /api/business/invitations/{token}/accept:
     post:
@@ -655,6 +661,14 @@ components:
           example:
             code: E_INVITATION_EXPIRED
             message: L'invitation a expiré, demandez-en une nouvelle
+    TooManyRequests:
+      description: >-
+        Quota anti-abus dépassé (rate limit). Envoi d'invitations, renvois ou
+        déclenchements d'OTP trop fréquents.
+      content:
+        application/json:
+          example:
+            message: Trop de tentatives. Veuillez réessayer plus tard.
 
   schemas:
     CreateOrganisationRequest:

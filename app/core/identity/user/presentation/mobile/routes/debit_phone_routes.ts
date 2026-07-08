@@ -1,6 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
-import { otpThrottle } from '#start/limiter'
+import { otpThrottle } from '#core/identity/otp/presentation/throttles/otp_throttle'
 
 const DebitPhoneController = () =>
   import('#core/identity/user/presentation/mobile/controllers/debit_phone_controller')

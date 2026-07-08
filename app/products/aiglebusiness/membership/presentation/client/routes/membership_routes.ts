@@ -1,5 +1,10 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
+import {
+  invitationOtpThrottle,
+  invitationResendThrottle,
+  memberInviteThrottle,
+} from '#aiglebusiness/membership/presentation/client/throttles/membership_throttles'
 
 const RoleController = () =>
   import('#aiglebusiness/membership/presentation/client/controllers/role_controller')
@@ -32,8 +37,10 @@ export default function membershipClientRoutes() {
           router.delete('roles/:roleId', [RoleController, 'destroy'])
 
           router.get('members', [MemberController, 'index'])
-          router.post('members', [MemberController, 'store'])
-          router.post('members/:memberId/resend', [MemberController, 'resend'])
+          router.post('members', [MemberController, 'store']).use(memberInviteThrottle)
+          router
+            .post('members/:memberId/resend', [MemberController, 'resend'])
+            .use(invitationResendThrottle)
           router.patch('members/:memberId/role', [MemberController, 'updateRole'])
           router.delete('members/:memberId', [MemberController, 'destroy'])
         })
@@ -41,7 +48,8 @@ export default function membershipClientRoutes() {
         .use(middleware.auth())
 
       // ── Acceptation d'invitation (semi-publique : token + OTP) ──
-      router.get('invitations/:token', [InvitationController, 'show'])
+      // Le GET déclenche l'envoi de l'OTP → filet anti-abus au niveau route.
+      router.get('invitations/:token', [InvitationController, 'show']).use(invitationOtpThrottle)
       router.post('invitations/:token/accept', [InvitationController, 'accept'])
       router.post('invitations/:token/decline', [InvitationController, 'decline'])
     })
