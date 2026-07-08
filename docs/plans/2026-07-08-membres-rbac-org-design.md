@@ -1,7 +1,7 @@
 ---
-status: in-review
-etape: 5
-lot: C
+status: approved
+etape: 6
+lot: B
 derniere_maj: 2026-07-08
 ---
 
@@ -63,13 +63,22 @@ back-office admin (§4.6) → bases extensibles.
 | 6 | Catalogue de permissions = `{slug, name, description, sensitive:boolean}` ; **endpoint de listing** du catalogue (l'owner compose ses rôles, la description + le flag sensitive le guident) | Slug seul sans métadonnées | UX : l'owner doit comprendre et être alerté sur les permissions sensibles | 2026-07-08 |
 | 7 | **Réordonner le découpage → A → C → B → D** (rôles avant membres) | Garder A→B→D→C | Conséquence de #5 : seed OWNER seul → il faut un rôle avant d'ajouter un membre (OWNER unique, non assignable) | 2026-07-08 |
 | 8 | Gating **via Bouncer** (comme l'admin) : policy scopée par org + helper `memberHasPermission(userId, orgId, slug)` (charge membre→rôle→permissions ; OWNER bypass). Endpoints → `bouncer.with(Policy).authorize('x', organisation)`. Le Lot D ajoutera le middleware déclaratif + token par-dessus | assertCan service maison ; check owner minimal jeté | Réutilise le pattern Bouncer existant (permission_helpers admin), pose les bonnes bases | 2026-07-08 |
+| 9 | Catalogue permissions exposé **scopé org** (`GET .../organisations/:id/permissions-catalog`, gardé `roles:manage`) au lieu de global `/api/business/permissions` | endpoint global (public ou auth simple) | Cohérent avec la porte Bouncer par org ; l'écran de composition d'un rôle est déjà dans le contexte d'une org ; pas d'endpoint public superflu | 2026-07-08 (impl. Lot C) |
+| 10 | ~~OTP de consentement saisi par l'invité dans SA session (`me/invitations`)~~ **SUPERSÉDÉ par #14** | — | Hypothèse « l'invité a une app » fausse : espace entreprise = portail web, invité pas forcément marchand/AigleBusiness | 2026-07-08 → révisé |
+| 11 | **Retrait = soft** : `MemberStatus += REMOVED`. `memberHasPermission` ne compte que `ACTIVE`. `UNIQUE(org,user)` → réinvitation = réactiver la ligne existante (PENDING/REMOVED → repasse en flux invite) | hard delete | Historique/audit fintech, réactivation possible, trace « a été membre / a décliné » | 2026-07-08 (design Lot B) |
+| 12 | **Pas de plafond de membres** (MVP) | plafond configurable (esprit legacy MAX=4) | Le plafond legacy tenait à l'ancien modèle ; plafond par palier KYB possible plus tard si besoin | 2026-07-08 (design Lot B) |
+| 13 | **Notification invité = SMS + OTP** (canal garanti). On n'assume **aucune app** côté invité : il n'est pas forcément marchand, l'espace entreprise se gère surtout en **portail web**, AigleBusiness pas garanti. L'OTP est **conservé et porteur** (facteur possession, car notif SMS ≠ app d'acceptation) | push AigleBusiness only (app non garantie) ; supprimer l'OTP (aurait exigé notif+accept même session) | Seul le tel est un point de contact certain ; SMS+OTP marche quels que soient les clients installés | 2026-07-08 (design Lot B) |
+| 14 | **Acceptation par lien web tokenisé + OTP**, **calquée sur la feature core `team`** (`create_admin` : ligne inactive + `invitationToken` uuid +expiry → lien `dashboard/setup-password?token=` → validation token **puis** OTP). Ici : OWNER invite → membre `PENDING` + `invitationToken` +expiry ; **SMS** avec lien `BUSINESS_PORTAL_URL/accept-invitation?token=` ; à l'ouverture, envoi **OTP** (SMS) ; saisie OTP → `ACTIVE`. Endpoints **semi-publics** (le token est le credential + OTP 2e facteur) | accept in-session (#10, app non garantie) ; endpoint purement public sans token | Réutilise un pattern d'invitation web **déjà éprouvé** dans le core ; zéro app requise ; token+OTP = 2 facteurs | 2026-07-08 (design Lot B) |
+| 15 | **Divulgation contrôlée sur l'endpoint token (semi-public)** : `GET /invitations/:token` renvoie **`{organisationName, phoneMasked}`** (l'invité doit reconnaître qui l'invite et sur quel numéro confirmer) **mais PAS le rôle** (caché jusqu'à l'acceptation) + déclenche l'OTP | tout renvoyer (rôle inclus) ; ne rien renvoyer du tout | Équilibre UX/confidentialité : org+phone masqué nécessaires pour reconnaître l'invitation ; le rôle (niveau de droits) n'est révélé qu'une fois le consentement OTP donné | 2026-07-08 (design Lot B) |
+| 16 | **Retrait selon statut** : PENDING → **hard delete** (annulation d'invitation, invalide le token) ; ACTIVE → **REMOVED** soft (#11). Même route DELETE, verbe résolu par le statut courant. OWNER seed → 403 | soft REMOVED uniforme | PENDING = cycle *invitation* (jamais adhérent, rien à historiser, audit log suffit), pas cycle *adhésion* ; évite les REMOVED jamais-membres | 2026-07-08 (design Lot B) |
+| 17 | **Token invitation = 48h** ; OTP = fenêtre courte propre (~10 min, envoyé à l'ouverture du lien). Deux timers distincts. `resend` régénère un token si expiré | 5 min (team, mais team = email+action immédiate) ; 7j (fenêtre d'exposition trop longue) | Invité par SMS peut ne pas réagir tout de suite ; 48h raisonnable, l'OTP reste le 2e facteur court | 2026-07-08 (design Lot B) |
 
 ## Découpage (validé 2026-07-08)
 
 | Lot | Contenu | Dépend de | Statut |
 |-----|---------|-----------|--------|
-| A — Fondation RBAC | catalogue permissions (code, +description +sensitive) + tables org_roles + org_role_permissions + org_members ; **seed OWNER seul** ; owner devient membre OWNER à la création d'org | — | design en cours |
-| C — Rôles éditables | CRUD des rôles de l'org (composer depuis le catalogue) + endpoint listing du catalogue | A | à faire |
+| A — Fondation RBAC | catalogue permissions (code, +description +sensitive) + tables org_roles + org_role_permissions + org_members ; **seed OWNER seul** ; owner devient membre OWNER à la création d'org | — | **implémenté** (66/66) |
+| C — Rôles éditables | CRUD des rôles de l'org (composer depuis le catalogue) + endpoint listing du catalogue | A | **implémenté** (16/16) |
 | B — Membres | ajouter (KYC-vérifié + OTP consentement + confirm), lister, changer rôle, retirer (entreprise) | A, C | à faire |
 | D — Enforcement | token business scopé (user, org active, permissions) + middleware par permission (gate produit §4.6) | A, B | à faire |
 
@@ -136,7 +145,9 @@ seedés. Marchand = OWNER seul à vie.
 - Slug généré du `name` (slugify), immuable, unique par org (nom dupliqué → 409).
 - Permissions validées contre le catalogue (`isValidPermissionSlug`, ≥1) → **400** sinon.
 - Marchand : CRUD rôles rejeté (#4).
-- Supprimer un rôle avec membres → 409 (réassigner d'abord ; pas de cascade sur org_members.role_id).
+- Supprimer un rôle avec membres → 409 (réassigner d'abord). **DIFFÉRÉ au Lot B** : au Lot C aucun
+  membre ne porte de rôle non-système (les membres arrivent au Lot B), le garde-fou n'est pas
+  exerçable → on l'ajoute au Lot B avec `OrganisationMemberRepository.countByRole`.
 - Éditer = name + remplacement complet des permissions (delete+insert en transaction). Rôle
   introuvable/autre org → 404.
 - Exceptions : SystemRoleImmutable(403), RoleNameAlreadyExists(409), InvalidPermissionSlug(**400**),
@@ -152,11 +163,83 @@ seedés. Marchand = OWNER seul à vie.
 - **HTTP + Bouncer** : user + token, owner d'une org → POST role passe ; user non-membre → 403.
 - **Catalogue** : GET /api/business/permissions → 11 permissions avec `sensitive`.
 
+## Lot B — Design (membres, décisions #10–#17)
+
+Entreprise uniquement (#4). Feature `aiglebusiness/membership/`. Consentement = **lien web
+tokenisé + OTP**, calqué sur la feature core `team` (#14), invité notifié par **SMS** (#13).
+
+### Architecture
+
+**Modèle** : `OrganisationMember` gagne `invitationToken: string|null` (+index), `invitationExpiresAt:
+DateTime|null`. Enum `MemberStatus += REMOVED` (applicatif, colonne `status` déjà VARCHAR).
+
+**Endpoints OWNER** (canal `client`, policy `OrganisationMemberPolicy.manage` = permission `members:manage`) :
+| Méthode | Route | Rôle |
+|---|---|---|
+| GET | `.../organisations/:organisationId/members` | lister (ACTIVE/PENDING/REMOVED) + rôle |
+| POST | `.../organisations/:organisationId/members` | inviter `{phone, roleId}` → PENDING + token + SMS lien |
+| POST | `.../organisations/:organisationId/members/:memberId/resend` | régénérer token + renvoyer SMS |
+| PATCH | `.../organisations/:organisationId/members/:memberId/role` | changer `{roleId}` |
+| DELETE | `.../organisations/:organisationId/members/:memberId` | retirer (PENDING→delete, ACTIVE→REMOVED, #16) |
+
+**Endpoints invité** (semi-publics, le token EST le credential + OTP 2e facteur) :
+| Méthode | Route | Rôle |
+|---|---|---|
+| GET | `/api/business/invitations/:token` | valide token (404/410) → renvoie **`{organisationName, phoneMasked}`** (PAS le rôle, #15) **et envoie l'OTP** |
+| POST | `/api/business/invitations/:token/accept` | `{otp}` → vérifie OTP → ACTIVE, token effacé |
+| POST | `/api/business/invitations/:token/decline` | → REMOVED (optionnel) |
+
+SMS porte `BUSINESS_PORTAL_URL/accept-invitation?token=…`. Token→membre→user→phone résolu serveur
+(l'invité ne saisit jamais son tel). OTP via services **core** `OtpSendingService`/`OtpVerificationService`
++ `MembershipConsentOtpTemplate`. Token 48h, OTP ~10 min (#17).
+
+**Use cases** (`membership/application/use_cases/members/`) : Invite, ResendInvitation, ListMembers,
+ChangeMemberRole, RemoveMember, GetInvitationByToken (+OTP), AcceptInvitation, DeclineInvitation.
+
+**Repo étendu** `OrganisationMemberRepository` : findByOrganisationAndUser, findById,
+findByInvitationToken, listByOrganisation, updateStatus, updateRole, setInvitationToken, delete,
+**countActiveByRole** (garde-fou delete rôle Lot C).
+
+### Flux & erreurs
+
+**Invite** : Bouncer `members:manage` → `roleId` ∈ org (404 sinon) → `findByPhone` (404 pas de compte
+Aigle) → KYC VERIFIED (403 sinon) → selon ligne `(org,user)` (#11) : ACTIVE→409, PENDING→régénère
+token, REMOVED→repasse PENDING+roleId, aucune→INSERT PENDING → SMS lien.
+
+**Accept** : `GET :token` (404 absent / 410 expiré) envoie OTP ; `POST :token/accept {otp}` re-valide
+token + `OtpVerificationService.verify` (propage invalid/expired/locked core) → PENDING→ACTIVE.
+
+**Exceptions produit** : MemberAlreadyExists(409), InviteeNotAigleUser(404), InviteeKycNotVerified(403),
+InvitationTokenInvalid(404), InvitationExpired(410), MemberNotFound(404), OwnerMemberImmutable(403).
+OTP → exceptions **core** réutilisées.
+
+### Impact sur l'existant
+
+1. **⚠️ `memberHasPermission` filtre `status = ACTIVE`** (correctif Lot C : aujourd'hui non filtré →
+   PENDING/REMOVED serait autorisé). Rétro-couvert par tests.
+2. **`DeleteRoleUseCase`** : câble `countActiveByRole > 0` → 409 `RoleHasMembersException` (différé Lot C).
+3. **Migration batch 10** : colonnes `invitation_token`(+index)/`invitation_expires_at` sur
+   `organisation_members`. Enum REMOVED = applicatif (pas de DDL).
+4. **Config** : `BUSINESS_PORTAL_URL` (env.ts + config/app.ts, comme ADMIN_DASHBOARD_URL).
+5. **Core consommé, pas modifié** — invariant depcruise intact.
+
+### Tests
+
+- **Use cases** : invite (succès ; 404 pas de compte ; 403 KYC ; 404 roleId ; 409 ACTIVE ; REMOVED→PENDING ;
+  PENDING→régénère) ; accept (OK ; 404 ; 410 ; OTP faux ; déjà ACTIVE) ; changeRole (OWNER 403 ; hors org 404) ;
+  remove (PENDING hard delete ; ACTIVE→REMOVED ; OWNER 403) ; decline.
+- **Régression RBAC** : `memberHasPermission` PENDING→false, REMOVED→false, ACTIVE selon rôle, OWNER bypass ;
+  `DeleteRoleUseCase` rôle avec membre ACTIVE → 409.
+- **HTTP** : OWNER invite 201 ; non-membre 403 ; sans token 401 ; `GET :token` renvoie {org, phoneMasked}
+  sans rôle + déclenche OTP ; `POST accept` 200 ACTIVE.
+- **Doc API** : endpoints ajoutés à `docs/swagger/business.yaml`.
+
 ## Hors-scope (confirmé)
 
 - Rôles ADMIN/OPERATOR/VIEWER **non seedés** (exemples doc seulement ; l'org les crée au Lot C).
 - Table permission en base (permissions = code seul).
-- Enforcement (Lot D), gestion membres (Lot B), CRUD rôles (Lot C) — lots ultérieurs.
+- Enforcement (Lot D) — lot ultérieur.
+- Notification **push** de l'invité (amélioration future ; MVP = SMS seul, #13).
 
 ## Prochaine session
 
@@ -166,6 +249,25 @@ MembershipService.seedForNewOrganisation), câblé dans CreateOrganisationUseCas
 membre OWNER, atomique), migrations batch 9, tests membership_flow (marchand+entreprise). tsc 57,
 functional 66/66, depcruise 0 error.
 
-**Lot C : design COMPLET** (architecture Bouncer + règles/validation + tests, décision #8). Prêt à
-implémenter. Prochain : implémenter le Lot C, puis Lot B (membres + OTP consentement), puis Lot D
-(enforcement : middleware déclaratif + scoping token par-dessus le helper memberHasPermission).
+**Lot C : IMPLÉMENTÉ ✅** — feature `aiglebusiness/membership/` :
+- Use cases `application/use_cases/roles/` : Create/Update/Delete/ListRoles + ListPermissionsCatalog.
+- Helper `memberHasPermission` + policy `OrganisationRolePolicy.manage(user, organisationId)` (Bouncer,
+  scopé org), câblée dans RoleController + PermissionController.
+- DTOs `role.dto.ts` (Create/Update Request + RoleResponse) et `permission.dto.ts` (catalogue).
+- Validateurs Vine (create/update role), routes `membershipClientRoutes` montées dans start/routes.
+- `assertValidPermissions` remontée dans `permissions.config` (domaine) ; map `BUSINESS_PERMISSION`
+  de slugs nommés pour les policies.
+- **Écart assumé vs design** : le catalogue est exposé **scopé org** `GET /api/business/organisations/
+  :organisationId/permissions-catalog` (gardé par `roles:manage`) plutôt que global `/api/business/
+  permissions` — cohérent avec la porte Bouncer par org et évite un endpoint public inutile.
+- Doc API : endpoints + schémas ajoutés à `docs/swagger/business.yaml`.
+- Tests `role_management_flow.spec` : **16/16** (use cases, memberHasPermission, HTTP+Bouncer 200/403/401).
+- **Aucune migration** (pas de changement de schéma — tables posées au Lot A).
+- Vérifs : tsc sans erreur membership, depcruise 0 error (invariant core intact).
+
+**Prochain : Lot B** (membres : ajout KYC-vérifié + OTP consentement + confirm, lister, changer rôle,
+retirer) — y ajouter le garde-fou `delete rôle avec membres → 409` (différé du Lot C). Puis Lot D
+(enforcement : middleware déclaratif + scoping token par-dessus `memberHasPermission`).
+
+> ⚠️ 4 tests **core** échouent déjà hors périmètre (3 KYC unit : process/submit ; 1 ProviderErrorService
+> ACCOUNT_BLOCKED→adminAction). Reproduits en isolation → pré-existants, sans lien avec le Lot C.
