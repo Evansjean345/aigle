@@ -7,15 +7,14 @@ import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/u
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 
 /**
- * Caractérise l'endpoint de résolution du QR marchand (canal consumer aiglesend).
- * Le client, ayant distingué un QR marchand au scan (préfixe aiglepay:merchant:),
- * envoie le code brut → l'endpoint renvoie {displayName, active}, SANS account_id
+ * Caractérise l'endpoint PUBLIC de résolution du QR marchand (core/qr), consommé
+ * par la page de paiement aigleplay. Le payeur ouvre le lien du QR → la page
+ * résout le code → l'endpoint renvoie {displayName, active}, SANS account_id
  * (l'identifiant de compte reste côté serveur pour le paiement).
  *
- * Endpoint device-gated (comme le resolve P2P frère), non auth.
+ * Endpoint public : aucune authentification (le payeur n'est pas forcément un
+ * utilisateur Aigle).
  */
-const DEVICE_HEADERS = { 'X-Device-Fingerprint': 'fp-test', 'X-Device-Uid': 'dev-test' }
-
 async function createMerchant(name: string): Promise<string> {
   const useCase = await app.container.make(CreateOrganisationUseCase)
   const org = await useCase.execute({
@@ -39,8 +38,7 @@ test.group('QR marchand | résolution', (group) => {
 
   test('code connu → 200 {displayName, active}, sans account_id', async ({ client, assert }) => {
     const code = await createMerchant('Boutique Ali')
-
-    const res = await client.get(`/api/mobile/qr/merchant/resolve/${code}`).headers(DEVICE_HEADERS)
+    const res = await client.get(`/api/qr/merchant/${code}`)
 
     res.assertStatus(200)
     res.assertBodyContains({ displayName: 'Boutique Ali', active: true })
@@ -50,9 +48,7 @@ test.group('QR marchand | résolution', (group) => {
   })
 
   test('code inconnu → 404', async ({ client }) => {
-    const res = await client
-      .get(`/api/mobile/qr/merchant/resolve/${randomUUID()}`)
-      .headers(DEVICE_HEADERS)
+    const res = await client.get(`/api/qr/merchant/${randomUUID()}`)
 
     res.assertStatus(404)
     res.assertBodyContains({ code: 'MERCHANT_QR_NOT_FOUND' })

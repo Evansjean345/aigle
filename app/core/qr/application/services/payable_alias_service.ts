@@ -36,7 +36,6 @@ export default class PayableAliasService {
   ): Promise<string> {
     const existing = await this.payableAliasRepository.findByAccountId(accountId, trx)
 
-
     if (existing) {
       return existing.code
     }

@@ -65,8 +65,9 @@ test.group('Business organisation | création', (group) => {
     assert.equal(result.level, OrganisationLevel.LEVEL_1)
     assert.equal(result.status, OrganisationStatus.ACTIVE)
     assert.isString(result.payableCode)
-    // Payload QR complet, préfixé pour la distinction au scan.
-    assert.equal(result.payableQr, `aiglepay:merchant:${result.payableCode}`)
+    // Le QR encode un lien https vers la page aigleplay (base + code).
+    assert.isTrue(result.payableQr!.startsWith('https://'))
+    assert.isTrue(result.payableQr!.endsWith(`/${result.payableCode}`))
 
     const org = await Organisation.query()
       .where('organisation_id', result.organisationId)

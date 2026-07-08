@@ -3,15 +3,16 @@ import { inject } from '@adonisjs/core'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
 
 /**
- * Résolution d'un QR marchand scanné par le consumer.
+ * Résolution PUBLIQUE d'un alias payable (QR marchand).
  *
- * Le client a déjà distingué un QR marchand (préfixe `aiglepay:merchant:`) d'un
- * QR P2P au scan ; il envoie ici le code brut. Fin wrapper vers la capacité core
- * PayableAliasService.resolve. N'expose QUE le nom + l'état : l'account_id reste
- * côté serveur (le paiement prendra le code et résoudra le compte en interne).
+ * Sert la page de paiement aigleplay : le payeur (pas forcément un utilisateur
+ * Aigle) ouvre le lien du QR, la page résout le code pour afficher le marchand.
+ * Endpoint core, produit-neutre et NON authentifié (audience `public`). Ne
+ * renvoie que le nom + l'état — jamais l'account_id (le paiement, côté serveur,
+ * reprend le code et résout le compte en interne).
  */
 @inject()
-export default class MerchantQrController {
+export default class PayableAliasController {
   constructor(private readonly payableAliasService: PayableAliasService) {}
 
   async resolve({ params, response }: HttpContext): Promise<void> {

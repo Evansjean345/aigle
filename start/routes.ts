@@ -14,6 +14,7 @@ import mobileKycRoutes from '#core/identity/kyc/presentation/mobile/routes/kyc_r
 import mobileDeviceRoutes from '#core/identity/device/presentation/mobile/routes/device_routes'
 import mobileDebitPhoneRoutes from '#core/identity/user/presentation/mobile/routes/debit_phone_routes'
 import businessClientRoutes from '#aiglebusiness/organisation/presentation/client/routes/business_routes'
+import payableAliasRoutes from '#core/qr/presentation/public/routes/payable_alias_routes'
 
 router
   .group(() => {
@@ -29,6 +30,7 @@ router
     router.group(mobileDeviceRoutes)
     router.group(mobileDebitPhoneRoutes)
     router.group(businessClientRoutes)
+    router.group(payableAliasRoutes)
   })
   .prefix('/api')
 
