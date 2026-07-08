@@ -26,7 +26,14 @@ import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/d
  * L'org n'a aucune FK vers le core → un ownerUserId arbitraire suffit (pas de
  * user réel), et le KYC est passé dans la commande (frontière par ID).
  */
-function command(overrides: Partial<{ ownerUserId: string; ownerKycStatus: UserKycStatus; name: string; accountType: OrganisationAccountType }> = {}) {
+function command(
+  overrides: Partial<{
+    ownerUserId: string
+    ownerKycStatus: UserKycStatus
+    name: string
+    accountType: OrganisationAccountType
+  }> = {}
+) {
   return {
     ownerUserId: overrides.ownerUserId ?? randomUUID(),
     ownerKycStatus: overrides.ownerKycStatus ?? UserKycStatus.VERIFIED,
@@ -58,6 +65,8 @@ test.group('Business organisation | création', (group) => {
     assert.equal(result.level, OrganisationLevel.LEVEL_1)
     assert.equal(result.status, OrganisationStatus.ACTIVE)
     assert.isString(result.payableCode)
+    // Payload QR complet, préfixé pour la distinction au scan.
+    assert.equal(result.payableQr, `aiglepay:merchant:${result.payableCode}`)
 
     const org = await Organisation.query()
       .where('organisation_id', result.organisationId)
@@ -165,8 +174,12 @@ test.group('Business organisation | liste', (group) => {
     const ownerUserId = randomUUID()
     const create = await app.container.make(CreateOrganisationUseCase)
 
-    await create.execute(command({ ownerUserId, name: 'A', accountType: OrganisationAccountType.MARCHAND }))
-    await create.execute(command({ ownerUserId, name: 'B', accountType: OrganisationAccountType.ENTERPRISE }))
+    await create.execute(
+      command({ ownerUserId, name: 'A', accountType: OrganisationAccountType.MARCHAND })
+    )
+    await create.execute(
+      command({ ownerUserId, name: 'B', accountType: OrganisationAccountType.ENTERPRISE })
+    )
     // Une org d'un autre propriétaire ne doit pas apparaître.
     await create.execute(command({ name: 'C', accountType: OrganisationAccountType.MARCHAND }))
 
