@@ -1,6 +1,6 @@
 ---
-status: draft
-etape: 3
+status: in-review
+etape: 5
 lot: A
 derniere_maj: 2026-07-08
 ---
@@ -59,18 +59,20 @@ back-office admin (§4.6) → bases extensibles.
 | 2 | **A1 — RBAC produit-owned** : tables + catalogue dans aiglebusiness, indépendant du RBAC team du core | A2 réutiliser core/team (couple business→team, mélange admins/users) ; A3 hybride | Sujets distincts (users membres ≠ admins staff), portée par-org vs globale, invariant produit↛core | 2026-07-08 |
 | 3 | Permissions = **slugs en code seulement** (permissions.config.ts), pas de table permission ni sync ; org_role_permissions stocke le slug | Table permission synchronisée (comme admin) | Permissions business fixes, source unique = code, plus simple | 2026-07-08 |
 | 4 | **RBAC membres/rôles = préoccupation ENTREPRISE.** Marchand = mono-user (owner=seul membre, rôle OWNER, pas d'ajout de membre ni gestion de rôles). Entreprise = multi-membres + rôles. OWNER seedé pour les deux ; ADMIN/OPERATOR/VIEWER + gestion membres = entreprise uniquement | Traiter marchand et entreprise pareil | §4.3 marchand mono-user / entreprise multi-membres | 2026-07-08 |
-| 5 | Entreprise : **seeder OWNER+ADMIN+OPERATOR+VIEWER** (is_system) à la création ; rôles custom en plus via Lot C. Marchand : OWNER seul | Seeder OWNER seul (Lot C bloquerait le Lot B) | Opérationnel out-of-the-box | 2026-07-08 |
+| 5 | ~~Seeder OWNER+ADMIN+OPERATOR+VIEWER~~ **RÉVISÉ → seeder OWNER SEUL** (les deux types) ; l'owner crée les autres rôles lui-même | Seeder un jeu par défaut | User : « le reste c'est le owner qui se charge » | 2026-07-08 |
+| 6 | Catalogue de permissions = `{slug, name, description, sensitive:boolean}` ; **endpoint de listing** du catalogue (l'owner compose ses rôles, la description + le flag sensitive le guident) | Slug seul sans métadonnées | UX : l'owner doit comprendre et être alerté sur les permissions sensibles | 2026-07-08 |
+| 7 | **Réordonner le découpage → A → C → B → D** (rôles avant membres) | Garder A→B→D→C | Conséquence de #5 : seed OWNER seul → il faut un rôle avant d'ajouter un membre (OWNER unique, non assignable) | 2026-07-08 |
 
 ## Découpage (validé 2026-07-08)
 
 | Lot | Contenu | Dépend de | Statut |
 |-----|---------|-----------|--------|
-| A — Fondation RBAC | catalogue permissions (code) + tables org_role + org_role_permission + rôles par défaut seedés (OWNER…) + table org_member ; owner devient membre OWNER à la création d'org | — | design en cours |
-| B — Membres | ajouter (KYC-vérifié + OTP consentement + confirm), lister, changer rôle, retirer | A | à faire |
+| A — Fondation RBAC | catalogue permissions (code, +description +sensitive) + tables org_roles + org_role_permissions + org_members ; **seed OWNER seul** ; owner devient membre OWNER à la création d'org | — | design en cours |
+| C — Rôles éditables | CRUD des rôles de l'org (composer depuis le catalogue) + endpoint listing du catalogue | A | à faire |
+| B — Membres | ajouter (KYC-vérifié + OTP consentement + confirm), lister, changer rôle, retirer (entreprise) | A, C | à faire |
 | D — Enforcement | token business scopé (user, org active, permissions) + middleware par permission (gate produit §4.6) | A, B | à faire |
-| C — Rôles éditables | CRUD des rôles de l'org (composer depuis le catalogue) | A | à faire |
 
-Ordre : A → B → D → C.
+Ordre : **A → C → B → D** (rôles avant membres, cf. décision #7).
 
 ## Lot A — Design
 
@@ -90,23 +92,36 @@ Ordre : A → B → D → C.
 
 ### Catalogue de permissions + rôles par défaut (validé)
 
-**Catalogue** (`permissions.config.ts`, slugs, extensible) : `organisation:manage`, `members:manage`,
-`roles:manage`, `kyb:submit`, `qr:manage`, `payout:initiate`, `payout:approve`,
+**Catalogue** (`permissions.config.ts`, extensible). Chaque entrée = `{ slug, name, description,
+sensitive:boolean }`. Un **endpoint de listing** l'expose (l'owner compose ses rôles ; description +
+flag `sensitive` le guident). Permissions : `organisation:manage`, `members:manage`, `roles:manage`,
+`kyb:submit`, `qr:manage`, `payout:initiate` (sensible), `payout:approve` (sensible),
 `transactions:view`, `wallet:view`.
 
-**Rôles par défaut seedés à la création** (`is_system`) :
-- **Marchand** : **OWNER seul** (mono-user).
-- **Entreprise** : OWNER + ADMIN + OPERATOR + VIEWER (+ rôles custom via Lot C).
-- OWNER = toutes permissions, unique, protégé (non supprimable/rétrogradable).
-- ADMIN = gestion complète (ne peut retirer l'OWNER = règle métier).
-- OPERATOR = qr:manage, payout:initiate, transactions:view, wallet:view.
-- VIEWER = transactions:view, wallet:view.
+**Seeding à la création** : **OWNER SEUL**, pour les deux types (marchand + entreprise). OWNER =
+toutes permissions, unique, protégé (non supprimable/rétrogradable), attribué au créateur.
+L'entreprise crée ensuite SES rôles (Lot C) — ADMIN/OPERATOR/VIEWER ne sont que des exemples, pas
+seedés. Marchand = OWNER seul à vie.
 
-## Hors-scope (à confirmer)
+### Impact sur l'existant + flux + tests (validé)
 
-- (à remplir à l'étape 3 — YAGNI)
+- **`CreateOrganisationUseCase`** : dans la même transaction (après `openFor`), appelle
+  `MembershipService.seedForNewOrganisation(orgId, ownerUserId, trx)` = seede le rôle **OWNER**
+  (org_roles + org_role_permissions = toutes les permissions du catalogue) + crée le **membre
+  OWNER** (le créateur). Identique marchand/entreprise (OWNER seul). Atomique (rollback si échec).
+- **Dépendance** organisation → membership (intra-produit, une direction ; membership référence
+  organisation_id par valeur → pas de cycle).
+- **Tests Lot A** : marchand ET entreprise → 1 rôle OWNER (is_system, toutes perms) + 1 membre OWNER
+  (= owner) ; étendre `organisation_flow.spec`.
+
+## Hors-scope (confirmé)
+
+- Rôles ADMIN/OPERATOR/VIEWER **non seedés** (exemples doc seulement ; l'org les crée au Lot C).
+- Table permission en base (permissions = code seul).
+- Enforcement (Lot D), gestion membres (Lot B), CRUD rôles (Lot C) — lots ultérieurs.
 
 ## Prochaine session
 
-Étape 3 sur le Lot A (approche de la fondation RBAC). Prochaine décision : RBAC produit-owned vs
-réutilisation du RBAC team du core.
+**Lot A : design COMPLET** (architecture + catalogue/rôles + impact create org, 7 décisions).
+Prêt à implémenter. Options : (1) implémenter le Lot A, (2) designer le Lot C (rôles éditables)
+avant — ordre A → C → B → D. Les lots C/B/D restent à concevoir (étapes 3-4 par lot).
