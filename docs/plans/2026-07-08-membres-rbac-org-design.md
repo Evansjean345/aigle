@@ -58,6 +58,8 @@ back-office admin (§4.6) → bases extensibles.
 | 1 | RBAC org **riche** : catalogue de permissions en CODE + rôles composables par l'org + assignés aux membres (même pattern que le back-office admin §4.6) | Rôles fixes code-only (pas assez flexible) ; plat legacy booléens (ingérable) | User « tout prendre + poser les bonnes bases » ; cohérence avec le RBAC §4.6 déjà établi | 2026-07-08 |
 | 2 | **A1 — RBAC produit-owned** : tables + catalogue dans aiglebusiness, indépendant du RBAC team du core | A2 réutiliser core/team (couple business→team, mélange admins/users) ; A3 hybride | Sujets distincts (users membres ≠ admins staff), portée par-org vs globale, invariant produit↛core | 2026-07-08 |
 | 3 | Permissions = **slugs en code seulement** (permissions.config.ts), pas de table permission ni sync ; org_role_permissions stocke le slug | Table permission synchronisée (comme admin) | Permissions business fixes, source unique = code, plus simple | 2026-07-08 |
+| 4 | **RBAC membres/rôles = préoccupation ENTREPRISE.** Marchand = mono-user (owner=seul membre, rôle OWNER, pas d'ajout de membre ni gestion de rôles). Entreprise = multi-membres + rôles. OWNER seedé pour les deux ; ADMIN/OPERATOR/VIEWER + gestion membres = entreprise uniquement | Traiter marchand et entreprise pareil | §4.3 marchand mono-user / entreprise multi-membres | 2026-07-08 |
+| 5 | Entreprise : **seeder OWNER+ADMIN+OPERATOR+VIEWER** (is_system) à la création ; rôles custom en plus via Lot C. Marchand : OWNER seul | Seeder OWNER seul (Lot C bloquerait le Lot B) | Opérationnel out-of-the-box | 2026-07-08 |
 
 ## Découpage (validé 2026-07-08)
 
@@ -85,6 +87,20 @@ Ordre : A → B → D → C.
   - `org_roles` (id, organisation_id, slug, name, is_system, timestamps ; UNIQUE org_id+slug)
   - `org_role_permissions` (role_id, permission_slug)
   - `org_members` (id, organisation_id, user_id, role_id, status, timestamps ; UNIQUE org_id+user_id)
+
+### Catalogue de permissions + rôles par défaut (validé)
+
+**Catalogue** (`permissions.config.ts`, slugs, extensible) : `organisation:manage`, `members:manage`,
+`roles:manage`, `kyb:submit`, `qr:manage`, `payout:initiate`, `payout:approve`,
+`transactions:view`, `wallet:view`.
+
+**Rôles par défaut seedés à la création** (`is_system`) :
+- **Marchand** : **OWNER seul** (mono-user).
+- **Entreprise** : OWNER + ADMIN + OPERATOR + VIEWER (+ rôles custom via Lot C).
+- OWNER = toutes permissions, unique, protégé (non supprimable/rétrogradable).
+- ADMIN = gestion complète (ne peut retirer l'OWNER = règle métier).
+- OPERATOR = qr:manage, payout:initiate, transactions:view, wallet:view.
+- VIEWER = transactions:view, wallet:view.
 
 ## Hors-scope (à confirmer)
 
