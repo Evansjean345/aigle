@@ -1,0 +1,188 @@
+paths:
+  /api/business/health:
+    get:
+      operationId: businessHealth
+      summary: Liveness du module business
+      description: |
+        Atteste que le module produit business (aiglebusiness) boote et est joignable.
+        Ce n'est PAS un health check d'infrastructure (celui-ci est sur `/health`).
+      tags:
+        - Business - Santé
+      responses:
+        '200':
+          description: Module opérationnel
+          content:
+            application/json:
+              example:
+                module: aiglebusiness
+                status: ok
+
+  /api/business/organisations:
+    post:
+      operationId: createOrganisation
+      summary: Créer une organisation
+      description: |
+        Crée une organisation pour l'utilisateur authentifié, puis ouvre son compte money
+        (account + wallet). Un **marchand** est auto-`LEVEL_1` (opérationnel immédiatement) et
+        reçoit son **alias payable** (QR de comptoir) ; une **entreprise** reste `LEVEL_0`
+        (avant KYB) sans alias.
+
+        Gardes : le propriétaire doit avoir un **KYC valide** ; un utilisateur ne peut
+        posséder qu'**un seul marchand** (les entreprises sont illimitées).
+      tags:
+        - Business - Organisations
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganisationRequest'
+            example:
+              name: Boutique Ali
+              account_type: marchand
+      responses:
+        '201':
+          description: Organisation créée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganisationResponse'
+              example:
+                organisationId: a3f1c8e2-7b04-4c9a-9f22-1d5e6a8b3c40
+                name: Boutique Ali
+                accountType: marchand
+                level: level_1
+                status: active
+                payableCode: a3f1c8e2-7b04-4c9a-9f22-1d5e6a8b3c40
+                payableQr: https://pay.aigle/a3f1c8e2-7b04-4c9a-9f22-1d5e6a8b3c40
+        '403':
+          description: KYC du propriétaire non valide
+          content:
+            application/json:
+              example:
+                code: E_OWNER_KYC_NOT_VERIFIED
+                message: Un KYC valide est requis pour créer une organisation
+        '409':
+          description: L'utilisateur possède déjà un compte marchand
+          content:
+            application/json:
+              example:
+                code: E_MERCHANT_ACCOUNT_ALREADY_EXISTS
+                message: Vous possédez déjà un compte marchand
+        '422':
+          description: Payload invalide
+          content:
+            application/json:
+              example:
+                errors:
+                  - field: account_type
+                    message: The selected account_type is invalid
+
+    get:
+      operationId: listOrganisations
+      summary: Lister mes organisations
+      description: Renvoie les organisations possédées par l'utilisateur authentifié.
+      tags:
+        - Business - Organisations
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des organisations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrganisationResponse'
+
+  /api/qr/merchant/{code}:
+    get:
+      operationId: resolveMerchantQr
+      summary: Résoudre un QR marchand (public)
+      description: |
+        Résolution **publique** d'un alias payable, consommée par la page de paiement
+        aigleplay. Le payeur n'est pas forcément un utilisateur Aigle. Ne renvoie que le
+        nom et l'état — **jamais l'account_id** (le paiement reprend le code et résout le
+        compte côté serveur).
+      tags:
+        - QR marchand
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Code de l'alias payable (extrait du lien du QR)
+      responses:
+        '200':
+          description: Marchand résolu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantResolveResponse'
+              example:
+                displayName: Boutique Ali
+                active: true
+        '404':
+          description: Code inconnu
+          content:
+            application/json:
+              example:
+                code: MERCHANT_QR_NOT_FOUND
+
+components:
+  schemas:
+    CreateOrganisationRequest:
+      type: object
+      required:
+        - name
+        - account_type
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+          example: Boutique Ali
+        account_type:
+          type: string
+          enum: [marchand, enterprise]
+          example: marchand
+
+    OrganisationResponse:
+      type: object
+      properties:
+        organisationId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        accountType:
+          type: string
+          enum: [marchand, enterprise]
+        level:
+          type: string
+          enum: [level_0, level_1, level_2]
+        status:
+          type: string
+          enum: [active, inactive]
+        payableCode:
+          type: string
+          nullable: true
+          description: Code de l'alias payable (marchand uniquement)
+        payableQr:
+          type: string
+          nullable: true
+          description: Lien https encodé dans le QR marchand (marchand uniquement)
+
+    MerchantResolveResponse:
+      type: object
+      properties:
+        displayName:
+          type: string
+          example: Boutique Ali
+        active:
+          type: boolean
+          example: true

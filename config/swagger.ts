@@ -27,15 +27,15 @@ const commonDefinition = {
   },
 }
 
-// --- Mobile Swagger Spec ---
-const mobileOptions: swaggerJsdoc.Options = {
+// --- Aiglesend (produit consumer) Swagger Spec ---
+const aiglesendOptions: swaggerJsdoc.Options = {
   definition: {
     ...commonDefinition,
     info: {
-      title: 'Aigle Send API — Mobile',
+      title: 'Aigle API — Aiglesend',
       version: '1.0.0',
       description:
-        "Documentation de l'API mobile Aigle Send — transfert d'argent, wallets, profil, appareils.",
+        "Documentation de l'API du produit consumer Aiglesend — transfert d'argent, wallets, profil, appareils.",
     },
     tags: [
       { name: 'Auth', description: 'Authentification mobile' },
@@ -107,8 +107,28 @@ const adminOptions: swaggerJsdoc.Options = {
   ],
 }
 
-export const mobileSwaggerSpec = swaggerJsdoc(mobileOptions)
+// --- Aiglebusiness (produit business) Swagger Spec ---
+const aiglebusinessOptions: swaggerJsdoc.Options = {
+  definition: {
+    ...commonDefinition,
+    info: {
+      title: 'Aigle API — Aiglebusiness',
+      version: '1.0.0',
+      description:
+        "Documentation de l'API du produit business Aiglebusiness — organisations, membres, QR marchand.",
+    },
+    tags: [
+      { name: 'Business - Organisations', description: 'Création et liste des organisations' },
+      { name: 'QR marchand', description: 'Résolution publique du QR marchand (page de paiement)' },
+      { name: 'Business - Santé', description: 'Liveness du module business' },
+    ],
+  },
+  apis: [path.join(docsDir, 'business.yaml')],
+}
+
+export const aiglesendSwaggerSpec = swaggerJsdoc(aiglesendOptions)
 export const adminSwaggerSpec = swaggerJsdoc(adminOptions)
+export const aiglebusinessSwaggerSpec = swaggerJsdoc(aiglebusinessOptions)
 
 // Filter specs to only include paths matching their audience
 function filterPaths(spec: any, keepAdmin: boolean): any {
@@ -129,5 +149,7 @@ function filterPaths(spec: any, keepAdmin: boolean): any {
   return filtered
 }
 
-export const mobileSpec = filterPaths(mobileSwaggerSpec, false)
+export const aiglesendSpec = filterPaths(aiglesendSwaggerSpec, false)
 export const adminSpec = filterPaths(adminSwaggerSpec, true)
+// Le yaml business ne contient que des tags business → pas de filtrage d'audience.
+export const aiglebusinessSpec = aiglebusinessSwaggerSpec
