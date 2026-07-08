@@ -1,7 +1,7 @@
 ---
-status: approved
-etape: 6
-lot: B
+status: in-review
+etape: 4
+lot: D
 derniere_maj: 2026-07-08
 ---
 
@@ -73,6 +73,8 @@ back-office admin (§4.6) → bases extensibles.
 | 16 | **Retrait selon statut** : PENDING → **hard delete** (annulation d'invitation, invalide le token) ; ACTIVE → **REMOVED** soft (#11). Même route DELETE, verbe résolu par le statut courant. OWNER seed → 403 | soft REMOVED uniforme | PENDING = cycle *invitation* (jamais adhérent, rien à historiser, audit log suffit), pas cycle *adhésion* ; évite les REMOVED jamais-membres | 2026-07-08 (design Lot B) |
 | 17 | **Token invitation = 48h** ; OTP = fenêtre courte propre (~10 min, envoyé à l'ouverture du lien). Deux timers distincts. `resend` régénère un token si expiré | 5 min (team, mais team = email+action immédiate) ; 7j (fenêtre d'exposition trop longue) | Invité par SMS peut ne pas réagir tout de suite ; 48h raisonnable, l'OTP reste le 2e facteur court | 2026-07-08 (design Lot B) |
 | 18 | **Le produit consomme le core identité via un PORT de service** (`UserDirectoryService` → `UserLookupResult` minimal : userId, nom, phone, `kycVerified` booléen), **jamais** via `UserRepository` ni le modèle `User`. Règle depcruise `produit-consomme-core-par-service` (warn) l'enforce | injecter `UserRepository`/`User` dans les use cases produit (violation d'indépendance des couches) | Anti-corruption : le core n'expose qu'un contrat minimal ; l'enum KYC reste interne ; condition de l'extractibilité en micro-services EN COUCHE | 2026-07-08 (correctif impl. Lot B) |
+| 19 | **Enforcement Lot D = middleware déclaratif + résolution LIVE, org depuis l'URL, token INCHANGÉ.** Un `requirePermission('slug')` lit `:organisationId` (URL) + `auth.user` et vérifie `memberHasPermission` en live (filtre ACTIVE). Pas de scope d'org ni de permissions dans le token | token scopé (org active + permissions dans les abilities) ; hybride org-en-token | Révocation immédiate (pas de staleness) ; multi-org naturel via l'URL ; zéro flux auth supplémentaire ; bake de permissions dans un token = anti-pattern sécurité | 2026-07-08 (design Lot D) |
+| 20 | **Le middleware REMPLACE Bouncer** (révise #8) : `requirePermission` appelle `memberHasPermission` directement ; les policies `OrganisationRolePolicy`/`OrganisationMemberPolicy` et les `bouncer.with(...).authorize()` des contrôleurs sont **supprimés**. Une seule mécanique de gating, au niveau route | garder Bouncer et l'appeler depuis le middleware (policy générique artificielle) ; garder les deux (redondant) | Moins de code, gating en un seul endroit lisible ; les policies par-permission figées s'adaptent mal à un `requirePermission(slug)` générique | 2026-07-08 (design Lot D, révise #8) |
 
 ## Découpage (validé 2026-07-08)
 
@@ -288,6 +290,12 @@ functional 66/66, depcruise 0 error.
 - Tests `member_management_flow.spec` : **16/16** (invitation/gardes, accept token+OTP, changeRole,
   retrait soft/hard, correctifs RBAC). Suite membership complète : **34/34**.
 - Vérifs : tsc sans erreur membership, depcruise **0 error** (invariant core intact), eslint clean.
+
+> ⏸️ **Lot D EN PAUSE (2026-07-08)** : design Lot D validé jusqu'aux décisions #19/#20 (middleware
+> `requirePermission` live + suppression des policies Bouncer), mais **suspendu** pour concevoir
+> d'abord les fondations **auth multi-app & gestion d'appareils** (les deux apps partagent la même
+> auth, sans distinction ni device management web). Voir `docs/plans/2026-07-08-auth-multi-app-device-design.md`.
+> Reprendre le Lot D après.
 
 **Prochain : Lot D** (enforcement : middleware déclaratif par permission + scoping token business
 par-dessus `memberHasPermission`). Restent aussi hors-Lot : notification push invité (amélioration),
