@@ -6,7 +6,7 @@ import {
   WalletToWalletRequestDto,
   type RecipientResolution,
 } from '#aiglesend/operations/application/dtos/wallet_to_wallet.dto'
-import CountryRepository from '#core/catalog/country/domain/interfaces/country_repository'
+import CountryDirectoryService from '#core/catalog/country/application/services/country_directory_service'
 import ModeUnsupportedException from '#aiglesend/operations/domain/exceptions/mode_unsupported_exception'
 import InvalidAmountException from '#aiglesend/operations/domain/exceptions/invalid_amount_exception'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
@@ -34,7 +34,7 @@ export enum TransferMode {
 export default class RecipientLocator {
   constructor(
     private readonly walletService: WalletService,
-    private readonly countryRepository: CountryRepository
+    private readonly countryDirectory: CountryDirectoryService
   ) {}
 
   /**
@@ -45,7 +45,7 @@ export default class RecipientLocator {
     currentUser: OperationActor,
     mode: TransferMode
   ): Promise<RecipientResolution> {
-    const senderCountry = await this.countryRepository.findCountryBy('id', currentUser.countryId)
+    const senderCountry = await this.countryDirectory.findById(currentUser.countryId)
 
     const recipient = await this.resolveRecipient(
       mode,

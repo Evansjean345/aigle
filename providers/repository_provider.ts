@@ -25,6 +25,8 @@ import { ServiceProviderFeesRepositoryImpl } from '#core/money/fees/infrastructu
 
 import CountryRepository from '#core/catalog/country/domain/interfaces/country_repository'
 import CountryRepositoryImpl from '#core/catalog/country/infrastructure/repositories/country_repository_impl'
+import CountryCache from '#core/catalog/country/application/interfaces/country_cache'
+import CountryCacheService from '#core/catalog/country/infrastructure/services/country_cache_service'
 
 import ServiceTypeRepository from '#core/catalog/catalogs/domain/interfaces/service_type_repository'
 import ServiceTypeRepositoryImpl from '#core/catalog/catalogs/infrastructure/repositories/service_type_repository_impl'
@@ -83,6 +85,7 @@ export default class RepositoryProvider {
       [UserRepository, UserRepositoryImpl],
       [WalletRepository, WalletRepositoryImpl],
       [CountryRepository, CountryRepositoryImpl],
+      [CountryCache, CountryCacheService],
       [OtpRepository, OtpRepositoryImpl],
       [ServiceTypeRepository, ServiceTypeRepositoryImpl],
       [PaymentMethodRepository, PaymentMethodRepositoryImpl],

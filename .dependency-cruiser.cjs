@@ -47,9 +47,9 @@ module.exports = {
       comment:
         'Un PRODUIT ne consomme le CORE que via ses application/services (ports) et DTOs — ' +
         'jamais ses repositories, modèles de domaine ou infrastructure. Communication par ' +
-        'service, contrat minimal (anti-corruption). Ex : passer par UserDirectoryService, ' +
-        'pas par UserRepository / le modèle User. (WARN : durcissement en cours.)',
-      severity: 'warn',
+        'service, contrat minimal (anti-corruption). Ex : passer par UserDirectoryService / ' +
+        'CountryDirectoryService, pas par le repository / le modèle. Invariant (0 violation).',
+      severity: 'error',
       from: { path: '^app/products/.*/(application|domain)/' },
       to: {
         path: '^#core/.*/(domain/models/|domain/interfaces/[^/]*repository|infrastructure/)',
