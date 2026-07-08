@@ -1,16 +1,8 @@
 import { inject } from '@adonisjs/core'
 import { randomUUID } from 'node:crypto'
 import PayableAliasRepository from '#core/qr/domain/interfaces/payable_alias_repository'
+import { type ResolveAliasResult } from '#core/qr/application/dtos/payable_alias.dto'
 import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
-
-/**
- * Résolution d'un alias payable (ce que le core renvoie au scan d'un QR).
- */
-export interface ResolvedAlias {
-  accountId: string
-  displayName: string
-  active: boolean
-}
 
 /**
  * Porte de l'alias payable (§4.5). Le produit enregistre un alias pour un compte
@@ -54,7 +46,7 @@ export default class PayableAliasService {
    * Résout un code (scanné) vers le compte destinataire + le nom affichable.
    * Renvoie null si le code est inconnu.
    */
-  async resolve(code: string): Promise<ResolvedAlias | null> {
+  async resolve(code: string): Promise<ResolveAliasResult | null> {
     const alias = await this.payableAliasRepository.findByCode(code)
     if (!alias) {
       return null
