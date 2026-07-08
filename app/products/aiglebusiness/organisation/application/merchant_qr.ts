@@ -1,4 +1,4 @@
-import env from '#start/env'
+import { aigleplayPortailUrl } from '#config/app'
 
 /**
  * Mise en forme du LIEN encodé dans le QR marchand — préoccupation PRODUIT
@@ -6,17 +6,15 @@ import env from '#start/env'
  * peut changer. On centralise donc le format ici, côté serveur business, pour
  * que tous les clients marchands partagent la même source.
  *
- *   <AIGLEPLAY_BASE_URL>/<code>
+ *   <aigleplayPortailUrl>/<code>
  *
  * Le core ne possède que le `code` (alias payable) et sa résolution ; le lien de
- * la page de paiement aigleplay est du ressort du business.
- *
- * Base configurable par déploiement (AIGLEPLAY_BASE_URL) ; défaut pour dev/test.
+ * la page de paiement aigleplay est du ressort du business. Base configurable
+ * par déploiement via `config/app` (AIGLEPLAY_PORTAIL_URL).
  */
-const DEFAULT_AIGLEPLAY_BASE_URL = 'https://pay.aigle'
 
 /** Construit le lien encodé dans le QR marchand à partir du code. */
 export function formatMerchantQr(code: string): string {
-  const base = (env.get('AIGLEPLAY_BASE_URL') ?? DEFAULT_AIGLEPLAY_BASE_URL).replace(/\/+$/, '')
+  const base = aigleplayPortailUrl.replace(/\/+$/, '')
   return `${base}/${code}`
 }

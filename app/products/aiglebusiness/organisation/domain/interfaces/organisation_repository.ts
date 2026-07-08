@@ -28,4 +28,9 @@ export default abstract class OrganisationRepository {
    * Liste les organisations possédées par un utilisateur.
    */
   abstract listByOwner(ownerUserId: string): Promise<Organisation[]>
+
+  /**
+   * Retrouve une organisation par son identifiant public (uuid).
+   */
+  abstract findByOrganisationId(organisationId: string): Promise<Organisation | null>
 }

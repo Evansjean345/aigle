@@ -1,3 +1,5 @@
+import InvalidPermissionSlugException from '#aiglebusiness/membership/domain/exceptions/invalid_permission_slug_exception'
+
 /**
  * Catalogue des permissions business (RBAC par organisation).
  *
@@ -84,6 +86,24 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermission[] = [
   },
 ] as const
 
+/**
+ * Slugs nommés, pour référence en code (policies, gates) sans chaîne magique.
+ * Doit rester aligné avec `BUSINESS_PERMISSIONS`.
+ */
+export const BUSINESS_PERMISSION = {
+  organisationManage: 'organisation:manage',
+  membersManage: 'members:manage',
+  rolesManage: 'roles:manage',
+  kybSubmit: 'kyb:submit',
+  kybView: 'kyb:view',
+  qrManage: 'qr:manage',
+  payoutInitiate: 'payout:initiate',
+  payoutApprove: 'payout:approve',
+  provisionRequest: 'provision:request',
+  transactionsView: 'transactions:view',
+  walletView: 'wallet:view',
+} as const
+
 const PERMISSION_SLUGS: ReadonlySet<string> = new Set(BUSINESS_PERMISSIONS.map((p) => p.slug))
 
 /** Tous les slugs du catalogue (ex : rôle OWNER = toutes les permissions). */
@@ -94,4 +114,16 @@ export function allPermissionSlugs(): string[] {
 /** Vrai si le slug appartient au catalogue (validation à l'écriture d'un rôle). */
 export function isValidPermissionSlug(slug: string): boolean {
   return PERMISSION_SLUGS.has(slug)
+}
+
+/** Valide qu'il y a au moins une permission et que chaque slug existe au catalogue. */
+export function assertValidPermissions(permissionSlugs: string[]): void {
+  if (permissionSlugs.length === 0) {
+    throw new InvalidPermissionSlugException('Un rôle doit avoir au moins une permission')
+  }
+  for (const slug of permissionSlugs) {
+    if (!isValidPermissionSlug(slug)) {
+      throw new InvalidPermissionSlugException(`Permission inconnue : ${slug}`)
+    }
+  }
 }

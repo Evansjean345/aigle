@@ -1,5 +1,7 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import OrganisationRole from '#aiglebusiness/membership/domain/models/organisation_role'
 import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
 
 /**
@@ -23,9 +25,18 @@ export default class OrganisationMember extends BaseModel {
   @column()
   declare status: MemberStatus
 
+  @column()
+  declare invitationToken: string | null
+
+  @column.dateTime()
+  declare invitationExpiresAt: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+  @belongsTo(() => OrganisationRole, { foreignKey: 'roleId' })
+  declare role: BelongsTo<typeof OrganisationRole>
 }

@@ -65,8 +65,9 @@ test.group('Business organisation | création', (group) => {
     assert.equal(result.level, OrganisationLevel.LEVEL_1)
     assert.equal(result.status, OrganisationStatus.ACTIVE)
     assert.isString(result.payableCode)
-    // Le QR encode un lien https vers la page aigleplay (base + code).
-    assert.isTrue(result.payableQr!.startsWith('https://'))
+    // Le QR encode un lien vers la page aigleplay (base configurable + code).
+    // Schéma http(s) selon l'environnement (dev = http local, prod = https).
+    assert.match(result.payableQr!, /^https?:\/\//)
     assert.isTrue(result.payableQr!.endsWith(`/${result.payableCode}`))
 
     const org = await Organisation.query()

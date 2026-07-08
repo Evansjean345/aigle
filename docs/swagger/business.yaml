@@ -98,6 +98,453 @@ paths:
                 items:
                   $ref: '#/components/schemas/OrganisationResponse'
 
+  /api/business/organisations/{organisationId}/permissions-catalog:
+    get:
+      operationId: listPermissionsCatalog
+      summary: Catalogue des permissions
+      description: |
+        Renvoie le catalogue **statique** des permissions métier assignables aux rôles,
+        avec description et flag `sensitive` (permission à fort impact : argent, accès,
+        données confidentielles) pour l'écran de composition d'un rôle.
+
+        Réservé à qui détient `roles:manage` (l'OWNER l'a d'office).
+      tags:
+        - Business - Rôles
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+      responses:
+        '200':
+          description: Catalogue des permissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionCatalogItem'
+              example:
+                - slug: members:manage
+                  name: Gérer les membres
+                  description: Ajouter, retirer et changer le rôle des membres.
+                  sensitive: true
+                - slug: transactions:view
+                  name: Voir les transactions
+                  description: Consulter l'historique des transactions de l'organisation.
+                  sensitive: false
+        '403':
+          $ref: '#/components/responses/RolesManageForbidden'
+
+  /api/business/organisations/{organisationId}/roles:
+    get:
+      operationId: listRoles
+      summary: Lister les rôles
+      description: |
+        Liste tous les rôles de l'organisation, système (OWNER) et personnalisés,
+        avec leurs permissions. Réservé à `roles:manage`.
+      tags:
+        - Business - Rôles
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+      responses:
+        '200':
+          description: Liste des rôles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RoleResponse'
+        '403':
+          $ref: '#/components/responses/RolesManageForbidden'
+
+    post:
+      operationId: createRole
+      summary: Créer un rôle
+      description: |
+        Crée un rôle personnalisé. Le **slug** est dérivé du nom (immuable ensuite) et doit
+        être unique dans l'organisation ; il faut au moins une permission, chacune validée
+        contre le catalogue. Réservé à `roles:manage`.
+      tags:
+        - Business - Rôles
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+            example:
+              name: Comptable
+              permission_slugs:
+                - transactions:view
+                - wallet:view
+      responses:
+        '201':
+          description: Rôle créé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '400':
+          description: Permission inconnue (hors catalogue)
+          content:
+            application/json:
+              example:
+                code: E_INVALID_PERMISSION_SLUG
+                message: 'Permission inconnue : foo:bar'
+        '403':
+          $ref: '#/components/responses/RolesManageForbidden'
+        '409':
+          description: Un rôle du même nom existe déjà
+          content:
+            application/json:
+              example:
+                code: E_ROLE_NAME_ALREADY_EXISTS
+                message: Un rôle avec ce nom existe déjà
+        '422':
+          description: Payload invalide
+          content:
+            application/json:
+              example:
+                errors:
+                  - field: permission_slugs
+                    message: The permission_slugs field must have at least 1 items
+
+  /api/business/organisations/{organisationId}/roles/{roleId}:
+    patch:
+      operationId: updateRole
+      summary: Éditer un rôle
+      description: |
+        Modifie le nom et/ou remplace l'ensemble des permissions d'un rôle. Le slug reste
+        immuable. Le rôle **système** (OWNER) ne peut pas être modifié. Réservé à `roles:manage`.
+      tags:
+        - Business - Rôles
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/RoleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleRequest'
+            example:
+              name: Comptable senior
+              permission_slugs:
+                - transactions:view
+                - wallet:view
+                - provision:request
+      responses:
+        '200':
+          description: Rôle mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '400':
+          description: Permission inconnue (hors catalogue)
+          content:
+            application/json:
+              example:
+                code: E_INVALID_PERMISSION_SLUG
+                message: 'Permission inconnue : foo:bar'
+        '403':
+          description: Permission `roles:manage` absente, ou rôle système immuable
+          content:
+            application/json:
+              example:
+                code: E_SYSTEM_ROLE_IMMUTABLE
+                message: Le rôle système ne peut pas être modifié
+        '404':
+          $ref: '#/components/responses/RoleNotFound'
+
+    delete:
+      operationId: deleteRole
+      summary: Supprimer un rôle
+      description: |
+        Supprime un rôle personnalisé (ses permissions partent en cascade). Le rôle
+        **système** (OWNER) est protégé. Réservé à `roles:manage`.
+      tags:
+        - Business - Rôles
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/RoleId'
+      responses:
+        '204':
+          description: Rôle supprimé
+        '403':
+          description: Permission `roles:manage` absente, ou rôle système protégé
+          content:
+            application/json:
+              example:
+                code: E_SYSTEM_ROLE_IMMUTABLE
+                message: Le rôle système ne peut pas être supprimé
+        '404':
+          $ref: '#/components/responses/RoleNotFound'
+
+  /api/business/organisations/{organisationId}/members:
+    get:
+      operationId: listMembers
+      summary: Lister les membres
+      description: |
+        Liste les membres de l'organisation (tous statuts : `active`, `pending`, `removed`),
+        enrichis de l'identité (nom, téléphone). Réservé à `members:manage`.
+      tags:
+        - Business - Membres
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+      responses:
+        '200':
+          description: Liste des membres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemberResponse'
+        '403':
+          $ref: '#/components/responses/MembersManageForbidden'
+
+    post:
+      operationId: inviteMember
+      summary: Inviter un membre
+      description: |
+        Invite un utilisateur (par téléphone) à rejoindre l'organisation avec un rôle. L'invité
+        doit être un **user Aigle KYC-vérifié**. Crée un membre **PENDING** et envoie un **SMS**
+        contenant le lien d'acceptation (token 48h). Si l'utilisateur était `removed`/`pending`,
+        la même ligne est réactivée. Réservé à `members:manage`.
+      tags:
+        - Business - Membres
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteMemberRequest'
+            example:
+              phone: '2250700000000'
+              role_id: 12
+      responses:
+        '201':
+          description: Invitation créée (membre PENDING)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberResponse'
+        '403':
+          description: Permission `members:manage` absente, ou invité non KYC-vérifié
+          content:
+            application/json:
+              example:
+                code: E_INVITEE_KYC_NOT_VERIFIED
+                message: L'invité doit avoir un KYC vérifié pour rejoindre une organisation
+        '404':
+          description: Rôle introuvable dans l'organisation, ou invité sans compte Aigle
+          content:
+            application/json:
+              example:
+                code: E_INVITEE_NOT_AIGLE_USER
+                message: L'invité doit posséder un compte AigleSend pour rejoindre une organisation
+        '409':
+          description: L'utilisateur est déjà membre actif
+          content:
+            application/json:
+              example:
+                code: E_MEMBER_ALREADY_EXISTS
+                message: Cet utilisateur est déjà membre de cette organisation
+
+  /api/business/organisations/{organisationId}/members/{memberId}/resend:
+    post:
+      operationId: resendMemberInvitation
+      summary: Renvoyer l'invitation
+      description: |
+        Régénère le token d'un membre encore **PENDING** et renvoie le SMS de lien
+        (ex : lien expiré). Réservé à `members:manage`.
+      tags:
+        - Business - Membres
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/MemberId'
+      responses:
+        '200':
+          description: Invitation renvoyée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberResponse'
+        '403':
+          $ref: '#/components/responses/MembersManageForbidden'
+        '404':
+          $ref: '#/components/responses/MemberNotFound'
+
+  /api/business/organisations/{organisationId}/members/{memberId}/role:
+    patch:
+      operationId: changeMemberRole
+      summary: Changer le rôle d'un membre
+      description: |
+        Réaffecte le rôle d'un membre. Le membre **OWNER** est protégé (403), et le nouveau
+        rôle doit appartenir à l'organisation. Réservé à `members:manage`.
+      tags:
+        - Business - Membres
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/MemberId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeMemberRoleRequest'
+            example:
+              role_id: 13
+      responses:
+        '200':
+          description: Rôle du membre mis à jour
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberResponse'
+        '403':
+          description: Permission `members:manage` absente, ou membre OWNER protégé
+          content:
+            application/json:
+              example:
+                code: E_OWNER_MEMBER_IMMUTABLE
+                message: Le propriétaire de l'organisation ne peut pas être modifié ni retiré
+        '404':
+          $ref: '#/components/responses/MemberNotFound'
+
+  /api/business/organisations/{organisationId}/members/{memberId}:
+    delete:
+      operationId: removeMember
+      summary: Retirer un membre
+      description: |
+        Retire un membre selon son statut : **PENDING** → suppression (annulation d'invitation) ;
+        **ACTIVE** → passage `removed` (soft, historique conservé). Le membre OWNER est protégé.
+        Réservé à `members:manage`.
+      tags:
+        - Business - Membres
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/MemberId'
+      responses:
+        '204':
+          description: Membre retiré
+        '403':
+          description: Permission `members:manage` absente, ou membre OWNER protégé
+          content:
+            application/json:
+              example:
+                code: E_OWNER_MEMBER_IMMUTABLE
+                message: Le propriétaire de l'organisation ne peut pas être modifié ni retiré
+        '404':
+          $ref: '#/components/responses/MemberNotFound'
+
+  /api/business/invitations/{token}:
+    get:
+      operationId: openInvitation
+      summary: Ouvrir une invitation (semi-public)
+      description: |
+        Ouverture du lien d'invitation depuis le portail web. **Aucune authentification** : le
+        token du lien fait foi. Valide le token, **envoie l'OTP** de consentement au téléphone
+        de l'invité, et renvoie une vue **minimale** : nom de l'organisation + téléphone masqué.
+        **Ne révèle jamais le rôle** (caché jusqu'à l'acceptation).
+      tags:
+        - Business - Invitations
+      parameters:
+        - $ref: '#/components/parameters/InvitationToken'
+      responses:
+        '200':
+          description: Invitation valide, OTP envoyé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationPreview'
+              example:
+                organisationName: Entreprise Ali
+                phoneMasked: '225******00'
+        '404':
+          $ref: '#/components/responses/InvitationInvalid'
+        '410':
+          $ref: '#/components/responses/InvitationExpired'
+
+  /api/business/invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      summary: Accepter une invitation
+      description: |
+        Accepte l'invitation avec l'OTP reçu par SMS (2e facteur). Bascule le membre
+        **PENDING → ACTIVE**. Semi-public (token + OTP). Les erreurs OTP (invalide, expiré,
+        verrouillé) proviennent du core.
+      tags:
+        - Business - Invitations
+      parameters:
+        - $ref: '#/components/parameters/InvitationToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitationRequest'
+            example:
+              otp: '1234'
+      responses:
+        '200':
+          description: Invitation acceptée (membre ACTIVE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberResponse'
+        '400':
+          description: OTP invalide (propagé du core)
+          content:
+            application/json:
+              example:
+                code: E_INVALID_OTP
+                message: Code OTP invalide
+        '404':
+          $ref: '#/components/responses/InvitationInvalid'
+        '410':
+          $ref: '#/components/responses/InvitationExpired'
+
+  /api/business/invitations/{token}/decline:
+    post:
+      operationId: declineInvitation
+      summary: Refuser une invitation
+      description: |
+        L'invité refuse : le membre PENDING passe `removed` (refus tracé). Aucun OTP requis.
+      tags:
+        - Business - Invitations
+      parameters:
+        - $ref: '#/components/parameters/InvitationToken'
+      responses:
+        '204':
+          description: Invitation refusée
+        '404':
+          $ref: '#/components/responses/InvitationInvalid'
+
   /api/qr/merchant/{code}:
     get:
       operationId: resolveMerchantQr
@@ -134,6 +581,81 @@ paths:
                 code: MERCHANT_QR_NOT_FOUND
 
 components:
+  parameters:
+    OrganisationId:
+      name: organisationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Identifiant de l'organisation
+    RoleId:
+      name: roleId
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Identifiant du rôle
+    MemberId:
+      name: memberId
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Identifiant du membre
+    InvitationToken:
+      name: token
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Token du lien d'invitation (extrait du lien SMS)
+
+  responses:
+    RolesManageForbidden:
+      description: Permission `roles:manage` absente (non-membre ou rôle insuffisant)
+      content:
+        application/json:
+          example:
+            errors:
+              - message: Access denied
+    RoleNotFound:
+      description: Rôle introuvable dans cette organisation
+      content:
+        application/json:
+          example:
+            code: E_ROLE_NOT_FOUND
+            message: Rôle introuvable
+    MembersManageForbidden:
+      description: Permission `members:manage` absente (non-membre ou rôle insuffisant)
+      content:
+        application/json:
+          example:
+            errors:
+              - message: Access denied
+    MemberNotFound:
+      description: Membre introuvable dans cette organisation
+      content:
+        application/json:
+          example:
+            code: E_MEMBER_NOT_FOUND
+            message: Membre introuvable dans cette organisation
+    InvitationInvalid:
+      description: Invitation introuvable ou invalide
+      content:
+        application/json:
+          example:
+            code: E_INVITATION_TOKEN_INVALID
+            message: Invitation introuvable ou invalide
+    InvitationExpired:
+      description: Invitation expirée
+      content:
+        application/json:
+          example:
+            code: E_INVITATION_EXPIRED
+            message: L'invitation a expiré, demandez-en une nouvelle
+
   schemas:
     CreateOrganisationRequest:
       type: object
@@ -186,3 +708,164 @@ components:
         active:
           type: boolean
           example: true
+
+    MemberResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        userId:
+          type: string
+          format: uuid
+        firstname:
+          type: string
+          nullable: true
+        lastname:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        roleId:
+          type: integer
+          example: 12
+        roleSlug:
+          type: string
+          nullable: true
+          example: comptable
+        roleName:
+          type: string
+          nullable: true
+          example: Comptable
+        status:
+          type: string
+          enum: [active, pending, removed]
+          example: pending
+
+    InviteMemberRequest:
+      type: object
+      required:
+        - phone
+        - role_id
+      properties:
+        phone:
+          type: string
+          minLength: 6
+          maxLength: 20
+          example: '2250700000000'
+        role_id:
+          type: integer
+          example: 12
+
+    ChangeMemberRoleRequest:
+      type: object
+      required:
+        - role_id
+      properties:
+        role_id:
+          type: integer
+          example: 13
+
+    InvitationPreview:
+      type: object
+      description: >-
+        Vue minimale d'une invitation (semi-public). Ne contient jamais le rôle.
+      properties:
+        organisationName:
+          type: string
+          example: Entreprise Ali
+        phoneMasked:
+          type: string
+          example: '225******00'
+
+    AcceptInvitationRequest:
+      type: object
+      required:
+        - otp
+      properties:
+        otp:
+          type: string
+          minLength: 4
+          maxLength: 8
+          example: '1234'
+
+    PermissionCatalogItem:
+      type: object
+      properties:
+        slug:
+          type: string
+          example: members:manage
+        name:
+          type: string
+          example: Gérer les membres
+        description:
+          type: string
+          example: Ajouter, retirer et changer le rôle des membres.
+        sensitive:
+          type: boolean
+          description: Permission à fort impact (argent, accès, données confidentielles)
+          example: true
+
+    RoleResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 12
+        slug:
+          type: string
+          example: comptable
+        name:
+          type: string
+          example: Comptable
+        isSystem:
+          type: boolean
+          description: Rôle système (OWNER) — non modifiable, non supprimable
+          example: false
+        permissions:
+          type: array
+          items:
+            type: string
+          example:
+            - transactions:view
+            - wallet:view
+
+    CreateRoleRequest:
+      type: object
+      required:
+        - name
+        - permission_slugs
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 60
+          example: Comptable
+        permission_slugs:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          example:
+            - transactions:view
+            - wallet:view
+
+    UpdateRoleRequest:
+      type: object
+      description: Au moins un des deux champs doit être fourni.
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 60
+          example: Comptable senior
+        permission_slugs:
+          type: array
+          minItems: 1
+          items:
+            type: string
+          example:
+            - transactions:view
+            - wallet:view
+            - provision:request

@@ -32,12 +32,15 @@ export default await Env.create(new URL('../', import.meta.url), {
   BYPASS_OTP_VERIFICATION: Env.schema.boolean(),
   APP_REVIEW_PHONE_NUMBER: Env.schema.string.optional(),
 
-  // Base de la page de paiement aigleplay (le QR marchand encode <base>/<code>).
-  AIGLEPLAY_BASE_URL: Env.schema.string.optional(),
-
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring frontends portails and max devices connection
+  |----------------------------------------------------------
+  */
+  AIGLEPLAY_PORTAIL_URL: Env.schema.string(),
   MAX_DEVICE_CONNECTIONS: Env.schema.number(),
-
   MOBILE_DEVICE_DEEP_LINK_URL: Env.schema.string(),
+  BUSINESS_PORTAL_URL: Env.schema.string(),
 
   /*
   |----------------------------------------------------------

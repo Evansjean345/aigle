@@ -76,6 +76,17 @@ export default class UserRepositoryIml implements UserRepository {
   }
 
   /**
+   * Finds several users by their unique identifiers, in a single query.
+   *
+   * @param {string[]} ids - The unique identifiers to fetch.
+   * @return {Promise<User[]>} A promise that resolves with the matching users.
+   */
+  async findByIds(ids: string[]): Promise<User[]> {
+    if (ids.length === 0) return []
+    return User.query().whereIn('users_uid', ids)
+  }
+
+  /**
    * Finds a user by their phone number.
    *
    * @param {string} phone - The phone number of the user to search for.

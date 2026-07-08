@@ -51,6 +51,14 @@ export default abstract class UserRepository {
   abstract findById(id: string): Promise<User | null>
 
   /**
+   * Finds several users by their unique identifiers, in a single query.
+   *
+   * @param {string[]} ids - The unique identifiers to fetch.
+   * @return {Promise<User[]>} A promise that resolves with the matching users (order not guaranteed).
+   */
+  abstract findByIds(ids: string[]): Promise<User[]>
+
+  /**
    * Retrieves a user based on their phone number.
    *
    * @param {string} phone - The phone number of the user to retrieve.

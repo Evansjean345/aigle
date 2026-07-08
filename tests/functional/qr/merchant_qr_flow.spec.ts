@@ -42,7 +42,7 @@ test.group('QR marchand | résolution', (group) => {
 
     res.assertStatus(200)
     res.assertBodyContains({ displayName: 'Boutique Ali', active: true })
-    // L'account_id ne doit jamais être exposé au client.
+
     assert.notProperty(res.body(), 'accountId')
     assert.notProperty(res.body(), 'account_id')
   })

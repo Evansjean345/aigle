@@ -72,6 +72,7 @@ back-office admin (§4.6) → bases extensibles.
 | 15 | **Divulgation contrôlée sur l'endpoint token (semi-public)** : `GET /invitations/:token` renvoie **`{organisationName, phoneMasked}`** (l'invité doit reconnaître qui l'invite et sur quel numéro confirmer) **mais PAS le rôle** (caché jusqu'à l'acceptation) + déclenche l'OTP | tout renvoyer (rôle inclus) ; ne rien renvoyer du tout | Équilibre UX/confidentialité : org+phone masqué nécessaires pour reconnaître l'invitation ; le rôle (niveau de droits) n'est révélé qu'une fois le consentement OTP donné | 2026-07-08 (design Lot B) |
 | 16 | **Retrait selon statut** : PENDING → **hard delete** (annulation d'invitation, invalide le token) ; ACTIVE → **REMOVED** soft (#11). Même route DELETE, verbe résolu par le statut courant. OWNER seed → 403 | soft REMOVED uniforme | PENDING = cycle *invitation* (jamais adhérent, rien à historiser, audit log suffit), pas cycle *adhésion* ; évite les REMOVED jamais-membres | 2026-07-08 (design Lot B) |
 | 17 | **Token invitation = 48h** ; OTP = fenêtre courte propre (~10 min, envoyé à l'ouverture du lien). Deux timers distincts. `resend` régénère un token si expiré | 5 min (team, mais team = email+action immédiate) ; 7j (fenêtre d'exposition trop longue) | Invité par SMS peut ne pas réagir tout de suite ; 48h raisonnable, l'OTP reste le 2e facteur court | 2026-07-08 (design Lot B) |
+| 18 | **Le produit consomme le core identité via un PORT de service** (`UserDirectoryService` → `UserLookupResult` minimal : userId, nom, phone, `kycVerified` booléen), **jamais** via `UserRepository` ni le modèle `User`. Règle depcruise `produit-consomme-core-par-service` (warn) l'enforce | injecter `UserRepository`/`User` dans les use cases produit (violation d'indépendance des couches) | Anti-corruption : le core n'expose qu'un contrat minimal ; l'enum KYC reste interne ; condition de l'extractibilité en micro-services EN COUCHE | 2026-07-08 (correctif impl. Lot B) |
 
 ## Découpage (validé 2026-07-08)
 
@@ -221,7 +222,9 @@ OTP → exceptions **core** réutilisées.
 3. **Migration batch 10** : colonnes `invitation_token`(+index)/`invitation_expires_at` sur
    `organisation_members`. Enum REMOVED = applicatif (pas de DDL).
 4. **Config** : `BUSINESS_PORTAL_URL` (env.ts + config/app.ts, comme ADMIN_DASHBOARD_URL).
-5. **Core consommé, pas modifié** — invariant depcruise intact.
+5. **Core : ajout d'un port de service** `UserDirectoryService` (+ `UserLookupResult`) dans
+   `core/identity/user/application/` — frontière anti-corruption identité→produit (décision #18).
+   Aucune modification du comportement core existant ; invariant depcruise intact.
 
 ### Tests
 
@@ -265,9 +268,35 @@ functional 66/66, depcruise 0 error.
 - **Aucune migration** (pas de changement de schéma — tables posées au Lot A).
 - Vérifs : tsc sans erreur membership, depcruise 0 error (invariant core intact).
 
-**Prochain : Lot B** (membres : ajout KYC-vérifié + OTP consentement + confirm, lister, changer rôle,
-retirer) — y ajouter le garde-fou `delete rôle avec membres → 409` (différé du Lot C). Puis Lot D
-(enforcement : middleware déclaratif + scoping token par-dessus `memberHasPermission`).
+**Lot B : IMPLÉMENTÉ ✅** — feature `aiglebusiness/membership/` :
+- Fondations : `MemberStatus += REMOVED`, colonnes `invitationToken`/`invitationExpiresAt`
+  (migration batch 10), config `businessPortalUrl`.
+- 7 exceptions membres, `MembershipConsentOtpTemplate`, `InvitationService` (token 48h + SMS lien
+  via `NotificationService` core).
+- Repo membre étendu (findById, findByOrganisationAndUser, findByInvitationToken, listByOrganisation,
+  updateStatus, updateRole, setInvitation, delete, `countActiveByRole`) + `OrganisationRepository.findByOrganisationId`.
+- 8 use cases : Invite, ResendInvitation, ListMembers, ChangeMemberRole, RemoveMember, GetInvitation
+  (+OTP), AcceptInvitation, DeclineInvitation.
+- Présentation : `OrganisationMemberPolicy` (`members:manage`), MemberController + InvitationController,
+  validators Vine, routes (gestion authentifiée + invitation **semi-publique** token+OTP).
+- **Correctifs** : `memberHasPermission` filtre `ACTIVE` (faille fermée) ; `DeleteRoleUseCase` → 409
+  si rôle porté par un membre actif (garde-fou différé du Lot C).
+- **Anti-corruption (décision #18)** : produit → core identité via `UserDirectoryService` (port core,
+  DTO minimal), plus aucun `UserRepository`/modèle `User` dans le produit. Règle depcruise
+  `produit-consomme-core-par-service` (warn) l'enforce.
+- Doc API : endpoints membres + invitations ajoutés à `docs/swagger/business.yaml`.
+- Tests `member_management_flow.spec` : **16/16** (invitation/gardes, accept token+OTP, changeRole,
+  retrait soft/hard, correctifs RBAC). Suite membership complète : **34/34**.
+- Vérifs : tsc sans erreur membership, depcruise **0 error** (invariant core intact), eslint clean.
+
+**Prochain : Lot D** (enforcement : middleware déclaratif par permission + scoping token business
+par-dessus `memberHasPermission`). Restent aussi hors-Lot : notification push invité (amélioration),
+KYB (génère le QR entreprise à l'approbation), mass-payout/paiements.
+
+> ⚠️ 4 tests **core** échouent hors périmètre (3 KYC unit process/submit ; 1 ProviderErrorService
+> ACCOUNT_BLOCKED). Pré-existants, reproduits en isolation, sans lien avec le Lot B.
+> ⚠️ Dette révélée par la nouvelle règle depcruise : `aiglesend/operations/recipient_locator.ts`
+> importe `country_repository` (core) — à migrer vers un service core (hors périmètre Lot B).
 
 > ⚠️ 4 tests **core** échouent déjà hors périmètre (3 KYC unit : process/submit ; 1 ProviderErrorService
 > ACCOUNT_BLOCKED→adminAction). Reproduits en isolation → pré-existants, sans lien avec le Lot C.

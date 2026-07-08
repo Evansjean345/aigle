@@ -39,6 +39,7 @@ export class OrganisationResponseDTO {
     dto.status = organisation.status
     dto.payableCode = organisation.payableCode
     dto.payableQr = organisation.payableCode ? formatMerchantQr(organisation.payableCode) : null
+
     return dto
   }
 }

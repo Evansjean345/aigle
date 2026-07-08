@@ -35,6 +35,10 @@ export default class OrganisationRepositoryImpl implements OrganisationRepositor
   }
 
   async listByOwner(ownerUserId: string): Promise<Organisation[]> {
-    return await Organisation.query().where('owner_user_id', ownerUserId).orderBy('created_at', 'desc')
+    return Organisation.query().where('owner_user_id', ownerUserId).orderBy('created_at', 'desc')
+  }
+
+  async findByOrganisationId(organisationId: string): Promise<Organisation | null> {
+    return Organisation.query().where('organisation_id', organisationId).first()
   }
 }

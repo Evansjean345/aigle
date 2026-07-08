@@ -44,6 +44,17 @@ export const appPhoneNumberReview: string = env.get('APP_REVIEW_PHONE_NUMBER', '
 export const adminDashboardUrl: string = env.get('ADMIN_DASHBOARD_URL', 'http://localhost:3000')
 
 /**
+ * Base du portail web entreprise (aiglebusiness). Sert notamment à construire le
+ * lien d'acceptation d'invitation de membre : `<businessPortalUrl>/accept-invitation?token=`.
+ */
+export const businessPortalUrl: string = env.get('BUSINESS_PORTAL_URL', 'http://localhost:5000')
+
+/**
+ * Base de la page de paiement aigleplay. Le QR marchand encode `<aigleplayPortailUrl>/<code>`.
+ */
+export const aigleplayPortailUrl: string = env.get('AIGLEPLAY_PORTAIL_URL', 'https://pay.aigle')
+
+/**
  * The configuration settings used by the HTTP server
  */
 export const http = defineConfig({

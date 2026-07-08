@@ -136,6 +136,23 @@ export type ScannedRoutes = {
     'debit_phone.store': { paramsTuple?: []; params?: {} }
     'debit_phone.verify': { paramsTuple?: []; params?: {} }
     'debit_phone.resend': { paramsTuple?: []; params?: {} }
+    'business_health': { paramsTuple?: []; params?: {} }
+    'organisation.store': { paramsTuple?: []; params?: {} }
+    'organisation.index': { paramsTuple?: []; params?: {} }
+    'permission.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'role.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'role.store': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'role.update': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'roleId': ParamValue} }
+    'role.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'roleId': ParamValue} }
+    'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'member.store': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'member.resend': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
+    'member.update_role': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
+    'member.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
+    'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'invitation.accept': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'invitation.decline': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'health': { paramsTuple?: []; params?: {} }
     'event_stream': { paramsTuple?: []; params?: {} }
     'subscribe': { paramsTuple?: []; params?: {} }
@@ -202,6 +219,13 @@ export type ScannedRoutes = {
     'app_version.check': { paramsTuple?: []; params?: {} }
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
     'debit_phone.index': { paramsTuple?: []; params?: {} }
+    'business_health': { paramsTuple?: []; params?: {} }
+    'organisation.index': { paramsTuple?: []; params?: {} }
+    'permission.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'role.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'health': { paramsTuple?: []; params?: {} }
     'event_stream': { paramsTuple?: []; params?: {} }
   }
@@ -266,6 +290,13 @@ export type ScannedRoutes = {
     'app_version.check': { paramsTuple?: []; params?: {} }
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
     'debit_phone.index': { paramsTuple?: []; params?: {} }
+    'business_health': { paramsTuple?: []; params?: {} }
+    'organisation.index': { paramsTuple?: []; params?: {} }
+    'permission.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'role.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'health': { paramsTuple?: []; params?: {} }
     'event_stream': { paramsTuple?: []; params?: {} }
   }
@@ -314,6 +345,12 @@ export type ScannedRoutes = {
     'debit_phone.store': { paramsTuple?: []; params?: {} }
     'debit_phone.verify': { paramsTuple?: []; params?: {} }
     'debit_phone.resend': { paramsTuple?: []; params?: {} }
+    'organisation.store': { paramsTuple?: []; params?: {} }
+    'role.store': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'member.store': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'member.resend': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
+    'invitation.accept': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'invitation.decline': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'subscribe': { paramsTuple?: []; params?: {} }
     'unsubscribe': { paramsTuple?: []; params?: {} }
   }
@@ -348,6 +385,12 @@ export type ScannedRoutes = {
     'admin_device.revoke_device': { paramsTuple: [ParamValue,ParamValue]; params: {'userId': ParamValue,'deviceId': ParamValue} }
     'admin_app_version.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'device.revoke_device': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'role.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'roleId': ParamValue} }
+    'member.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
+  }
+  PATCH: {
+    'role.update': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'roleId': ParamValue} }
+    'member.update_role': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
   }
 }
 declare module '@adonisjs/core/types/http' {
