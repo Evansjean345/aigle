@@ -2,7 +2,7 @@ import type Organisation from '#aiglebusiness/organisation/domain/models/organis
 import { type OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { type OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import { type OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
-import { formatMerchantQr } from '#core/qr/application/merchant_qr'
+import { formatMerchantQr } from '#aiglebusiness/organisation/application/merchant_qr'
 
 /**
  * Vue HTTP d'une organisation (sans exposer l'id interne ni les colonnes brutes).
