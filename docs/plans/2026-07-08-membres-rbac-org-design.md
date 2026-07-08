@@ -1,7 +1,7 @@
 ---
 status: in-review
 etape: 5
-lot: A
+lot: C
 derniere_maj: 2026-07-08
 ---
 
@@ -62,6 +62,7 @@ back-office admin (§4.6) → bases extensibles.
 | 5 | ~~Seeder OWNER+ADMIN+OPERATOR+VIEWER~~ **RÉVISÉ → seeder OWNER SEUL** (les deux types) ; l'owner crée les autres rôles lui-même | Seeder un jeu par défaut | User : « le reste c'est le owner qui se charge » | 2026-07-08 |
 | 6 | Catalogue de permissions = `{slug, name, description, sensitive:boolean}` ; **endpoint de listing** du catalogue (l'owner compose ses rôles, la description + le flag sensitive le guident) | Slug seul sans métadonnées | UX : l'owner doit comprendre et être alerté sur les permissions sensibles | 2026-07-08 |
 | 7 | **Réordonner le découpage → A → C → B → D** (rôles avant membres) | Garder A→B→D→C | Conséquence de #5 : seed OWNER seul → il faut un rôle avant d'ajouter un membre (OWNER unique, non assignable) | 2026-07-08 |
+| 8 | Gating **via Bouncer** (comme l'admin) : policy scopée par org + helper `memberHasPermission(userId, orgId, slug)` (charge membre→rôle→permissions ; OWNER bypass). Endpoints → `bouncer.with(Policy).authorize('x', organisation)`. Le Lot D ajoutera le middleware déclaratif + token par-dessus | assertCan service maison ; check owner minimal jeté | Réutilise le pattern Bouncer existant (permission_helpers admin), pose les bonnes bases | 2026-07-08 |
 
 ## Découpage (validé 2026-07-08)
 
@@ -115,6 +116,42 @@ seedés. Marchand = OWNER seul à vie.
 - **Tests Lot A** : marchand ET entreprise → 1 rôle OWNER (is_system, toutes perms) + 1 membre OWNER
   (= owner) ; étendre `organisation_flow.spec`.
 
+## Lot C — Design
+
+### Architecture (validée)
+
+- **Endpoints** (canal client, feature membership) : `GET /api/business/permissions` (catalogue) ;
+  `GET/POST /api/business/organisations/:organisationId/roles` ; `PATCH/DELETE .../roles/:roleId`.
+- **Autorisation Bouncer** (décision #8) : helper `memberHasPermission(userId, organisationId, slug)`
+  (membership/application/authorization) + policy `OrganisationRolePolicy.manage(user, organisation)`
+  → `memberHasPermission(user.usersUid, org.organisationId, 'roles:manage')`. Contrôleur : charge
+  l'org → rejette si marchand (#4) → `bouncer.with(OrganisationRolePolicy).authorize('manage', org)`.
+- **Use cases** `membership/application/use_cases/roles/` (create/update/delete/list + list perms) ;
+  `OrganisationRoleRepository` étendu (update/delete/listByOrganisation/findById).
+- **Routes** via `membershipClientRoutes` (start/routes).
+
+### Règles & validation (validées)
+
+- OWNER protégé : rôle `is_system`/slug `owner` non éditable/supprimable (403).
+- Slug généré du `name` (slugify), immuable, unique par org (nom dupliqué → 409).
+- Permissions validées contre le catalogue (`isValidPermissionSlug`, ≥1) → **400** sinon.
+- Marchand : CRUD rôles rejeté (#4).
+- Supprimer un rôle avec membres → 409 (réassigner d'abord ; pas de cascade sur org_members.role_id).
+- Éditer = name + remplacement complet des permissions (delete+insert en transaction). Rôle
+  introuvable/autre org → 404.
+- Exceptions : SystemRoleImmutable(403), RoleNameAlreadyExists(409), InvalidPermissionSlug(**400**),
+  RoleHasMembers(409), RoleNotFound(404).
+- **Doc API** : ajouter les endpoints au `docs/swagger/business.yaml` (spec aiglebusiness).
+
+### Tests (validés)
+
+- **`memberHasPermission`** : OWNER → true (toute permission) ; user non-membre → false.
+- **Use cases rôles** (container.make) : create (entreprise) ; slug permission invalide → 400 ;
+  nom dupliqué → 409 ; marchand → rejet ; update (name + remplacement perms) ; delete ; OWNER
+  immuable → 403 ; delete rôle avec membres → 409 (setup direct ou différé Lot B).
+- **HTTP + Bouncer** : user + token, owner d'une org → POST role passe ; user non-membre → 403.
+- **Catalogue** : GET /api/business/permissions → 11 permissions avec `sensitive`.
+
 ## Hors-scope (confirmé)
 
 - Rôles ADMIN/OPERATOR/VIEWER **non seedés** (exemples doc seulement ; l'org les crée au Lot C).
@@ -127,5 +164,8 @@ seedés. Marchand = OWNER seul à vie.
 kyb:view + provision:request sensibles ; models OrganisationRole/RolePermission/Member ; repos ;
 MembershipService.seedForNewOrganisation), câblé dans CreateOrganisationUseCase (seed OWNER +
 membre OWNER, atomique), migrations batch 9, tests membership_flow (marchand+entreprise). tsc 57,
-functional 66/66, depcruise 0 error. **Prochain : designer le Lot C** (rôles éditables : CRUD rôles
-+ endpoint listing du catalogue), puis Lot B (membres + OTP consentement), puis Lot D (enforcement).
+functional 66/66, depcruise 0 error.
+
+**Lot C : design COMPLET** (architecture Bouncer + règles/validation + tests, décision #8). Prêt à
+implémenter. Prochain : implémenter le Lot C, puis Lot B (membres + OTP consentement), puis Lot D
+(enforcement : middleware déclaratif + scoping token par-dessus le helper memberHasPermission).
