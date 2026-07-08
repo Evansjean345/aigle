@@ -11,7 +11,7 @@ const commonDefinition = {
       url: '{protocol}://{host}',
       variables: {
         protocol: { default: 'http', enum: ['http', 'https'] },
-        host: { default: 'localhost:3380' },
+        host: { default: 'localhost:3333' },
       },
     },
   ],
