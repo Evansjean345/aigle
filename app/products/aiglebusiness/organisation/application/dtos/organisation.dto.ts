@@ -1,12 +1,26 @@
+import { type UserKycStatus } from '#core/identity/user/domain/enum'
 import type Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 import { type OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { type OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import { type OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import { formatMerchantQr } from '#aiglebusiness/organisation/application/merchant_qr'
 
+// ── RequestDto (input use case) ─────────────────────────────────────
+
 /**
- * Vue HTTP d'une organisation (sans exposer l'id interne ni les colonnes brutes).
+ * Entrée de création d'organisation, construite par la présentation à partir de
+ * l'acteur authentifié (frontière par ID : usersUid + statut KYC) et du payload.
+ * Le use case ne connaît pas le modèle User du core.
  */
+export interface CreateOrganisationRequestDto {
+  ownerUserId: string
+  ownerKycStatus: UserKycStatus
+  name: string
+  accountType: OrganisationAccountType
+}
+
+// ── Response (output HTTP) ──────────────────────────────────────────
+
 export class OrganisationResponseDTO {
   declare organisationId: string
   declare name: string
@@ -14,7 +28,6 @@ export class OrganisationResponseDTO {
   declare level: OrganisationLevel
   declare status: OrganisationStatus
   declare payableCode: string | null
-  /** Payload complet à encoder dans le QR (aiglepay:merchant:<code>), ou null. */
   declare payableQr: string | null
 
   static fromModel(organisation: Organisation): OrganisationResponseDTO {

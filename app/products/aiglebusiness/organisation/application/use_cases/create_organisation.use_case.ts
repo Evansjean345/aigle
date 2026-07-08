@@ -9,8 +9,10 @@ import OrganisationRepository from '#aiglebusiness/organisation/domain/interface
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
-import { type CreateOrganisationCommand } from '#aiglebusiness/organisation/application/dtos/create_organisation.command'
-import { OrganisationResponseDTO } from '#aiglebusiness/organisation/application/dtos/organisation.response.dto'
+import {
+  type CreateOrganisationRequestDto,
+  OrganisationResponseDTO,
+} from '#aiglebusiness/organisation/application/dtos/organisation.dto'
 import OwnerKycNotVerifiedException from '#aiglebusiness/organisation/domain/exceptions/owner_kyc_not_verified_exception'
 import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/domain/exceptions/merchant_account_already_exists_exception'
 
@@ -33,14 +35,14 @@ export default class CreateOrganisationUseCase {
     private readonly payableAliasService: PayableAliasService
   ) {}
 
-  async execute(command: CreateOrganisationCommand): Promise<OrganisationResponseDTO> {
-    if (command.ownerKycStatus !== UserKycStatus.VERIFIED) {
+  async execute(request: CreateOrganisationRequestDto): Promise<OrganisationResponseDTO> {
+    if (request.ownerKycStatus !== UserKycStatus.VERIFIED) {
       throw new OwnerKycNotVerifiedException()
     }
 
-    if (command.accountType === OrganisationAccountType.MARCHAND) {
+    if (request.accountType === OrganisationAccountType.MARCHAND) {
       const existingMerchants = await this.organisationRepository.countByOwnerAndType(
-        command.ownerUserId,
+        request.ownerUserId,
         OrganisationAccountType.MARCHAND
       )
       if (existingMerchants > 0) {
@@ -48,27 +50,23 @@ export default class CreateOrganisationUseCase {
       }
     }
 
-    const isMerchant = command.accountType === OrganisationAccountType.MARCHAND
+    const isMerchant = request.accountType === OrganisationAccountType.MARCHAND
 
     const organisation = await db.transaction(async (trx) => {
       const organisationId = randomUUID()
 
       // Ouvre le compte money de l'org (account_id = organisationId) + wallet.
       await this.accountProvisioning.openFor(AccountOwnerType.ORGANISATION, organisationId, trx)
-
-      // Marchand auto-LEVEL_1 : encaissant tout de suite → génère son alias
-      // payable (QR de comptoir), display_name = nom de l'org. Entreprise LEVEL_0
-      // sans alias (n'encaisse pas encore).
       const payableCode = isMerchant
-        ? await this.payableAliasService.register(organisationId, command.name, trx)
+        ? await this.payableAliasService.register(organisationId, request.name, trx)
         : null
 
       return this.organisationRepository.create(
         {
           organisationId,
-          ownerUserId: command.ownerUserId,
-          name: command.name,
-          accountType: command.accountType,
+          ownerUserId: request.ownerUserId,
+          name: request.name,
+          accountType: request.accountType,
           level: isMerchant ? OrganisationLevel.LEVEL_1 : OrganisationLevel.LEVEL_0,
           status: OrganisationStatus.ACTIVE,
           payableCode,

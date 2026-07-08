@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
-import { OrganisationResponseDTO } from '#aiglebusiness/organisation/application/dtos/organisation.response.dto'
+import { OrganisationResponseDTO } from '#aiglebusiness/organisation/application/dtos/organisation.dto'
 
 /**
  * Liste les organisations possédées par un utilisateur.
