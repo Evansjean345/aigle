@@ -44,6 +44,7 @@ monitoring
 docs/*
 !docs/rules/
 !docs/swagger/
+!docs/plans/
 
 *.sql
 *.md
@@ -52,6 +53,8 @@ docs/*
 !docs/rules/**
 # Doc API swagger versionnée — exception à docs/
 !docs/swagger/**
+# Documents de design versionnés — exception à docs/
+!docs/plans/**
 
 database_updates.sql
 insert_tables.sql
