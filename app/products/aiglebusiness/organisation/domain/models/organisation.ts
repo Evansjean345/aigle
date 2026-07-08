@@ -31,6 +31,9 @@ export default class Organisation extends BaseModel {
   @column()
   declare status: OrganisationStatus
 
+  @column()
+  declare payableCode: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

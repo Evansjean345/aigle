@@ -12,6 +12,7 @@ export class OrganisationResponseDTO {
   declare accountType: OrganisationAccountType
   declare level: OrganisationLevel
   declare status: OrganisationStatus
+  declare payableCode: string | null
 
   static fromModel(organisation: Organisation): OrganisationResponseDTO {
     const dto = new OrganisationResponseDTO()
@@ -20,6 +21,7 @@ export class OrganisationResponseDTO {
     dto.accountType = organisation.accountType
     dto.level = organisation.level
     dto.status = organisation.status
+    dto.payableCode = organisation.payableCode
     return dto
   }
 }

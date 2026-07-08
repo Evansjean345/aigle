@@ -18,7 +18,9 @@ export default class PayableAlias extends BaseModel {
   @column()
   declare displayName: string
 
-  @column()
+  // MySQL stocke les booléens en tinyint(1) → cast explicite DB→boolean pour que
+  // `active` soit un vrai booléen partout (service resolve, sérialisation).
+  @column({ consume: (value) => Boolean(value) })
   declare active: boolean
 
   @column.dateTime({ autoCreate: true })

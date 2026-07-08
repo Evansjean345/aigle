@@ -6,6 +6,8 @@ import { UserKycStatus } from '#core/identity/user/domain/enum'
 import Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 import Account from '#core/money/account/domain/models/account'
 import Wallet from '#core/money/wallet/domain/models/wallet'
+import PayableAlias from '#core/qr/domain/models/payable_alias'
+import PayableAliasService from '#core/qr/application/services/payable_alias_service'
 import { AccountOwnerType } from '#core/money/account/domain/enums/account_owner_type'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
@@ -18,7 +20,8 @@ import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/d
 /**
  * Caractérise la feature produit organisation (sous-lot 1) : création (avec
  * gardes §4.3) et liste. La création ouvre le compte money de l'org via
- * openFor('organisation') → account + wallet dormant (LEVEL_0).
+ * openFor('organisation') → account + wallet. Un marchand est auto-LEVEL_1 et
+ * reçoit son alias payable (QR) ; une entreprise reste LEVEL_0 sans alias.
  *
  * L'org n'a aucune FK vers le core → un ownerUserId arbitraire suffit (pas de
  * user réel), et le KYC est passé dans la commande (frontière par ID).
@@ -42,7 +45,7 @@ test.group('Business organisation | création', (group) => {
     }
   })
 
-  test('crée un marchand LEVEL_0 + compte + wallet dormant', async ({ assert }) => {
+  test('crée un marchand LEVEL_1 + compte + wallet + alias payable', async ({ assert }) => {
     const ownerUserId = randomUUID()
     const useCase = await app.container.make(CreateOrganisationUseCase)
 
@@ -51,21 +54,54 @@ test.group('Business organisation | création', (group) => {
     )
 
     assert.equal(result.accountType, OrganisationAccountType.MARCHAND)
-    assert.equal(result.level, OrganisationLevel.LEVEL_0)
+    // Marchand auto-LEVEL_1 (encaissant tout de suite, KYB photo ignoré).
+    assert.equal(result.level, OrganisationLevel.LEVEL_1)
     assert.equal(result.status, OrganisationStatus.ACTIVE)
+    assert.isString(result.payableCode)
 
     const org = await Organisation.query()
       .where('organisation_id', result.organisationId)
       .firstOrFail()
     assert.equal(org.ownerUserId, ownerUserId)
+    assert.equal(org.payableCode, result.payableCode)
 
-    // Compte money de l'org + wallet dormant (account_id = organisationId).
+    // Compte money de l'org + wallet (account_id = organisationId).
     const account = await Account.query().where('owner_ref', result.organisationId).firstOrFail()
     assert.equal(account.ownerType, AccountOwnerType.ORGANISATION)
 
     const wallet = await Wallet.query().where('account_id', result.organisationId).firstOrFail()
     assert.isNull(wallet.userId)
     assert.equal(Number(wallet.balance), 0)
+
+    // Alias payable (QR) : code → compte de l'org + nom d'affichage.
+    const alias = await PayableAlias.query().where('code', result.payableCode!).firstOrFail()
+    assert.equal(alias.accountId, result.organisationId)
+    assert.equal(alias.displayName, 'Ma Boutique')
+    assert.isTrue(alias.active)
+
+    // Round-trip : le core résout le code scanné → {compte, nom, actif}.
+    const payableAliasService = await app.container.make(PayableAliasService)
+    const resolved = await payableAliasService.resolve(result.payableCode!)
+    assert.isNotNull(resolved)
+    assert.equal(resolved!.accountId, result.organisationId)
+    assert.equal(resolved!.displayName, 'Ma Boutique')
+    assert.isTrue(resolved!.active)
+  })
+
+  test('crée une entreprise LEVEL_0 sans alias payable', async ({ assert }) => {
+    const useCase = await app.container.make(CreateOrganisationUseCase)
+
+    const result = await useCase.execute(
+      command({ name: 'Ma SARL', accountType: OrganisationAccountType.ENTERPRISE })
+    )
+
+    assert.equal(result.accountType, OrganisationAccountType.ENTERPRISE)
+    assert.equal(result.level, OrganisationLevel.LEVEL_0)
+    assert.isNull(result.payableCode)
+
+    // Pas d'alias payable tant que l'entreprise n'encaisse pas (avant KYB).
+    const aliases = await PayableAlias.query().where('account_id', result.organisationId)
+    assert.lengthOf(aliases, 0)
   })
 
   test('refuse la création si le KYC du propriétaire n’est pas valide', async ({ assert }) => {
