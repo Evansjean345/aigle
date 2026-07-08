@@ -66,6 +66,10 @@ import OrganisationRepository from '#aiglebusiness/organisation/domain/interface
 import OrganisationRepositoryImpl from '#aiglebusiness/organisation/infrastructure/repositories/organisation_repository_impl'
 import PayableAliasRepository from '#core/qr/domain/interfaces/payable_alias_repository'
 import PayableAliasRepositoryImpl from '#core/qr/infrastructure/repositories/payable_alias_repository_impl'
+import OrganisationRoleRepository from '#aiglebusiness/membership/domain/interfaces/organisation_role_repository'
+import OrganisationRoleRepositoryImpl from '#aiglebusiness/membership/infrastructure/repositories/organisation_role_repository_impl'
+import OrganisationMemberRepository from '#aiglebusiness/membership/domain/interfaces/organisation_member_repository'
+import OrganisationMemberRepositoryImpl from '#aiglebusiness/membership/infrastructure/repositories/organisation_member_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -105,6 +109,8 @@ export default class RepositoryProvider {
       [AccountRepository, AccountRepositoryImpl],
       [OrganisationRepository, OrganisationRepositoryImpl],
       [PayableAliasRepository, PayableAliasRepositoryImpl],
+      [OrganisationRoleRepository, OrganisationRoleRepositoryImpl],
+      [OrganisationMemberRepository, OrganisationMemberRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {

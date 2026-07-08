@@ -5,6 +5,7 @@ import { UserKycStatus } from '#core/identity/user/domain/enum'
 import AccountProvisioningService from '#core/money/account/application/services/account_provisioning_service'
 import { AccountOwnerType } from '#core/money/account/domain/enums/account_owner_type'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
+import MembershipService from '#aiglebusiness/membership/application/services/membership_service'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
@@ -32,7 +33,8 @@ export default class CreateOrganisationUseCase {
   constructor(
     private readonly organisationRepository: OrganisationRepository,
     private readonly accountProvisioning: AccountProvisioningService,
-    private readonly payableAliasService: PayableAliasService
+    private readonly payableAliasService: PayableAliasService,
+    private readonly membershipService: MembershipService
   ) {}
 
   async execute(request: CreateOrganisationRequestDto): Promise<OrganisationResponseDTO> {
@@ -55,13 +57,12 @@ export default class CreateOrganisationUseCase {
     const organisation = await db.transaction(async (trx) => {
       const organisationId = randomUUID()
 
-      // Ouvre le compte money de l'org (account_id = organisationId) + wallet.
       await this.accountProvisioning.openFor(AccountOwnerType.ORGANISATION, organisationId, trx)
       const payableCode = isMerchant
         ? await this.payableAliasService.register(organisationId, request.name, trx)
         : null
 
-      return this.organisationRepository.create(
+      const created = await this.organisationRepository.create(
         {
           organisationId,
           ownerUserId: request.ownerUserId,
@@ -73,6 +74,10 @@ export default class CreateOrganisationUseCase {
         },
         trx
       )
+
+      // Amorce le RBAC : rôle OWNER (toutes permissions) + membre OWNER (le créateur).
+      await this.membershipService.seedForNewOrganisation(organisationId, request.ownerUserId, trx)
+      return created
     })
 
     return OrganisationResponseDTO.fromModel(organisation)

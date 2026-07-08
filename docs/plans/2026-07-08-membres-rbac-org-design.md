@@ -95,8 +95,9 @@ Ordre : **A → C → B → D** (rôles avant membres, cf. décision #7).
 **Catalogue** (`permissions.config.ts`, extensible). Chaque entrée = `{ slug, name, description,
 sensitive:boolean }`. Un **endpoint de listing** l'expose (l'owner compose ses rôles ; description +
 flag `sensitive` le guident). Permissions : `organisation:manage`, `members:manage`, `roles:manage`,
-`kyb:submit`, `qr:manage`, `payout:initiate` (sensible), `payout:approve` (sensible),
-`transactions:view`, `wallet:view`.
+`kyb:submit`, `kyb:view` (sensible — données KYB entreprise), `qr:manage`,
+`payout:initiate` (sensible), `payout:approve` (sensible), `provision:request` (sensible —
+approvisionnement), `transactions:view`, `wallet:view`.
 
 **Seeding à la création** : **OWNER SEUL**, pour les deux types (marchand + entreprise). OWNER =
 toutes permissions, unique, protégé (non supprimable/rétrogradable), attribué au créateur.
@@ -122,6 +123,9 @@ seedés. Marchand = OWNER seul à vie.
 
 ## Prochaine session
 
-**Lot A : design COMPLET** (architecture + catalogue/rôles + impact create org, 7 décisions).
-Prêt à implémenter. Options : (1) implémenter le Lot A, (2) designer le Lot C (rôles éditables)
-avant — ordre A → C → B → D. Les lots C/B/D restent à concevoir (étapes 3-4 par lot).
+**Lot A : IMPLÉMENTÉ ✅** — feature `aiglebusiness/membership/` (permissions.config 11 slugs dont
+kyb:view + provision:request sensibles ; models OrganisationRole/RolePermission/Member ; repos ;
+MembershipService.seedForNewOrganisation), câblé dans CreateOrganisationUseCase (seed OWNER +
+membre OWNER, atomique), migrations batch 9, tests membership_flow (marchand+entreprise). tsc 57,
+functional 66/66, depcruise 0 error. **Prochain : designer le Lot C** (rôles éditables : CRUD rôles
++ endpoint listing du catalogue), puis Lot B (membres + OTP consentement), puis Lot D (enforcement).
