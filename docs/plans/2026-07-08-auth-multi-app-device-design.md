@@ -52,11 +52,13 @@ header `X-Client-App`, pas d'ability/scope marquant aiglesend vs aiglebusiness.
 | # | Décision | Alternatives écartées | Raison | Date |
 |---|----------|----------------------|--------|------|
 | 1 | **Token cloisonné par produit** : le login se fait « dans » un produit ; le token porte l'app (`app:aiglesend`/`app:aiglebusiness`) et un middleware `requireApp('...')` refuse un token du mauvais produit sur les endpoints de l'autre. Défense en profondeur **par-dessus** le RBAC | token transverse (un seul, accès selon droits) ; transverse + stamp indicatif | Un token aiglesend fuité ne peut RIEN sur `/business` (et inversement) ; permet des sessions/TTL/device **par produit** | 2026-07-08 |
-| 2 | **Device selon la plateforme** : mobile (aiglesend + aiglebusiness mobile) = fingerprint + appareil de confiance (**existant**, réutilisé) ; **web business = sessions révocables** (`user_device` `platform=web` : sessionId + userAgent + IP + lastSeen), listables/révocables, multi-session autorisé, **sans** enforcement « un seul appareil » | pas de liaison appareil (web) ; fingerprint navigateur type mobile (instable/évadable) | Le fingerprint matériel est mobile-natif ; le web a besoin de « voir/déconnecter mes sessions » sans fausse sécurité de fingerprint navigateur | 2026-07-08 |
+| 2 | **Device selon la plateforme** : mobile (aiglesend + aiglebusiness mobile) = fingerprint + appareil de confiance (**existant**, réutilisé) ; **web business = sessions révocables** (mécanisme précisé par #8), listables/révocables, multi-session autorisé, **sans** enforcement « un seul appareil » | pas de liaison appareil (web) ; fingerprint navigateur type mobile (instable/évadable) | Le fingerprint matériel est mobile-natif ; le web a besoin de « voir/déconnecter mes sessions » sans fausse sécurité de fingerprint navigateur | 2026-07-08 |
 | 3 | ~~Auth du portail web = phone + mot de passe~~ **CORRIGÉ par #5** : hypothèse « `password` existe déjà » fausse (champ présent mais **jamais renseigné** — seul `pincode` l'est à l'inscription). L'idée « OTP nouvelle session » (2FA) est conservée par #5 | — | Le champ password est dormant/vide pour tous les users → un login password exigerait un onboarding « set password » | 2026-07-08 → révisé |
-| 5 | **Auth du portail web = phone + PIN (`pincode`) + OTP en 2FA à la nouvelle session** : réutilise le credential existant (tous les users ont un `pincode`), **zéro onboarding**, un seul credential mobile+web. L'OTP « nouvelle session » compense la faiblesse du PIN et se branche sur les sessions révocables (#2, Lot 3) | password web (flux set-password + état « password non défini ») ; PIN maintenant / password plus tard (repoussé) | Débloque le web immédiatement sans nouveau chemin d'identité ; cohérent avec l'auth phone+PIN mobile existante | 2026-07-08 |
-| 6 | **Lot 2 = OTP systématique** (login business `phone+PIN → OTP → token`, à chaque login comme mobile). Le « skip OTP pour navigateur connu » de #5 est **réalisé au Lot 3** (persistance de session) | embarquer la persistance de session dès le Lot 2 (lots moins nets) | Lot 2 livrable seul, sûr d'emblée ; frontière Lot 2/3 propre | 2026-07-08 |
+| 5 | **Auth du portail web = phone + PIN (`pincode`) + OTP** : réutilise le credential existant (tous les users ont un `pincode`), **zéro onboarding**, un seul credential mobile+web. ~~OTP « nouvelle session »~~ → **OTP systématique** (#9). Le PIN faible est compensé par l'OTP à chaque login | password web (flux set-password + état « password non défini ») ; PIN maintenant / password plus tard | Débloque le web immédiatement sans nouveau chemin d'identité ; cohérent avec l'auth phone+PIN mobile existante | 2026-07-08 (OTP systématique par #9) |
+| 6 | **Lot 2 = OTP systématique** (login business `phone+PIN → OTP → token`, à chaque login comme mobile). ~~Le skip OTP pour navigateur connu réalisé au Lot 3~~ **ABANDONNÉ par #9** : l'OTP reste systématique (sécurité) | embarquer la persistance de session dès le Lot 2 | Lot 2 livrable seul, sûr d'emblée | 2026-07-08 (skip retiré par #9) |
 | 7 | **Émission du token stampé = service CORE `IssueAppTokenService.issue(user, app)`** (encapsule `User.accessTokens.create(user, ['app:<name>'])`). Le produit business l'appelle sans toucher le modèle `User` ; aiglesend l'utilise aussi pour son stamp | émettre depuis le produit (toucherait le modèle User → viole produit→core) ; déléguer tout l'auth à un use case core (business = simple façade) | Respecte l'invariant `produit-consomme-core-par-service` ; réutilisable par les deux produits | 2026-07-08 |
+| 8 | **Session web = le token lui-même** (pas de nouvelle table, précise #2). « Mes sessions » = lister les access tokens actifs du user (nom = navigateur, `deviceInfo` json = userAgent+IP, `last_used_at`, `created_at`) ; révoquer = `accessTokens.delete`. Exposé via un service core (le produit ne touche pas le modèle User) | `UserDevice` + `Device` synthétique (pollue Device de fingerprints factices) ; table `web_session` dédiée (duplique listing/révocation) | Naturel pour le web (token=session), zéro table, révocation native ; `access_tokens` porte déjà name/deviceInfo/last_used_at | 2026-07-08 |
+| 9 | **OTP SYSTÉMATIQUE au login web, pas de skip « navigateur connu »** (révise #5/#6) : sauter l'OTP sur un portail **financier** = faille. Le remember-token navigateur est **abandonné** (pas reporté). Le Lot 3 se réduit donc à **lister/révoquer les sessions** | inclure le skip-OTP (remember-token) ; le reporter à un Lot 4 | Sécurité d'une appli financière : l'OTP à chaque login web est la bonne posture, pas une friction à supprimer | 2026-07-08 |
 | 4 | **Stamp = ability `app:<produit>` dans le token** (les abilities sont inutilisées aujourd'hui, aucun `.allows()`) ; `requireApp` lit `currentAccessToken.abilities` en **inclusion littérale**. **Transition = forcer le re-login** (enforce strict d'emblée, tokens sans stamp refusés). Sémantique middleware : bon `app` → passe ; **autre** `app:*` → **403** (cloisonnement) ; **aucun** `app:*` (legacy) → **401** (re-login) | backfill `app:aiglesend` + enforce (moins disruptif) ; grandfather les tokens sans stamp (faille transitoire) | Le plus propre ; abilities repurposables sans risque ; contexte pré-prod tolère la déconnexion | 2026-07-08 |
 
 ## Objectif (validé 2026-07-08)
@@ -72,7 +74,7 @@ sessions.
 |-----|---------|-----------|--------|
 | 1 — Cloisonnement & stamp | ability `app:<produit>` sur les tokens à l'émission + middleware `requireApp('...')` sur les groupes de routes (business exige `app:aiglebusiness`, mobile aiglesend exige `app:aiglesend`) | — | design fait |
 | 2 — Login business | entrée d'auth aiglebusiness (phone+PIN+OTP, service core IssueAppToken), token `app:aiglebusiness` | 1 | design fait |
-| 3 — Sessions web révocables | `user_device` `platform=web` (sessionId/userAgent/IP/lastSeen), endpoints « mes sessions actives » + révocation, liaison token↔session | 2 | à faire |
+| 3 — Sessions révocables | « mes sessions » = access tokens actifs (name/deviceInfo/last_used_at) + révocation (`accessTokens.delete`), via service core. **Sans** skip-OTP (#9) | 2 | design fait |
 
 ## Inconnues
 
@@ -126,9 +128,46 @@ fonctionnellement (juste le stamp ajouté).
 **stampé `app:aiglebusiness`** ; OTP faux → rejet ; token business → passe `requireApp('aiglebusiness')` ;
 token aiglesend → 403 sur `/business` ; token business → 403 sur une route `requireApp('aiglesend')`.
 
+## Lot 3 — Design (sessions révocables)
+
+Périmètre réduit par #9 (pas de skip-OTP) : **lister et révoquer** les sessions actives d'un user, la
+session étant l'access token lui-même (#8).
+
+**Architecture** :
+- **Core** : étendre l'auth d'un service `UserSessionService` (`core/identity/authentication/application/`)
+  exposant `listActive(userId) → UserSessionResult[]` et `revoke(userId, tokenId)`. Il lit les access
+  tokens du user (via `User.accessTokens` / la table), mappe vers un DTO minimal
+  `UserSessionResult {id, name, userAgent, ip, platform, lastUsedAt, createdAt, current}`, et supprime
+  un token par id (en vérifiant qu'il appartient bien au user). Le flag `current` marque la session
+  courante (`ctx.auth.user.currentAccessToken.identifier`).
+- **Enrichissement à l'émission** : `IssueAppTokenService` (Lot 2) renseigne `name` (libellé navigateur)
+  et `deviceInfo` json (userAgent + IP) sur le token, à partir des infos requête, pour un listing utile.
+- **Produit business** : `aiglebusiness/auth/presentation/client/` — `GET /business/auth/sessions`
+  (liste) et `DELETE /business/auth/sessions/:id` (révoque), gardés par `middleware.auth()` +
+  `requireApp('aiglebusiness')`. Le produit passe par `UserSessionService` (jamais le modèle User).
+- **Transverse** : le service étant core, aiglesend mobile peut aussi exposer ses sessions plus tard
+  (hors périmètre ici).
+
+**Flux** : `GET sessions` → liste (la courante marquée) ; `DELETE sessions/:id` → révoque un autre
+token (déconnecte ce navigateur) ; révoquer la session courante = logout classique (déjà existant).
+
+**Impact** : aucun schéma nouveau (le token porte déjà name/deviceInfo/last_used_at). Ajout d'un service
+core + 2 endpoints business. `IssueAppTokenService` gagne le remplissage name/deviceInfo.
+
+**Tests** : login business 2 fois (2 tokens) → `GET sessions` renvoie 2 entrées, la courante flaggée ;
+`DELETE sessions/:autreId` → le 2e token ne fonctionne plus (401) ; révoquer un token d'un **autre**
+user → 404/403 (ownership) ; le listing n'expose pas le hash du token.
+
+## Risques & inconnues
+
+- **Contenu réellement lisible des tokens** : confirmer en implémentation que `User.accessTokens.all()`
+  (ou équivalent) expose `name`, `deviceInfo`, `lastUsedAt`, `createdAt`, `identifier` sans le secret.
+- **IP/userAgent à l'émission** : le login web doit capturer `request.ip()` + `X-... / user-agent` pour
+  peupler `deviceInfo`. Trivial mais à câbler au Lot 2.
+
 ## Prochaine session
 
-Lots 1-2 conçus. Prochain : concevoir le **Lot 3** (sessions web révocables `user_device platform=web`
-+ skip-OTP navigateur connu, réalisant le « nouvelle session » de #5). Puis implémentation (Lot 1+2
-ensemble car business a besoin du login pour que `requireApp('aiglebusiness')` soit utile), puis Lot 3,
-puis **reprise du Lot D RBAC** (`docs/plans/2026-07-08-membres-rbac-org-design.md`).
+Design des 3 lots **complet**. Prochain : **implémenter Lot 1+2 ensemble** (business a besoin du login
+pour que `requireApp('aiglebusiness')` soit utile ; stamp aiglesend + `requireApp('aiglesend')` en même
+temps), puis **Lot 3** (sessions), puis **reprise du Lot D RBAC**
+(`docs/plans/2026-07-08-membres-rbac-org-design.md`). Passer ce doc en `approved` avant d'implémenter.
