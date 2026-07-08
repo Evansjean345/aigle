@@ -64,6 +64,8 @@ import AccountRepository from '#core/money/account/domain/interfaces/account_rep
 import AccountRepositoryImpl from '#core/money/account/infrastructure/repositories/account_repository_impl'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 import OrganisationRepositoryImpl from '#aiglebusiness/organisation/infrastructure/repositories/organisation_repository_impl'
+import PayableAliasRepository from '#core/qr/domain/interfaces/payable_alias_repository'
+import PayableAliasRepositoryImpl from '#core/qr/infrastructure/repositories/payable_alias_repository_impl'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -102,6 +104,7 @@ export default class RepositoryProvider {
       [AuditRecorder, AuditService],
       [AccountRepository, AccountRepositoryImpl],
       [OrganisationRepository, OrganisationRepositoryImpl],
+      [PayableAliasRepository, PayableAliasRepositoryImpl],
     ])
 
     for (const [contract, implementation] of providers) {
