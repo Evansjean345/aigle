@@ -121,11 +121,19 @@ identiques (on peuple `account_id` en plus, on ne retire rien).
 - `createTransaction` peuple `account_id` (dérivé du wallet) pour TOUS les flux + rend `user`
   optionnel (un marchand passe le compte, `users_*` null). → suite verte requise.
 
-**Étape 2 — Chemin encaissement marchand (account-centrique)** :
-- Résolution wallet par `account_id` ; validation **account-based** d'un marchand récepteur
-  (compte + wallet actifs ; PAS de KYC/device — le marchand n'est pas l'acteur, le payeur anonyme l'est).
-- `settle_checkout` crédite par compte (`getByAccountId`), pas `getByUserId` ; échec = pas de refund.
-- `TransactionType.CHECKOUT` + `SettlementKind += 'checkout'` + routage webhook.
+**Étape 2 — Chemin encaissement marchand (account-centrique)** — RÉVISÉ :
+Un checkout **EST un deposit** (external-in) vers un compte marchand. **Pas de nouveau
+SettlementKind ni de settle_checkout** : le webhook route déjà un entrant vers `kind: 'deposit'`
+(`resolveKind` fallback). Il suffit de rendre le chemin external-in **account-centrique** (D8) :
+- `settle_deposit` : crédite par `getByAccountId(transaction.accountId)` (au lieu de
+  `getByUserId(transaction.usersUid)`) → crédite user OU marchand. Échec = pas de refund (cash-in).
+- `external_in` : résout le wallet par `account_id` ; validation **account-based** d'un marchand
+  récepteur (compte + wallet actifs ; PAS de KYC/device — le marchand n'est pas l'acteur) ;
+  `createTransaction` avec compte (user null pour un marchand).
+- `TransactionType.CHECKOUT` (décommenter) + `resolveKind` : `case CHECKOUT → 'deposit'` (explicite ;
+  le fallback le fait déjà).
+- Notif marchand (« encaissement reçu ») vs consumer : branche sur `operationType` dans le settle
+  (ou un listener qui route selon `operationType`/type de compte).
 
 **Étape 3 — API checkout publique + statut + notif** (cf. plan d'implémentation ci-dessus).
 
