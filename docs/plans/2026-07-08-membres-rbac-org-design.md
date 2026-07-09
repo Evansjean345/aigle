@@ -291,15 +291,19 @@ functional 66/66, depcruise 0 error.
   retrait soft/hard, correctifs RBAC). Suite membership complète : **34/34**.
 - Vérifs : tsc sans erreur membership, depcruise **0 error** (invariant core intact), eslint clean.
 
-> ⏸️ **Lot D EN PAUSE (2026-07-08)** : design Lot D validé jusqu'aux décisions #19/#20 (middleware
-> `requirePermission` live + suppression des policies Bouncer), mais **suspendu** pour concevoir
-> d'abord les fondations **auth multi-app & gestion d'appareils** (les deux apps partagent la même
-> auth, sans distinction ni device management web). Voir `docs/plans/2026-07-08-auth-multi-app-device-design.md`.
-> Reprendre le Lot D après.
+**Lot D : IMPLÉMENTÉ ✅ (2026-07-09)** — enforcement RBAC par middleware `orgPermission` (décisions #19/#20) :
+- Middleware `require_permission_middleware.ts` (présentation feature membership, `middleware.orgPermission({ permission })`
+  dans `start/kernel.ts`) : `memberHasPermission` **live** (membre ACTIF + perm, bypass OWNER) → 403 `E_FORBIDDEN_ORG_PERMISSION`.
+- Routes en deux sous-groupes sous `[auth, requireApp]` : rôles + catalogue → `roles:manage` ; membres → `members:manage`.
+- **Policies Bouncer supprimées** (`OrganisationMemberPolicy`, `OrganisationRolePolicy`) + `bouncer.authorize` retiré des 3 contrôleurs.
+- Permissions **jamais gravées dans le token** (le token porte `app:aiglebusiness` + `channel`) → changement de rôle effectif sans re-login.
+- Tests HTTP : perm présente → 200 ; granularité (roles:manage n'ouvre pas les membres) → 403 ; sans perm → 403. Suite **267 passed** (4 pré-existants).
+- Verrou complémentaire (même session) : rôle système OWNER **non attribuable** via invite/change-role (`SystemRoleNotAssignableException`) → propriété unique. Transfert explicite = **R3** (backlog, décidé, à implémenter).
 
-**Prochain : Lot D** (enforcement : middleware déclaratif par permission + scoping token business
-par-dessus `memberHasPermission`). Restent aussi hors-Lot : notification push invité (amélioration),
-KYB (génère le QR entreprise à l'approbation), mass-payout/paiements.
+> Le sous-lot 3 (Membres & RBAC org) est **complet** : Lots A ✅ / C ✅ / B ✅ / D ✅.
+
+Restent hors-Lot : notification push invité (amélioration), KYB (génère le QR entreprise à l'approbation),
+mass-payout/paiements, **flux de transfert de propriété** (R3).
 
 > ⚠️ 4 tests **core** échouent hors périmètre (3 KYC unit process/submit ; 1 ProviderErrorService
 > ACCOUNT_BLOCKED). Pré-existants, reproduits en isolation, sans lien avec le Lot B.
