@@ -33,7 +33,7 @@ paths:
                     description: Numéro normalisé au format international.
               example:
                 message: "phone exists"
-                phone: "+2250708123456"
+                phone: "2250708123456"
         '404':
           description: Numéro introuvable
           content:
@@ -86,7 +86,7 @@ paths:
                 $ref: '#/components/schemas/OtpSentResponse'
               example:
                 message: "Un code de vérification a été envoyé à ce numéro"
-                phone: "+2250708123456"
+                phone: "2250708123456"
         '409':
           description: Un compte existe déjà pour ce numéro
           content:
@@ -186,7 +186,7 @@ paths:
                   accountNumber: "AIG-0007412"
                   firstname: "Awa"
                   lastname: "Traoré"
-                  phone: "+2250708123456"
+                  phone: "2250708123456"
                   accountType: "personal"
                   pictureUrl: ""
                   status: "active"
@@ -315,8 +315,18 @@ paths:
           description: OTP vérifié — jeton de réinitialisation retourné
           content:
             application/json:
+              schema:
+                type: object
+                required: [reset_token]
+                properties:
+                  reset_token:
+                    type: string
+                    format: uuid
+                    description: >-
+                      Jeton de réinitialisation à usage unique (UUID), à fournir à l'étape
+                      `reset`. Valable 10 minutes.
               example:
-                reset_token: "rst_a1b2c3d4e5f6g7h8"
+                reset_token: "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
         '422':
           $ref: '#/components/responses/ValidationError'
 
@@ -343,7 +353,7 @@ paths:
               $ref: '#/components/schemas/ForgotPasswordResetRequest'
             example:
               phone: "0708123456"
-              reset_token: "rst_a1b2c3d4e5f6g7h8"
+              reset_token: "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
               new_pincode: "67890"
               confirm_pincode: "67890"
               country_id: 1
@@ -386,7 +396,7 @@ paths:
                 accountNumber: "AIG-0007412"
                 firstname: "Awa"
                 lastname: "Traoré"
-                phone: "+2250708123456"
+                phone: "2250708123456"
                 accountType: "personal"
                 pictureUrl: ""
                 status: "active"
@@ -416,11 +426,43 @@ paths:
         - $ref: '#/components/parameters/DeviceOsVersion'
       responses:
         '200':
-          description: État de session
+          description: État de verrouillage du compte
           content:
             application/json:
               schema:
                 type: object
+                required: [locked, reason, retryAfterSeconds]
+                properties:
+                  locked:
+                    type: boolean
+                    description: Le compte est-il verrouillé (accès à refuser localement).
+                    example: false
+                  reason:
+                    type: string
+                    nullable: true
+                    enum: [ACCOUNT_BLOCKED, PIN_TEMPORARILY_BLOCKED]
+                    description: >-
+                      Motif du verrouillage, ou `null` si le compte n'est pas verrouillé.
+                      `ACCOUNT_BLOCKED` = compte bloqué (définitif) ; `PIN_TEMPORARILY_BLOCKED` =
+                      blocage temporaire après trop d'échecs de PIN.
+                    example: null
+                  retryAfterSeconds:
+                    type: integer
+                    nullable: true
+                    description: >-
+                      Secondes restantes avant la fin d'un blocage temporaire du PIN ; `null`
+                      pour un compte non verrouillé ou un blocage définitif.
+                    example: null
+              examples:
+                unlocked:
+                  summary: Compte non verrouillé
+                  value: { locked: false, reason: null, retryAfterSeconds: null }
+                pinLocked:
+                  summary: PIN temporairement bloqué
+                  value: { locked: true, reason: "PIN_TEMPORARILY_BLOCKED", retryAfterSeconds: 180 }
+                blocked:
+                  summary: Compte bloqué
+                  value: { locked: true, reason: "ACCOUNT_BLOCKED", retryAfterSeconds: null }
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -523,6 +565,58 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - users_uid
+                  - firstname
+                  - lastname
+                  - phone
+                  - kyc_level
+                  - kyc_status
+                  - account_type
+                  - status
+                  - countryId
+                properties:
+                  users_uid:
+                    type: string
+                    description: Identifiant public de l'utilisateur.
+                    example: "usr_3f9a2c10"
+                  firstname:
+                    type: string
+                    example: "Awa"
+                  lastname:
+                    type: string
+                    example: "Traoré"
+                  phone:
+                    type: string
+                    description: Numéro au format international, sans le `+` (indicatif + numéro).
+                    example: "2250708123456"
+                  kyc_level:
+                    type: integer
+                    description: Niveau KYC atteint.
+                    example: 0
+                  kyc_status:
+                    type: string
+                    description: Statut de la vérification d'identité.
+                    example: "pending"
+                  account_type:
+                    type: string
+                    example: "personal"
+                  status:
+                    type: string
+                    example: "active"
+                  countryId:
+                    type: integer
+                    example: 1
+              example:
+                users_uid: "usr_3f9a2c10"
+                firstname: "Awa"
+                lastname: "Traoré"
+                phone: "2250708123456"
+                kyc_level: 0
+                kyc_status: "pending"
+                account_type: "personal"
+                status: "active"
+                countryId: 1
         '404':
           description: Utilisateur introuvable
           content:

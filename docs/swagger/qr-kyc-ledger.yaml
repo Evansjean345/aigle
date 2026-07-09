@@ -84,7 +84,7 @@ paths:
                 ok: true
                 userId: "usr_9a8b7c"
                 name: "Awa Traoré"
-                phone: "+2250708123456"
+                phone: "2250708123456"
         '400':
           description: Jeton absent ou invalide
           content:
@@ -212,9 +212,14 @@ paths:
           description: Documents soumis pour vérification
           content:
             application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message:
+                    type: string
               example:
-                message: "Documents KYC soumis avec succès"
-                status: "pending"
+                message: "Documents Kyc soumis avec succès 📄"
         '401':
           description: Non autorisé
         '422':

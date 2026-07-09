@@ -31,24 +31,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedTransactions'
               example:
+                data:
+                  - transactionId: "aig_tx_4b7e1d"
+                    reference: "TRF-20260308-A1B2C3"
+                    amount: 5000
+                    fees: 50
+                    totalAmount: 5050
+                    operationType: "transfert"
+                    status: "success"
+                    balanceAfter: 12000
+                    direction: "debit"
+                    dateTransaction: "2026-03-08T14:22:00.000Z"
+                    payment:
+                      - paymentMethod: "mobile-money"
+                        status: "success"
+                        step: "transfert_confirmed"
+                        paymentDetails: { operator: "orange", phone: "2250708123456", user: "Awa Traoré" }
+                        error: null
                 meta:
                   total: 45
-                  perPage: 20
                   currentPage: 1
+                  firstPage: 1
                   lastPage: 3
-                data:
-                  - reference: "aig_tx_4b7e1d"
-                    type: "transfert"
-                    amount: 5000
-                    status: "success"
-                    providerCode: "orange"
-                    createdAt: "2026-03-08T14:22:00Z"
-                  - reference: "aig_tx_9f3a2c"
-                    type: "deposit"
-                    amount: 10000
-                    status: "success"
-                    providerCode: "moov"
-                    createdAt: "2026-03-07T09:15:00Z"
+                  perPage: 16
         '401':
           description: Non autorisé
 
@@ -115,14 +120,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/TransactionDetail'
               example:
-                reference: "aig_tx_4b7e1d"
-                type: "transfert"
+                transactionId: "aig_tx_4b7e1d"
+                reference: "TRF-20260308-A1B2C3"
                 amount: 5000
+                fees: 50
+                totalAmount: 5050
+                operationType: "transfert"
                 status: "success"
-                providerCode: "orange"
-                paymentMethodCode: "mobile-money"
-                createdAt: "2026-03-08T14:22:00Z"
-                updatedAt: "2026-03-08T14:22:35Z"
+                balanceAfter: 12000
+                direction: "debit"
+                dateTransaction: "2026-03-08T14:22:00.000Z"
+                payment:
+                  - paymentMethod: "mobile-money"
+                    status: "success"
+                    step: "transfert_confirmed"
+                    paymentDetails: { operator: "orange", phone: "2250708123456", user: "Awa Traoré" }
+                    error: null
         '401':
           description: Non autorisé
         '404':
@@ -314,57 +327,136 @@ paths:
 
 components:
   schemas:
-    TransactionDetail:
+    TransactionPayment:
       type: object
+      description: Étape de paiement associée à la transaction (mobile).
+      required: [paymentMethod, status, step, paymentDetails]
       properties:
-        reference:
+        paymentMethod:
           type: string
-          description: Référence unique de la transaction
-        type:
-          type: string
-          enum: [depot, transfert, transfert_inter, wallet_to_wallet]
-        amount:
-          type: number
-        fees:
-          type: number
-        totalAmount:
-          type: number
+          example: "mobile-money"
         status:
           type: string
-          enum: [pending, completed, failed]
-        providerCode:
+          example: "success"
+        step:
           type: string
+          enum:
+            - wallet_to_wallet
+            - deposit_init
+            - deposit_pending
+            - deposit_confirmed
+            - deposit_failed
+            - transfert_init
+            - transfert_pending
+            - transfert_confirmed
+            - transfert_failed
+          example: "transfert_confirmed"
+        paymentDetails:
+          type: object
+          required: [operator, phone, user]
+          properties:
+            operator:
+              type: string
+              example: "orange"
+            phone:
+              type: string
+              example: "2250708123456"
+            user:
+              type: string
+              example: "Awa Traoré"
+        error:
+          type: object
           nullable: true
-        paymentMethodCode:
+          description: Présent (non `null`) uniquement en cas d'échec.
+          properties:
+            category:
+              type: string
+              nullable: true
+            message:
+              type: string
+              nullable: true
+
+    TransactionDetail:
+      type: object
+      required:
+        - transactionId
+        - reference
+        - amount
+        - fees
+        - totalAmount
+        - operationType
+        - status
+        - balanceAfter
+        - direction
+        - dateTransaction
+        - payment
+      properties:
+        transactionId:
           type: string
-          nullable: true
-        senderPhone:
+          description: Identifiant public de la transaction.
+          example: "aig_tx_4b7e1d"
+        reference:
           type: string
-        receiverPhone:
+          description: Référence unique de la transaction.
+          example: "TRF-20260308-A1B2C3"
+        amount:
+          type: number
+          example: 5000
+        fees:
+          type: number
+          example: 50
+        totalAmount:
+          type: number
+          example: 5050
+        operationType:
           type: string
-          nullable: true
-        createdAt:
+          description: Type d'opération (ex. `depot`, `transfert`, `wallet_to_wallet`).
+          example: "transfert"
+        status:
+          type: string
+          example: "success"
+        balanceAfter:
+          type: number
+          description: Solde du portefeuille après l'opération.
+          example: 12000
+        direction:
+          type: string
+          enum: [debit, credit, external]
+          example: "debit"
+        dateTransaction:
           type: string
           format: date-time
-        updatedAt:
-          type: string
-          format: date-time
+          example: "2026-03-08T14:22:00.000Z"
+        payment:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionPayment'
 
     PaginatedTransactions:
       type: object
+      required: [data, meta]
       properties:
-        meta:
-          type: object
-          properties:
-            total:
-              type: integer
-            perPage:
-              type: integer
-            currentPage:
-              type: integer
-            lastPage:
-              type: integer
         data:
           type: array
           items:
             $ref: '#/components/schemas/TransactionDetail'
+        meta:
+          type: object
+          required: [total, currentPage, firstPage, lastPage, perPage]
+          properties:
+            total:
+              type: integer
+              example: 45
+            currentPage:
+              type: integer
+              example: 1
+            firstPage:
+              type: integer
+              example: 1
+            lastPage:
+              type: integer
+              example: 3
+            perPage:
+              type: integer
+              description: Taille de page fixe (16).
+              example: 16

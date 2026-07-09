@@ -135,9 +135,14 @@ paths:
       operationId: waveWebhook
       summary: Webhook Wave
       description: |
-        **Entrant, appelé par Wave.** Règle les opérations réalisées via Wave. Le schéma de la
-        charge utile et la vérification de signature Wave seront précisés ultérieurement. Réponse
-        `200` attendue.
+        **Entrant, appelé par Wave.** Règle les opérations de paiement (checkout) réalisées via
+        Wave. Le corps porte un `type` d'événement et un objet `data` ; la référence interne
+        aiglesend est dans `data.client_reference`.
+
+        Types pris en charge : `checkout.session.completed` (succès) et
+        `checkout.session.payment_failed` (échec). Tout autre type est ignoré. La réponse est
+        **toujours `200` avec un corps `{}`** (accusé de réception), même en cas de type non
+        supporté ou de données invalides ; les échecs de traitement sont journalisés.
       tags:
         - Webhooks
       requestBody:
@@ -146,7 +151,54 @@ paths:
           application/json:
             schema:
               type: object
-              description: Charge utile Wave.
+              required: [type, data]
+              properties:
+                type:
+                  type: string
+                  enum: [checkout.session.completed, checkout.session.payment_failed]
+                  description: Type d'événement Wave.
+                data:
+                  type: object
+                  required: [client_reference]
+                  properties:
+                    client_reference:
+                      type: string
+                      description: Référence interne aiglesend de l'opération.
+                    id:
+                      type: string
+                      nullable: true
+                      description: Référence de l'opération côté Wave.
+                    last_payment_error:
+                      type: object
+                      nullable: true
+                      description: Présent en cas d'échec.
+                      properties:
+                        code:
+                          type: string
+                        message:
+                          type: string
+                    code:
+                      type: string
+                      nullable: true
+                      description: Code d'erreur natif de repli (si `last_payment_error.code` absent).
+            examples:
+              completed:
+                summary: Paiement réussi
+                value:
+                  type: "checkout.session.completed"
+                  data:
+                    id: "wc_01hx..."
+                    client_reference: "aig_tx_9f3a2c"
+              failed:
+                summary: Paiement échoué
+                value:
+                  type: "checkout.session.payment_failed"
+                  data:
+                    id: "wc_01hx..."
+                    client_reference: "aig_tx_9f3a2c"
+                    last_payment_error:
+                      code: "insufficient-funds"
+                      message: "The customer does not have enough funds."
       responses:
         '200':
           $ref: '#/components/responses/WebhookAck'

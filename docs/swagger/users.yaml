@@ -88,20 +88,27 @@ paths:
         - $ref: '#/components/parameters/DeviceOsVersion'
       responses:
         '200':
-          description: Téléphone(s) de débit pour l'opérateur
+          description: >-
+            Le téléphone de débit **vérifié** pour cet opérateur, ou `null` si l'utilisateur n'en
+            a aucun. Renvoie un objet unique (pas une liste).
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/DebitPhone'
-              example:
-                - id: 1
-                  phone: "+2250708123456"
-                  providerCode: "moov"
-                  label: "Mon Moov"
-                  isVerified: true
-                  createdAt: "2026-02-15T10:00:00Z"
+                nullable: true
+                allOf:
+                  - $ref: '#/components/schemas/DebitPhone'
+              examples:
+                found:
+                  summary: Téléphone de débit existant
+                  value:
+                    id: 1
+                    phone: "2250708123456"
+                    label: "Mon Moov"
+                    is_verified: true
+                    provider: { id: 3, code: "moov", logo: "https://cdn.aigle.africa/providers/moov.png" }
+                none:
+                  summary: Aucun téléphone de débit pour cet opérateur
+                  value: null
         '400':
           description: Paramètre providerCode manquant
           content:
@@ -110,6 +117,14 @@ paths:
                 message: "Le paramètre 'providerCode' est requis."
                 status: 400
                 code: "MISSING_PROVIDER_CODE"
+        '404':
+          description: Opérateur inconnu (`PROVIDER_NOT_FOUND`)
+          content:
+            application/json:
+              example:
+                message: "Le fournisseur mobile money n'existe pas."
+                status: 404
+                code: "PROVIDER_NOT_FOUND"
         '401':
           description: Non autorisé
     post:
@@ -144,7 +159,7 @@ paths:
           content:
             application/json:
               example:
-                message: "Téléphone ajouté. Veuillez vérifier avec le code OTP envoyé."
+                message: "Un code OTP a été envoyé au numéro fourni. Veuillez le valider."
         '401':
           description: Non autorisé
         '422':
@@ -482,21 +497,36 @@ components:
   schemas:
     DebitPhone:
       type: object
+      required: [id, phone, label, is_verified, provider]
       properties:
         id:
           type: integer
+          example: 1
         phone:
           type: string
-        providerCode:
-          type: string
+          description: Numéro de débit (format normalisé, sans `+`).
+          example: "2250708123456"
         label:
           type: string
           nullable: true
-        isVerified:
+          example: "Mon Moov"
+        is_verified:
           type: boolean
-        createdAt:
-          type: string
-          format: date-time
+          example: true
+        provider:
+          type: object
+          required: [id, code, logo]
+          properties:
+            id:
+              type: integer
+              example: 3
+            code:
+              type: string
+              example: "moov"
+            logo:
+              type: string
+              nullable: true
+              example: "https://cdn.aigle.africa/providers/moov.png"
 
     StoreDebitPhoneRequest:
       type: object
