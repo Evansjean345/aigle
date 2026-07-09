@@ -52,7 +52,11 @@
     html.dark .swagger-ui .opblock { background: rgba(255,255,255,.03); border-color: #30363d; }
     html.dark .swagger-ui section.models { border-color: #30363d; }
     html.dark .swagger-ui section.models .model-container { background: rgba(255,255,255,.03); }
-    html.dark .swagger-ui .scheme-container { background: var(--bg); box-shadow: none; }
+    /* Bloc Servers + Authorize groupé en carte (au lieu de se fondre dans la page) */
+    html.dark .swagger-ui .scheme-container {
+      background: #161b26; border: 1px solid #30363d; border-radius: 10px;
+      box-shadow: none; padding: 1.25rem 1.5rem; margin: 1.5rem 0 2.5rem;
+    }
     html.dark .swagger-ui select { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
     html.dark .swagger-ui input[type=text], html.dark .swagger-ui textarea { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
     html.dark .swagger-ui .btn { background: var(--btn-bg); color: var(--btn-fg); border-color: #30363d; }
@@ -129,6 +133,16 @@
     html.dark .swagger-ui .response-col_status,
     html.dark .swagger-ui .parameter__name,
     html.dark .swagger-ui .parameter__type { color: #c9d1d9; }
+    /* Badge de version (1.0.0) — gris peu lisible → contrasté */
+    html.dark .swagger-ui .info .title small {
+      background: #30363d;
+    }
+    html.dark .swagger-ui .info .title small pre { color: #dbe3ec; }
+    /* Labels des variables de serveur + "Computed URL" */
+    html.dark .swagger-ui .servers > label select { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
+    html.dark .swagger-ui table.server-values td,
+    html.dark .swagger-ui .server-container,
+    html.dark .swagger-ui section h3 { color: #c9d1d9; }
 
     /* Light mode: hide default topbar too */
     .swagger-ui .topbar { display: none; }
