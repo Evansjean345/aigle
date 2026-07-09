@@ -34,8 +34,14 @@ export default class OrganisationRepositoryImpl implements OrganisationRepositor
     return Number(result[0].$extras.total)
   }
 
-  async listByOwner(ownerUserId: string): Promise<Organisation[]> {
-    return Organisation.query().where('owner_user_id', ownerUserId).orderBy('created_at', 'desc')
+  async listByIds(organisationIds: string[]): Promise<Organisation[]> {
+    if (organisationIds.length === 0) {
+      return []
+    }
+
+    return Organisation.query()
+      .whereIn('organisation_id', organisationIds)
+      .orderBy('created_at', 'desc')
   }
 
   async findByOrganisationId(organisationId: string): Promise<Organisation | null> {

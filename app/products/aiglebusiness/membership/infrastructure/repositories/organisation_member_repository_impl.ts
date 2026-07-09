@@ -48,6 +48,16 @@ export default class OrganisationMemberRepositoryImpl implements OrganisationMem
       .orderBy('created_at', 'asc')
   }
 
+  async listActiveOrganisationIdsByUser(userId: string): Promise<string[]> {
+    const rows = await OrganisationMember.query()
+      .where('user_id', userId)
+      .where('status', MemberStatus.ACTIVE)
+      .select('organisation_id')
+      .distinct('organisation_id')
+
+    return rows.map((row) => row.organisationId)
+  }
+
   async updateStatus(
     memberId: number,
     status: MemberStatus,

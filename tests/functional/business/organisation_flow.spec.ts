@@ -14,6 +14,9 @@ import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/orga
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
 import ListOrganisationsUseCase from '#aiglebusiness/organisation/application/use_cases/list_organisations.use_case'
+import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/create_role.use_case'
+import OrganisationMember from '#aiglebusiness/membership/domain/models/organisation_member'
+import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
 import OwnerKycNotVerifiedException from '#aiglebusiness/organisation/domain/exceptions/owner_kyc_not_verified_exception'
 import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/domain/exceptions/merchant_account_already_exists_exception'
 
@@ -172,7 +175,7 @@ test.group('Business organisation | liste', (group) => {
     }
   })
 
-  test('ne liste que les organisations du propriétaire', async ({ assert }) => {
+  test('liste les organisations où je suis membre actif (owner inclus)', async ({ assert }) => {
     const ownerUserId = randomUUID()
     const create = await app.container.make(CreateOrganisationUseCase)
 
@@ -182,7 +185,7 @@ test.group('Business organisation | liste', (group) => {
     await create.execute(
       command({ ownerUserId, name: 'B', accountType: OrganisationAccountType.ENTERPRISE })
     )
-    // Une org d'un autre propriétaire ne doit pas apparaître.
+    // Une org où je ne suis ni owner ni membre ne doit pas apparaître.
     await create.execute(command({ name: 'C', accountType: OrganisationAccountType.MARCHAND }))
 
     const list = await app.container.make(ListOrganisationsUseCase)
@@ -193,5 +196,60 @@ test.group('Business organisation | liste', (group) => {
       mine.map((o) => o.name),
       ['A', 'B']
     )
+  })
+
+  test('un membre non-owner voit l’organisation dont il est membre actif', async ({ assert }) => {
+    const create = await app.container.make(CreateOrganisationUseCase)
+    const createRole = await app.container.make(CreateRoleUseCase)
+    const list = await app.container.make(ListOrganisationsUseCase)
+
+    const org = await create.execute(
+      command({ name: 'Org Partagée', accountType: OrganisationAccountType.ENTERPRISE })
+    )
+
+    // Un utilisateur tiers, rattaché comme membre ACTIF avec un rôle métier.
+    const memberUserId = randomUUID()
+    const role = await createRole.execute({
+      organisationId: org.organisationId,
+      name: 'Comptable',
+      permissionSlugs: ['transactions:view'],
+    })
+    const member = new OrganisationMember()
+    member.organisationId = org.organisationId
+    member.userId = memberUserId
+    member.roleId = role.id
+    member.status = MemberStatus.ACTIVE
+    await member.save()
+
+    // Avant le fix, ce membre (non-owner) recevait une liste vide.
+    const theirs = await list.execute(memberUserId)
+    assert.lengthOf(theirs, 1)
+    assert.equal(theirs[0].organisationId, org.organisationId)
+  })
+
+  test('un membre RETIRÉ (removed) ne voit plus l’organisation', async ({ assert }) => {
+    const create = await app.container.make(CreateOrganisationUseCase)
+    const createRole = await app.container.make(CreateRoleUseCase)
+    const list = await app.container.make(ListOrganisationsUseCase)
+
+    const org = await create.execute(
+      command({ name: 'Org', accountType: OrganisationAccountType.ENTERPRISE })
+    )
+    const memberUserId = randomUUID()
+    const role = await createRole.execute({
+      organisationId: org.organisationId,
+      name: 'Comptable',
+      permissionSlugs: ['transactions:view'],
+    })
+    const member = new OrganisationMember()
+    member.organisationId = org.organisationId
+    member.userId = memberUserId
+    member.roleId = role.id
+    member.status = MemberStatus.REMOVED
+    await member.save()
+
+    // Seuls les membres ACTIFS voient l'org.
+    const theirs = await list.execute(memberUserId)
+    assert.lengthOf(theirs, 0)
   })
 })

@@ -25,9 +25,10 @@ export default abstract class OrganisationRepository {
   ): Promise<number>
 
   /**
-   * Liste les organisations possédées par un utilisateur.
+   * Liste les organisations par identifiants publics (uuid), triées par date de
+   * création décroissante. Renvoie `[]` pour une liste d'ids vide.
    */
-  abstract listByOwner(ownerUserId: string): Promise<Organisation[]>
+  abstract listByIds(organisationIds: string[]): Promise<Organisation[]>
 
   /**
    * Retrouve une organisation par son identifiant public (uuid).

@@ -48,4 +48,13 @@ export default class MembershipService {
       trx
     )
   }
+
+  /**
+   * Identifiants des organisations où l'utilisateur est membre **ACTIF** (owner
+   * inclus). Port consommé par le contexte organisation pour « mes organisations »,
+   * sans exposer les modèles membership.
+   */
+  async listActiveOrganisationIds(userId: string): Promise<string[]> {
+    return this.memberRepository.listActiveOrganisationIdsByUser(userId)
+  }
 }
