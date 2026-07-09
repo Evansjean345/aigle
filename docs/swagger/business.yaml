@@ -82,9 +82,20 @@ paths:
             example:
               phone: '2250700000000'
               pincode: '12345'
+              device_info:
+                fingerprint_hash: a1b2c3d4e5f6
+                device_uid: 550e8400-e29b-41d4-a716-446655440000
+                platform: android
+                brand: Samsung
+                model: Galaxy S23
+                os_version: '14'
+                app_version: 1.0.0
+                is_emulator: false
+                is_rooted: false
         description: >-
-          Mobile business : fournir `device_info` → l'appareil est enregistré en PENDING
-          (déclenche l'alerte « nouvel appareil »). Il sera trusté au verify (OTP).
+          `device_info` est **optionnel** (mobile business uniquement — omis sur le portail web).
+          Fourni ici → l'appareil est enregistré en PENDING (déclenche l'alerte « nouvel appareil »),
+          puis trusté au verify (OTP).
       responses:
         '200':
           description: OTP envoyé
@@ -124,6 +135,16 @@ paths:
             example:
               phone: '2250700000000'
               otp: '1234'
+              device_info:
+                fingerprint_hash: a1b2c3d4e5f6
+                device_uid: 550e8400-e29b-41d4-a716-446655440000
+                platform: android
+                brand: Samsung
+                model: Galaxy S23
+                os_version: '14'
+                app_version: 1.0.0
+                is_emulator: false
+                is_rooted: false
       responses:
         '200':
           description: Authentifié — token + profil
@@ -1111,22 +1132,31 @@ components:
       properties:
         fingerprint_hash:
           type: string
+          example: a1b2c3d4e5f6
         device_uid:
           type: string
+          example: 550e8400-e29b-41d4-a716-446655440000
         platform:
           type: string
+          example: android
         brand:
           type: string
+          example: Samsung
         model:
           type: string
+          example: Galaxy S23
         os_version:
           type: string
+          example: '14'
         app_version:
           type: string
+          example: 1.0.0
         is_emulator:
           type: boolean
+          example: false
         is_rooted:
           type: boolean
+          example: false
 
     BusinessVerifyRequest:
       type: object
