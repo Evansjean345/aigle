@@ -1,14 +1,13 @@
 import { type UserLookupResult } from '#core/identity/user/application/dtos/user_lookup_result'
 import { type DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
-import { type ClientChannel } from '#core/identity/authentication/domain/enums/client_channel'
 
 // ── RequestDto (input use cases) ────────────────────────────────────
+// Le canal + le contexte de requête (IP/UA/requestId/géo) sont passés à part via
+// `BusinessAuthTraceContext` (cf. business_auth_audit.ts).
 
 export interface BusinessLoginRequestDto {
   phone: string
   pincode: string
-  /** Canal déclaré (mobile/web) : `mobile` → appareil requis ; `web` → appareil ignoré. */
-  channel: ClientChannel
   /** Mobile business : présent → l'appareil est enregistré (PENDING) au PIN. */
   deviceInfo?: DeviceRequestDTO
 }
@@ -17,8 +16,6 @@ export interface BusinessVerifyLoginRequestDto {
   phone: string
   otp: string
   sessionName?: string
-  /** Canal déclaré (mobile/web) → stampé sur le token, expose la session. */
-  channel: ClientChannel
   /** Mobile business : fingerprint + uid (issus des HEADERS device) → truste l'appareil. */
   deviceFingerprint?: string
   deviceUid?: string

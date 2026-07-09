@@ -13,13 +13,13 @@ export default function businessAuthRoutes() {
     .group(() => {
       router
         .post('auth/check-phone', [BusinessAuthController, 'checkPhone'])
-        .use(middleware.businessChannel())
+        .use([middleware.geoip(), middleware.businessChannel()])
       router
         .post('auth/login', [BusinessAuthController, 'login'])
-        .use([middleware.businessChannel(), otpThrottle])
+        .use([middleware.geoip(), middleware.businessChannel(), otpThrottle])
       router
         .post('auth/verify', [BusinessAuthController, 'verify'])
-        .use(middleware.businessDevice())
+        .use([middleware.geoip(), middleware.businessDevice()])
 
       router
         .group(() => {

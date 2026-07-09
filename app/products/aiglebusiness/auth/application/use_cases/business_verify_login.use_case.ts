@@ -4,11 +4,16 @@ import OtpVerificationService from '#core/identity/otp/application/services/otp_
 import IssueAppTokenService from '#core/identity/authentication/application/services/issue_app_token_service'
 import DeviceService from '#core/identity/device/application/services/device_service'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
+import { AuditResult } from '#core/audit/domain/enums'
 import BusinessLoginOtpTemplate from '#aiglebusiness/auth/domain/templates/business_login_otp_template'
 import {
   type BusinessVerifyLoginRequestDto,
   BusinessAuthTokenDTO,
 } from '#aiglebusiness/auth/application/dtos/business_auth.dto'
+import {
+  type BusinessAuthTraceContext,
+  emitBusinessAuthAudit,
+} from '#aiglebusiness/auth/application/business_auth_audit'
 import InvalidCredentialsException from '#aiglebusiness/auth/domain/exceptions/invalid_credentials_exception'
 
 /**
@@ -25,21 +30,36 @@ export default class BusinessVerifyLoginUseCase {
     private readonly deviceService: DeviceService
   ) {}
 
-  async execute(request: BusinessVerifyLoginRequestDto): Promise<BusinessAuthTokenDTO> {
+  async execute(
+    request: BusinessVerifyLoginRequestDto,
+    context: BusinessAuthTraceContext
+  ): Promise<BusinessAuthTokenDTO> {
     const user = await this.userDirectory.findByPhone(request.phone)
 
     if (!user) {
       throw new InvalidCredentialsException()
     }
 
-    await this.otpVerification.verify(
-      { identifier: user.phone, enteredOtp: request.otp },
-      new BusinessLoginOtpTemplate()
-    )
+    try {
+      await this.otpVerification.verify(
+        { identifier: user.phone, enteredOtp: request.otp },
+        new BusinessLoginOtpTemplate()
+      )
+    } catch (error) {
+      emitBusinessAuthAudit(context, {
+        eventAction: 'BUSINESS_LOGIN_OTP_FAILED',
+        actorId: user.userId,
+        result: AuditResult.FAILURE,
+        errorCode: 'E_INVALID_OTP',
+        errorMessage: (error as Error).message,
+      })
+      throw error
+    }
 
     // Mobile business : truste l'appareil déjà enregistré (PENDING) à l'étape login.
     // Fingerprint + uid viennent des HEADERS device. Token nommé `device:<id>`.
     let tokenName = request.sessionName
+    let trustedDeviceId: string | undefined
 
     if (request.deviceFingerprint && request.deviceUid) {
       const trusted = await this.deviceService.trustForApp(
@@ -51,12 +71,20 @@ export default class BusinessVerifyLoginUseCase {
 
       if (trusted) {
         tokenName = `device:${trusted.userDeviceId}`
+        trustedDeviceId = trusted.userDeviceId
       }
     }
 
     const token = await this.issueAppToken.issue(user.userId, AppName.AIGLEBUSINESS, {
       name: tokenName,
-      channel: request.channel,
+      channel: context.channel,
+    })
+
+    emitBusinessAuthAudit(context, {
+      eventAction: 'BUSINESS_LOGIN_VERIFIED',
+      actorId: user.userId,
+      result: AuditResult.SUCCESS,
+      metadata: { userDeviceId: trustedDeviceId ?? null },
     })
 
     return BusinessAuthTokenDTO.from(token, user)
