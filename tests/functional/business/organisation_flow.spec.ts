@@ -196,6 +196,12 @@ test.group('Business organisation | liste', (group) => {
       mine.map((o) => o.name),
       ['A', 'B']
     )
+    // En tant que créateur, je suis OWNER de chacune, avec toutes les permissions.
+    for (const org of mine) {
+      assert.equal(org.role.slug, 'owner')
+      assert.isTrue(org.permissions.includes('members:manage'))
+      assert.isTrue(org.permissions.includes('roles:manage'))
+    }
   })
 
   test('un membre non-owner voit l’organisation dont il est membre actif', async ({ assert }) => {
@@ -225,6 +231,10 @@ test.group('Business organisation | liste', (group) => {
     const theirs = await list.execute(memberUserId)
     assert.lengthOf(theirs, 1)
     assert.equal(theirs[0].organisationId, org.organisationId)
+    // La liste porte le rôle et les permissions du membre dans cette org.
+    assert.equal(theirs[0].role.slug, role.slug)
+    assert.equal(theirs[0].role.name, 'Comptable')
+    assert.deepEqual(theirs[0].permissions, ['transactions:view'])
   })
 
   test('un membre RETIRÉ (removed) ne voit plus l’organisation', async ({ assert }) => {

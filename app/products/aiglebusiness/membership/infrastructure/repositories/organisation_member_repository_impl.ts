@@ -42,20 +42,18 @@ export default class OrganisationMemberRepositoryImpl implements OrganisationMem
   }
 
   async listByOrganisation(organisationId: string): Promise<OrganisationMember[]> {
-    return await OrganisationMember.query()
+    return OrganisationMember.query()
       .where('organisation_id', organisationId)
       .preload('role')
       .orderBy('created_at', 'asc')
   }
 
-  async listActiveOrganisationIdsByUser(userId: string): Promise<string[]> {
-    const rows = await OrganisationMember.query()
+  async listActiveByUser(userId: string): Promise<OrganisationMember[]> {
+    return OrganisationMember.query()
       .where('user_id', userId)
       .where('status', MemberStatus.ACTIVE)
-      .select('organisation_id')
-      .distinct('organisation_id')
-
-    return rows.map((row) => row.organisationId)
+      .preload('role', (roleQuery) => roleQuery.preload('permissions'))
+      .orderBy('created_at', 'desc')
   }
 
   async updateStatus(

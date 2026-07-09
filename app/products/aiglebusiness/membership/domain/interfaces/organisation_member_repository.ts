@@ -38,10 +38,10 @@ export default abstract class OrganisationMemberRepository {
   abstract listByOrganisation(organisationId: string): Promise<OrganisationMember[]>
 
   /**
-   * Identifiants des organisations où l'utilisateur est membre **ACTIF** (l'OWNER
-   * en fait partie, seedé à la création). Base du « mes organisations ».
+   * Appartenances **ACTIVES** d'un utilisateur (rôle + permissions préchargés).
+   * L'OWNER en fait partie (seedé à la création). Base du « mes organisations ».
    */
-  abstract listActiveOrganisationIdsByUser(userId: string): Promise<string[]>
+  abstract listActiveByUser(userId: string): Promise<OrganisationMember[]>
 
   /**
    * Met à jour le statut d'un membre (et efface éventuellement le token).

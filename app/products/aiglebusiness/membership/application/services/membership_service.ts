@@ -5,6 +5,7 @@ import OrganisationMemberRepository from '#aiglebusiness/membership/domain/inter
 import { allPermissionSlugs } from '#aiglebusiness/membership/domain/permissions.config'
 import { OWNER_ROLE_SLUG, OWNER_ROLE_NAME } from '#aiglebusiness/membership/domain/system_roles'
 import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
+import { type UserMembershipResult } from '#aiglebusiness/membership/application/dtos/member.dto'
 
 /**
  * Service d'amorçage RBAC d'une organisation.
@@ -50,11 +51,17 @@ export default class MembershipService {
   }
 
   /**
-   * Identifiants des organisations où l'utilisateur est membre **ACTIF** (owner
-   * inclus). Port consommé par le contexte organisation pour « mes organisations »,
-   * sans exposer les modèles membership.
+   * Appartenances actives d'un utilisateur (owner inclus) : organisation + rôle +
+   * permissions effectives. Port consommé par le contexte organisation pour « mes
+   * organisations », sans exposer les modèles membership.
    */
-  async listActiveOrganisationIds(userId: string): Promise<string[]> {
-    return this.memberRepository.listActiveOrganisationIdsByUser(userId)
+  async listActiveMemberships(userId: string): Promise<UserMembershipResult[]> {
+    const members = await this.memberRepository.listActiveByUser(userId)
+
+    return members.map((member) => ({
+      organisationId: member.organisationId,
+      role: { slug: member.role.slug, name: member.role.name },
+      permissions: member.role.permissions.map((permission) => permission.permissionSlug),
+    }))
   }
 }

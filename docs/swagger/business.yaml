@@ -313,20 +313,24 @@ paths:
     get:
       operationId: listOrganisations
       summary: Lister mes organisations
-      description: Renvoie les organisations possédées par l'utilisateur authentifié.
+      description: >-
+        Renvoie les organisations où l'utilisateur authentifié est **membre actif** (le
+        propriétaire en fait partie). Chaque entrée porte le **rôle** et les **permissions**
+        de l'utilisateur dans cette organisation (pour piloter l'affichage) — le propriétaire
+        a toutes les permissions.
       tags:
         - Business - Organisations
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Liste des organisations
+          description: Liste des organisations de l'utilisateur (avec son rôle et ses permissions)
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/OrganisationResponse'
+                  $ref: '#/components/schemas/MyOrganisationResponse'
 
   /api/business/organisations/{organisationId}/permissions-catalog:
     get:
@@ -973,6 +977,32 @@ components:
           type: string
           nullable: true
           description: Lien https encodé dans le QR marchand (marchand uniquement)
+
+    MyOrganisationResponse:
+      description: >-
+        Organisation enrichie du rôle et des permissions de l'utilisateur courant dans
+        cette organisation (« mes organisations »).
+      allOf:
+        - $ref: '#/components/schemas/OrganisationResponse'
+        - type: object
+          required: [role, permissions]
+          properties:
+            role:
+              type: object
+              required: [slug, name]
+              properties:
+                slug:
+                  type: string
+                  example: comptable
+                name:
+                  type: string
+                  example: Comptable
+            permissions:
+              type: array
+              description: Slugs des permissions de l'utilisateur dans cette org (OWNER = toutes).
+              items:
+                type: string
+              example: [transactions:view, wallet:view]
 
     MerchantResolveResponse:
       type: object

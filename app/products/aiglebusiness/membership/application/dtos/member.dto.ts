@@ -18,6 +18,19 @@ export interface ChangeMemberRoleRequestDto {
   roleId: number
 }
 
+// ── Result (port de service, consommé par un autre contexte produit) ──
+
+/**
+ * Appartenance active d'un utilisateur à une organisation : rôle + permissions
+ * effectives. Résultat minimal renvoyé par `MembershipService` au contexte
+ * organisation (« mes organisations »), sans exposer les modèles membership.
+ */
+export interface UserMembershipResult {
+  organisationId: string
+  role: { slug: string; name: string }
+  permissions: string[]
+}
+
 // ── Response (output HTTP, vue OWNER) ───────────────────────────────
 
 /**
