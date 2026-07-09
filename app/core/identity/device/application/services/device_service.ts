@@ -260,10 +260,12 @@ export default class DeviceService {
   }
 
   /**
-   * Valide qu'un appareil (fingerprint + uid des headers) existe et est **de confiance**
-   * (TRUSTED) pour un couple (utilisateur, app). Porte de service PRODUIT : ne renvoie
-   * aucun modèle core (invariant produit→core), lève une exception sinon.
+   * Valide qu'un appareil (fingerprint + uid des headers) existe, est **sûr** et **de
+   * confiance** (TRUSTED) pour un couple (utilisateur, app). Porte de service PRODUIT :
+   * ne renvoie aucun modèle core (invariant produit→core), lève une exception sinon.
    *  - appareil inconnu ou non lié à l'app → 401 `E_UNAUTHENTICATED_DEVICE` ;
+   *  - appareil rooté/émulateur → 403 `E_UNSECURE_DEVICE` ;
+   *  - incohérence de plateforme (si `platform` fourni) → 403 `E_PLATFORM_MISMATCH` ;
    *  - lien révoqué → 401 `E_DEVICE_REVOKED` ;
    *  - lien non trusté (PENDING) → 403 `NOT_TRUSTED_DEVICE`.
    */
@@ -271,7 +273,8 @@ export default class DeviceService {
     userId: string,
     fingerprintHash: string,
     deviceUid: string,
-    app: string
+    app: string,
+    platform?: string | null
   ): Promise<void> {
     const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
 
@@ -287,6 +290,25 @@ export default class DeviceService {
 
     if (!userDevice) {
       throw new UnauthenticatedDeviceException()
+    }
+
+    // Intégrité de l'appareil (matériel) : rooté / émulateur → refus.
+    if (device.isRooted || device.isEmulator) {
+      throw new Exception(
+        'Opération impossible sur un appareil non sécurisé (rooté ou émulateur).',
+        {
+          status: 403,
+          code: 'E_UNSECURE_DEVICE',
+        }
+      )
+    }
+
+    // Cohérence de plateforme (l'appareil déclaré doit correspondre à l'appareil enregistré).
+    if (platform && device.platform && platform !== device.platform) {
+      throw new Exception('Incohérence de plateforme détectée pour cet appareil.', {
+        status: 403,
+        code: 'E_PLATFORM_MISMATCH',
+      })
     }
 
     if (userDevice.status === DeviceStatus.REVOKED) {

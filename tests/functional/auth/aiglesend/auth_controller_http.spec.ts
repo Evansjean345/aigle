@@ -3,6 +3,7 @@ import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import {
   makeUser,
   forgeToken,
+  makeTrustedDevice,
   DEVICE_HEADERS,
   DEVICE_BODY,
   authTestSetup,
@@ -137,6 +138,7 @@ test.group('Auth controller (HTTP) | protégé', (group) => {
 
   test('profile → 200', async ({ client }) => {
     const user = await makeUser()
+    await makeTrustedDevice(user, AppName.AIGLESEND)
     const token = await forgeToken(user, AppName.AIGLESEND)
     const res = await client
       .get(url('profile'))
@@ -147,6 +149,7 @@ test.group('Auth controller (HTTP) | protégé', (group) => {
 
   test('session-status → 200', async ({ client }) => {
     const user = await makeUser()
+    await makeTrustedDevice(user, AppName.AIGLESEND)
     const token = await forgeToken(user, AppName.AIGLESEND)
     const res = await client
       .get(url('session-status'))
@@ -157,6 +160,7 @@ test.group('Auth controller (HTTP) | protégé', (group) => {
 
   test('check-pin : PIN correct → 201', async ({ client }) => {
     const user = await makeUser({ pincode: '12345' })
+    await makeTrustedDevice(user, AppName.AIGLESEND)
     const token = await forgeToken(user, AppName.AIGLESEND)
     const res = await client
       .post(url('check-pin'))

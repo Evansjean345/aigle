@@ -148,3 +148,78 @@ test.group('DeviceService | trust', (group) => {
     assert.lengthOf(all, 2)
   })
 })
+
+test.group('DeviceService | assertTrustedForApp', (group) => {
+  group.each.setup(authTestSetup())
+
+  test('appareil TRUSTED → résout (aucune exception)', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+    const fp = randomUUID()
+    const uid = randomUUID()
+
+    await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLESEND)
+    await service.trustDevice(user.usersUid, fp, uid, undefined, AppName.AIGLESEND)
+
+    await assert.doesNotReject(() =>
+      service.assertTrustedForApp(user.usersUid, fp, uid, AppName.AIGLESEND, 'android')
+    )
+  })
+
+  test('appareil PENDING (non trusté) → NOT_TRUSTED_DEVICE', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+    const fp = randomUUID()
+    const uid = randomUUID()
+
+    // Enregistré mais pas trusté (reste PENDING).
+    await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLESEND)
+
+    await assert.rejects(
+      () => service.assertTrustedForApp(user.usersUid, fp, uid, AppName.AIGLESEND),
+      /autoris/i
+    )
+  })
+
+  test('appareil inconnu → E_UNAUTHENTICATED_DEVICE', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+
+    await assert.rejects(() =>
+      service.assertTrustedForApp(user.usersUid, randomUUID(), randomUUID(), AppName.AIGLESEND)
+    )
+  })
+
+  test('appareil rooté/émulateur → E_UNSECURE_DEVICE', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+    const fp = randomUUID()
+    const uid = randomUUID()
+
+    const cmd = deviceCommand(fp, uid)
+    cmd.isRooted = true
+    await service.saveDevice(cmd, user.usersUid, AppName.AIGLESEND)
+    await service.trustDevice(user.usersUid, fp, uid, undefined, AppName.AIGLESEND)
+
+    await assert.rejects(
+      () => service.assertTrustedForApp(user.usersUid, fp, uid, AppName.AIGLESEND, 'android'),
+      /sécuris|UNSECURE|rooté|émulateur/i
+    )
+  })
+
+  test('incohérence de plateforme → E_PLATFORM_MISMATCH', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+    const fp = randomUUID()
+    const uid = randomUUID()
+
+    // Enregistré en 'android' puis trusté ; requête déclarant 'ios' → mismatch.
+    await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLESEND)
+    await service.trustDevice(user.usersUid, fp, uid, undefined, AppName.AIGLESEND)
+
+    await assert.rejects(
+      () => service.assertTrustedForApp(user.usersUid, fp, uid, AppName.AIGLESEND, 'ios'),
+      /plateforme|PLATFORM/i
+    )
+  })
+})

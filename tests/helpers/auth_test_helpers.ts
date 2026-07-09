@@ -5,6 +5,8 @@ import { UserStatus } from '#core/identity/user/domain/enum'
 import { type AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
 import NotificationService from '#core/notifications/application/services/notification_service'
 import OtpVerificationService from '#core/identity/otp/application/services/otp_verification_service'
+import DeviceService from '#core/identity/device/application/services/device_service'
+import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
 
 /**
  * Données et fakes partagés des tests d'authentification (aiglesend + business).
@@ -55,6 +57,23 @@ export async function makeUser(options: MakeUserOptions = {}): Promise<User> {
 export async function forgeToken(user: User, appName: AppName): Promise<string> {
   const token = await User.accessTokens.create(user, [appAbility(appName)])
   return token.value!.release()
+}
+
+/**
+ * Enregistre puis TRUSTe l'appareil `DEVICE_HEADERS` (fp-test/dev-test) pour l'utilisateur
+ * et l'app, afin de franchir la validation de trust du DeviceMiddleware (routes mobiles
+ * authentifiées). À appeler avant les requêtes protégées qui envoient `DEVICE_HEADERS`.
+ */
+export async function makeTrustedDevice(user: User, appName: AppName): Promise<void> {
+  const service = await app.container.make(DeviceService)
+  const cmd = new DeviceCommandDTO()
+  cmd.fingerprintHash = 'fp-test'
+  cmd.deviceUid = 'dev-test'
+  cmd.platform = 'android'
+  cmd.isEmulator = false
+  cmd.isRooted = false
+  await service.saveDevice(cmd, user.usersUid, appName)
+  await service.trustDevice(user.usersUid, 'fp-test', 'dev-test', undefined, appName)
 }
 
 /** Neutralise l'envoi SMS réel (frontière core). */

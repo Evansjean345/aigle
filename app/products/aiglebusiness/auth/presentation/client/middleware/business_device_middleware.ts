@@ -54,7 +54,8 @@ export default class BusinessDeviceMiddleware {
         authenticatedUserId,
         fingerprintHash!,
         deviceUid!,
-        AppName.AIGLEBUSINESS
+        AppName.AIGLEBUSINESS,
+        request.header('X-Device-Platform')
       )
     }
 

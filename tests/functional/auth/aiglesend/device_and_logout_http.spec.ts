@@ -3,6 +3,7 @@ import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import {
   makeUser,
   forgeToken,
+  makeTrustedDevice,
   DEVICE_HEADERS,
   authTestSetup,
 } from '#tests/helpers/auth_test_helpers'
@@ -29,6 +30,7 @@ test.group('Auth | device middleware & logout (HTTP)', (group) => {
 
   test('logout révoque le token : réutilisation → 401', async ({ client }) => {
     const user = await makeUser()
+    await makeTrustedDevice(user, AppName.AIGLESEND)
     const token = await forgeToken(user, AppName.AIGLESEND)
 
     const logoutRes = await client

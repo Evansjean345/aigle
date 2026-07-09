@@ -39,7 +39,8 @@ export const middleware = router.named({
     import('#core/identity/authentication/presentation/middleware/require_app_middleware'),
   idempotency: () =>
     import('#core/money/transactions/presentation/middleware/idempotency_middleware'),
-  device: () => import('#shared/middleware/device_middleware'),
+  device: () =>
+    import('#core/identity/device/presentation/mobile/middleware/device_middleware'),
   businessChannel: () =>
     import('#aiglebusiness/auth/presentation/client/middleware/business_channel_middleware'),
   businessDevice: () =>
