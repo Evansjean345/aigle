@@ -17,6 +17,52 @@ paths:
                 module: aiglebusiness
                 status: ok
 
+  /api/business/auth/check-phone:
+    post:
+      operationId: businessCheckPhone
+      summary: Connexion business — étape 0 (vérifier le numéro)
+      description: |
+        Vérifie qu'un numéro correspond à un **user Aigle KYC-vérifié** (prérequis AigleBusiness)
+        avant de demander le PIN. Non authentifié. Ne renvoie **aucune PII** (pas de nom), juste
+        le numéro **masqué** en cas de succès.
+      tags:
+        - Business - Authentification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+              properties:
+                phone:
+                  type: string
+                  minLength: 6
+                  maxLength: 20
+                  example: '2250700000000'
+      responses:
+        '200':
+          description: Numéro valide (user Aigle KYC-vérifié) — passer au PIN
+          content:
+            application/json:
+              example:
+                phone: '225******00'
+        '403':
+          description: KYC non validé (compléter la vérification sur Aiglesend)
+          content:
+            application/json:
+              example:
+                code: E_KYC_NOT_VERIFIED
+                message: Votre vérification KYC doit être validée pour accéder à AigleBusiness.
+        '404':
+          description: Aucun compte Aiglesend pour ce numéro
+          content:
+            application/json:
+              example:
+                code: E_NOT_AIGLE_USER
+                message: Aucun compte Aiglesend pour ce numéro. Créez d'abord votre compte sur Aiglesend.
+
   /api/business/auth/login:
     post:
       operationId: businessLogin

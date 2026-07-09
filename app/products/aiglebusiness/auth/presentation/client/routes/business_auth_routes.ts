@@ -16,7 +16,8 @@ const BusinessSessionController = () =>
 export default function businessAuthRoutes() {
   router
     .group(() => {
-      // ── Public : login (throttle OTP) + verify ──
+      // ── Public : check-phone → login (throttle OTP) → verify ──
+      router.post('auth/check-phone', [BusinessAuthController, 'checkPhone'])
       router.post('auth/login', [BusinessAuthController, 'login']).use(otpThrottle)
       router.post('auth/verify', [BusinessAuthController, 'verify'])
 

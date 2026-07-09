@@ -136,6 +136,7 @@ export type ScannedRoutes = {
     'debit_phone.store': { paramsTuple?: []; params?: {} }
     'debit_phone.verify': { paramsTuple?: []; params?: {} }
     'debit_phone.resend': { paramsTuple?: []; params?: {} }
+    'business_auth.check_phone': { paramsTuple?: []; params?: {} }
     'business_auth.login': { paramsTuple?: []; params?: {} }
     'business_auth.verify': { paramsTuple?: []; params?: {} }
     'business_session.index': { paramsTuple?: []; params?: {} }
@@ -351,6 +352,7 @@ export type ScannedRoutes = {
     'debit_phone.store': { paramsTuple?: []; params?: {} }
     'debit_phone.verify': { paramsTuple?: []; params?: {} }
     'debit_phone.resend': { paramsTuple?: []; params?: {} }
+    'business_auth.check_phone': { paramsTuple?: []; params?: {} }
     'business_auth.login': { paramsTuple?: []; params?: {} }
     'business_auth.verify': { paramsTuple?: []; params?: {} }
     'organisation.store': { paramsTuple?: []; params?: {} }

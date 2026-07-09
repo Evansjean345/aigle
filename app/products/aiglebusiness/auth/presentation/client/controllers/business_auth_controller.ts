@@ -1,8 +1,10 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
+import CheckBusinessPhoneUseCase from '#aiglebusiness/auth/application/use_cases/check_business_phone.use_case'
 import BusinessLoginUseCase from '#aiglebusiness/auth/application/use_cases/business_login.use_case'
 import BusinessVerifyLoginUseCase from '#aiglebusiness/auth/application/use_cases/business_verify_login.use_case'
 import {
+  businessCheckPhoneValidator,
   businessLoginValidator,
   businessVerifyLoginValidator,
 } from '#aiglebusiness/auth/presentation/client/validators/business_auth_validators'
@@ -10,9 +12,17 @@ import {
 @inject()
 export default class BusinessAuthController {
   constructor(
+    private readonly checkBusinessPhone: CheckBusinessPhoneUseCase,
     private readonly businessLogin: BusinessLoginUseCase,
     private readonly businessVerifyLogin: BusinessVerifyLoginUseCase
   ) {}
+
+  /** Étape 0 : vérifie que le numéro est un user Aigle KYC-vérifié (→ 404/403 sinon). */
+  async checkPhone({ request, response }: HttpContext): Promise<void> {
+    const payload = await request.validateUsing(businessCheckPhoneValidator)
+    const result = await this.checkBusinessPhone.execute(payload.phone)
+    return response.ok(result)
+  }
 
   async login({ request, response }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(businessLoginValidator)

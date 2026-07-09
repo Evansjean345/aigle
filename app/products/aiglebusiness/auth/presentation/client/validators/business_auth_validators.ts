@@ -1,5 +1,12 @@
 import vine from '@vinejs/vine'
 
+/** Étape 0 : vérification du numéro (user Aigle KYC-vérifié). */
+export const businessCheckPhoneValidator = vine.compile(
+  vine.object({
+    phone: vine.string().trim().minLength(6).maxLength(20),
+  })
+)
+
 /**
  * Appareil (mobile business) — optionnel. Fourni à l'étape login → enregistré
  * (PENDING) ; fourni à l'étape verify → trusté. Scopé `app='aiglebusiness'`.
