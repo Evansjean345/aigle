@@ -180,23 +180,35 @@ export default class DeviceService {
   }
 
   /**
-   * Enregistre + truste un appareil pour une app donnée, et renvoie un identifiant
-   * MINIMAL (pas le modèle `UserDevice`) — destiné aux PRODUITS qui ne doivent pas
-   * dépendre du modèle core (invariant produit→core). Utilisé par le login mobile
-   * business (device trust scopé `app='aiglebusiness'`).
+   * Enregistre un appareil en **PENDING** pour une app donnée (étape PIN du login,
+   * comme aiglesend `verify-credentials`) : émet `NewDeviceDetected` sur un nouvel
+   * appareil. Ne truste PAS. API PRODUIT : ne renvoie/expose pas le modèle `UserDevice`
+   * (invariant produit→core).
    */
-  async registerAndTrustForApp(
+  async registerForApp(
+    deviceRequest: DeviceRequestDTO,
+    userId: string,
+    app: string
+  ): Promise<void> {
+    await this.saveDevice(DeviceCommandDTO.fromRequest(deviceRequest), userId, app)
+  }
+
+  /**
+   * **Truste** un appareil déjà enregistré (PENDING → TRUSTED) pour une app donnée
+   * (étape OTP du login, comme aiglesend `verify-account`). Renvoie un identifiant
+   * MINIMAL (pas le modèle) ou `null` si aucun lien PENDING (client incohérent →
+   * dégradation gracieuse). API PRODUIT.
+   */
+  async trustForApp(
     deviceRequest: DeviceRequestDTO,
     userId: string,
     app: string,
     geoLocation?: GeoIpLocation
   ): Promise<{ userDeviceId: string } | null> {
-    const payload = DeviceCommandDTO.fromRequest(deviceRequest)
-    await this.saveDevice(payload, userId, app)
     const trusted = await this.trustDevice(
       userId,
-      payload.fingerprintHash,
-      payload.deviceUid,
+      deviceRequest.fingerprint_hash,
+      deviceRequest.device_uid,
       geoLocation,
       app
     )

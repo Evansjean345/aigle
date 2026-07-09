@@ -16,7 +16,11 @@ export default class BusinessAuthController {
 
   async login({ request, response }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(businessLoginValidator)
-    await this.businessLogin.execute({ phone: payload.phone, pincode: payload.pincode })
+    await this.businessLogin.execute({
+      phone: payload.phone,
+      pincode: payload.pincode,
+      deviceInfo: payload.device_info,
+    })
 
     return response.ok({ message: 'Un code de connexion a été envoyé par SMS.' })
   }

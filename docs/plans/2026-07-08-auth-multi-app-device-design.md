@@ -192,11 +192,15 @@ user → 404/403 (ownership) ; le listing n'expose pas le hash du token.
   (register, verify-account, verify-credentials, revoke, push) passent `AIGLESEND`.
 - **API produit** `DeviceService.registerAndTrustForApp(deviceRequest, userId, app)` → renvoie un
   **DTO minimal `{ userDeviceId }`** (pas le modèle `UserDevice`) → invariant produit→core tenu.
-- **Login mobile business** : `verify` accepte un `device_info` **optionnel** → device trusté
-  `app='aiglebusiness'`, token nommé `device:<id>`. Web (sans device_info) inchangé (sessions Lot 3).
+- **Login mobile business = DEUX temps** (comme aiglesend) : `device_info` à l'étape **login** (PIN) →
+  `registerForApp` (appareil **PENDING** + alerte « nouvel appareil ») ; `device_info` à l'étape
+  **verify** (OTP) → `trustForApp` (**TRUSTED**), token nommé `device:<id>`. Persistance jamais à la
+  saisie du numéro (aucun credential prouvé). Web (sans device_info) inchangé (sessions Lot 3).
+- **API produit** : `DeviceService.registerForApp` (void) + `trustForApp` (→ `{ userDeviceId }`) —
+  deux méthodes qui ne fuient pas le modèle `UserDevice` (invariant produit→core).
 - **Tests** : `device_service.spec` (trust app-aware + isolation par-app : même user+device, 2 apps →
-  2 liens) ; `business_device_flow.spec` (verify+device → lien `app=aiglebusiness` TRUSTED ; web sans
-  device → 0 lien). Suite 253/257 (4 core pré-existants), depcruise 0 error.
+  2 liens) ; `business_device_flow.spec` (login→PENDING, verify→TRUSTED ; device au login seul → reste
+  PENDING ; web sans device → 0 lien). Suite 254/258 (4 core pré-existants), depcruise 0 error.
 
 ## Prochaine session
 

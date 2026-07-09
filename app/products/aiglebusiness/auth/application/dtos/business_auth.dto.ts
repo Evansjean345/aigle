@@ -6,6 +6,8 @@ import { type DeviceRequestDTO } from '#core/identity/device/application/dto/dev
 export interface BusinessLoginRequestDto {
   phone: string
   pincode: string
+  /** Mobile business : présent → l'appareil est enregistré (PENDING) au PIN. */
+  deviceInfo?: DeviceRequestDTO
 }
 
 export interface BusinessVerifyLoginRequestDto {

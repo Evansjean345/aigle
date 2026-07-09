@@ -37,12 +37,12 @@ export default class BusinessVerifyLoginUseCase {
       new BusinessLoginOtpTemplate()
     )
 
-    // Mobile business : truste l'appareil (scopé app='aiglebusiness') si fourni.
+    // Mobile business : truste l'appareil déjà enregistré (PENDING) à l'étape login.
     // Le nom du token porte alors la session `device:<id>` (comme aiglesend).
     let tokenName = request.sessionName
 
     if (request.deviceInfo) {
-      const trusted = await this.deviceService.registerAndTrustForApp(
+      const trusted = await this.deviceService.trustForApp(
         request.deviceInfo,
         user.userId,
         AppName.AIGLEBUSINESS

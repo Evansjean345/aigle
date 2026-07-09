@@ -36,6 +36,9 @@ paths:
             example:
               phone: '2250700000000'
               pincode: '12345'
+        description: >-
+          Mobile business : fournir `device_info` → l'appareil est enregistré en PENDING
+          (déclenche l'alerte « nouvel appareil »). Il sera trusté au verify (OTP).
       responses:
         '200':
           description: OTP envoyé
@@ -1046,6 +1049,8 @@ components:
           minLength: 4
           maxLength: 8
           example: '12345'
+        device_info:
+          $ref: '#/components/schemas/DeviceInfo'
 
     DeviceInfo:
       type: object

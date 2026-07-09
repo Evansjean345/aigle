@@ -29,7 +29,7 @@ function deviceCommand(fingerprint: string, uid: string): DeviceCommandDTO {
   return cmd
 }
 
-/** Forme requête brute (snake_case) attendue par registerAndTrustForApp. */
+/** Forme requête brute (snake_case) attendue par register/trustForApp. */
 function deviceRequest(fingerprint: string, uid: string): DeviceRequestDTO {
   const req = new DeviceRequestDTO()
   req.fingerprint_hash = fingerprint
@@ -97,13 +97,11 @@ test.group('DeviceService | trust', (group) => {
     const fp = randomUUID()
     const uid = randomUUID()
 
-    // registerAndTrustForApp expose l'API produit (DTO minimal) pour les 2 apps.
-    const s = await service.registerAndTrustForApp(
-      deviceRequest(fp, uid),
-      user.usersUid,
-      AppName.AIGLESEND
-    )
-    const b = await service.registerAndTrustForApp(
+    // API produit two-step (register PENDING au PIN, trust à l'OTP) pour les 2 apps.
+    await service.registerForApp(deviceRequest(fp, uid), user.usersUid, AppName.AIGLESEND)
+    const s = await service.trustForApp(deviceRequest(fp, uid), user.usersUid, AppName.AIGLESEND)
+    await service.registerForApp(deviceRequest(fp, uid), user.usersUid, AppName.AIGLEBUSINESS)
+    const b = await service.trustForApp(
       deviceRequest(fp, uid),
       user.usersUid,
       AppName.AIGLEBUSINESS

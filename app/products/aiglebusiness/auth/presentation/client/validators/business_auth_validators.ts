@@ -1,16 +1,9 @@
 import vine from '@vinejs/vine'
 
-/** Étape 1 : identifiants (phone + PIN). */
-export const businessLoginValidator = vine.compile(
-  vine.object({
-    phone: vine.string().trim().minLength(6).maxLength(20),
-    pincode: vine.string().trim().minLength(4).maxLength(8),
-  })
-)
-
 /**
- * Appareil (mobile business) — optionnel : s'il est fourni, l'appareil est
- * enregistré et trusté (scopé `app='aiglebusiness'`). Absent sur le portail web.
+ * Appareil (mobile business) — optionnel. Fourni à l'étape login → enregistré
+ * (PENDING) ; fourni à l'étape verify → trusté. Scopé `app='aiglebusiness'`.
+ * Absent sur le portail web.
  */
 const deviceInfoSchema = vine.object({
   fingerprint_hash: vine.string().trim(),
@@ -23,6 +16,15 @@ const deviceInfoSchema = vine.object({
   is_emulator: vine.boolean(),
   is_rooted: vine.boolean(),
 })
+
+/** Étape 1 : identifiants (phone + PIN) + appareil optionnel (mobile business). */
+export const businessLoginValidator = vine.compile(
+  vine.object({
+    phone: vine.string().trim().minLength(6).maxLength(20),
+    pincode: vine.string().trim().minLength(4).maxLength(8),
+    device_info: deviceInfoSchema.optional(),
+  })
+)
 
 /** Étape 2 : OTP de connexion (+ appareil optionnel pour le mobile business). */
 export const businessVerifyLoginValidator = vine.compile(

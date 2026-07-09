@@ -138,6 +138,8 @@ export type ScannedRoutes = {
     'debit_phone.resend': { paramsTuple?: []; params?: {} }
     'business_auth.login': { paramsTuple?: []; params?: {} }
     'business_auth.verify': { paramsTuple?: []; params?: {} }
+    'business_session.index': { paramsTuple?: []; params?: {} }
+    'business_session.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'business_health': { paramsTuple?: []; params?: {} }
     'organisation.store': { paramsTuple?: []; params?: {} }
     'organisation.index': { paramsTuple?: []; params?: {} }
@@ -221,6 +223,7 @@ export type ScannedRoutes = {
     'app_version.check': { paramsTuple?: []; params?: {} }
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
     'debit_phone.index': { paramsTuple?: []; params?: {} }
+    'business_session.index': { paramsTuple?: []; params?: {} }
     'business_health': { paramsTuple?: []; params?: {} }
     'organisation.index': { paramsTuple?: []; params?: {} }
     'permission.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
@@ -292,6 +295,7 @@ export type ScannedRoutes = {
     'app_version.check': { paramsTuple?: []; params?: {} }
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
     'debit_phone.index': { paramsTuple?: []; params?: {} }
+    'business_session.index': { paramsTuple?: []; params?: {} }
     'business_health': { paramsTuple?: []; params?: {} }
     'organisation.index': { paramsTuple?: []; params?: {} }
     'permission.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
@@ -389,6 +393,7 @@ export type ScannedRoutes = {
     'admin_device.revoke_device': { paramsTuple: [ParamValue,ParamValue]; params: {'userId': ParamValue,'deviceId': ParamValue} }
     'admin_app_version.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'device.revoke_device': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'business_session.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'role.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'roleId': ParamValue} }
     'member.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
   }
