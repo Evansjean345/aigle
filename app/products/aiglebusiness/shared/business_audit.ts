@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import emitter from '@adonisjs/core/services/emitter'
-import { type AuditResult } from '#core/audit/domain/enums'
+import { AuditResult } from '#core/audit/domain/enums'
 import { type GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 import { type ClientChannel } from '#core/identity/authentication/domain/enums/client_channel'
 
@@ -42,6 +42,38 @@ export interface BusinessAuditEvent {
   oldValues?: Record<string, unknown> | null
   newValues?: Record<string, unknown> | null
   metadata?: Record<string, unknown>
+}
+
+/**
+ * Exécute une mutation et, si elle est refusée par une règle métier (exception 403 :
+ * OWNER immuable, rôle système non attribuable/immuable…), émet un audit **FAILURE**
+ * avant de propager l'erreur. Complète le refus de permission (middleware orgPermission)
+ * pour tracer toutes les tentatives interdites.
+ */
+export async function auditDenials<T>(
+  ctx: HttpContext,
+  event: { eventCategory: string; eventAction: string; targetType?: string; targetId?: string },
+  fn: () => Promise<T>
+): Promise<T> {
+  try {
+    return await fn()
+  } catch (error) {
+    const err = error as { status?: number; code?: string; message?: string }
+
+    if (err?.status === 403) {
+      emitBusinessAudit(businessTraceContext(ctx), {
+        eventCategory: event.eventCategory,
+        eventAction: event.eventAction,
+        actorId: businessActorId(ctx),
+        targetType: event.targetType,
+        targetId: event.targetId,
+        result: AuditResult.FAILURE,
+        errorCode: err.code ?? null,
+        errorMessage: err.message ?? null,
+      })
+    }
+    throw error
+  }
 }
 
 /**

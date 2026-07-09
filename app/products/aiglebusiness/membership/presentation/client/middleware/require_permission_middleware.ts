@@ -2,7 +2,9 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import { Exception } from '@adonisjs/core/exceptions'
 import type User from '#core/identity/user/domain/models/user'
+import { AuditResult } from '#core/audit/domain/enums'
 import { memberHasPermission } from '#aiglebusiness/membership/application/authorization/permission_helpers'
+import { businessTraceContext, emitBusinessAudit } from '#aiglebusiness/shared/business_audit'
 
 /**
  * Enforcement RBAC business (Lot D). Autorise l'accès à une route scopée
@@ -28,6 +30,21 @@ export default class RequirePermissionMiddleware {
     const allowed = await memberHasPermission(user.usersUid, organisationId, options.permission)
 
     if (!allowed) {
+      emitBusinessAudit(businessTraceContext(ctx), {
+        eventCategory: 'AUTHORIZATION',
+        eventAction: 'PERMISSION_DENIED',
+        actorId: user.usersUid,
+        targetType: 'Organisation',
+        targetId: organisationId,
+        result: AuditResult.FAILURE,
+        errorCode: 'E_FORBIDDEN_ORG_PERMISSION',
+        metadata: {
+          permission: options.permission,
+          method: ctx.request.method(),
+          path: ctx.request.url(),
+        },
+      })
+
       throw new Exception("Vous n'avez pas la permission requise pour cette action", {
         status: 403,
         code: 'E_FORBIDDEN_ORG_PERMISSION',

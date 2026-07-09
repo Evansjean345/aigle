@@ -7,6 +7,7 @@ import ResendInvitationUseCase from '#aiglebusiness/membership/application/use_c
 import ChangeMemberRoleUseCase from '#aiglebusiness/membership/application/use_cases/members/change_member_role.use_case'
 import RemoveMemberUseCase from '#aiglebusiness/membership/application/use_cases/members/remove_member.use_case'
 import {
+  auditDenials,
   businessActorId,
   businessTraceContext,
   emitBusinessAudit,
@@ -43,11 +44,21 @@ export default class MemberController {
     const { params, request, response } = ctx
     const organisationId = params.organisationId as string
     const payload = await request.validateUsing(inviteMemberValidator)
-    const result = await this.inviteMember.execute({
-      organisationId,
-      phone: payload.phone,
-      roleId: payload.role_id,
-    })
+    const result = await auditDenials(
+      ctx,
+      {
+        eventCategory: 'MEMBERSHIP',
+        eventAction: 'MEMBER_INVITED',
+        targetType: 'Organisation',
+        targetId: organisationId,
+      },
+      () =>
+        this.inviteMember.execute({
+          organisationId,
+          phone: payload.phone,
+          roleId: payload.role_id,
+        })
+    )
 
     emitBusinessAudit(businessTraceContext(ctx), {
       eventCategory: 'MEMBERSHIP',
@@ -85,12 +96,23 @@ export default class MemberController {
   async updateRole(ctx: HttpContext): Promise<void> {
     const { params, request, response } = ctx
     const organisationId = params.organisationId as string
+    const memberId = Number(params.memberId)
     const payload = await request.validateUsing(changeMemberRoleValidator)
-    const result = await this.changeMemberRole.execute({
-      organisationId,
-      memberId: Number(params.memberId),
-      roleId: payload.role_id,
-    })
+    const result = await auditDenials(
+      ctx,
+      {
+        eventCategory: 'MEMBERSHIP',
+        eventAction: 'MEMBER_ROLE_CHANGED',
+        targetType: 'OrganisationMember',
+        targetId: String(memberId),
+      },
+      () =>
+        this.changeMemberRole.execute({
+          organisationId,
+          memberId,
+          roleId: payload.role_id,
+        })
+    )
 
     emitBusinessAudit(businessTraceContext(ctx), {
       eventCategory: 'MEMBERSHIP',
@@ -111,7 +133,16 @@ export default class MemberController {
     const { params, response } = ctx
     const organisationId = params.organisationId as string
     const memberId = Number(params.memberId)
-    await this.removeMember.execute(organisationId, memberId)
+    await auditDenials(
+      ctx,
+      {
+        eventCategory: 'MEMBERSHIP',
+        eventAction: 'MEMBER_REMOVED',
+        targetType: 'OrganisationMember',
+        targetId: String(memberId),
+      },
+      () => this.removeMember.execute(organisationId, memberId)
+    )
 
     emitBusinessAudit(businessTraceContext(ctx), {
       eventCategory: 'MEMBERSHIP',

@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
+import emitter from '@adonisjs/core/services/emitter'
 import User from '#core/identity/user/domain/models/user'
 import { UserKycStatus, UserStatus } from '#core/identity/user/domain/enum'
 import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
@@ -409,5 +410,32 @@ test.group('Business RBAC | enforcement par permission (Lot D)', (group) => {
       .header('Authorization', `Bearer ${bearer}`)
 
     res.assertStatus(403)
+  })
+
+  test('refus RBAC → audit PERMISSION_DENIED (FAILURE) émis', async ({ client, assert }) => {
+    const owner = await makeUser()
+    const organisationId = await createOrg(owner.usersUid)
+    const bearer = await memberBearer(organisationId, ['wallet:view'])
+
+    const events: Array<Record<string, any>> = []
+    const capture = (e: Record<string, any>) => events.push(e)
+    emitter.on('activity:audit', capture)
+
+    try {
+      const res = await client
+        .get(`/api/business/organisations/${organisationId}/members`)
+        .header('X-Client-Channel', 'web')
+        .header('Authorization', `Bearer ${bearer}`)
+      res.assertStatus(403)
+    } finally {
+      emitter.off('activity:audit', capture)
+    }
+
+    // La tentative refusée est tracée pour la détection d'escalade.
+    const denial = events.find((e) => e.eventAction === 'PERMISSION_DENIED')
+    assert.exists(denial)
+    assert.equal(denial!.result, 'failed') // AuditResult.FAILURE
+    assert.equal(denial!.errorCode, 'E_FORBIDDEN_ORG_PERMISSION')
+    assert.equal(denial!.metadata.permission, 'members:manage')
   })
 })

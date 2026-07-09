@@ -6,6 +6,7 @@ import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/r
 import UpdateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/update_role.use_case'
 import DeleteRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/delete_role.use_case'
 import {
+  auditDenials,
   businessActorId,
   businessTraceContext,
   emitBusinessAudit,
@@ -64,13 +65,24 @@ export default class RoleController {
   async update(ctx: HttpContext): Promise<void> {
     const { params, request, response } = ctx
     const organisationId = params.organisationId as string
+    const roleId = Number(params.roleId)
     const payload = await request.validateUsing(updateRoleValidator)
-    const result = await this.updateRole.execute({
-      organisationId,
-      roleId: Number(params.roleId),
-      name: payload.name,
-      permissionSlugs: payload.permission_slugs,
-    })
+    const result = await auditDenials(
+      ctx,
+      {
+        eventCategory: 'ROLE',
+        eventAction: 'ROLE_UPDATED',
+        targetType: 'OrganisationRole',
+        targetId: String(roleId),
+      },
+      () =>
+        this.updateRole.execute({
+          organisationId,
+          roleId,
+          name: payload.name,
+          permissionSlugs: payload.permission_slugs,
+        })
+    )
 
     emitBusinessAudit(businessTraceContext(ctx), {
       eventCategory: 'ROLE',
@@ -91,7 +103,16 @@ export default class RoleController {
     const { params, response } = ctx
     const organisationId = params.organisationId as string
     const roleId = Number(params.roleId)
-    await this.deleteRole.execute(organisationId, roleId)
+    await auditDenials(
+      ctx,
+      {
+        eventCategory: 'ROLE',
+        eventAction: 'ROLE_DELETED',
+        targetType: 'OrganisationRole',
+        targetId: String(roleId),
+      },
+      () => this.deleteRole.execute(organisationId, roleId)
+    )
 
     emitBusinessAudit(businessTraceContext(ctx), {
       eventCategory: 'ROLE',
