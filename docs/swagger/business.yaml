@@ -17,6 +17,144 @@ paths:
                 module: aiglebusiness
                 status: ok
 
+  /api/business/auth/login:
+    post:
+      operationId: businessLogin
+      summary: Connexion business — étape 1 (phone + PIN → OTP)
+      description: |
+        Première étape du login business (portail web + app mobile). Valide le **PIN** de
+        l'utilisateur puis envoie un **OTP** par SMS. Aucun token émis à ce stade.
+        Réponse générique en cas d'échec (anti-énumération : PIN faux et numéro inconnu → 401).
+      tags:
+        - Business - Authentification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessLoginRequest'
+            example:
+              phone: '2250700000000'
+              pincode: '12345'
+      responses:
+        '200':
+          description: OTP envoyé
+          content:
+            application/json:
+              example:
+                message: Un code de connexion a été envoyé par SMS.
+        '401':
+          description: Identifiants invalides (PIN faux ou numéro inconnu — message générique)
+          content:
+            application/json:
+              example:
+                code: E_INVALID_CREDENTIALS
+                message: Identifiants invalides
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /api/business/auth/verify:
+    post:
+      operationId: businessVerifyLogin
+      summary: Connexion business — étape 2 (OTP → token)
+      description: |
+        Vérifie l'**OTP** et émet un access token **stampé `app:aiglebusiness`** (utilisable
+        uniquement sur les endpoints business) + un profil minimal.
+
+        **Mobile business** : fournir `device_info` pour enregistrer/faire confiance à l'appareil
+        (scopé `app='aiglebusiness'`). **Portail web** : omettre `device_info` (sessions gérées
+        par les access tokens, cf. `/auth/sessions`).
+      tags:
+        - Business - Authentification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BusinessVerifyRequest'
+            example:
+              phone: '2250700000000'
+              otp: '1234'
+      responses:
+        '200':
+          description: Authentifié — token + profil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessAuthTokenResponse'
+        '400':
+          description: OTP invalide/expiré (propagé du core)
+          content:
+            application/json:
+              example:
+                code: E_INVALID_OTP
+                message: Code OTP invalide
+        '401':
+          description: Numéro inconnu (message générique)
+          content:
+            application/json:
+              example:
+                code: E_INVALID_CREDENTIALS
+                message: Identifiants invalides
+
+  /api/business/auth/sessions:
+    get:
+      operationId: listBusinessSessions
+      summary: Lister mes sessions actives
+      description: |
+        Sessions actives de l'utilisateur business (une session = un access token). La session
+        courante est marquée `current: true`. Réservé à un token `app:aiglebusiness`.
+      tags:
+        - Business - Authentification
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Liste des sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSession'
+        '401':
+          description: Non authentifié, ou token sans stamp d'app (re-login requis)
+        '403':
+          $ref: '#/components/responses/WrongAppForbidden'
+
+  /api/business/auth/sessions/{id}:
+    delete:
+      operationId: revokeBusinessSession
+      summary: Révoquer une session
+      description: |
+        Révoque une session (déconnecte ce navigateur/appareil). L'ownership est vérifié :
+        révoquer le token d'un autre utilisateur → 404. Réservé à un token `app:aiglebusiness`.
+      tags:
+        - Business - Authentification
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Identifiant de la session (access token) à révoquer
+      responses:
+        '204':
+          description: Session révoquée
+        '401':
+          description: Non authentifié, ou token sans stamp d'app (re-login requis)
+        '403':
+          $ref: '#/components/responses/WrongAppForbidden'
+        '404':
+          description: Session introuvable pour cet utilisateur
+          content:
+            application/json:
+              example:
+                code: E_SESSION_NOT_FOUND
+                message: Session introuvable
+
   /api/business/organisations:
     post:
       operationId: createOrganisation
@@ -669,6 +807,15 @@ components:
         application/json:
           example:
             message: Trop de tentatives. Veuillez réessayer plus tard.
+    WrongAppForbidden:
+      description: >-
+        Le token n'est pas autorisé pour cette application (cloisonnement par produit) :
+        un token aiglesend ne peut pas agir sur les endpoints business.
+      content:
+        application/json:
+          example:
+            code: E_WRONG_APP
+            message: Ce token n'est pas autorisé pour cette application
 
   schemas:
     CreateOrganisationRequest:
@@ -883,3 +1030,115 @@ components:
             - transactions:view
             - wallet:view
             - provision:request
+    BusinessLoginRequest:
+      type: object
+      required:
+        - phone
+        - pincode
+      properties:
+        phone:
+          type: string
+          minLength: 6
+          maxLength: 20
+          example: '2250700000000'
+        pincode:
+          type: string
+          minLength: 4
+          maxLength: 8
+          example: '12345'
+
+    DeviceInfo:
+      type: object
+      description: >-
+        Informations d'appareil (mobile business). Présent → l'appareil est enregistré
+        et trusté, scopé app='aiglebusiness'. Omis sur le portail web.
+      required:
+        - fingerprint_hash
+        - device_uid
+        - is_emulator
+        - is_rooted
+      properties:
+        fingerprint_hash:
+          type: string
+        device_uid:
+          type: string
+        platform:
+          type: string
+        brand:
+          type: string
+        model:
+          type: string
+        os_version:
+          type: string
+        app_version:
+          type: string
+        is_emulator:
+          type: boolean
+        is_rooted:
+          type: boolean
+
+    BusinessVerifyRequest:
+      type: object
+      required:
+        - phone
+        - otp
+      properties:
+        phone:
+          type: string
+          minLength: 6
+          maxLength: 20
+          example: '2250700000000'
+        otp:
+          type: string
+          minLength: 4
+          maxLength: 8
+          example: '1234'
+        device_info:
+          $ref: '#/components/schemas/DeviceInfo'
+
+    BusinessAuthProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        firstname:
+          type: string
+          nullable: true
+        lastname:
+          type: string
+          nullable: true
+        phone:
+          type: string
+
+    BusinessAuthTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Access token opaque, stampé app:aiglebusiness
+        profile:
+          $ref: '#/components/schemas/BusinessAuthProfile'
+
+    UserSession:
+      type: object
+      description: Une session = un access token actif.
+      properties:
+        id:
+          type: string
+          description: Identifiant de la session (à passer à DELETE .../sessions/{id})
+        name:
+          type: string
+          nullable: true
+          description: Libellé (device:<id> en mobile, user-agent en web)
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        current:
+          type: boolean
+          description: Vrai pour la session de la requête courante
