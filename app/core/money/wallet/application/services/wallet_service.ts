@@ -100,6 +100,21 @@ export default class WalletService {
   }
 
   /**
+   * Récupère le wallet par **compte** (`account_id`, D8). Fonctionne pour un user
+   * (account_id == usersUid) comme pour une organisation (compte sans user). Base de
+   * l'encaissement marchand — le core argent devient account-centrique.
+   */
+  async getByAccountId(accountId: string, trx?: TransactionClientContract): Promise<Wallet> {
+    const wallet = await this.walletRepository.findByAccountId(accountId, trx)
+
+    if (!wallet) {
+      throw new WalletNotFoundException()
+    }
+
+    return wallet
+  }
+
+  /**
    * Credits the specified amount to the user's wallet balance.
    *
    * @param {number} walletId - The unique identifier of the wallet to be credited.

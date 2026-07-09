@@ -29,11 +29,22 @@ export default class Transaction extends BaseModel {
   @column()
   declare transactionsUid: string
 
+  // Colonne DB nullable (D8 : une transaction d'org n'a pas de user), mais TYPE non-null pour
+  // que la relation `belongsTo(User)` s'infère (quirk Lucid : FK nullable → relation `never`).
+  // Une transaction marchande porte `usersId/usersUid = null` (compte via `accountId`).
   @column()
   declare usersId: number
 
   @column()
   declare usersUid: string
+
+  /**
+   * Compte titulaire (D8) : `account_id`. Pour un user, == usersUid ; pour un marchand, l'org.
+   * DB nullable ; type non-null (comme les autres colonnes) — un `\| null` ici casse l'inférence
+   * de relation Lucid (`belongsTo(User)` → `never`).
+   */
+  @column()
+  declare accountId: string
 
   @column()
   declare amount: number

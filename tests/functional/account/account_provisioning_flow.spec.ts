@@ -8,6 +8,12 @@ import Account from '#core/money/account/domain/models/account'
 import Wallet from '#core/money/wallet/domain/models/wallet'
 import { AccountOwnerType } from '#core/money/account/domain/enums/account_owner_type'
 import AccountProvisioningService from '#core/money/account/application/services/account_provisioning_service'
+import WalletService from '#core/money/wallet/application/services/wallet_service'
+import TransactionService from '#core/money/transactions/application/services/transaction_service'
+import Transaction from '#core/money/transactions/domain/models/transaction'
+import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
+import { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
+import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 
 const CI_COUNTRY_ID = 52
 
@@ -106,5 +112,97 @@ test.group('Fondation account | openFor(organisation)', (group) => {
     assert.isNull(wallet.userId)
     assert.equal(Number(wallet.balance), 0)
     assert.equal(wallet.currencySymbol, 'XOF')
+  })
+})
+
+/**
+ * Fondation D8 (sous-lot 4) : le core argent devient account-centrique. `getByAccountId`
+ * résout le wallet par compte (user ou org) ; `createTransaction` peuple `account_id`
+ * (consumer : == usersUid ; marchand : le compte org, sans user).
+ */
+test.group('Fondation D8 | argent account-centrique', (group) => {
+  group.each.setup(async () => {
+    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
+    await db.beginGlobalTransaction()
+    return async () => {
+      await db.rollbackGlobalTransaction()
+      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
+    }
+  })
+
+  test('getByAccountId résout le wallet (user ET organisation)', async ({ assert }) => {
+    const provisioning = await app.container.make(AccountProvisioningService)
+    const wallets = await app.container.make(WalletService)
+
+    const user = await createUser()
+    await provisioning.openFor(AccountOwnerType.USER, user.usersUid)
+    const orgId = randomUUID()
+    await provisioning.openFor(AccountOwnerType.ORGANISATION, orgId)
+
+    // account_id == usersUid pour un user ; == organisation_id pour une org.
+    const userWallet = await wallets.getByAccountId(user.usersUid)
+    assert.equal(userWallet.accountId, user.usersUid)
+    assert.equal(userWallet.userId, user.usersUid)
+
+    const orgWallet = await wallets.getByAccountId(orgId)
+    assert.equal(orgWallet.accountId, orgId)
+    assert.isNull(orgWallet.userId)
+  })
+
+  test('createTransaction consumer : account_id peuplé (== usersUid)', async ({ assert }) => {
+    const provisioning = await app.container.make(AccountProvisioningService)
+    const wallets = await app.container.make(WalletService)
+    const transactions = await app.container.make(TransactionService)
+
+    const user = await createUser()
+    await provisioning.openFor(AccountOwnerType.USER, user.usersUid)
+    const wallet = await wallets.getByAccountId(user.usersUid)
+
+    const created = await transactions.createTransaction(
+      {
+        status: TransactionStatus.PENDING,
+        amount: 1000,
+        direction: TransactionDirection.CREDIT,
+        fees: 0,
+        operation_type: TransactionType.DEPOSIT,
+      },
+      wallet.id,
+      { id: user.id, usersUid: user.usersUid }
+    )
+
+    const reloaded = await Transaction.findOrFail(created.id)
+    assert.equal(reloaded.accountId, user.usersUid)
+    assert.equal(reloaded.usersUid, user.usersUid)
+  })
+
+  test('createTransaction marchand : account_id = org, sans user', async ({ assert }) => {
+    const provisioning = await app.container.make(AccountProvisioningService)
+    const wallets = await app.container.make(WalletService)
+    const transactions = await app.container.make(TransactionService)
+
+    const orgId = randomUUID()
+    await provisioning.openFor(AccountOwnerType.ORGANISATION, orgId)
+    const wallet = await wallets.getByAccountId(orgId)
+
+    // user = null, accountId explicite (le marchand n'a pas de user).
+    const created = await transactions.createTransaction(
+      {
+        status: TransactionStatus.PENDING,
+        amount: 5000,
+        direction: TransactionDirection.CREDIT,
+        fees: 0,
+        operation_type: TransactionType.DEPOSIT,
+      },
+      wallet.id,
+      null,
+      undefined,
+      undefined,
+      undefined,
+      orgId
+    )
+
+    const reloaded = await Transaction.findOrFail(created.id)
+    assert.equal(reloaded.accountId, orgId)
+    assert.isNull(reloaded.usersUid)
   })
 })

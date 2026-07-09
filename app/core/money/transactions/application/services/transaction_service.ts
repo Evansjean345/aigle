@@ -50,6 +50,7 @@ export default class TransactionService {
    * @param geoIpLocation
    * @param {TransactionClientContract} [trx] - An optional transaction client to manage database operations.
    *
+   * @param accountId
    * @return {Promise<Transaction>} A promise that resolves to the newly created transaction object.
    */
   async createTransaction(
@@ -67,15 +68,16 @@ export default class TransactionService {
       metadata?: Record<string, any>
     },
     walletId: number,
-    user: AccountRef,
+    user: AccountRef | null,
     deviceInfo?: DeviceHeadersInfo,
     geoIpLocation?: GeoIpLocation,
-    trx?: TransactionClientContract
+    trx?: TransactionClientContract,
+    accountId?: string
   ): Promise<Transaction> {
     transactionLog.info(
       'TRANSACTION_CREATING',
       {
-        user: { id: user.id },
+        user: { id: user?.id ?? null },
         wallet: { id: walletId },
         transaction: {
           amount: payload.amount,
@@ -91,8 +93,9 @@ export default class TransactionService {
     transaction.direction = payload.direction
     transaction.totalAmount = Number(payload.total_amount || 0)
     transaction.operationType = payload.operation_type
-    transaction.usersId = user.id
-    transaction.usersUid = user.usersUid
+    transaction.usersId = (user?.id ?? null) as unknown as number
+    transaction.usersUid = (user?.usersUid ?? null) as unknown as string
+    transaction.accountId = (accountId ?? user?.usersUid ?? null) as unknown as string
 
     if (payload.fees !== undefined) transaction.fees = Number(payload.fees)
     if (payload.reference) {
