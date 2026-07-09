@@ -192,10 +192,12 @@ user → 404/403 (ownership) ; le listing n'expose pas le hash du token.
   (register, verify-account, verify-credentials, revoke, push) passent `AIGLESEND`.
 - **API produit** `DeviceService.registerAndTrustForApp(deviceRequest, userId, app)` → renvoie un
   **DTO minimal `{ userDeviceId }`** (pas le modèle `UserDevice`) → invariant produit→core tenu.
-- **Login mobile business = DEUX temps** (comme aiglesend) : `device_info` à l'étape **login** (PIN) →
-  `registerForApp` (appareil **PENDING** + alerte « nouvel appareil ») ; `device_info` à l'étape
-  **verify** (OTP) → `trustForApp` (**TRUSTED**), token nommé `device:<id>`. Persistance jamais à la
-  saisie du numéro (aucun credential prouvé). Web (sans device_info) inchangé (sessions Lot 3).
+- **Login mobile business = DEUX temps** (comme aiglesend) : appareil complet dans le **BODY** à
+  l'étape **login** (PIN, `device_info`) → `registerForApp` (**PENDING** + alerte « nouvel appareil ») ;
+  à l'étape **verify** (OTP) l'appareil passe par les **HEADERS** device (`X-Device-Fingerprint`,
+  `X-Device-Uid`, via `middleware.device({required:false})`) → `trustForApp` (**TRUSTED**), token
+  `device:<id>`. Persistance jamais à la saisie du numéro. Web (sans device) inchangé (sessions Lot 3).
+  Cohérent avec aiglesend : `verify-credentials` device en body, `verify-account` device en headers.
 - **API produit** : `DeviceService.registerForApp` (void) + `trustForApp` (→ `{ userDeviceId }`) —
   deux méthodes qui ne fuient pas le modèle `UserDevice` (invariant produit→core).
 - **Tests** : `device_service.spec` (trust app-aware + isolation par-app : même user+device, 2 apps →

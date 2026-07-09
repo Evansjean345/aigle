@@ -25,23 +25,28 @@ function devicePayload(fp: string, uid: string) {
 test.group('Business auth | device trust (mobile, two-step)', (group) => {
   group.each.setup(authTestSetup({ silentSms: true, permissiveOtp: true }))
 
-  test('login → PENDING ; verify → TRUSTED (app=aiglebusiness)', async ({ client, assert }) => {
+  test('login (body) → PENDING ; verify (headers) → TRUSTED (app=aiglebusiness)', async ({
+    client,
+    assert,
+  }) => {
     const user = await makeUser({ pincode: '1234' })
-    const device = devicePayload(randomUUID(), randomUUID())
+    const fp = randomUUID()
+    const uid = randomUUID()
 
-    // Étape login (PIN) avec device → appareil enregistré PENDING.
+    // Étape login (PIN) : device dans le BODY → appareil enregistré PENDING.
     await client
       .post('/api/business/auth/login')
-      .json({ phone: user.phone, pincode: '1234', device_info: device })
+      .json({ phone: user.phone, pincode: '1234', device_info: devicePayload(fp, uid) })
 
     const pending = await UserDevice.query().where('user_id', user.usersUid).firstOrFail()
     assert.equal(pending.app, AppName.AIGLEBUSINESS)
     assert.equal(pending.status, DeviceStatus.PENDING)
 
-    // Étape verify (OTP) avec device → même lien promu TRUSTED.
+    // Étape verify (OTP) : device via HEADERS → même lien promu TRUSTED.
     const res = await client
       .post('/api/business/auth/verify')
-      .json({ phone: user.phone, otp: '0000', device_info: device })
+      .headers({ 'X-Device-Fingerprint': fp, 'X-Device-Uid': uid })
+      .json({ phone: user.phone, otp: '0000' })
     res.assertStatus(200)
 
     const links = await UserDevice.query().where('user_id', user.usersUid)

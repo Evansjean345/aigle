@@ -33,11 +33,13 @@ export const businessLoginValidator = vine.compile(
   })
 )
 
-/** Étape 2 : OTP de connexion (+ appareil optionnel pour le mobile business). */
+/**
+ * Étape 2 : OTP de connexion. L'appareil (mobile business) passe par les **headers**
+ * device (`X-Device-Fingerprint`, `X-Device-Uid`), pas par le body.
+ */
 export const businessVerifyLoginValidator = vine.compile(
   vine.object({
     phone: vine.string().trim().minLength(6).maxLength(20),
     otp: vine.string().trim().minLength(4).maxLength(8),
-    device_info: deviceInfoSchema.optional(),
   })
 )

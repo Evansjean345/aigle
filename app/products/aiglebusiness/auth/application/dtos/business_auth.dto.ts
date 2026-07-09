@@ -14,8 +14,9 @@ export interface BusinessVerifyLoginRequestDto {
   phone: string
   otp: string
   sessionName?: string
-  /** Mobile business : présent → l'appareil est trusté (scopé app='aiglebusiness'). */
-  deviceInfo?: DeviceRequestDTO
+  /** Mobile business : fingerprint + uid (issus des HEADERS device) → truste l'appareil. */
+  deviceFingerprint?: string
+  deviceUid?: string
 }
 
 // ── Response (output HTTP) ──────────────────────────────────────────

@@ -97,15 +97,12 @@ test.group('DeviceService | trust', (group) => {
     const fp = randomUUID()
     const uid = randomUUID()
 
-    // API produit two-step (register PENDING au PIN, trust à l'OTP) pour les 2 apps.
+    // API produit two-step : registerForApp (PIN, DTO complet) puis trustForApp
+    // (OTP, fingerprint+uid des headers) pour les 2 apps.
     await service.registerForApp(deviceRequest(fp, uid), user.usersUid, AppName.AIGLESEND)
-    const s = await service.trustForApp(deviceRequest(fp, uid), user.usersUid, AppName.AIGLESEND)
+    const s = await service.trustForApp(fp, uid, user.usersUid, AppName.AIGLESEND)
     await service.registerForApp(deviceRequest(fp, uid), user.usersUid, AppName.AIGLEBUSINESS)
-    const b = await service.trustForApp(
-      deviceRequest(fp, uid),
-      user.usersUid,
-      AppName.AIGLEBUSINESS
-    )
+    const b = await service.trustForApp(fp, uid, user.usersUid, AppName.AIGLEBUSINESS)
 
     assert.isNotNull(s)
     assert.isNotNull(b)

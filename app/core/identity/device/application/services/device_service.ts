@@ -195,23 +195,19 @@ export default class DeviceService {
 
   /**
    * **Truste** un appareil déjà enregistré (PENDING → TRUSTED) pour une app donnée
-   * (étape OTP du login, comme aiglesend `verify-account`). Renvoie un identifiant
-   * MINIMAL (pas le modèle) ou `null` si aucun lien PENDING (client incohérent →
-   * dégradation gracieuse). API PRODUIT.
+   * (étape OTP du login, comme aiglesend `verify-account`). N'a besoin que du
+   * fingerprint + uid (l'appareil complet a été enregistré au PIN) → alimenté par
+   * les **headers** device. Renvoie un identifiant MINIMAL (pas le modèle) ou `null`
+   * si aucun lien PENDING (dégradation gracieuse). API PRODUIT.
    */
   async trustForApp(
-    deviceRequest: DeviceRequestDTO,
+    fingerprintHash: string,
+    deviceUid: string,
     userId: string,
     app: string,
     geoLocation?: GeoIpLocation
   ): Promise<{ userDeviceId: string } | null> {
-    const trusted = await this.trustDevice(
-      userId,
-      deviceRequest.fingerprint_hash,
-      deviceRequest.device_uid,
-      geoLocation,
-      app
-    )
+    const trusted = await this.trustDevice(userId, fingerprintHash, deviceUid, geoLocation, app)
     return trusted ? { userDeviceId: trusted.id } : null
   }
 

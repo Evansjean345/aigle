@@ -38,12 +38,13 @@ export default class BusinessVerifyLoginUseCase {
     )
 
     // Mobile business : truste l'appareil déjà enregistré (PENDING) à l'étape login.
-    // Le nom du token porte alors la session `device:<id>` (comme aiglesend).
+    // Fingerprint + uid viennent des HEADERS device. Token nommé `device:<id>`.
     let tokenName = request.sessionName
 
-    if (request.deviceInfo) {
+    if (request.deviceFingerprint && request.deviceUid) {
       const trusted = await this.deviceService.trustForApp(
-        request.deviceInfo,
+        request.deviceFingerprint,
+        request.deviceUid,
         user.userId,
         AppName.AIGLEBUSINESS
       )

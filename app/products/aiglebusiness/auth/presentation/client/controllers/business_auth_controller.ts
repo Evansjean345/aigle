@@ -35,14 +35,16 @@ export default class BusinessAuthController {
     return response.ok({ message: 'Un code de connexion a été envoyé par SMS.' })
   }
 
-  async verify({ request, response }: HttpContext): Promise<void> {
+  async verify({ request, response, deviceInfo }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(businessVerifyLoginValidator)
 
     const result = await this.businessVerifyLogin.execute({
       phone: payload.phone,
       otp: payload.otp,
       sessionName: request.header('user-agent')?.slice(0, 120),
-      deviceInfo: payload.device_info,
+      // Appareil via HEADERS (middleware device) : fingerprint + uid pour le trust.
+      deviceFingerprint: deviceInfo?.fingerprintHash || undefined,
+      deviceUid: deviceInfo?.deviceUid || undefined,
     })
 
     return response.ok(result)
