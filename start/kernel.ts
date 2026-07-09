@@ -35,7 +35,10 @@ router.use([
  */
 export const middleware = router.named({
   auth: () => import('#core/identity/authentication/presentation/middleware/auth_middleware'),
-  idempotency: () => import('#core/money/transactions/presentation/middleware/idempotency_middleware'),
+  requireApp: () =>
+    import('#core/identity/authentication/presentation/middleware/require_app_middleware'),
+  idempotency: () =>
+    import('#core/money/transactions/presentation/middleware/idempotency_middleware'),
   device: () => import('#shared/middleware/device_middleware'),
   permission: () => import('#core/team/presentation/middleware/permission_middleware'),
   geoip: () => import('#shared/middleware/geoip_middleware'),

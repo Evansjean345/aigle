@@ -6,8 +6,9 @@ import UserRepository from '#core/identity/user/domain/interfaces/user_repositor
 import UserAccountNotFoundException from '#core/identity/authentication/domain/exceptions/user_account_not_found_exception'
 import ResetPasswordTokenProvider from '#core/identity/authentication/domain/interfaces/reset_password_token_provider'
 import InvalidResetTokenException from '#core/identity/authentication/domain/exceptions/invalid_reset_token_exception'
-import User from '#core/identity/user/domain/models/user'
 import { AuthenticatedProfileAndTokenResponseDto } from '#core/identity/authentication/application/dtos/profile.dto'
+import IssueAppTokenService from '#core/identity/authentication/application/services/issue_app_token_service'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 
@@ -23,7 +24,8 @@ export default class ResetPasswordUseCase {
   constructor(
     protected userRepository: UserRepository,
     protected countryRepository: CountryRepository,
-    protected resetPasswordTokenProvider: ResetPasswordTokenProvider
+    protected resetPasswordTokenProvider: ResetPasswordTokenProvider,
+    protected issueAppTokenService: IssueAppTokenService
   ) {}
 
   /**
@@ -54,7 +56,7 @@ export default class ResetPasswordUseCase {
     await this.userRepository.save(user)
     await this.resetPasswordTokenProvider.delete(user.phone)
 
-    const token = await User.accessTokens.create(user)
+    const tokenValue = await this.issueAppTokenService.issueForUser(user, AppName.AIGLESEND)
     await user.load('country')
     await user.load('wallet')
     await user.load('kycDocument')
@@ -79,6 +81,6 @@ export default class ResetPasswordUseCase {
       })
       .catch(() => {})
 
-    return AuthenticatedProfileAndTokenResponseDto.from(user, token.value!.release())
+    return AuthenticatedProfileAndTokenResponseDto.from(user, tokenValue)
   }
 }

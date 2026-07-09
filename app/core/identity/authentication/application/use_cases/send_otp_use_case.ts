@@ -1,7 +1,10 @@
 import { inject } from '@adonisjs/core'
 import OtpSendingService from '#core/identity/otp/application/services/otp_sending_service'
 import UserRepository from '#core/identity/user/domain/interfaces/user_repository'
-import { OtpRequestDto, OtpResponseDto } from '#core/identity/authentication/application/dtos/otp.dto'
+import {
+  OtpRequestDto,
+  OtpResponseDto,
+} from '#core/identity/authentication/application/dtos/otp.dto'
 import CountryRepository from '#core/catalog/country/domain/interfaces/country_repository'
 import { concartPhoneNumber } from '#shared/utils/utiles'
 import PhoneNotFoundException from '#core/identity/authentication/domain/exceptions/phone_not_found_exception'

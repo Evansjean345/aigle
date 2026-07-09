@@ -1,5 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import {
   invitationOtpThrottle,
   invitationResendThrottle,
@@ -45,7 +46,7 @@ export default function membershipClientRoutes() {
           router.delete('members/:memberId', [MemberController, 'destroy'])
         })
         .prefix('organisations/:organisationId')
-        .use(middleware.auth())
+        .use([middleware.auth(), middleware.requireApp({ app: AppName.AIGLEBUSINESS })])
 
       // ── Acceptation d'invitation (semi-publique : token + OTP) ──
       // Le GET déclenche l'envoi de l'OTP → filet anti-abus au niveau route.

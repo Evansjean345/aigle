@@ -13,6 +13,7 @@ import mobileQrRoutes from '#aiglesend/qr/presentation/mobile/routes/qr_routes'
 import mobileKycRoutes from '#core/identity/kyc/presentation/mobile/routes/kyc_routes'
 import mobileDeviceRoutes from '#core/identity/device/presentation/mobile/routes/device_routes'
 import mobileDebitPhoneRoutes from '#core/identity/user/presentation/mobile/routes/debit_phone_routes'
+import businessAuthRoutes from '#aiglebusiness/auth/presentation/client/routes/business_auth_routes'
 import businessClientRoutes from '#aiglebusiness/organisation/presentation/client/routes/business_routes'
 import membershipClientRoutes from '#aiglebusiness/membership/presentation/client/routes/membership_routes'
 import payableAliasRoutes from '#core/qr/presentation/public/routes/payable_alias_routes'
@@ -30,6 +31,7 @@ router
     router.group(mobileKycRoutes)
     router.group(mobileDeviceRoutes)
     router.group(mobileDebitPhoneRoutes)
+    router.group(businessAuthRoutes)
     router.group(businessClientRoutes)
     router.group(membershipClientRoutes)
     router.group(payableAliasRoutes)

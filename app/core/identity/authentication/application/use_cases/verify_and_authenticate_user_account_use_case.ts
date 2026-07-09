@@ -12,6 +12,8 @@ import PhoneNotFoundException from '#core/identity/authentication/domain/excepti
 import UserRepository from '#core/identity/user/domain/interfaces/user_repository'
 import AccountBlockedException from '#core/identity/authentication/domain/exceptions/account_blocked_exception'
 import UserOtpAttemptGuard from '#core/identity/authentication/application/services/user_otp_attempt_guard'
+import IssueAppTokenService from '#core/identity/authentication/application/services/issue_app_token_service'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import OtpLockedException from '#core/identity/otp/domain/exceptions/otp_locked_exception'
 import securityLog from '#shared/infrastructure/logging/security_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
@@ -35,7 +37,8 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
     private readonly otpVerificationService: OtpVerificationService,
     private readonly countryRepository: CountryRepository,
     private readonly deviceService: DeviceService,
-    private readonly otpAttemptGuard: UserOtpAttemptGuard
+    private readonly otpAttemptGuard: UserOtpAttemptGuard,
+    private readonly issueAppTokenService: IssueAppTokenService
   ) {}
 
   /**
@@ -134,7 +137,7 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
         )
       }
 
-      const token = await User.accessTokens.create(user, ['*'], {
+      const tokenValue = await this.issueAppTokenService.issueForUser(user, AppName.AIGLESEND, {
         name: userDevice ? `device:${userDevice.id}` : 'unknown_device',
       })
 
@@ -176,7 +179,7 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
       await user.load('wallet')
       await user.load('kycDocument')
 
-      return AuthenticatedProfileAndTokenResponseDto.from(user, token.value!.release())
+      return AuthenticatedProfileAndTokenResponseDto.from(user, tokenValue)
     } catch (error) {
       errorLog.error(
         'AUTH_EXECUTE_ERROR',

@@ -17,6 +17,7 @@ import OrganisationMember from '#aiglebusiness/membership/domain/models/organisa
 import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
 import { OWNER_ROLE_SLUG } from '#aiglebusiness/membership/domain/system_roles'
 import { BUSINESS_PERMISSIONS } from '#aiglebusiness/membership/domain/permissions.config'
+import { AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
 
 /**
  * Caractérise le RBAC éditable (Lot C) : CRUD des rôles d'organisation (validation
@@ -270,7 +271,7 @@ test.group('Business roles | porte HTTP (Bouncer)', (group) => {
   test('OWNER authentifié → 200 sur la liste des rôles', async ({ client, assert }) => {
     const owner = await makeUser()
     const organisationId = await createOrg(owner.usersUid)
-    const token = await User.accessTokens.create(owner)
+    const token = await User.accessTokens.create(owner, [appAbility(AppName.AIGLEBUSINESS)])
 
     const res = await client
       .get(`/api/business/organisations/${organisationId}/roles`)
@@ -280,12 +281,36 @@ test.group('Business roles | porte HTTP (Bouncer)', (group) => {
     assert.isArray(res.body())
   })
 
+  test('token aiglesend sur /business → 403 (cloisonnement)', async ({ client }) => {
+    const owner = await makeUser()
+    const organisationId = await createOrg(owner.usersUid)
+    const token = await User.accessTokens.create(owner, [appAbility(AppName.AIGLESEND)])
+
+    const res = await client
+      .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('Authorization', `Bearer ${token.value!.release()}`)
+
+    res.assertStatus(403)
+  })
+
+  test('token sans stamp d’app → 401 (re-login)', async ({ client }) => {
+    const owner = await makeUser()
+    const organisationId = await createOrg(owner.usersUid)
+    const token = await User.accessTokens.create(owner)
+
+    const res = await client
+      .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('Authorization', `Bearer ${token.value!.release()}`)
+
+    res.assertStatus(401)
+  })
+
   test('utilisateur non-membre → 403', async ({ client }) => {
     const owner = await makeUser()
     const organisationId = await createOrg(owner.usersUid)
 
     const outsider = await makeUser()
-    const token = await User.accessTokens.create(outsider)
+    const token = await User.accessTokens.create(outsider, [appAbility(AppName.AIGLEBUSINESS)])
 
     const res = await client
       .get(`/api/business/organisations/${organisationId}/roles`)

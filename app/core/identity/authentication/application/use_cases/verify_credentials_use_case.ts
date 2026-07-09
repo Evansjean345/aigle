@@ -1,5 +1,8 @@
 import { inject } from '@adonisjs/core'
-import { LoginRequestDto, LoginResult } from '#core/identity/authentication/application/dtos/login.dto'
+import {
+  LoginRequestDto,
+  LoginResult,
+} from '#core/identity/authentication/application/dtos/login.dto'
 import OtpSendingService from '#core/identity/otp/application/services/otp_sending_service'
 import DeviceService from '#core/identity/device/application/services/device_service'
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'

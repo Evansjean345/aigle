@@ -1,7 +1,7 @@
 ---
-status: in-review
-etape: 2
-lot: "1"
+status: approved
+etape: 6
+lot: "1-2"
 derniere_maj: 2026-07-08
 ---
 

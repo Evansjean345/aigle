@@ -136,6 +136,8 @@ export type ScannedRoutes = {
     'debit_phone.store': { paramsTuple?: []; params?: {} }
     'debit_phone.verify': { paramsTuple?: []; params?: {} }
     'debit_phone.resend': { paramsTuple?: []; params?: {} }
+    'business_auth.login': { paramsTuple?: []; params?: {} }
+    'business_auth.verify': { paramsTuple?: []; params?: {} }
     'business_health': { paramsTuple?: []; params?: {} }
     'organisation.store': { paramsTuple?: []; params?: {} }
     'organisation.index': { paramsTuple?: []; params?: {} }
@@ -345,6 +347,8 @@ export type ScannedRoutes = {
     'debit_phone.store': { paramsTuple?: []; params?: {} }
     'debit_phone.verify': { paramsTuple?: []; params?: {} }
     'debit_phone.resend': { paramsTuple?: []; params?: {} }
+    'business_auth.login': { paramsTuple?: []; params?: {} }
+    'business_auth.verify': { paramsTuple?: []; params?: {} }
     'organisation.store': { paramsTuple?: []; params?: {} }
     'role.store': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'member.store': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
