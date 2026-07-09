@@ -37,8 +37,6 @@ export default class MobileTransactionsController {
     const user = auth.user!
     const page = request.qs().page
 
-    console.log(page)
-
     const transactions = await this.getUserTransactions.execute(user.usersUid, page)
     return response.ok(transactions)
   }
