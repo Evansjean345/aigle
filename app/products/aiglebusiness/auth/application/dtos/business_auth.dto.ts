@@ -2,13 +2,11 @@ import { type UserLookupResult } from '#core/identity/user/application/dtos/user
 
 // ── RequestDto (input use cases) ────────────────────────────────────
 
-/** Étape 1 : phone + PIN → déclenche l'OTP. */
 export interface BusinessLoginRequestDto {
   phone: string
   pincode: string
 }
 
-/** Étape 2 : phone + OTP → émet le token. `sessionName` libelle la session (Lot 3). */
 export interface BusinessVerifyLoginRequestDto {
   phone: string
   otp: string
@@ -17,7 +15,6 @@ export interface BusinessVerifyLoginRequestDto {
 
 // ── Response (output HTTP) ──────────────────────────────────────────
 
-/** Profil minimal renvoyé après authentification (pas de données sensibles). */
 export class BusinessAuthProfileDTO {
   declare userId: string
   declare firstname: string | null
@@ -34,7 +31,6 @@ export class BusinessAuthProfileDTO {
   }
 }
 
-/** Réponse de l'étape 2 : token stampé `app:aiglebusiness` + profil. */
 export class BusinessAuthTokenDTO {
   declare token: string
   declare profile: BusinessAuthProfileDTO

@@ -25,11 +25,11 @@ export default class BusinessVerifyLoginUseCase {
 
   async execute(request: BusinessVerifyLoginRequestDto): Promise<BusinessAuthTokenDTO> {
     const user = await this.userDirectory.findByPhone(request.phone)
+
     if (!user) {
       throw new InvalidCredentialsException()
     }
 
-    // Propage InvalidOtp/ExpiredOtp/OtpLocked du core.
     await this.otpVerification.verify(
       { identifier: user.phone, enteredOtp: request.otp },
       new BusinessLoginOtpTemplate()

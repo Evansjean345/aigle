@@ -20,6 +20,7 @@ export default class ResetPasswordUseCase {
    * @param {UserRepository} userRepository - The repository responsible for managing user data.
    * @param {CountryRepository} countryRepository - The repository responsible for managing country data.
    * @param {ResetPasswordTokenProvider} resetPasswordTokenProvider - The provider responsible for handling reset password tokens.
+   * @param issueAppTokenService
    */
   constructor(
     protected userRepository: UserRepository,

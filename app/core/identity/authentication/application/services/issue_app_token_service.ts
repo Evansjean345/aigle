@@ -23,9 +23,11 @@ export default class IssueAppTokenService {
   /** Émet pour un `userId` (appelants produit) : charge le user puis délègue. */
   async issue(userId: string, app: AppName, options?: { name?: string }): Promise<string> {
     const user = await this.userRepository.findById(userId)
+
     if (!user) {
       throw new PhoneNotFoundException()
     }
+
     return this.issueForUser(user, app, options)
   }
 }

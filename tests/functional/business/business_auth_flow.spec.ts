@@ -80,6 +80,7 @@ test.group('Business auth | login', (group) => {
     const verifyRes = await client
       .post('/api/business/auth/verify')
       .json({ phone: user.phone, otp: '0000' })
+
     verifyRes.assertStatus(200)
     const token = verifyRes.body().token
     assert.isString(token)

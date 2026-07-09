@@ -1,5 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import { otpThrottle } from '#core/identity/otp/presentation/throttles/otp_throttle'
 
 const DebitPhoneController = () =>
@@ -15,7 +16,11 @@ export default function mobileDebitPhoneRoutes() {
           router.post('/verify', [DebitPhoneController, 'verify'])
           router.post('/resend-otp', [DebitPhoneController, 'resend']).use(otpThrottle)
         })
-        .use([middleware.auth(), middleware.device()])
+        .use([
+          middleware.auth(),
+          middleware.requireApp({ app: AppName.AIGLESEND }),
+          middleware.device(),
+        ])
     })
     .prefix('mobile/debit-phones')
 }

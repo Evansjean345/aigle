@@ -22,6 +22,7 @@ export default class BusinessLoginUseCase {
 
   async execute(request: BusinessLoginRequestDto): Promise<void> {
     const user = await this.userDirectory.findByPhone(request.phone)
+
     if (!user) {
       throw new InvalidCredentialsException()
     }

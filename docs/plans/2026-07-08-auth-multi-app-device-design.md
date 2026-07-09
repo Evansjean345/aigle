@@ -72,7 +72,7 @@ sessions.
 
 | Lot | Contenu | Dépend de | Statut |
 |-----|---------|-----------|--------|
-| 1 — Cloisonnement & stamp | ability `app:<produit>` sur les tokens à l'émission + middleware `requireApp('...')` sur les groupes de routes (business exige `app:aiglebusiness`, mobile aiglesend exige `app:aiglesend`) | — | design fait |
+| 1 — Cloisonnement & stamp | ability `app:<produit>` sur les tokens à l'émission + middleware `requireApp('...')` sur les groupes de routes (business exige `app:aiglebusiness`, mobile aiglesend exige `app:aiglesend`) | — | **implémenté** (business + mobile) |
 | 2 — Login business | entrée d'auth aiglebusiness (phone+PIN+OTP, service core IssueAppToken), token `app:aiglebusiness` | 1 | design fait |
 | 3 — Sessions révocables | « mes sessions » = access tokens actifs (name/deviceInfo/last_used_at) + révocation (`accessTokens.delete`), via service core. **Sans** skip-OTP (#9) | 2 | design fait |
 

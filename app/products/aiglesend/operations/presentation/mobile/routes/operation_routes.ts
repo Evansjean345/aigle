@@ -1,5 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 
 const DepositController = () =>
   import('#aiglesend/operations/presentation/mobile/controllers/deposit_controller')
@@ -19,6 +20,12 @@ const mobileOperationRoutes = () =>
       router.post('wallet-to-wallet', [WalletToWalletController])
     })
     .prefix('mobile/operations')
-    .use([middleware.auth(), middleware.device(), middleware.geoip(), middleware.idempotency()])
+    .use([
+      middleware.auth(),
+      middleware.requireApp({ app: AppName.AIGLESEND }),
+      middleware.device(),
+      middleware.geoip(),
+      middleware.idempotency(),
+    ])
 
 export default mobileOperationRoutes

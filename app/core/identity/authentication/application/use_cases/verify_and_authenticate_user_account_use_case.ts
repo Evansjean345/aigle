@@ -31,6 +31,7 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
    * @param {CountryRepository} countryRepository - The repository for accessing country-related information.
    * @param {DeviceService} deviceService - The service used for managing device-related operations.
    * @param {UserOtpAttemptGuard} otpAttemptGuard
+   * @param issueAppTokenService
    */
   constructor(
     private readonly userRepository: UserRepository,
@@ -107,11 +108,6 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
             enteredOtp: payload.otp,
           })
         } catch (otpError) {
-          // Only count fully-exhausted OTPs as brute-force attempts at the
-          // user scope. A typo (`InvalidOtpException`) is already throttled
-          // by `OtpVerificationService.maxAttempts=5` on the OTP itself;
-          // counting each typo would double-lock a fat-fingering user. The
-          // guard catches the cross-OTP attack: regenerate + retry loops.
           if (otpError instanceof OtpLockedException) {
             await this.otpAttemptGuard.recordFailure(user, payload.ipAddress ?? null)
           }

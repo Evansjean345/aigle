@@ -1,5 +1,6 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 
 const DeviceController = () =>
   import('#core/identity/device/presentation/mobile/controllers/device_controller')
@@ -20,7 +21,11 @@ export default function mobileDeviceRoutes() {
           router.put('push-token', [DeviceController, 'updatePushToken'])
           router.delete('/:id/revoke', [DeviceController, 'revokeDevice'])
         })
-        .use([middleware.auth(), middleware.device()])
+        .use([
+          middleware.auth(),
+          middleware.requireApp({ app: AppName.AIGLESEND }),
+          middleware.device(),
+        ])
     })
     .prefix('mobile/devices')
 }
