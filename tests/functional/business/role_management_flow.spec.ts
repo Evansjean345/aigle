@@ -90,6 +90,27 @@ test.group('Business roles | use cases', (group) => {
     assert.lengthOf(roles, 2)
   })
 
+  test('créer un rôle sur un compte MARCHAND → refusé (pas d’équipe)', async ({ assert }) => {
+    const createOrgUseCase = await app.container.make(CreateOrganisationUseCase)
+    const merchant = await createOrgUseCase.execute({
+      ownerUserId: randomUUID(),
+      ownerKycStatus: UserKycStatus.VERIFIED,
+      name: 'Ma Boutique',
+      accountType: OrganisationAccountType.MARCHAND,
+    })
+    const create = await app.container.make(CreateRoleUseCase)
+
+    await assert.rejects(
+      () =>
+        create.execute({
+          organisationId: merchant.organisationId,
+          name: 'Comptable',
+          permissionSlugs: ['wallet:view'],
+        }),
+      /marchand|équipe/i
+    )
+  })
+
   test('créer un rôle : permission hors catalogue → 400', async ({ assert }) => {
     const organisationId = await createOrg(randomUUID())
     const create = await app.container.make(CreateRoleUseCase)

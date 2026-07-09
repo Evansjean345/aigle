@@ -123,6 +123,25 @@ test.group('Business members | invitation & lifecycle', (group) => {
     assert.equal(result.userId, invitee.usersUid)
   })
 
+  test('inviter un membre sur un compte MARCHAND → refusé (pas d’équipe)', async ({ assert }) => {
+    const createOrgUseCase = await app.container.make(CreateOrganisationUseCase)
+    const merchant = await createOrgUseCase.execute({
+      ownerUserId: randomUUID(),
+      ownerKycStatus: UserKycStatus.VERIFIED,
+      name: 'Ma Boutique',
+      accountType: OrganisationAccountType.MARCHAND,
+    })
+    const invitee = await makeUser()
+    const invite = await app.container.make(InviteMemberUseCase)
+
+    // Le garde marchand s'applique en amont (avant même la résolution du rôle).
+    await assert.rejects(
+      () =>
+        invite.execute({ organisationId: merchant.organisationId, phone: invitee.phone, roleId: 1 }),
+      /marchand|équipe/i
+    )
+  })
+
   test('inviter : téléphone sans compte Aigle → 404', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
     const invite = await app.container.make(InviteMemberUseCase)

@@ -482,7 +482,8 @@ paths:
       description: |
         Crée un rôle personnalisé. Le **slug** est dérivé du nom (immuable ensuite) et doit
         être unique dans l'organisation ; il faut au moins une permission, chacune validée
-        contre le catalogue. Réservé à `roles:manage`.
+        contre le catalogue. Réservé à `roles:manage`. **Uniquement pour les entreprises** —
+        un compte marchand (mono-utilisateur) ne gère pas de rôles (403 `E_MERCHANT_NO_TEAM`).
       tags:
         - Business - Rôles
       security:
@@ -527,7 +528,22 @@ paths:
                     code: E_INVALID_PERMISSION_SLUG
                     message: 'Permission inconnue : foo:bar'
         '403':
-          $ref: '#/components/responses/RolesManageForbidden'
+          description: >-
+            Permission `roles:manage` absente, ou compte **marchand** (les rôles sont réservés
+            aux entreprises).
+          content:
+            application/json:
+              examples:
+                forbidden:
+                  summary: Permission insuffisante
+                  value:
+                    code: E_FORBIDDEN_ORG_PERMISSION
+                    message: Vous n'avez pas la permission requise pour cette action
+                merchantNoTeam:
+                  summary: Compte marchand (pas d'équipe)
+                  value:
+                    code: E_MERCHANT_NO_TEAM
+                    message: "Un compte marchand ne gère pas d'équipe : les rôles et les membres sont réservés aux entreprises."
         '409':
           description: Un rôle du même nom existe déjà
           content:
@@ -665,7 +681,8 @@ paths:
         Invite un utilisateur (par téléphone) à rejoindre l'organisation avec un rôle. L'invité
         doit être un **user Aigle KYC-vérifié**. Crée un membre **PENDING** et envoie un **SMS**
         contenant le lien d'acceptation (token 48h). Si l'utilisateur était `removed`/`pending`,
-        la même ligne est réactivée. Réservé à `members:manage`.
+        la même ligne est réactivée. Réservé à `members:manage`. **Uniquement pour les
+        entreprises** — un compte marchand ne gère pas de membres (403 `E_MERCHANT_NO_TEAM`).
       tags:
         - Business - Membres
       security:
@@ -695,12 +712,18 @@ paths:
           $ref: '#/components/responses/ChannelRequired'
         '403':
           description: >-
-            Permission `members:manage` absente, invité non KYC-vérifié, ou rôle système non
-            attribuable (on ne peut pas inviter quelqu'un comme **propriétaire** : la propriété
-            est unique et se transmet uniquement par un transfert explicite).
+            Permission `members:manage` absente, compte **marchand** (pas d'équipe), invité non
+            KYC-vérifié, ou rôle système non attribuable (on ne peut pas inviter quelqu'un comme
+            **propriétaire** : la propriété est unique et se transmet uniquement par un transfert
+            explicite).
           content:
             application/json:
               examples:
+                merchantNoTeam:
+                  summary: Compte marchand (pas d'équipe)
+                  value:
+                    code: E_MERCHANT_NO_TEAM
+                    message: "Un compte marchand ne gère pas d'équipe : les rôles et les membres sont réservés aux entreprises."
                 kycNotVerified:
                   summary: Invité non KYC-vérifié
                   value:
