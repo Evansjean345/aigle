@@ -18,17 +18,20 @@ export default class BusinessAuthController {
   ) {}
 
   /** Étape 0 : vérifie que le numéro est un user Aigle KYC-vérifié (→ 404/403 sinon). */
-  async checkPhone({ request, response }: HttpContext): Promise<void> {
+  async checkPhone({ request, response, clientChannel }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(businessCheckPhoneValidator)
-    const result = await this.checkBusinessPhone.execute(payload.phone)
+    // Canal garanti par le middleware businessChannel (400 sinon) — pour le traçage.
+    const result = await this.checkBusinessPhone.execute(payload.phone, clientChannel!)
     return response.ok(result)
   }
 
-  async login({ request, response }: HttpContext): Promise<void> {
+  async login({ request, response, clientChannel }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(businessLoginValidator)
     await this.businessLogin.execute({
       phone: payload.phone,
       pincode: payload.pincode,
+      // Canal garanti par le middleware businessChannel (400 sinon).
+      channel: clientChannel!,
       deviceInfo: payload.device_info,
     })
 

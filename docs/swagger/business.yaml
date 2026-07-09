@@ -26,8 +26,20 @@ paths:
         est validée — condition d'accès à AigleBusiness — avant de demander le code PIN.
         Endpoint public (non authentifié). Pour préserver la confidentialité, aucune donnée
         personnelle n'est renvoyée : seul le numéro **masqué** est retourné en cas de succès.
+
+        L'en-tête `X-Client-Channel` (`mobile` ou `web`) est **obligatoire** (utilisé pour le
+        traçage du canal d'origine).
       tags:
         - Business - Authentification
+      parameters:
+        - name: X-Client-Channel
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [mobile, web]
+          description: Canal du client (traçage).
+          example: web
       requestBody:
         required: true
         content:
@@ -49,6 +61,13 @@ paths:
             application/json:
               example:
                 phone: '225******00'
+        '400':
+          description: En-tête `X-Client-Channel` manquant ou invalide
+          content:
+            application/json:
+              example:
+                code: E_CHANNEL_REQUIRED
+                message: Header X-Client-Channel requis (mobile|web)
         '403':
           description: KYC non validé (compléter la vérification sur Aiglesend)
           content:
@@ -74,8 +93,23 @@ paths:
         Aucun jeton n'est émis à cette étape : appelez ensuite `/verify` avec le code reçu.
         Pour votre sécurité, un échec renvoie toujours le même message générique (401), que le
         PIN soit erroné ou le numéro inconnu.
+
+        L'en-tête `X-Client-Channel` (`mobile` ou `web`) est **obligatoire** :
+        - **`mobile`** : `device_info` est **requis** (l'appareil est enregistré et deviendra un
+          appareil de confiance après validation de l'OTP).
+        - **`web`** : `device_info` est **ignoré** (à omettre) ; les connexions sont gérées via
+          `/api/business/auth/sessions`.
       tags:
         - Business - Authentification
+      parameters:
+        - name: X-Client-Channel
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [mobile, web]
+          description: Canal du client. En `mobile`, `device_info` est requis.
+          example: web
       requestBody:
         required: true
         content:
@@ -96,10 +130,9 @@ paths:
                 is_emulator: false
                 is_rooted: false
         description: >-
-          `device_info` est **optionnel** et concerne uniquement l'application mobile
-          (à omettre sur le portail web). Lorsqu'il est fourni, l'appareil est mémorisé et une
-          alerte « nouvel appareil » peut être envoyée ; il devient un **appareil de confiance**
-          une fois le code OTP validé à l'étape `/verify`.
+          `device_info` est **requis en canal mobile** et **ignoré en canal web** (à omettre).
+          En mobile, l'appareil est mémorisé (une alerte « nouvel appareil » peut être envoyée) et
+          devient un **appareil de confiance** une fois le code OTP validé à l'étape `/verify`.
       responses:
         '200':
           description: OTP envoyé
@@ -107,6 +140,22 @@ paths:
             application/json:
               example:
                 message: Un code de connexion a été envoyé par SMS.
+        '400':
+          description: >-
+            En-tête `X-Client-Channel` manquant/invalide, ou `device_info` absent en canal mobile.
+          content:
+            application/json:
+              examples:
+                channelRequired:
+                  summary: Canal manquant ou invalide
+                  value:
+                    code: E_CHANNEL_REQUIRED
+                    message: Header X-Client-Channel requis (mobile|web)
+                deviceRequired:
+                  summary: Appareil requis en canal mobile
+                  value:
+                    code: E_DEVICE_REQUIRED
+                    message: Les informations d’appareil sont requises pour le canal mobile.
         '401':
           description: Identifiants invalides (PIN faux ou numéro inconnu — message générique)
           content:

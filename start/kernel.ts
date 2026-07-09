@@ -40,6 +40,8 @@ export const middleware = router.named({
   idempotency: () =>
     import('#core/money/transactions/presentation/middleware/idempotency_middleware'),
   device: () => import('#shared/middleware/device_middleware'),
+  businessChannel: () =>
+    import('#aiglebusiness/auth/presentation/client/middleware/business_channel_middleware'),
   businessDevice: () =>
     import('#aiglebusiness/auth/presentation/client/middleware/business_device_middleware'),
   orgPermission: () =>

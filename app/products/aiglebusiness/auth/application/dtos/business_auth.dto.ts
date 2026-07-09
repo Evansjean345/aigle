@@ -7,6 +7,8 @@ import { type ClientChannel } from '#core/identity/authentication/domain/enums/c
 export interface BusinessLoginRequestDto {
   phone: string
   pincode: string
+  /** Canal déclaré (mobile/web) : `mobile` → appareil requis ; `web` → appareil ignoré. */
+  channel: ClientChannel
   /** Mobile business : présent → l'appareil est enregistré (PENDING) au PIN. */
   deviceInfo?: DeviceRequestDTO
 }

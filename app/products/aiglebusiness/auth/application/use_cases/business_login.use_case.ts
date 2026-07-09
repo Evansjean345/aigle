@@ -4,10 +4,14 @@ import PinVerificationService from '#core/identity/authentication/application/se
 import OtpSendingService from '#core/identity/otp/application/services/otp_sending_service'
 import DeviceService from '#core/identity/device/application/services/device_service'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
+import { ClientChannel } from '#core/identity/authentication/domain/enums/client_channel'
 import BusinessLoginOtpTemplate from '#aiglebusiness/auth/domain/templates/business_login_otp_template'
 import { type BusinessLoginRequestDto } from '#aiglebusiness/auth/application/dtos/business_auth.dto'
 import InvalidCredentialsException from '#aiglebusiness/auth/domain/exceptions/invalid_credentials_exception'
 import InvalidPincodeException from '#core/identity/authentication/domain/exceptions/invalid_pincode_exception'
+import BusinessDeviceRequiredException from '#aiglebusiness/auth/domain/exceptions/business_device_required_exception'
+import securityLog from '#shared/infrastructure/logging/security_log'
+import { maskPhone } from '#shared/utils/utiles'
 
 /**
  * Étape 1 du login business : résout l'utilisateur par téléphone, valide le PIN
@@ -31,7 +35,6 @@ export default class BusinessLoginUseCase {
       throw new InvalidCredentialsException()
     }
 
-    // PIN faux → réponse générique (anti-énumération) ; le blocage se propage tel quel.
     try {
       await this.pinVerification.verify(user.userId, request.pincode)
     } catch (error) {
@@ -41,8 +44,16 @@ export default class BusinessLoginUseCase {
       throw error
     }
 
-    // Mobile : enregistre l'appareil en PENDING (déclenche l'alerte « nouvel appareil »).
-    if (request.deviceInfo) {
+    securityLog.info(
+      'BUSINESS_LOGIN_ATTEMPT',
+      { userId: user.userId, phone: maskPhone(user.phone), channel: request.channel },
+      'Business login step 1 (PIN validated, OTP dispatch)'
+    )
+
+    if (request.channel === ClientChannel.MOBILE) {
+      if (!request.deviceInfo) {
+        throw new BusinessDeviceRequiredException()
+      }
       await this.deviceService.registerForApp(
         request.deviceInfo,
         user.userId,

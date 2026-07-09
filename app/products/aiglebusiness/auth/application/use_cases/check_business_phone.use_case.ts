@@ -1,6 +1,8 @@
 import { inject } from '@adonisjs/core'
 import UserDirectoryService from '#core/identity/user/application/services/user_directory_service'
 import { maskPhone } from '#shared/utils/utiles'
+import { type ClientChannel } from '#core/identity/authentication/domain/enums/client_channel'
+import securityLog from '#shared/infrastructure/logging/security_log'
 import PhoneNotAigleUserException from '#aiglebusiness/auth/domain/exceptions/phone_not_aigle_user_exception'
 import KycNotVerifiedException from '#aiglebusiness/auth/domain/exceptions/kyc_not_verified_exception'
 
@@ -14,7 +16,7 @@ import KycNotVerifiedException from '#aiglebusiness/auth/domain/exceptions/kyc_n
 export default class CheckBusinessPhoneUseCase {
   constructor(private readonly userDirectory: UserDirectoryService) {}
 
-  async execute(phone: string): Promise<{ phone: string }> {
+  async execute(phone: string, channel: ClientChannel): Promise<{ phone: string }> {
     const user = await this.userDirectory.findByPhone(phone)
 
     if (!user) {
@@ -23,6 +25,13 @@ export default class CheckBusinessPhoneUseCase {
     if (!user.kycVerified) {
       throw new KycNotVerifiedException()
     }
+
+    // Traçage du canal d'où provient la vérification (mobile/web).
+    securityLog.info(
+      'BUSINESS_CHECK_PHONE',
+      { phone: maskPhone(user.phone), channel },
+      'Business phone check (KYC-verified Aigle user)'
+    )
 
     return { phone: maskPhone(user.phone) }
   }

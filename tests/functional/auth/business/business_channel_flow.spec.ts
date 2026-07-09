@@ -15,7 +15,10 @@ test.group('Business auth | canal (channel-aware device)', (group) => {
 
   test('verify sans X-Client-Channel → 400', async ({ client }) => {
     const user = await makeUser({ pincode: '1234' })
-    await client.post('/api/business/auth/login').json({ phone: user.phone, pincode: '1234' })
+    await client
+      .post('/api/business/auth/login')
+      .header('X-Client-Channel', 'web')
+      .json({ phone: user.phone, pincode: '1234' })
 
     const res = await client.post(VERIFY).json({ phone: user.phone, otp: '0000' })
     res.assertStatus(400)
@@ -24,7 +27,10 @@ test.group('Business auth | canal (channel-aware device)', (group) => {
 
   test('canal mobile SANS headers device → 400', async ({ client }) => {
     const user = await makeUser({ pincode: '1234' })
-    await client.post('/api/business/auth/login').json({ phone: user.phone, pincode: '1234' })
+    await client
+      .post('/api/business/auth/login')
+      .header('X-Client-Channel', 'web')
+      .json({ phone: user.phone, pincode: '1234' })
 
     const res = await client
       .post(VERIFY)
@@ -36,7 +42,10 @@ test.group('Business auth | canal (channel-aware device)', (group) => {
 
   test('canal invalide → 400', async ({ client }) => {
     const user = await makeUser({ pincode: '1234' })
-    await client.post('/api/business/auth/login').json({ phone: user.phone, pincode: '1234' })
+    await client
+      .post('/api/business/auth/login')
+      .header('X-Client-Channel', 'web')
+      .json({ phone: user.phone, pincode: '1234' })
 
     const res = await client
       .post(VERIFY)
@@ -50,7 +59,10 @@ test.group('Business auth | canal (channel-aware device)', (group) => {
     assert,
   }) => {
     const user = await makeUser({ pincode: '1234' })
-    await client.post('/api/business/auth/login').json({ phone: user.phone, pincode: '1234' })
+    await client
+      .post('/api/business/auth/login')
+      .header('X-Client-Channel', 'web')
+      .json({ phone: user.phone, pincode: '1234' })
 
     const verifyRes = await client
       .post(VERIFY)

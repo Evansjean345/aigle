@@ -14,6 +14,7 @@ test.group('Business auth | login', (group) => {
     const user = await makeUser({ pincode: '1234' })
     const res = await client
       .post('/api/business/auth/login')
+      .headers(CHANNEL_WEB)
       .json({ phone: user.phone, pincode: '1234' })
     res.assertStatus(200)
   })
@@ -22,6 +23,7 @@ test.group('Business auth | login', (group) => {
     const user = await makeUser({ pincode: '1234' })
     const res = await client
       .post('/api/business/auth/login')
+      .headers(CHANNEL_WEB)
       .json({ phone: user.phone, pincode: '9999' })
     res.assertStatus(401)
   })
@@ -29,8 +31,48 @@ test.group('Business auth | login', (group) => {
   test('login phone inconnu → 401 (générique)', async ({ client }) => {
     const res = await client
       .post('/api/business/auth/login')
+      .headers(CHANNEL_WEB)
       .json({ phone: '225000000000', pincode: '1234' })
     res.assertStatus(401)
+  })
+
+  test('login sans X-Client-Channel → 400', async ({ client }) => {
+    const user = await makeUser({ pincode: '1234' })
+    const res = await client
+      .post('/api/business/auth/login')
+      .json({ phone: user.phone, pincode: '1234' })
+    res.assertStatus(400)
+    res.assertBodyContains({ code: 'E_CHANNEL_REQUIRED' })
+  })
+
+  test('login canal mobile SANS device_info → 400', async ({ client }) => {
+    const user = await makeUser({ pincode: '1234' })
+    const res = await client
+      .post('/api/business/auth/login')
+      .header('X-Client-Channel', 'mobile')
+      .json({ phone: user.phone, pincode: '1234' })
+    res.assertStatus(400)
+    res.assertBodyContains({ code: 'E_DEVICE_REQUIRED' })
+  })
+
+  test('login canal web → device ignoré, OTP envoyé (200)', async ({ client }) => {
+    const user = await makeUser({ pincode: '1234' })
+    // device_info fourni mais canal web → ignoré (pas d'erreur, pas d'enregistrement).
+    const res = await client
+      .post('/api/business/auth/login')
+      .header('X-Client-Channel', 'web')
+      .json({
+        phone: user.phone,
+        pincode: '1234',
+        device_info: {
+          fingerprint_hash: 'fp-web',
+          device_uid: 'uid-web',
+          platform: 'web',
+          is_emulator: false,
+          is_rooted: false,
+        },
+      })
+    res.assertStatus(200)
   })
 
   test('verify OTP → token stampé, utilisable sur une route business', async ({
@@ -38,7 +80,10 @@ test.group('Business auth | login', (group) => {
     assert,
   }) => {
     const user = await makeUser({ pincode: '1234' })
-    await client.post('/api/business/auth/login').json({ phone: user.phone, pincode: '1234' })
+    await client
+      .post('/api/business/auth/login')
+      .headers(CHANNEL_WEB)
+      .json({ phone: user.phone, pincode: '1234' })
 
     const verifyRes = await client
       .post('/api/business/auth/verify')

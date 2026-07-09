@@ -33,9 +33,10 @@ test.group('Business auth | device trust (mobile, two-step)', (group) => {
     const fp = randomUUID()
     const uid = randomUUID()
 
-    // Étape login (PIN) : device dans le BODY → appareil enregistré PENDING.
+    // Étape login (PIN) : canal mobile + device dans le BODY → appareil enregistré PENDING.
     await client
       .post('/api/business/auth/login')
+      .header('X-Client-Channel', 'mobile')
       .json({ phone: user.phone, pincode: '1234', device_info: devicePayload(fp, uid) })
 
     const pending = await UserDevice.query().where('user_id', user.usersUid).firstOrFail()
@@ -63,6 +64,7 @@ test.group('Business auth | device trust (mobile, two-step)', (group) => {
 
     await client
       .post('/api/business/auth/login')
+      .header('X-Client-Channel', 'mobile')
       .json({ phone: user.phone, pincode: '1234', device_info: device })
 
     const links = await UserDevice.query().where('user_id', user.usersUid)
@@ -73,7 +75,10 @@ test.group('Business auth | device trust (mobile, two-step)', (group) => {
   test('login + verify SANS device_info (web) → aucun appareil', async ({ client, assert }) => {
     const user = await makeUser({ pincode: '1234' })
 
-    await client.post('/api/business/auth/login').json({ phone: user.phone, pincode: '1234' })
+    await client
+      .post('/api/business/auth/login')
+      .headers(CHANNEL_WEB)
+      .json({ phone: user.phone, pincode: '1234' })
     const res = await client
       .post('/api/business/auth/verify')
       .headers(CHANNEL_WEB)

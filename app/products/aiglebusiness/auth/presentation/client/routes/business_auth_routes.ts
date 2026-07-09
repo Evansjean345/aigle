@@ -11,8 +11,12 @@ const BusinessSessionController = () =>
 export default function businessAuthRoutes() {
   router
     .group(() => {
-      router.post('auth/check-phone', [BusinessAuthController, 'checkPhone'])
-      router.post('auth/login', [BusinessAuthController, 'login']).use(otpThrottle)
+      router
+        .post('auth/check-phone', [BusinessAuthController, 'checkPhone'])
+        .use(middleware.businessChannel())
+      router
+        .post('auth/login', [BusinessAuthController, 'login'])
+        .use([middleware.businessChannel(), otpThrottle])
       router
         .post('auth/verify', [BusinessAuthController, 'verify'])
         .use(middleware.businessDevice())
