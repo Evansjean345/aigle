@@ -4,6 +4,7 @@ import DeviceService from '#core/identity/device/application/services/device_ser
 import { updatePushTokenValidator } from '#core/identity/device/presentation/mobile/validators/device_validator'
 import { DeviceResponseDTO } from '#core/identity/device/application/dto/device.dto'
 import RevokeDeviceUseCase from '#core/identity/device/application/use_cases/mobile/revoke_device_use_case'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 
 @inject()
 export default class DeviceController {
@@ -25,7 +26,11 @@ export default class DeviceController {
    */
   async getUserDevices({ auth, response }: HttpContext): Promise<void> {
     const user = auth.user!
-    const userDevices = await this.deviceService.getActiveUserDevices(user.usersUid)
+    // Route mobile aiglesend → n'expose que les appareils de cette app.
+    const userDevices = await this.deviceService.getActiveUserDevices(
+      user.usersUid,
+      AppName.AIGLESEND
+    )
     const deviceResponses = userDevices.map((ud) => DeviceResponseDTO.fromUserDevice(ud))
 
     return response.ok(deviceResponses)

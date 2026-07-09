@@ -28,10 +28,20 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 | # | Niveau | Statut | Remarque |
 |---|--------|--------|----------|
 | R1 | 🔴 Critique | à brainstormer | Permissions du RBAC **team** créées en CRUD par l'admin au lieu d'être **déclarées en code** par chaque feature — faille de sécurité (contrôle d'accès orphelin / privilege escalation) |
+| R2 | 🟠 Majeur | à brainstormer | Notifications **push** non scopées par app : `expo_push_channel.getTrustedDevices(recipientId)` envoie à TOUS les appareils de confiance (aiglesend + business). Une notif aiglesend pousse aussi vers l'app business |
 
 ---
 
 ## Remarques
+
+### R2 — Notifications push non scopées par app (général)
+- **Niveau** : 🟠 Majeur (mauvais routage des notifications entre apps)
+- **Date** : 2026-07-09
+- **Contexte** : `app/core/notifications/infrastructure/channels/expo_push_notification_channel_impl.ts` → `deviceService.getTrustedDevices(recipientId)` (sans app) ; modèle `Notification` (`recipientId`, title, message) — pas de dimension app.
+- **Observation** : le canal push récupère **tous** les appareils de confiance du user (toutes apps). Une notification déclenchée dans un contexte aiglesend (dépôt, transfert…) est donc poussée **aussi** vers l'app aiglebusiness du même user (et inversement). Le cas **nouvel appareil** a été corrigé ponctuellement (event `NewDeviceDetected` porte l'app, listener scopé) ; mais le canal push générique reste non scopé.
+- **Pourquoi différé** : scoper TOUTES les notifications par app = ajouter une dimension `app` au modèle `Notification` + à chaque émetteur/listener (dépôt, transfert, sécurité, KYC, wallet…) → refactor transverse du système de notifications. Design à part entière.
+- **Impact pressenti** : moyen-fort (UX : notifications qui arrivent sur la mauvaise app ; pas une faille mais un mauvais routage).
+- **Statut** : à brainstormer
 
 ### R1 — Permissions team CRUD par l'admin au lieu d'être déclarées en code
 - **Niveau** : 🔴 Critique (sécurité — contrôle d'accès back-office)

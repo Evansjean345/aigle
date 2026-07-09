@@ -116,4 +116,35 @@ test.group('DeviceService | trust', (group) => {
       [AppName.AIGLESEND, AppName.AIGLEBUSINESS]
     )
   })
+
+  test('getActiveUserDevices scopé par app (aiglesend ne voit pas business)', async ({
+    assert,
+  }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+
+    // Un appareil aiglesend + un appareil business (fingerprints distincts).
+    await service.registerForApp(
+      deviceRequest(randomUUID(), randomUUID()),
+      user.usersUid,
+      AppName.AIGLESEND
+    )
+    await service.registerForApp(
+      deviceRequest(randomUUID(), randomUUID()),
+      user.usersUid,
+      AppName.AIGLEBUSINESS
+    )
+
+    const sendDevices = await service.getActiveUserDevices(user.usersUid, AppName.AIGLESEND)
+    assert.lengthOf(sendDevices, 1)
+    assert.equal(sendDevices[0].app, AppName.AIGLESEND)
+
+    const bizDevices = await service.getActiveUserDevices(user.usersUid, AppName.AIGLEBUSINESS)
+    assert.lengthOf(bizDevices, 1)
+    assert.equal(bizDevices[0].app, AppName.AIGLEBUSINESS)
+
+    // Sans app → tous (admin/back-office).
+    const all = await service.getActiveUserDevices(user.usersUid)
+    assert.lengthOf(all, 2)
+  })
 })

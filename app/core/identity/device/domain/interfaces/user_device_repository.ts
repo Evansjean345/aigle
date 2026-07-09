@@ -24,7 +24,7 @@ export default abstract class UserDeviceRepository {
   /**
    * Find all active associations for a user (with preloaded device).
    */
-  abstract findActiveByUserId(userId: string): Promise<UserDevice[]>
+  abstract findActiveByUserId(userId: string, app?: string): Promise<UserDevice[]>
 
   /**
    * Find all associations (active + historical) for a device.

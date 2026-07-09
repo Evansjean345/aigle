@@ -8,6 +8,7 @@ import { DeviceStatus } from '#core/identity/device/domain/enums'
 interface NewDeviceDetectedPayload {
   userId: string
   device: Device
+  app: string
 }
 
 @inject()
@@ -31,8 +32,8 @@ export default class OnNewDeviceDetectedNotification {
       ? `${event.device.brand} ${event.device.model || ''}`
       : event.device.platform || 'Appareil inconnu'
 
-    // Récupérer les autres appareils actifs de l'utilisateur
-    const userDevices = await this.deviceService.getActiveUserDevices(event.userId)
+    // Récupérer les autres appareils actifs de l'utilisateur POUR LA MÊME APP
+    const userDevices = await this.deviceService.getActiveUserDevices(event.userId, event.app)
 
     const otherTrustedDevices = userDevices.filter(
       (ud) => ud.deviceId !== event.device.id && ud.status === DeviceStatus.TRUSTED && ud.pushToken

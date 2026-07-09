@@ -32,15 +32,16 @@ export default class DeviceService {
   /**
    * Récupère les associations actives (avec device preloaded) pour un utilisateur.
    */
-  async getActiveUserDevices(userId: string): Promise<UserDevice[]> {
-    return this.userDeviceRepository.findActiveByUserId(userId)
+  async getActiveUserDevices(userId: string, app?: string): Promise<UserDevice[]> {
+    return this.userDeviceRepository.findActiveByUserId(userId, app)
   }
 
   /**
-   * Récupère les associations actives trusted pour un utilisateur.
+   * Récupère les associations actives trusted pour un utilisateur (scopées par app
+   * si fourni).
    */
-  async getTrustedDevices(userId: string): Promise<UserDevice[]> {
-    const userDevices = await this.userDeviceRepository.findActiveByUserId(userId)
+  async getTrustedDevices(userId: string, app?: string): Promise<UserDevice[]> {
+    const userDevices = await this.userDeviceRepository.findActiveByUserId(userId, app)
     return userDevices.filter((ud) => ud.status === DeviceStatus.TRUSTED)
   }
 
@@ -161,8 +162,8 @@ export default class DeviceService {
 
       const savedUserDevice = await this.userDeviceRepository.save(userDevice)
 
-      // 6. Notification nouveau device
-      await NewDeviceDetected.dispatch(userId, device)
+      // 6. Notification nouveau device (scopée à l'app)
+      await NewDeviceDetected.dispatch(userId, device, app)
 
       return savedUserDevice
     } catch (error) {
