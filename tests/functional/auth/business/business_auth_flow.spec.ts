@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import { makeUser, authTestSetup } from '#tests/helpers/auth_test_helpers'
+import { makeUser, authTestSetup, CHANNEL_WEB } from '#tests/helpers/auth_test_helpers'
 
 /**
  * Caractérise le login business (Lot 2) : phone + PIN → OTP → token stampé
@@ -42,6 +42,7 @@ test.group('Business auth | login', (group) => {
 
     const verifyRes = await client
       .post('/api/business/auth/verify')
+      .headers(CHANNEL_WEB)
       .json({ phone: user.phone, otp: '0000' })
     verifyRes.assertStatus(200)
     const token = verifyRes.body().token

@@ -6,6 +6,8 @@
 export interface UserSessionResult {
   id: string
   name: string | null
+  /** Canal de la session (mobile/web), lu depuis l'ability `channel:` du token. */
+  channel: string | null
   lastUsedAt: string | null
   createdAt: string | null
   current: boolean

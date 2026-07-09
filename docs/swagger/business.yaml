@@ -118,28 +118,37 @@ paths:
       operationId: businessVerifyLogin
       summary: Connexion business — étape 2 (OTP → token)
       description: |
-        Vérifie l'**OTP** et émet un access token **stampé `app:aiglebusiness`** (utilisable
-        uniquement sur les endpoints business) + un profil minimal.
+        Vérifie l'**OTP** et émet un access token **stampé `app:aiglebusiness` + `channel:<canal>`**
+        (utilisable uniquement sur les endpoints business) + un profil minimal.
 
-        **Mobile business** : envoyer les **headers device** (`X-Device-Fingerprint`, `X-Device-Uid`)
-        → l'appareil enregistré au login (PENDING) est **trusté**. **Portail web** : omettre ces
-        headers (sessions gérées par les access tokens, cf. `/auth/sessions`).
+        **Canal obligatoire** (`X-Client-Channel: mobile|web`). Canal **`mobile`** → les headers device
+        (`X-Device-Fingerprint`, `X-Device-Uid`) sont **requis** → l'appareil enregistré au login
+        (PENDING) est **trusté**. Canal **`web`** → pas de headers device (sessions gérées par les
+        access tokens, cf. `/auth/sessions`).
       tags:
         - Business - Authentification
       parameters:
+        - name: X-Client-Channel
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [mobile, web]
+          description: Canal du client. `mobile` exige les headers device ; stampé sur le token.
+          example: web
         - name: X-Device-Fingerprint
           in: header
           required: false
           schema:
             type: string
-          description: Empreinte de l'appareil (mobile business) — truste l'appareil au verify.
+          description: Empreinte de l'appareil — **requis quand le canal est mobile**.
           example: a1b2c3d4e5f6
         - name: X-Device-Uid
           in: header
           required: false
           schema:
             type: string
-          description: Identifiant unique de l'appareil (mobile business).
+          description: Identifiant unique de l'appareil — **requis quand le canal est mobile**.
           example: 550e8400-e29b-41d4-a716-446655440000
       requestBody:
         required: true
@@ -1215,6 +1224,11 @@ components:
           type: string
           nullable: true
           description: Libellé (device:<id> en mobile, user-agent en web)
+        channel:
+          type: string
+          nullable: true
+          enum: [mobile, web]
+          description: Canal de la session (stampé au login)
         lastUsedAt:
           type: string
           format: date-time

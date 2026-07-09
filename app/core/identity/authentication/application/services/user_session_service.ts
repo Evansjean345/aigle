@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import User from '#core/identity/user/domain/models/user'
 import UserRepository from '#core/identity/user/domain/interfaces/user_repository'
 import { type UserSessionResult } from '#core/identity/authentication/application/dtos/user_session_result'
+import { CHANNEL_ABILITY_PREFIX } from '#core/identity/authentication/domain/enums/client_channel'
 import PhoneNotFoundException from '#core/identity/authentication/domain/exceptions/phone_not_found_exception'
 import SessionNotFoundException from '#core/identity/authentication/domain/exceptions/session_not_found_exception'
 
@@ -26,6 +27,7 @@ export default class UserSessionService {
     return tokens.map((token) => ({
       id: String(token.identifier),
       name: token.name,
+      channel: this.extractChannel(token.abilities),
       lastUsedAt: token.lastUsedAt ? token.lastUsedAt.toISOString() : null,
       createdAt: token.createdAt ? token.createdAt.toISOString() : null,
       current: currentTokenId !== undefined && String(token.identifier) === String(currentTokenId),
@@ -63,5 +65,11 @@ export default class UserSessionService {
       throw new PhoneNotFoundException()
     }
     return user
+  }
+
+  /** Extrait le canal (`mobile`/`web`) depuis l'ability `channel:` du token, si présente. */
+  private extractChannel(abilities: string[]): string | null {
+    const found = abilities.find((ability) => ability.startsWith(CHANNEL_ABILITY_PREFIX))
+    return found ? found.slice(CHANNEL_ABILITY_PREFIX.length) : null
   }
 }

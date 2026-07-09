@@ -146,6 +146,16 @@ services:
       timeout: 5s
       retries: 5
 
+  maildev:
+    image: maildev/maildev:latest
+    container_name: maildev
+    restart: always
+    ports:
+      - "1080:1080"
+      - "1025:1025"
+    environment:
+      - TZ=UTC
+
 volumes:
   aiglesend_mariadb_data:
   aiglesend_redis_data:

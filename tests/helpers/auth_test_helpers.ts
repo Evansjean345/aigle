@@ -18,6 +18,12 @@ export const CI_COUNTRY_ID = 52
 /** Headers d'appareil pour franchir le DeviceMiddleware (routes mobiles). */
 export const DEVICE_HEADERS = { 'X-Device-Fingerprint': 'fp-test', 'X-Device-Uid': 'dev-test' }
 
+/** Header canal web (business verify) : pas de device requis. */
+export const CHANNEL_WEB = { 'X-Client-Channel': 'web' }
+
+/** Header canal mobile (business verify) : device requis. */
+export const CHANNEL_MOBILE = { 'X-Client-Channel': 'mobile' }
+
 /** Corps `deviceInfo`/`devicePayload` attendu par les validators register/verify-credentials. */
 export const DEVICE_BODY = {
   fingerprint_hash: 'fp-test',

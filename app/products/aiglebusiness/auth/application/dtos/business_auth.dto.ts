@@ -1,5 +1,6 @@
 import { type UserLookupResult } from '#core/identity/user/application/dtos/user_lookup_result'
 import { type DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
+import { type ClientChannel } from '#core/identity/authentication/domain/enums/client_channel'
 
 // ── RequestDto (input use cases) ────────────────────────────────────
 
@@ -14,6 +15,8 @@ export interface BusinessVerifyLoginRequestDto {
   phone: string
   otp: string
   sessionName?: string
+  /** Canal déclaré (mobile/web) → stampé sur le token, expose la session. */
+  channel: ClientChannel
   /** Mobile business : fingerprint + uid (issus des HEADERS device) → truste l'appareil. */
   deviceFingerprint?: string
   deviceUid?: string

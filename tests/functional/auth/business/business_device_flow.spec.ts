@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import UserDevice from '#core/identity/device/domain/models/user_device'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
-import { makeUser, authTestSetup } from '#tests/helpers/auth_test_helpers'
+import { makeUser, authTestSetup, CHANNEL_WEB } from '#tests/helpers/auth_test_helpers'
 
 /**
  * Login MOBILE business (décisions #10-#12) en DEUX temps (comme aiglesend) :
@@ -42,10 +42,10 @@ test.group('Business auth | device trust (mobile, two-step)', (group) => {
     assert.equal(pending.app, AppName.AIGLEBUSINESS)
     assert.equal(pending.status, DeviceStatus.PENDING)
 
-    // Étape verify (OTP) : device via HEADERS → même lien promu TRUSTED.
+    // Étape verify (OTP) : canal mobile + device via HEADERS → même lien promu TRUSTED.
     const res = await client
       .post('/api/business/auth/verify')
-      .headers({ 'X-Device-Fingerprint': fp, 'X-Device-Uid': uid })
+      .headers({ 'X-Client-Channel': 'mobile', 'X-Device-Fingerprint': fp, 'X-Device-Uid': uid })
       .json({ phone: user.phone, otp: '0000' })
     res.assertStatus(200)
 
@@ -76,6 +76,7 @@ test.group('Business auth | device trust (mobile, two-step)', (group) => {
     await client.post('/api/business/auth/login').json({ phone: user.phone, pincode: '1234' })
     const res = await client
       .post('/api/business/auth/verify')
+      .headers(CHANNEL_WEB)
       .json({ phone: user.phone, otp: '0000' })
     res.assertStatus(200)
 

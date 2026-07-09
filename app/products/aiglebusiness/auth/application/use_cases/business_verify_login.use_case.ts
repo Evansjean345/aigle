@@ -56,6 +56,7 @@ export default class BusinessVerifyLoginUseCase {
 
     const token = await this.issueAppToken.issue(user.userId, AppName.AIGLEBUSINESS, {
       name: tokenName,
+      channel: request.channel,
     })
 
     return BusinessAuthTokenDTO.from(token, user)
