@@ -8,11 +8,18 @@ import OtpMessageTemplate from '#core/identity/otp/domain/templates/otp_message_
 export default class MembershipConsentOtpTemplate extends OtpMessageTemplate {
   readonly context = 'ORG_MEMBER_CONSENT'
 
+  /**
+   * @param organisationName Nom de l'organisation, rendu dans le SMS d'envoi. Optionnel car
+   *   la vérification (accept) n'utilise que le contexte du template, jamais le message.
+   */
+  constructor(private readonly organisationName?: string) {
+    super()
+  }
+
   formatSmsMessage(code: string): string {
     return (
-      'Vous avez été invité à rejoindre une organisation sur AigleBusiness. ' +
-      `Confirmez votre adhésion avec le code ${code}. ` +
-      `Ce code expire dans ${this.expirySeconds / 60} minutes. ` +
+      `Votre code d'adhésion à ${this.organisationName} est : ${code}, ` +
+      `ce code expire dans ${this.expirySeconds / 60} minutes. ` +
       "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message. " +
       'Ce code est strictement confidentiel, ne le partagez à personne.'
     )

@@ -49,7 +49,7 @@ export default class GetInvitationUseCase {
     await this.otpSendingService.send(
       invitee.phone,
       member.userId,
-      new MembershipConsentOtpTemplate()
+      new MembershipConsentOtpTemplate(organisation.name)
     )
 
     return InvitationPreviewDTO.from(organisation.name, maskPhone(invitee.phone))
