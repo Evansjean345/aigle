@@ -58,6 +58,78 @@
     html.dark .swagger-ui .btn { background: var(--btn-bg); color: var(--btn-fg); border-color: #30363d; }
     html.dark .swagger-ui .topbar { background: var(--topbar-bg); }
     html.dark .swagger-ui .info a { color: var(--link); }
+
+    /* ── Dark mode — lisibilité complète ── */
+    /* Descriptions de tag (grises → lisibles) */
+    html.dark .swagger-ui .opblock-tag small,
+    html.dark .swagger-ui .opblock-tag small p { color: #9aa7b4; }
+    html.dark .swagger-ui .opblock-tag { border-color: #30363d; }
+    /* En-têtes de section (Parameters / Request body / Responses) — fond blanc → sombre */
+    html.dark .swagger-ui .opblock-section-header { background: #161b26; box-shadow: none; }
+    html.dark .swagger-ui .opblock-section-header h4,
+    html.dark .swagger-ui .opblock-section-header > label,
+    html.dark .swagger-ui .opblock-section-header > label > span,
+    html.dark .swagger-ui .tab li,
+    html.dark .swagger-ui .tab li button.tablinks,
+    html.dark .swagger-ui .opblock-title_normal,
+    html.dark .swagger-ui .opblock-title_normal p,
+    html.dark .swagger-ui .response-col_links,
+    html.dark .swagger-ui .parameter__in,
+    html.dark .swagger-ui .col_header,
+    html.dark .swagger-ui .response-col_status { color: #c9d1d9; }
+    /* Chemin de l'endpoint + corps de l'opblock */
+    html.dark .swagger-ui .opblock .opblock-summary-path,
+    html.dark .swagger-ui .opblock .opblock-summary-path__deprecated,
+    html.dark .swagger-ui .opblock .opblock-summary-path a { color: #dbe3ec; }
+    html.dark .swagger-ui .opblock-body,
+    html.dark .swagger-ui .responses-inner,
+    html.dark .swagger-ui .opblock-description-wrapper { background: transparent; }
+    /* Blocs de code / exemples (JSON) */
+    html.dark .swagger-ui .microlight,
+    html.dark .swagger-ui .highlight-code,
+    html.dark .swagger-ui .body-param__example,
+    html.dark .swagger-ui textarea.body-param__text,
+    html.dark .swagger-ui .curl-command,
+    html.dark .swagger-ui .responses-inner pre { background: #0d1117 !important; color: #c9d1d9; }
+    /* Tables (thead + bordures) */
+    html.dark .swagger-ui table thead tr td,
+    html.dark .swagger-ui table thead tr th { border-color: #30363d; color: #9aa7b4; }
+    html.dark .swagger-ui .parameters-col_description input,
+    html.dark .swagger-ui .parameters-col_description select { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
+    /* Modèles / schémas */
+    html.dark .swagger-ui .model-box { background: rgba(255,255,255,.03); }
+    html.dark .swagger-ui .model,
+    html.dark .swagger-ui .model-title,
+    html.dark .swagger-ui .prop-name { color: #c9d1d9; }
+    html.dark .swagger-ui .prop-type { color: #79c0ff; }
+    html.dark .swagger-ui .prop-format,
+    html.dark .swagger-ui .property-primitive { color: #8b98a5; }
+    /* Bouton Cancel + séparateurs + URL calculée */
+    html.dark .swagger-ui .btn.cancel { background: #0d1117; color: #c9d1d9; border-color: #30363d; }
+    html.dark .swagger-ui hr { border-color: #30363d; }
+    html.dark .swagger-ui .servers-title,
+    html.dark .swagger-ui .servers > label,
+    html.dark .swagger-ui .info .base-url { color: #c9d1d9; }
+    html.dark .swagger-ui .computed-url code { background: #0d1117; color: #c9d1d9; }
+    /* Markdown (descriptions) */
+    html.dark .swagger-ui .renderedMarkdown p,
+    html.dark .swagger-ui .markdown p,
+    html.dark .swagger-ui .markdown code,
+    html.dark .swagger-ui .renderedMarkdown code { color: #c9d1d9; }
+    html.dark .swagger-ui .markdown code,
+    html.dark .swagger-ui .renderedMarkdown code { background: rgba(110,118,129,.25); }
+    /* Modale Authorize */
+    html.dark .swagger-ui .dialog-ux .modal-ux { background: #161b26; border-color: #30363d; }
+    html.dark .swagger-ui .dialog-ux .modal-ux-header h3,
+    html.dark .swagger-ui .dialog-ux .modal-ux-content h4,
+    html.dark .swagger-ui .dialog-ux .modal-ux-content p,
+    html.dark .swagger-ui .dialog-ux .modal-ux-content label { color: #c9d1d9; }
+    html.dark .swagger-ui .dialog-ux .backdrop-ux { background: rgba(0,0,0,.6); }
+    /* Codes de réponse & badges */
+    html.dark .swagger-ui .response-col_status,
+    html.dark .swagger-ui .parameter__name,
+    html.dark .swagger-ui .parameter__type { color: #c9d1d9; }
+
     /* Light mode: hide default topbar too */
     .swagger-ui .topbar { display: none; }
   </style>
@@ -67,7 +139,8 @@
     <span class="title">🦅 Aigle Send API</span>
     <nav>
       <a href="/docs">🏠 Index</a>
-      <a href="/docs/mobile">📱 Mobile</a>
+      <a href="/docs/aiglesend">📱 Aiglesend</a>
+      <a href="/docs/aiglebusiness">🏢 Business</a>
       <a href="/docs/admin">🔧 Admin</a>
       <button class="theme-toggle" onclick="toggleTheme()" title="Basculer le thème">🌙</button>
     </nav>
@@ -75,8 +148,13 @@
   <div id="swagger-ui"></div>
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
   <script>
-    // Theme management
-    function getTheme() { return localStorage.getItem('swagger-theme') || 'light'; }
+    // Theme management — respecte la préférence OS par défaut (sombre si le système l'est)
+    function getTheme() {
+      const saved = localStorage.getItem('swagger-theme');
+      if (saved) return saved;
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark' : 'light';
+    }
     function applyTheme(t) {
       document.documentElement.classList.toggle('dark', t === 'dark');
       document.querySelector('.theme-toggle').textContent = t === 'dark' ? '☀️' : '🌙';
