@@ -30,10 +30,8 @@ const InvitationController = () =>
 export default function membershipClientRoutes() {
   router
     .group(() => {
-      // ── Gestion (authentifiée), scopée à une organisation ──
       router
         .group(() => {
-          // Rôles & catalogue de permissions → `roles:manage`.
           router
             .group(() => {
               router.get('permissions-catalog', [PermissionController, 'index'])
@@ -45,7 +43,6 @@ export default function membershipClientRoutes() {
             })
             .use(middleware.orgPermission({ permission: BUSINESS_PERMISSION.rolesManage }))
 
-          // Membres & invitations → `members:manage`.
           router
             .group(() => {
               router.get('members', [MemberController, 'index'])
@@ -59,13 +56,16 @@ export default function membershipClientRoutes() {
             .use(middleware.orgPermission({ permission: BUSINESS_PERMISSION.membersManage }))
         })
         .prefix('organisations/:organisationId')
-        .use([middleware.auth(), middleware.requireApp({ app: AppName.AIGLEBUSINESS })])
+        .use([
+          middleware.auth(),
+          middleware.requireApp({ app: AppName.AIGLEBUSINESS }),
+          middleware.businessDevice(),
+        ])
 
-      // ── Acceptation d'invitation (semi-publique : token + OTP) ──
-      // Le GET déclenche l'envoi de l'OTP → filet anti-abus au niveau route.
       router.get('invitations/:token', [InvitationController, 'show']).use(invitationOtpThrottle)
       router.post('invitations/:token/accept', [InvitationController, 'accept'])
       router.post('invitations/:token/decline', [InvitationController, 'decline'])
     })
     .prefix('business')
+    .use([middleware.geoip(), middleware.businessChannel()])
 }

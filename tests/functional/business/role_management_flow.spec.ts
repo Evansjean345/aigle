@@ -275,6 +275,7 @@ test.group('Business roles | porte HTTP (middleware orgPermission)', (group) => 
 
     const res = await client
       .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${token.value!.release()}`)
 
     res.assertStatus(200)
@@ -288,6 +289,7 @@ test.group('Business roles | porte HTTP (middleware orgPermission)', (group) => 
 
     const res = await client
       .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${token.value!.release()}`)
 
     res.assertStatus(403)
@@ -300,6 +302,7 @@ test.group('Business roles | porte HTTP (middleware orgPermission)', (group) => 
 
     const res = await client
       .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${token.value!.release()}`)
 
     res.assertStatus(401)
@@ -314,6 +317,7 @@ test.group('Business roles | porte HTTP (middleware orgPermission)', (group) => 
 
     const res = await client
       .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${token.value!.release()}`)
 
     res.assertStatus(403)
@@ -321,7 +325,9 @@ test.group('Business roles | porte HTTP (middleware orgPermission)', (group) => 
 
   test('sans jeton → 401', async ({ client }) => {
     const organisationId = await createOrg(randomUUID())
-    const res = await client.get(`/api/business/organisations/${organisationId}/roles`)
+    const res = await client
+      .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('X-Client-Channel', 'web')
     res.assertStatus(401)
   })
 })
@@ -362,6 +368,7 @@ test.group('Business RBAC | enforcement par permission (Lot D)', (group) => {
 
     const res = await client
       .get(`/api/business/organisations/${organisationId}/members`)
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${bearer}`)
 
     res.assertStatus(200)
@@ -378,12 +385,14 @@ test.group('Business RBAC | enforcement par permission (Lot D)', (group) => {
     // La même personne : autorisée sur les rôles…
     const onRoles = await client
       .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${bearer}`)
     onRoles.assertStatus(200)
 
     // …mais refusée sur les membres (permission différente, garde par sous-groupe).
     const onMembers = await client
       .get(`/api/business/organisations/${organisationId}/members`)
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${bearer}`)
     onMembers.assertStatus(403)
     onMembers.assertBodyContains({ code: 'E_FORBIDDEN_ORG_PERMISSION' })
@@ -396,6 +405,7 @@ test.group('Business RBAC | enforcement par permission (Lot D)', (group) => {
 
     const res = await client
       .get(`/api/business/organisations/${organisationId}/members`)
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${bearer}`)
 
     res.assertStatus(403)

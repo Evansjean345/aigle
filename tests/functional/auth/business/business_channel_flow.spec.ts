@@ -73,6 +73,7 @@ test.group('Business auth | canal (channel-aware device)', (group) => {
 
     const sessions = await client
       .get('/api/business/auth/sessions')
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${token}`)
     sessions.assertStatus(200)
     const current = sessions.body().find((s: { current: boolean }) => s.current)

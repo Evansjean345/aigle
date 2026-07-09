@@ -97,6 +97,7 @@ test.group('Business auth | login', (group) => {
     // Le token stampé aiglebusiness passe requireApp('aiglebusiness').
     const orgRes = await client
       .get('/api/business/organisations')
+      .headers(CHANNEL_WEB)
       .header('Authorization', `Bearer ${token}`)
     orgRes.assertStatus(200)
   })

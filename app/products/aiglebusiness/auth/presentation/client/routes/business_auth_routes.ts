@@ -11,22 +11,28 @@ const BusinessSessionController = () =>
 export default function businessAuthRoutes() {
   router
     .group(() => {
-      router
-        .post('auth/check-phone', [BusinessAuthController, 'checkPhone'])
-        .use([middleware.geoip(), middleware.businessChannel()])
-      router
-        .post('auth/login', [BusinessAuthController, 'login'])
-        .use([middleware.geoip(), middleware.businessChannel(), otpThrottle])
+      // check-phone + login : canal (traçage) + géo/IP. Pas de device : au login,
+      // l'appareil passe par le CORPS et la règle est appliquée par le use case.
+      router.post('auth/check-phone', [BusinessAuthController, 'checkPhone'])
+      router.post('auth/login', [BusinessAuthController, 'login']).use(otpThrottle)
+
+      // À partir du verify, l'appareil est requis (headers) selon le canal.
       router
         .post('auth/verify', [BusinessAuthController, 'verify'])
-        .use([middleware.geoip(), middleware.businessDevice()])
+        .use(middleware.businessDevice())
 
       router
         .group(() => {
           router.get('auth/sessions', [BusinessSessionController, 'index'])
           router.delete('auth/sessions/:id', [BusinessSessionController, 'destroy'])
         })
-        .use([middleware.auth(), middleware.requireApp({ app: AppName.AIGLEBUSINESS })])
+        .use([
+          middleware.auth(),
+          middleware.requireApp({ app: AppName.AIGLEBUSINESS }),
+          middleware.businessDevice(),
+        ])
     })
     .prefix('business')
+    // Canal + géo/IP sur TOUTES les routes auth business (traçage + audit).
+    .use([middleware.geoip(), middleware.businessChannel()])
 }

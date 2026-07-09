@@ -10,6 +10,7 @@ const OrganisationController = () =>
 export default function businessClientRoutes() {
   router
     .group(() => {
+      // Liveness : volontairement « nue » (sondes de monitoring sans en-tête de canal).
       router.get('health', [BusinessHealthController, 'handle'])
 
       router
@@ -17,7 +18,13 @@ export default function businessClientRoutes() {
           router.post('organisations', [OrganisationController, 'store'])
           router.get('organisations', [OrganisationController, 'index'])
         })
-        .use([middleware.auth(), middleware.requireApp({ app: AppName.AIGLEBUSINESS })])
+        .use([
+          middleware.geoip(),
+          middleware.businessChannel(),
+          middleware.auth(),
+          middleware.requireApp({ app: AppName.AIGLEBUSINESS }),
+          middleware.businessDevice(),
+        ])
     })
     .prefix('business')
 }

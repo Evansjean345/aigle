@@ -27,7 +27,7 @@ test.group('Business sessions', (group) => {
     const user = await makeUser()
     const [tokenA] = await businessTokens(user, 2) // 2 sessions
 
-    const res = await client.get(SESSIONS).header('Authorization', `Bearer ${tokenA}`)
+    const res = await client.get(SESSIONS).header('X-Client-Channel', 'web').header('Authorization', `Bearer ${tokenA}`)
     res.assertStatus(200)
 
     const sessions = res.body()
@@ -46,21 +46,25 @@ test.group('Business sessions', (group) => {
     const [tokenA, tokenB] = await businessTokens(user, 2)
 
     // Depuis A, on récupère l'id de la session B (la non-courante).
-    const listRes = await client.get(SESSIONS).header('Authorization', `Bearer ${tokenA}`)
+    const listRes = await client.get(SESSIONS).header('X-Client-Channel', 'web').header('Authorization', `Bearer ${tokenA}`)
     const other = listRes.body().find((s: { current: boolean }) => !s.current)
     assert.exists(other)
 
     const revokeRes = await client
       .delete(`${SESSIONS}/${other.id}`)
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${tokenA}`)
     revokeRes.assertStatus(204)
 
     // B est déconnecté.
-    const reuse = await client.get(SESSIONS).header('Authorization', `Bearer ${tokenB}`)
+    const reuse = await client
+      .get(SESSIONS)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${tokenB}`)
     reuse.assertStatus(401)
 
     // A fonctionne toujours et ne voit plus qu'une session.
-    const after = await client.get(SESSIONS).header('Authorization', `Bearer ${tokenA}`)
+    const after = await client.get(SESSIONS).header('X-Client-Channel', 'web').header('Authorization', `Bearer ${tokenA}`)
     after.assertStatus(200)
     assert.lengthOf(after.body(), 1)
   })
@@ -75,12 +79,13 @@ test.group('Business sessions', (group) => {
 
     const res = await client
       .delete(`${SESSIONS}/${otherTokenId}`)
+      .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${ownerToken}`)
     res.assertStatus(404)
   })
 
   test('sessions sans jeton → 401', async ({ client }) => {
-    const res = await client.get(SESSIONS)
+    const res = await client.get(SESSIONS).header('X-Client-Channel', 'web')
     res.assertStatus(401)
   })
 
@@ -88,7 +93,10 @@ test.group('Business sessions', (group) => {
     const user = await makeUser()
     const token = await forgeToken(user, AppName.AIGLESEND)
 
-    const res = await client.get(SESSIONS).header('Authorization', `Bearer ${token}`)
+    const res = await client
+      .get(SESSIONS)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${token}`)
     res.assertStatus(403)
   })
 })
