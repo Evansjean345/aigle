@@ -43,7 +43,12 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 - **Pourquoi différé** : ces colonnes sont **encore très utilisées** — relation `belongsTo(User)` + scope `search` sur `transactions`, `WalletService.getByUserId` / `resolveRecipient` / `updateWalletStatus`, et de nombreux use cases (`settle_deposit` etc.). La suppression n'est possible qu'**après** avoir migré TOUS ces lookups vers `account_id` (deposit/transfert/w2w/inter + admin). Retirer les colonnes/FK d'une table argent est une opération à haut risque.
 - **Séquence cible** : (1) finir de rendre external_in/settle/transfert/w2w account-centriques ; (2) migrer les lookups résiduels `getByUserId` → `getByAccountId` ; (3) remplacer la relation/scope `user` par une résolution via `account` ; (4) migration de suppression de colonnes (après stabilisation du sous-lot 4 + mass-paiement).
 - **Impact** : simplifie le modèle argent, supprime la double clé user/account, aligne sur le pivot account. **À ne PAS faire tant que des lookups user subsistent.**
-- **Statut** : à faire (endgame D8), après sous-lot 4 & mass-paiement
+- **Périmètre chiffré (scan 2026-07-09)** :
+  - `transaction.usersUid` lu à **~22 endroits** : les 4 `settle_*` (events `userId: transaction.usersUid`), listeners `persist_user_transactions_volume` + `reset_security_counters_on_success` (`sTx/rTx.usersUid`), `transaction_failure_handler`. Tous à migrer vers `account_id` (pour un consumer `account_id == usersUid` → équivalent).
+  - `transaction.usersId` (numérique) : **lu nulle part** — ne sert QUE de FK à `belongsTo(User, foreignKey: 'usersId')` (admin `preload('user')` ×2 + scope `search`). Au R4 : basculer la relation sur `foreignKey: 'usersUid'` (ou résoudre via `account`), puis dropper `users_id`.
+  - `createTransaction` : rendre `(accountId, usersUid)` la clé au lieu du `user` object ; **cesser** de poser `users_id` numérique. `createPayment` : retirer le param `user` (log-only, non persisté — le modèle Payment n'a AUCUNE colonne user).
+  - 5 appelants de `createTransaction` (external_in/out/e2e/internal_move×2) à passer en `(wallet.accountId, wallet.userId)`.
+- **Statut** : à faire (endgame D8), après sous-lot 4 & mass-paiement — décidé de NE PAS le faire en cours de sous-lot 4 (garder la transition account_id primaire + users_uid compat)
 
 ## Remarques
 
