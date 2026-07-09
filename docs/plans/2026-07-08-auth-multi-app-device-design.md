@@ -74,7 +74,7 @@ sessions.
 |-----|---------|-----------|--------|
 | 1 — Cloisonnement & stamp | ability `app:<produit>` sur les tokens à l'émission + middleware `requireApp('...')` sur les groupes de routes (business exige `app:aiglebusiness`, mobile aiglesend exige `app:aiglesend`) | — | **implémenté** (business + mobile) |
 | 2 — Login business | entrée d'auth aiglebusiness (phone+PIN+OTP, service core IssueAppToken), token `app:aiglebusiness` | 1 | design fait |
-| 3 — Sessions révocables | « mes sessions » = access tokens actifs (name/deviceInfo/last_used_at) + révocation (`accessTokens.delete`), via service core. **Sans** skip-OTP (#9) | 2 | design fait |
+| 3 — Sessions révocables | « mes sessions » = access tokens actifs (name/last_used_at) + révocation (`accessTokens.delete`), via service core. **Sans** skip-OTP (#9) | 2 | **implémenté** |
 
 ## Inconnues
 
@@ -158,12 +158,27 @@ core + 2 endpoints business. `IssueAppTokenService` gagne le remplissage name/de
 `DELETE sessions/:autreId` → le 2e token ne fonctionne plus (401) ; révoquer un token d'un **autre**
 user → 404/403 (ownership) ; le listing n'expose pas le hash du token.
 
-## Risques & inconnues
+## Risques & inconnues — RÉSOLUES à l'implémentation
 
-- **Contenu réellement lisible des tokens** : confirmer en implémentation que `User.accessTokens.all()`
-  (ou équivalent) expose `name`, `deviceInfo`, `lastUsedAt`, `createdAt`, `identifier` sans le secret.
-- **IP/userAgent à l'émission** : le login web doit capturer `request.ip()` + `X-... / user-agent` pour
-  peupler `deviceInfo`. Trivial mais à câbler au Lot 2.
+- **⚠️ Ajustement de #8** : le `DbAccessTokensProvider` standard **n'accepte que `{name, expiresIn}`** à
+  `create` et `all()` ne renvoie **pas** de `deviceInfo`. Le `UserSessionResult` implémenté est donc
+  `{id, name, lastUsedAt, createdAt, current}` — **pas** de champ `ip`/`platform`/`deviceInfo` séparé
+  (aurait exigé un provider custom, disproportionné). Le **`name`** porte déjà le label utile
+  (`device:<id>` en mobile, user-agent en web via `sessionName` du Lot 2). Session = token, listable/
+  révocable : l'esprit de #8 est tenu.
+- **IP/userAgent** : le login business remplit déjà `name` = user-agent (Lot 2). L'IP séparée est
+  abandonnée avec l'ajustement ci-dessus.
+
+## Lot 3 — IMPLÉMENTÉ ✅
+
+- **Core** : `UserSessionService` (`listActive(userId, currentTokenId)` / `revoke(userId, tokenId,
+  currentTokenId)`) + DTO `UserSessionResult` + exception `SessionNotFoundException` (404, ownership).
+- **Business** : use cases `ListBusinessSessions`/`RevokeBusinessSession` (délèguent au service core,
+  invariant produit→core respecté) + `BusinessSessionController` + routes `GET/DELETE
+  /business/auth/sessions[/:id]` (groupe authentifié `auth` + `requireApp('aiglebusiness')`).
+- **Tests** `business_sessions_flow.spec` (5) : liste (courante marquée), révocation (token révoqué →
+  401, la liste décroît), ownership (token d'autrui → 404), sans jeton → 401, cloisonnement aiglesend → 403.
+- Vérifs : tsc/eslint/depcruise clean (0 error), suite 250/254 (4 core pré-existants).
 
 ## Prochaine session
 
