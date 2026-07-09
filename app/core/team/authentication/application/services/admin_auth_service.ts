@@ -2,14 +2,14 @@ import Admin from '#core/team/domain/models/admin'
 import { type AccessToken } from '@adonisjs/auth/access_tokens'
 import { Exception } from '@adonisjs/core/exceptions'
 import { inject } from '@adonisjs/core'
-import { type Token } from '#core/identity/authentication/application/use_cases/admin/admin_login_use_case'
+import { type Token } from '#core/team/authentication/application/use_cases/admin_login_use_case'
 import AdminNotFoundException from '#core/team/domain/exceptions/admin_not_found_exception'
 import AdminAccountBlockedException from '#core/team/domain/exceptions/admin_account_blocked_exception'
 import AdminTemporarilyBlockedException from '#core/team/domain/exceptions/admin_temporarily_blocked_exception'
 import { DateTime } from 'luxon'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
-import AdminAttemptGuard from '#core/identity/authentication/application/services/admin/admin_attempt_guard'
+import AdminAttemptGuard from '#core/team/authentication/application/services/admin_attempt_guard'
 
 /**
  * Provides authentication services for admin users, including token generation

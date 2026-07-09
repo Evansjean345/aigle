@@ -7,7 +7,7 @@ import adminKycRoutes from '#core/identity/kyc/presentation/admin/routes/kyc_rou
 import adminAppVersionRoutes from '#core/identity/device/presentation/admin/routes/app_version_routes'
 import adminDeviceRoutes from '#core/identity/device/presentation/admin/routes/admin_device_routes'
 import adminWalletRoutes from '#core/money/wallet/presentation/admin/routes/admin_wallet_routes'
-import adminAuthRoutes from '#core/identity/authentication/presentation/admin/routes/admin_auth_routes'
+import adminAuthRoutes from '#core/team/authentication/presentation/routes/admin_auth_routes'
 import adminAuditRoutes from '#core/audit/presentation/admin/routes/admin_audit_routes'
 import teamRoutes from '#core/team/presentation/routes/team_routes'
 

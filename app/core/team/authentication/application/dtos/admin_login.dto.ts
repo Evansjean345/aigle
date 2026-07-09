@@ -1,4 +1,4 @@
-import { type Token } from '#core/identity/authentication/application/use_cases/admin/admin_login_use_case'
+import { type Token } from '#core/team/authentication/application/use_cases/admin_login_use_case'
 import type Admin from '#core/team/domain/models/admin'
 
 export interface AdminLoginRequestDto {

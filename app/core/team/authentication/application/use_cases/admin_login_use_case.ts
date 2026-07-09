@@ -1,12 +1,12 @@
 import { inject } from '@adonisjs/core'
-import AdminAuthService from '#core/identity/authentication/application/services/admin/admin_auth_service'
-import AdminOtpAttemptGuard from '#core/identity/authentication/application/services/admin/admin_otp_attempt_guard'
+import AdminAuthService from '#core/team/authentication/application/services/admin_auth_service'
+import AdminOtpAttemptGuard from '#core/team/authentication/application/services/admin_otp_attempt_guard'
 import OtpSendingService from '#core/identity/otp/application/services/otp_sending_service'
-import AdminLoginOtpTemplate from '#core/identity/otp/domain/templates/admin_login_otp_template'
+import AdminLoginOtpTemplate from '#core/team/authentication/domain/templates/admin_login_otp_template'
 import {
   AdminLoginRequestDto,
   AdminLoginChallengeDto,
-} from '#core/identity/authentication/application/dtos/admin/admin_login.dto'
+} from '#core/team/authentication/application/dtos/admin_login.dto'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 

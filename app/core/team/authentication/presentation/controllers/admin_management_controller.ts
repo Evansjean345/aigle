@@ -1,15 +1,15 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import AdminLoginUseCase from '#core/identity/authentication/application/use_cases/admin/admin_login_use_case'
-import AdminRefreshTokenUseCase from '#core/identity/authentication/application/use_cases/admin/admin_refresh_token_use_case'
-import SetupAdminPasswordUseCase from '#core/identity/authentication/application/use_cases/admin/setup_admin_password_use_case'
-import VerifyAdminOtpUseCase from '#core/identity/authentication/application/use_cases/admin/verify_admin_otp_use_case'
+import AdminLoginUseCase from '#core/team/authentication/application/use_cases/admin_login_use_case'
+import AdminRefreshTokenUseCase from '#core/team/authentication/application/use_cases/admin_refresh_token_use_case'
+import SetupAdminPasswordUseCase from '#core/team/authentication/application/use_cases/setup_admin_password_use_case'
+import VerifyAdminOtpUseCase from '#core/team/authentication/application/use_cases/verify_admin_otp_use_case'
 import {
   adminLoginValidator,
   adminRefreshTokenValidator,
   setupAdminPasswordValidator,
   verifyAdminOtpValidator,
-} from '#core/identity/authentication/presentation/admin/validators/admin_validator'
+} from '#core/team/authentication/presentation/validators/admin_validator'
 
 @inject()
 export default class AdminManagementController {

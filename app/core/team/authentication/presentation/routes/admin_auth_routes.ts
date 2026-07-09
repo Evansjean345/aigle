@@ -1,7 +1,7 @@
 import router from '@adonisjs/core/services/router'
 
 const AdminManagementController = () =>
-  import('#core/identity/authentication/presentation/admin/controllers/admin_management_controller')
+  import('#core/team/authentication/presentation/controllers/admin_management_controller')
 
 export default function adminAuthRoutes() {
   return router

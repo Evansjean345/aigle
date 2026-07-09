@@ -1,11 +1,11 @@
 import { inject } from '@adonisjs/core'
 import Admin from '#core/team/domain/models/admin'
-import AdminAuthService from '#core/identity/authentication/application/services/admin/admin_auth_service'
+import AdminAuthService from '#core/team/authentication/application/services/admin_auth_service'
 import {
   AdminRefreshTokenRequestDto,
   AdminRefreshTokenResponseDto,
   toAdminRefreshTokenResponse,
-} from '#core/identity/authentication/application/dtos/admin/admin_login.dto'
+} from '#core/team/authentication/application/dtos/admin_login.dto'
 import { Secret } from '@adonisjs/core/helpers'
 import InvalidRefreshTokenException from '#core/identity/authentication/domain/exceptions/invalid_refresh_token_exception'
 import { DateTime } from 'luxon'

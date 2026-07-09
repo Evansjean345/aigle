@@ -56,6 +56,16 @@ module.exports = {
       },
     },
 
+    {
+      name: 'identity-authentification-ne-depend-pas-de-team',
+      comment:
+        "La feature identity/authentication (PRIMARY : identité user aiglesend) ne dépend pas du " +
+        'support team. L’auth admin a été déplacée dans core/team/authentication. Invariant (0 violation).',
+      severity: 'error',
+      from: { path: '^app/core/identity/authentication/' },
+      to: { path: '^#core/team/' },
+    },
+
     // ── Frontières inter-contexte métier (WARN : durcissement #2/#3 en cours) ──
     //
     // Décision d'architecture (2026-07-07) :
