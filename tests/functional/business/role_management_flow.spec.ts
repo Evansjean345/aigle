@@ -258,7 +258,7 @@ test.group('Business roles | memberHasPermission', (group) => {
   })
 })
 
-test.group('Business roles | porte HTTP (Bouncer)', (group) => {
+test.group('Business roles | porte HTTP (middleware orgPermission)', (group) => {
   group.each.setup(async () => {
     await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
     await db.beginGlobalTransaction()
@@ -323,5 +323,81 @@ test.group('Business roles | porte HTTP (Bouncer)', (group) => {
     const organisationId = await createOrg(randomUUID())
     const res = await client.get(`/api/business/organisations/${organisationId}/roles`)
     res.assertStatus(401)
+  })
+})
+
+test.group('Business RBAC | enforcement par permission (Lot D)', (group) => {
+  group.each.setup(async () => {
+    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
+    await db.beginGlobalTransaction()
+    return async () => {
+      await db.rollbackGlobalTransaction()
+      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
+    }
+  })
+
+  /** Crée un membre ACTIF avec un rôle portant `permissionSlugs`, et renvoie son jeton business. */
+  async function memberBearer(organisationId: string, permissionSlugs: string[]): Promise<string> {
+    const create = await app.container.make(CreateRoleUseCase)
+    const role = await create.execute({
+      organisationId,
+      name: `Role ${randomUUID().slice(0, 8)}`,
+      permissionSlugs,
+    })
+    const user = await makeUser()
+    const member = new OrganisationMember()
+    member.organisationId = organisationId
+    member.userId = user.usersUid
+    member.roleId = role.id
+    member.status = MemberStatus.ACTIVE
+    await member.save()
+    const token = await User.accessTokens.create(user, [appAbility(AppName.AIGLEBUSINESS)])
+    return token.value!.release()
+  }
+
+  test('membre avec members:manage → 200 sur GET members', async ({ client, assert }) => {
+    const owner = await makeUser()
+    const organisationId = await createOrg(owner.usersUid)
+    const bearer = await memberBearer(organisationId, ['members:manage'])
+
+    const res = await client
+      .get(`/api/business/organisations/${organisationId}/members`)
+      .header('Authorization', `Bearer ${bearer}`)
+
+    res.assertStatus(200)
+    assert.isArray(res.body())
+  })
+
+  test('granularité : roles:manage donne accès aux rôles mais pas aux membres', async ({
+    client,
+  }) => {
+    const owner = await makeUser()
+    const organisationId = await createOrg(owner.usersUid)
+    const bearer = await memberBearer(organisationId, ['roles:manage'])
+
+    // La même personne : autorisée sur les rôles…
+    const onRoles = await client
+      .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('Authorization', `Bearer ${bearer}`)
+    onRoles.assertStatus(200)
+
+    // …mais refusée sur les membres (permission différente, garde par sous-groupe).
+    const onMembers = await client
+      .get(`/api/business/organisations/${organisationId}/members`)
+      .header('Authorization', `Bearer ${bearer}`)
+    onMembers.assertStatus(403)
+    onMembers.assertBodyContains({ code: 'E_FORBIDDEN_ORG_PERMISSION' })
+  })
+
+  test('membre sans la permission requise → 403', async ({ client }) => {
+    const owner = await makeUser()
+    const organisationId = await createOrg(owner.usersUid)
+    const bearer = await memberBearer(organisationId, ['wallet:view'])
+
+    const res = await client
+      .get(`/api/business/organisations/${organisationId}/members`)
+      .header('Authorization', `Bearer ${bearer}`)
+
+    res.assertStatus(403)
   })
 })

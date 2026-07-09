@@ -872,12 +872,12 @@ components:
 
   responses:
     RolesManageForbidden:
-      description: Permission `roles:manage` absente (non-membre ou rôle insuffisant)
+      description: Permission `roles:manage` absente (non-membre, ou membre au rôle insuffisant)
       content:
         application/json:
           example:
-            errors:
-              - message: Access denied
+            code: E_FORBIDDEN_ORG_PERMISSION
+            message: Vous n'avez pas la permission requise pour cette action
     RoleNotFound:
       description: Rôle introuvable dans cette organisation
       content:
@@ -886,12 +886,12 @@ components:
             code: E_ROLE_NOT_FOUND
             message: Rôle introuvable
     MembersManageForbidden:
-      description: Permission `members:manage` absente (non-membre ou rôle insuffisant)
+      description: Permission `members:manage` absente (non-membre, ou membre au rôle insuffisant)
       content:
         application/json:
           example:
-            errors:
-              - message: Access denied
+            code: E_FORBIDDEN_ORG_PERMISSION
+            message: Vous n'avez pas la permission requise pour cette action
     MemberNotFound:
       description: Membre introuvable dans cette organisation
       content:

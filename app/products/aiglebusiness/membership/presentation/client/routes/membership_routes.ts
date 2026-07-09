@@ -1,6 +1,7 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
+import { BUSINESS_PERMISSION } from '#aiglebusiness/membership/domain/permissions.config'
 import {
   invitationOtpThrottle,
   invitationResendThrottle,
@@ -18,8 +19,10 @@ const InvitationController = () =>
 
 /**
  * Routes membres & RBAC (canal client), scopées à une organisation.
- * Auth requise ; l'autorisation fine (`roles:manage` / `members:manage`) est portée
- * par les contrôleurs via les policies Bouncer.
+ * Auth requise ; l'autorisation fine est **déclarative** au niveau route (Lot D) via
+ * `orgPermission` : `roles:manage` pour les rôles/catalogue, `members:manage` pour les
+ * membres. Vérification live (`memberHasPermission`, bypass OWNER) — les contrôleurs
+ * n'orchestrent plus l'autorisation.
  *
  * Exception : l'acceptation d'invitation (`invitations/:token`) est **semi-publique**
  * (le token du lien fait foi + OTP), donc hors du groupe authentifié.
@@ -30,20 +33,30 @@ export default function membershipClientRoutes() {
       // ── Gestion (authentifiée), scopée à une organisation ──
       router
         .group(() => {
-          router.get('permissions-catalog', [PermissionController, 'index'])
-
-          router.get('roles', [RoleController, 'index'])
-          router.post('roles', [RoleController, 'store'])
-          router.patch('roles/:roleId', [RoleController, 'update'])
-          router.delete('roles/:roleId', [RoleController, 'destroy'])
-
-          router.get('members', [MemberController, 'index'])
-          router.post('members', [MemberController, 'store']).use(memberInviteThrottle)
+          // Rôles & catalogue de permissions → `roles:manage`.
           router
-            .post('members/:memberId/resend', [MemberController, 'resend'])
-            .use(invitationResendThrottle)
-          router.patch('members/:memberId/role', [MemberController, 'updateRole'])
-          router.delete('members/:memberId', [MemberController, 'destroy'])
+            .group(() => {
+              router.get('permissions-catalog', [PermissionController, 'index'])
+
+              router.get('roles', [RoleController, 'index'])
+              router.post('roles', [RoleController, 'store'])
+              router.patch('roles/:roleId', [RoleController, 'update'])
+              router.delete('roles/:roleId', [RoleController, 'destroy'])
+            })
+            .use(middleware.orgPermission({ permission: BUSINESS_PERMISSION.rolesManage }))
+
+          // Membres & invitations → `members:manage`.
+          router
+            .group(() => {
+              router.get('members', [MemberController, 'index'])
+              router.post('members', [MemberController, 'store']).use(memberInviteThrottle)
+              router
+                .post('members/:memberId/resend', [MemberController, 'resend'])
+                .use(invitationResendThrottle)
+              router.patch('members/:memberId/role', [MemberController, 'updateRole'])
+              router.delete('members/:memberId', [MemberController, 'destroy'])
+            })
+            .use(middleware.orgPermission({ permission: BUSINESS_PERMISSION.membersManage }))
         })
         .prefix('organisations/:organisationId')
         .use([middleware.auth(), middleware.requireApp({ app: AppName.AIGLEBUSINESS })])

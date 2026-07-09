@@ -4,15 +4,14 @@ import ListRolesUseCase from '#aiglebusiness/membership/application/use_cases/ro
 import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/create_role.use_case'
 import UpdateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/update_role.use_case'
 import DeleteRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/delete_role.use_case'
-import OrganisationRolePolicy from '#aiglebusiness/membership/presentation/client/policies/organisation_role_policy'
 import {
   createRoleValidator,
   updateRoleValidator,
 } from '#aiglebusiness/membership/presentation/client/validators/role_validators'
 
 /**
- * Gestion des rôles d'une organisation (canal client). Chaque endpoint est gardé
- * par la permission `roles:manage` via OrganisationRolePolicy, scopée à l'org.
+ * Gestion des rôles d'une organisation (canal client). L'autorisation `roles:manage`
+ * (scopée à l'org) est appliquée en amont par le middleware `orgPermission` (Lot D).
  */
 @inject()
 export default class RoleController {
@@ -24,19 +23,15 @@ export default class RoleController {
   ) {}
 
   /** Liste les rôles de l'organisation. */
-  async index({ params, response, bouncer }: HttpContext): Promise<void> {
+  async index({ params, response }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
-    await bouncer.with(OrganisationRolePolicy).authorize('manage' as never, organisationId)
-
     const result = await this.listRoles.execute(organisationId)
     return response.ok(result)
   }
 
   /** Crée un rôle personnalisé. */
-  async store({ params, request, response, bouncer }: HttpContext): Promise<void> {
+  async store({ params, request, response }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
-    await bouncer.with(OrganisationRolePolicy).authorize('manage' as never, organisationId)
-
     const payload = await request.validateUsing(createRoleValidator)
     const result = await this.createRole.execute({
       organisationId,
@@ -48,10 +43,8 @@ export default class RoleController {
   }
 
   /** Édite un rôle (nom et/ou permissions). */
-  async update({ params, request, response, bouncer }: HttpContext): Promise<void> {
+  async update({ params, request, response }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
-    await bouncer.with(OrganisationRolePolicy).authorize('manage' as never, organisationId)
-
     const payload = await request.validateUsing(updateRoleValidator)
     const result = await this.updateRole.execute({
       organisationId,
@@ -64,10 +57,8 @@ export default class RoleController {
   }
 
   /** Supprime un rôle personnalisé. */
-  async destroy({ params, response, bouncer }: HttpContext): Promise<void> {
+  async destroy({ params, response }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
-    await bouncer.with(OrganisationRolePolicy).authorize('manage' as never, organisationId)
-
     await this.deleteRole.execute(organisationId, Number(params.roleId))
     return response.noContent()
   }

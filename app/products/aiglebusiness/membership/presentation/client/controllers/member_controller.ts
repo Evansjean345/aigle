@@ -5,7 +5,6 @@ import InviteMemberUseCase from '#aiglebusiness/membership/application/use_cases
 import ResendInvitationUseCase from '#aiglebusiness/membership/application/use_cases/members/resend_invitation.use_case'
 import ChangeMemberRoleUseCase from '#aiglebusiness/membership/application/use_cases/members/change_member_role.use_case'
 import RemoveMemberUseCase from '#aiglebusiness/membership/application/use_cases/members/remove_member.use_case'
-import OrganisationMemberPolicy from '#aiglebusiness/membership/presentation/client/policies/organisation_member_policy'
 import {
   inviteMemberValidator,
   changeMemberRoleValidator,
@@ -13,7 +12,8 @@ import {
 
 /**
  * Gestion des membres d'une organisation (canal client, OWNER/gestionnaire).
- * Chaque endpoint est gardé par la permission `members:manage`, scopée à l'org.
+ * L'autorisation `members:manage` (scopée à l'org) est appliquée en amont par le
+ * middleware `orgPermission` (Lot D) — les contrôleurs n'orchestrent que le flux.
  */
 @inject()
 export default class MemberController {
@@ -26,19 +26,15 @@ export default class MemberController {
   ) {}
 
   /** Liste les membres (tous statuts). */
-  async index({ params, response, bouncer }: HttpContext): Promise<void> {
+  async index({ params, response }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
-    await bouncer.with(OrganisationMemberPolicy).authorize('manage' as never, organisationId)
-
     const result = await this.listMembers.execute(organisationId)
     return response.ok(result)
   }
 
   /** Invite un membre. */
-  async store({ params, request, response, bouncer }: HttpContext): Promise<void> {
+  async store({ params, request, response }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
-    await bouncer.with(OrganisationMemberPolicy).authorize('manage' as never, organisationId)
-
     const payload = await request.validateUsing(inviteMemberValidator)
     const result = await this.inviteMember.execute({
       organisationId,
@@ -50,19 +46,15 @@ export default class MemberController {
   }
 
   /** Régénère et renvoie l'invitation d'un membre PENDING. */
-  async resend({ params, response, bouncer }: HttpContext): Promise<void> {
+  async resend({ params, response }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
-    await bouncer.with(OrganisationMemberPolicy).authorize('manage' as never, organisationId)
-
     const result = await this.resendInvitation.execute(organisationId, Number(params.memberId))
     return response.ok(result)
   }
 
   /** Change le rôle d'un membre. */
-  async updateRole({ params, request, response, bouncer }: HttpContext): Promise<void> {
+  async updateRole({ params, request, response }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
-    await bouncer.with(OrganisationMemberPolicy).authorize('manage' as never, organisationId)
-
     const payload = await request.validateUsing(changeMemberRoleValidator)
     const result = await this.changeMemberRole.execute({
       organisationId,
@@ -74,10 +66,8 @@ export default class MemberController {
   }
 
   /** Retire un membre (PENDING → supprimé, ACTIVE → REMOVED). */
-  async destroy({ params, response, bouncer }: HttpContext): Promise<void> {
+  async destroy({ params, response }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
-    await bouncer.with(OrganisationMemberPolicy).authorize('manage' as never, organisationId)
-
     await this.removeMember.execute(organisationId, Number(params.memberId))
     return response.noContent()
   }
