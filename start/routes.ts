@@ -17,6 +17,7 @@ import businessAuthRoutes from '#aiglebusiness/auth/presentation/client/routes/b
 import businessClientRoutes from '#aiglebusiness/organisation/presentation/client/routes/business_routes'
 import membershipClientRoutes from '#aiglebusiness/membership/presentation/client/routes/membership_routes'
 import payableAliasRoutes from '#core/qr/presentation/public/routes/payable_alias_routes'
+import checkoutRoutes from '#core/money/checkout/presentation/public/routes/checkout_routes'
 
 router
   .group(() => {
@@ -35,6 +36,7 @@ router
     router.group(businessClientRoutes)
     router.group(membershipClientRoutes)
     router.group(payableAliasRoutes)
+    router.group(checkoutRoutes)
   })
   .prefix('/api')
 

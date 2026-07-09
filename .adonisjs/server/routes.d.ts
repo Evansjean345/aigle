@@ -158,6 +158,9 @@ export type ScannedRoutes = {
     'invitation.accept': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'invitation.decline': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
+    'checkout.options': { paramsTuple?: []; params?: {} }
+    'checkout.initiate': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
+    'checkout.status': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'health': { paramsTuple?: []; params?: {} }
     'event_stream': { paramsTuple?: []; params?: {} }
     'subscribe': { paramsTuple?: []; params?: {} }
@@ -232,6 +235,8 @@ export type ScannedRoutes = {
     'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
+    'checkout.options': { paramsTuple?: []; params?: {} }
+    'checkout.status': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'health': { paramsTuple?: []; params?: {} }
     'event_stream': { paramsTuple?: []; params?: {} }
   }
@@ -304,6 +309,8 @@ export type ScannedRoutes = {
     'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
+    'checkout.options': { paramsTuple?: []; params?: {} }
+    'checkout.status': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'health': { paramsTuple?: []; params?: {} }
     'event_stream': { paramsTuple?: []; params?: {} }
   }
@@ -361,6 +368,7 @@ export type ScannedRoutes = {
     'member.resend': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
     'invitation.accept': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'invitation.decline': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'checkout.initiate': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'subscribe': { paramsTuple?: []; params?: {} }
     'unsubscribe': { paramsTuple?: []; params?: {} }
   }

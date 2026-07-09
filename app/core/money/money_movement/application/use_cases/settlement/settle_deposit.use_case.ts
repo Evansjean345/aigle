@@ -5,6 +5,7 @@ import Transaction from '#core/money/transactions/domain/models/transaction'
 import type Payment from '#core/money/transactions/domain/models/payment'
 import type Wallet from '#core/money/wallet/domain/models/wallet'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
+import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import WalletService from '#core/money/wallet/application/services/wallet_service'
 import LedgerService from '#core/money/ledger/application/services/ledger_service'
 import WalletAdjustException from '#core/money/wallet/domain/exceptions/wallet_adjust_exception'
@@ -43,8 +44,6 @@ export default class SettleDepositUseCase {
         return this.support.result(transaction, true)
       }
 
-      // Crédit par COMPTE (D8) : résout le wallet du titulaire — user (account_id == usersUid)
-      // ou marchand (compte org sans user). Un checkout est un deposit vers un compte marchand.
       const wallet = await this.walletService.getByAccountId(transaction.accountId, trx)
 
       if (cmd.outcome === 'success') {
@@ -99,6 +98,7 @@ export default class SettleDepositUseCase {
       balanceBefore: Number(wallet.balance),
       balanceAfter: updatedWallet.balance,
     })
+
     this.activity.emit({
       event: 'LEDGER_ENTRY_CREATED',
       transactionId: transaction.reference,
@@ -111,7 +111,20 @@ export default class SettleDepositUseCase {
       balanceAfter: updatedWallet.balance,
       operationType: transaction.operationType,
     })
+
     this.activity.emit({ event: 'SUCCESS', transactionId: transaction.reference })
+
+    if (transaction.operationType === TransactionType.CHECKOUT) {
+      this.support.emitAudit(transaction, 'CHECKOUT_COMPLETED', AuditResult.SUCCESS, {
+        amount: Number(transaction.amount),
+        totalAmount: creditAmount,
+        status: TransactionStatus.SUCCESS,
+        accountId: transaction.accountId,
+      })
+      // TODO(notif marchand) : dispatcher un event core « encaissement reçu » consommé par un
+      // listener produit (aiglebusiness) qui résout le compte → org → devices business.
+      return
+    }
 
     this.support.emitAudit(transaction, 'DEPOSIT_COMPLETED', AuditResult.SUCCESS, {
       amount: Number(transaction.amount),
@@ -142,6 +155,18 @@ export default class SettleDepositUseCase {
       transactionId: transaction.reference,
       errorMessage: 'Payment failed via webhook',
     })
+
+    // Checkout : rien à rembourser (external-in, aucun compte Aigle débité) → audit CHECKOUT
+    // et pas de flux d'échec consumer (qui porte la logique de refund).
+    if (transaction.operationType === TransactionType.CHECKOUT) {
+      this.support.emitAudit(transaction, 'CHECKOUT_FAILED', AuditResult.FAILURE, {
+        amount: Number(transaction.amount),
+        status: TransactionStatus.FAILED,
+        accountId: transaction.accountId,
+        error: this.support.errorMessage(error),
+      })
+      return
+    }
 
     this.support.emitAudit(transaction, 'DEPOSIT_FAILED', AuditResult.FAILURE, {
       amount: Number(transaction.amount),
