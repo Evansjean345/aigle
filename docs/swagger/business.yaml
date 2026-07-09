@@ -413,7 +413,8 @@ paths:
         avec description et flag `sensitive` (permission à fort impact : argent, accès,
         données confidentielles) pour l'écran de composition d'un rôle.
 
-        Réservé à qui détient `roles:manage` (l'OWNER l'a d'office).
+        Réservé à qui détient `roles:manage` (l'OWNER l'a d'office). **Entreprises uniquement** —
+        indisponible pour un compte marchand (403 `E_MERCHANT_NO_TEAM`).
       tags:
         - Business - Rôles
       security:
@@ -452,7 +453,8 @@ paths:
       summary: Lister les rôles
       description: |
         Liste tous les rôles de l'organisation, système (OWNER) et personnalisés,
-        avec leurs permissions. Réservé à `roles:manage`.
+        avec leurs permissions. Réservé à `roles:manage`. **Entreprises uniquement** —
+        un compte marchand n'a pas de section équipe (403 `E_MERCHANT_NO_TEAM`).
       tags:
         - Business - Rôles
       security:
@@ -650,7 +652,8 @@ paths:
       summary: Lister les membres
       description: |
         Liste les membres de l'organisation (tous statuts : `active`, `pending`, `removed`),
-        enrichis de l'identité (nom, téléphone). Réservé à `members:manage`.
+        enrichis de l'identité (nom, téléphone). Réservé à `members:manage`. **Entreprises
+        uniquement** — un compte marchand n'a pas de section équipe (403 `E_MERCHANT_NO_TEAM`).
       tags:
         - Business - Membres
       security:
@@ -1091,12 +1094,22 @@ components:
                 code: E_DEVICE_REQUIRED
                 message: Appareil requis pour le canal mobile
     RolesManageForbidden:
-      description: Permission `roles:manage` absente (non-membre, ou membre au rôle insuffisant)
+      description: >-
+        Accès refusé à la gestion des rôles : permission `roles:manage` absente (non-membre ou
+        rôle insuffisant), ou compte **marchand** (la section équipe est réservée aux entreprises).
       content:
         application/json:
-          example:
-            code: E_FORBIDDEN_ORG_PERMISSION
-            message: Vous n'avez pas la permission requise pour cette action
+          examples:
+            forbidden:
+              summary: Permission insuffisante
+              value:
+                code: E_FORBIDDEN_ORG_PERMISSION
+                message: Vous n'avez pas la permission requise pour cette action
+            merchantNoTeam:
+              summary: Compte marchand (pas d'équipe)
+              value:
+                code: E_MERCHANT_NO_TEAM
+                message: "Un compte marchand ne gère pas d'équipe : les rôles et les membres sont réservés aux entreprises."
     RoleNotFound:
       description: Rôle introuvable dans cette organisation
       content:
@@ -1105,12 +1118,23 @@ components:
             code: E_ROLE_NOT_FOUND
             message: Rôle introuvable
     MembersManageForbidden:
-      description: Permission `members:manage` absente (non-membre, ou membre au rôle insuffisant)
+      description: >-
+        Accès refusé à la gestion des membres : permission `members:manage` absente (non-membre
+        ou rôle insuffisant), ou compte **marchand** (la section équipe est réservée aux
+        entreprises).
       content:
         application/json:
-          example:
-            code: E_FORBIDDEN_ORG_PERMISSION
-            message: Vous n'avez pas la permission requise pour cette action
+          examples:
+            forbidden:
+              summary: Permission insuffisante
+              value:
+                code: E_FORBIDDEN_ORG_PERMISSION
+                message: Vous n'avez pas la permission requise pour cette action
+            merchantNoTeam:
+              summary: Compte marchand (pas d'équipe)
+              value:
+                code: E_MERCHANT_NO_TEAM
+                message: "Un compte marchand ne gère pas d'équipe : les rôles et les membres sont réservés aux entreprises."
     MemberNotFound:
       description: Membre introuvable dans cette organisation
       content:

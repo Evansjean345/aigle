@@ -39,14 +39,15 @@ export const middleware = router.named({
     import('#core/identity/authentication/presentation/middleware/require_app_middleware'),
   idempotency: () =>
     import('#core/money/transactions/presentation/middleware/idempotency_middleware'),
-  device: () =>
-    import('#core/identity/device/presentation/mobile/middleware/device_middleware'),
+  device: () => import('#core/identity/device/presentation/mobile/middleware/device_middleware'),
   businessChannel: () =>
     import('#aiglebusiness/auth/presentation/client/middleware/business_channel_middleware'),
   businessDevice: () =>
     import('#aiglebusiness/auth/presentation/client/middleware/business_device_middleware'),
   orgPermission: () =>
     import('#aiglebusiness/membership/presentation/client/middleware/require_permission_middleware'),
+  requireEnterprise: () =>
+    import('#aiglebusiness/membership/presentation/client/middleware/require_enterprise_middleware'),
   permission: () => import('#core/team/presentation/middleware/permission_middleware'),
   geoip: () => import('#shared/middleware/geoip_middleware'),
   apiKey: () => import('../app/wrappers/aigle_business/mobile/middleware/api_key_middleware.js'),

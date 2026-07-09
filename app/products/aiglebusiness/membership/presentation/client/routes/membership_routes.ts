@@ -41,7 +41,12 @@ export default function membershipClientRoutes() {
               router.patch('roles/:roleId', [RoleController, 'update'])
               router.delete('roles/:roleId', [RoleController, 'destroy'])
             })
-            .use(middleware.orgPermission({ permission: BUSINESS_PERMISSION.rolesManage }))
+            // Section équipe réservée aux entreprises : requireEnterprise APRÈS orgPermission
+            // (le contrôle d'appartenance passe d'abord → pas de fuite du type d'org).
+            .use([
+              middleware.orgPermission({ permission: BUSINESS_PERMISSION.rolesManage }),
+              middleware.requireEnterprise(),
+            ])
 
           router
             .group(() => {
@@ -53,7 +58,10 @@ export default function membershipClientRoutes() {
               router.patch('members/:memberId/role', [MemberController, 'updateRole'])
               router.delete('members/:memberId', [MemberController, 'destroy'])
             })
-            .use(middleware.orgPermission({ permission: BUSINESS_PERMISSION.membersManage }))
+            .use([
+              middleware.orgPermission({ permission: BUSINESS_PERMISSION.membersManage }),
+              middleware.requireEnterprise(),
+            ])
         })
         .prefix('organisations/:organisationId')
         .use([

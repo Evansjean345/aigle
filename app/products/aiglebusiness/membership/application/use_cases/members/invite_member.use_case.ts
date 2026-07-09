@@ -4,7 +4,6 @@ import OrganisationMemberRepository from '#aiglebusiness/membership/domain/inter
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 import UserDirectoryService from '#core/identity/user/application/services/user_directory_service'
 import InvitationService from '#aiglebusiness/membership/application/services/invitation_service'
-import { assertOrganisationAllowsTeam } from '#aiglebusiness/membership/application/authorization/team_account_policy'
 import {
   type InviteMemberRequestDto,
   MemberResponseDTO,
@@ -33,12 +32,6 @@ export default class InviteMemberUseCase {
   ) {}
 
   async execute(request: InviteMemberRequestDto): Promise<MemberResponseDTO> {
-    // Réservé aux entreprises : un marchand est mono-utilisateur (pas de membres).
-    const organisation = await assertOrganisationAllowsTeam(
-      this.organisationRepository,
-      request.organisationId
-    )
-
     const role = await this.roleRepository.findById(request.roleId)
 
     if (!role || role.organisationId !== request.organisationId) {
@@ -88,6 +81,9 @@ export default class InviteMemberUseCase {
       })
     }
 
+    const organisation = await this.organisationRepository.findByOrganisationId(
+      request.organisationId
+    )
     await this.invitationService.sendLinkSms(
       invitee.phone,
       token,

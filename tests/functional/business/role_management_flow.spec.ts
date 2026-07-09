@@ -26,13 +26,16 @@ import { AppName, appAbility } from '#core/identity/authentication/domain/enums/
  * permissions, le helper `memberHasPermission`, et la porte Bouncer côté HTTP.
  */
 
-async function createOrg(ownerUserId: string): Promise<string> {
+async function createOrg(
+  ownerUserId: string,
+  accountType: OrganisationAccountType = OrganisationAccountType.ENTERPRISE
+): Promise<string> {
   const useCase = await app.container.make(CreateOrganisationUseCase)
   const org = await useCase.execute({
     ownerUserId,
     ownerKycStatus: UserKycStatus.VERIFIED,
     name: 'Org Test',
-    accountType: OrganisationAccountType.ENTERPRISE,
+    accountType,
   })
   return org.organisationId
 }
@@ -88,27 +91,6 @@ test.group('Business roles | use cases', (group) => {
     const roles = await list.execute(organisationId)
     // OWNER (seedé) + le nouveau
     assert.lengthOf(roles, 2)
-  })
-
-  test('créer un rôle sur un compte MARCHAND → refusé (pas d’équipe)', async ({ assert }) => {
-    const createOrgUseCase = await app.container.make(CreateOrganisationUseCase)
-    const merchant = await createOrgUseCase.execute({
-      ownerUserId: randomUUID(),
-      ownerKycStatus: UserKycStatus.VERIFIED,
-      name: 'Ma Boutique',
-      accountType: OrganisationAccountType.MARCHAND,
-    })
-    const create = await app.container.make(CreateRoleUseCase)
-
-    await assert.rejects(
-      () =>
-        create.execute({
-          organisationId: merchant.organisationId,
-          name: 'Comptable',
-          permissionSlugs: ['wallet:view'],
-        }),
-      /marchand|équipe/i
-    )
   })
 
   test('créer un rôle : permission hors catalogue → 400', async ({ assert }) => {
@@ -458,5 +440,61 @@ test.group('Business RBAC | enforcement par permission (Lot D)', (group) => {
     assert.equal(denial!.result, 'failed') // AuditResult.FAILURE
     assert.equal(denial!.errorCode, 'E_FORBIDDEN_ORG_PERMISSION')
     assert.equal(denial!.metadata.permission, 'members:manage')
+  })
+
+  test('MARCHAND : créer un rôle → 403 E_MERCHANT_NO_TEAM', async ({ client }) => {
+    const owner = await makeUser()
+    const organisationId = await createOrg(owner.usersUid, OrganisationAccountType.MARCHAND)
+    const token = await User.accessTokens.create(owner, [appAbility(AppName.AIGLEBUSINESS)])
+
+    const res = await client
+      .post(`/api/business/organisations/${organisationId}/roles`)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${token.value!.release()}`)
+      .json({ name: 'Comptable', permission_slugs: ['wallet:view'] })
+
+    res.assertStatus(403)
+    res.assertBodyContains({ code: 'E_MERCHANT_NO_TEAM' })
+  })
+
+  test('MARCHAND : LIRE les rôles → 403 (toute la section verrouillée)', async ({ client }) => {
+    const owner = await makeUser()
+    const organisationId = await createOrg(owner.usersUid, OrganisationAccountType.MARCHAND)
+    const token = await User.accessTokens.create(owner, [appAbility(AppName.AIGLEBUSINESS)])
+
+    const res = await client
+      .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${token.value!.release()}`)
+
+    res.assertStatus(403)
+    res.assertBodyContains({ code: 'E_MERCHANT_NO_TEAM' })
+  })
+
+  test('MARCHAND : lister les membres → 403 E_MERCHANT_NO_TEAM', async ({ client }) => {
+    const owner = await makeUser()
+    const organisationId = await createOrg(owner.usersUid, OrganisationAccountType.MARCHAND)
+    const token = await User.accessTokens.create(owner, [appAbility(AppName.AIGLEBUSINESS)])
+
+    const res = await client
+      .get(`/api/business/organisations/${organisationId}/members`)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${token.value!.release()}`)
+
+    res.assertStatus(403)
+    res.assertBodyContains({ code: 'E_MERCHANT_NO_TEAM' })
+  })
+
+  test('ENTREPRISE : la section équipe reste accessible (non-régression)', async ({ client }) => {
+    const owner = await makeUser()
+    const organisationId = await createOrg(owner.usersUid, OrganisationAccountType.ENTERPRISE)
+    const token = await User.accessTokens.create(owner, [appAbility(AppName.AIGLEBUSINESS)])
+
+    const res = await client
+      .get(`/api/business/organisations/${organisationId}/roles`)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${token.value!.release()}`)
+
+    res.assertStatus(200)
   })
 })
