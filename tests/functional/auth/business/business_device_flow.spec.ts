@@ -72,6 +72,51 @@ test.group('Business auth | device trust (mobile, two-step)', (group) => {
     assert.equal(links[0].status, DeviceStatus.PENDING)
   })
 
+  /** Login + verify mobile → renvoie {token, fp, uid} avec l'appareil TRUSTED. */
+  async function loginTrustedMobile(client: any, phone: string) {
+    const fp = randomUUID()
+    const uid = randomUUID()
+    await client
+      .post('/api/business/auth/login')
+      .header('X-Client-Channel', 'mobile')
+      .json({ phone, pincode: '1234', device_info: devicePayload(fp, uid) })
+    const verifyRes = await client
+      .post('/api/business/auth/verify')
+      .headers({ 'X-Client-Channel': 'mobile', 'X-Device-Fingerprint': fp, 'X-Device-Uid': uid })
+      .json({ phone, otp: '0000' })
+    return { token: verifyRes.body().token as string, fp, uid }
+  }
+
+  test('action mobile avec l’appareil de confiance → 200', async ({ client }) => {
+    const user = await makeUser({ pincode: '1234' })
+    const { token, fp, uid } = await loginTrustedMobile(client, user.phone)
+
+    const res = await client
+      .get('/api/business/organisations')
+      .headers({ 'X-Client-Channel': 'mobile', 'X-Device-Fingerprint': fp, 'X-Device-Uid': uid })
+      .header('Authorization', `Bearer ${token}`)
+    res.assertStatus(200)
+  })
+
+  test('action mobile avec un appareil INCONNU → 401 (appareil non validé)', async ({
+    client,
+  }) => {
+    const user = await makeUser({ pincode: '1234' })
+    const { token } = await loginTrustedMobile(client, user.phone)
+
+    // Mêmes token/canal mobile, mais headers d'un appareil qui n'existe pas.
+    const res = await client
+      .get('/api/business/organisations')
+      .headers({
+        'X-Client-Channel': 'mobile',
+        'X-Device-Fingerprint': randomUUID(),
+        'X-Device-Uid': randomUUID(),
+      })
+      .header('Authorization', `Bearer ${token}`)
+    res.assertStatus(401)
+    res.assertBodyContains({ code: 'E_UNAUTHENTICATED_DEVICE' })
+  })
+
   test('login + verify SANS device_info (web) → aucun appareil', async ({ client, assert }) => {
     const user = await makeUser({ pincode: '1234' })
 

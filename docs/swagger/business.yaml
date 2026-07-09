@@ -1026,7 +1026,9 @@ components:
         enum: [mobile, web]
       description: >-
         Canal du client. **Obligatoire sur toutes les routes business** (traçage/audit).
-        En `mobile`, les en-têtes d'appareil sont requis.
+        En `mobile`, les en-têtes d'appareil sont requis **et l'appareil doit être de
+        confiance** (enregistré et validé à la connexion) — sinon `401 E_UNAUTHENTICATED_DEVICE`
+        (appareil inconnu) ou `403 NOT_TRUSTED_DEVICE` (appareil non validé).
       example: web
     DeviceFingerprintHeader:
       name: X-Device-Fingerprint
@@ -1034,7 +1036,9 @@ components:
       required: false
       schema:
         type: string
-      description: Empreinte de l'appareil — **requis quand le canal est mobile**.
+      description: >-
+        Empreinte de l'appareil — **requis quand le canal est mobile**. L'appareil doit être
+        **de confiance** pour l'utilisateur (validé au login), sinon la requête est refusée.
       example: a1b2c3d4e5f6
     DeviceUidHeader:
       name: X-Device-Uid

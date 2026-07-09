@@ -10,8 +10,10 @@ import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import NewDeviceDetected from '#core/identity/device/application/events/new_device_detected'
 import { maxDeviceConnectionAllowed } from '#config/app'
 import appLog from '#shared/infrastructure/logging/app_log'
+import { Exception } from '@adonisjs/core/exceptions'
 import FailedToSaveOrUpdateDeviceException from '#core/identity/device/domain/exceptions/failed_to_save_or_update_device_exception'
 import UnauthenticatedDeviceException from '#core/identity/device/domain/exceptions/unauthenticated_device_exception'
+import NotTrustedDeviceException from '#core/identity/device/domain/exceptions/not_trusted_device_exception'
 import FailedToUpdatePushTokenException from '#core/identity/device/domain/exceptions/failed_to_update_push_token_exception'
 import MaxDevicesConnectedException from '#core/identity/device/domain/exceptions/max_devices_connected_exception'
 
@@ -254,6 +256,48 @@ export default class DeviceService {
         `Failed to update push token: ${error.message}`
       )
       throw new FailedToUpdatePushTokenException()
+    }
+  }
+
+  /**
+   * Valide qu'un appareil (fingerprint + uid des headers) existe et est **de confiance**
+   * (TRUSTED) pour un couple (utilisateur, app). Porte de service PRODUIT : ne renvoie
+   * aucun modèle core (invariant produit→core), lève une exception sinon.
+   *  - appareil inconnu ou non lié à l'app → 401 `E_UNAUTHENTICATED_DEVICE` ;
+   *  - lien révoqué → 401 `E_DEVICE_REVOKED` ;
+   *  - lien non trusté (PENDING) → 403 `NOT_TRUSTED_DEVICE`.
+   */
+  async assertTrustedForApp(
+    userId: string,
+    fingerprintHash: string,
+    deviceUid: string,
+    app: string
+  ): Promise<void> {
+    const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
+
+    if (!device || device.deviceUid !== deviceUid) {
+      throw new UnauthenticatedDeviceException()
+    }
+
+    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
+      userId,
+      device.id,
+      app
+    )
+
+    if (!userDevice) {
+      throw new UnauthenticatedDeviceException()
+    }
+
+    if (userDevice.status === DeviceStatus.REVOKED) {
+      throw new Exception('Cet appareil a été révoqué. Veuillez vous reconnecter.', {
+        status: 401,
+        code: 'E_DEVICE_REVOKED',
+      })
+    }
+
+    if (userDevice.status !== DeviceStatus.TRUSTED) {
+      throw new NotTrustedDeviceException()
     }
   }
 
