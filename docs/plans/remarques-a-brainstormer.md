@@ -29,10 +29,28 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 |---|--------|--------|----------|
 | R1 | 🔴 Critique | à brainstormer | Permissions du RBAC **team** créées en CRUD par l'admin au lieu d'être **déclarées en code** par chaque feature — faille de sécurité (contrôle d'accès orphelin / privilege escalation) |
 | R2 | 🟠 Majeur | à brainstormer | Notifications **push** non scopées par app : `expo_push_channel.getTrustedDevices(recipientId)` envoie à TOUS les appareils de confiance (aiglesend + business). Une notif aiglesend pousse aussi vers l'app business |
+| R3 | 🟢 Feature | **décidé — à implémenter** | Flux de **transfert de propriété** d'une organisation (owner unique). Le verrou (owner non attribuable) est en place ; il manque l'endpoint de transmission explicite |
 
 ---
 
 ## Remarques
+
+### R3 — Transfert de propriété d'une organisation (à implémenter)
+- **Niveau** : 🟢 Feature (le garde-fou de sécurité, lui, est **déjà** en place — cf. commit owner-lock)
+- **Date** : 2026-07-09
+- **Contexte** : modèle adopté = **propriétaire unique + transfert explicite**. Le rôle système OWNER est déjà verrouillé (`SystemRoleNotAssignableException` sur invite/change-role ; owner non retirable/rétrogradable). Reste à construire le **flux de transmission**.
+- **Décisions prises** (validées avec l'utilisateur, à ne pas re-brainstormer) :
+  1. **Cible** : seul un **membre ACTIF existant** de l'organisation peut recevoir la propriété.
+  2. **Confirmation** : **OTP du owner actuel** (2e facteur SMS, cohérent avec le flux membership).
+  3. **Ex-owner** : reçoit un **rôle métier au choix** (précisé dans la requête de transfert) — il reste membre actif avec des droits normaux.
+- **Esquisse d'implémentation** :
+  - Endpoint `POST /organisations/{id}/transfer-ownership` (réservé au owner) : body `{ new_owner_member_id, previous_owner_role_id, otp }`.
+  - Use case : valide que l'appelant est owner, que la cible est un membre ACTIF de l'org, que `previous_owner_role_id` est un rôle **non système** de l'org ; vérifie l'OTP ; **échange** les rôles de façon atomique (cible → rôle OWNER, ancien owner → `previous_owner_role_id`).
+  - Émettre l'OTP en amont (endpoint de demande, ou réutiliser un template dédié `OwnershipTransferOtpTemplate`).
+  - Doc business.yaml + tests (transfert nominal, cible non membre/non active, rôle système en `previous_owner_role_id`, OTP invalide, appelant non owner).
+- **Statut** : décidé — à implémenter (plus tard)
+
+### R2 — Notifications push non scopées par app (général)
 
 ### R2 — Notifications push non scopées par app (général)
 - **Niveau** : 🟠 Majeur (mauvais routage des notifications entre apps)
