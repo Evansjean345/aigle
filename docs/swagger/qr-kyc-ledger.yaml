@@ -51,7 +51,8 @@ paths:
       summary: Résoudre un jeton QR (léger)
       description: |
         Résolution légère : renvoie l'identité publique du bénéficiaire (pour afficher « Vous
-        payez à … »). Ne consomme pas le nonce. Headers device requis (pas d'authentification).
+        payez à … »). N'invalide pas le jeton QR (simple lecture). Nécessite les en-têtes
+        d'appareil (aucune authentification).
       tags:
         - QR Code
       parameters:
@@ -103,7 +104,7 @@ paths:
       summary: Vérifier un jeton QR (strict)
       description: |
         Vérification stricte (expiration + rejeu), à utiliser au moment de consommer le QR.
-        Headers device requis.
+        Nécessite les en-têtes d'appareil.
       tags:
         - QR Code
       parameters:
@@ -168,7 +169,7 @@ paths:
       description: |
         Soumet les documents d'identité pour la vérification KYC (`multipart/form-data`).
         Formats acceptés : PNG/JPG/JPEG. Le **verso** est requis pour `CNI` et `PERMIS_CONDUIT`.
-        Headers device requis.
+        Nécessite les en-têtes d'appareil.
       tags:
         - KYC
       security:
@@ -208,7 +209,7 @@ paths:
                   description: Photo selfie (PNG/JPG/JPEG, max 10 Mo).
       responses:
         '201':
-          description: Documents soumis pour vérification (structure — TODO à confirmer)
+          description: Documents soumis pour vérification
           content:
             application/json:
               example:

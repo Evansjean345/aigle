@@ -5,9 +5,8 @@ paths:
       operationId: listMobileTransactions
       summary: Liste des transactions
       description: |
-        Récupère la liste paginée des transactions de l'utilisateur connecté. Seul le paramètre
-        `page` est lu par le contrôleur. Structure exacte de la réponse : **TODO à confirmer**
-        (serializer non lu).
+        Récupère la liste paginée des transactions de l'utilisateur connecté. La pagination se
+        fait via le paramètre `page`.
       tags:
         - Transactions
       security:
@@ -110,7 +109,7 @@ paths:
         - $ref: '#/components/parameters/DeviceOsVersion'
       responses:
         '200':
-          description: Détails de la transaction (structure exacte — TODO à confirmer)
+          description: Détails de la transaction
           content:
             application/json:
               schema:

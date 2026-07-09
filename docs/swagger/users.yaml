@@ -88,7 +88,7 @@ paths:
         - $ref: '#/components/parameters/DeviceOsVersion'
       responses:
         '200':
-          description: Téléphone(s) de débit pour l'opérateur (structure — TODO à confirmer)
+          description: Téléphone(s) de débit pour l'opérateur
           content:
             application/json:
               schema:
@@ -140,7 +140,7 @@ paths:
               label: "Mon Moov Pro"
       responses:
         '200':
-          description: Téléphone ajouté — OTP envoyé pour vérification (structure — TODO à confirmer)
+          description: Téléphone ajouté — OTP envoyé pour vérification
           content:
             application/json:
               example:

@@ -7,14 +7,15 @@ paths:
         **Entrant, appelé par Hub2** (pas par le client mobile). Notifie le règlement réussi d'un
         paiement (checkout) et déclenche la mise à jour de la transaction correspondante.
 
-        **Signature** : le middleware `verify_hub2_signature` (route `payments.success`) recalcule
-        `HMAC-SHA256(rawBody, secret)` en hex et le compare, en temps constant, à `s1` puis `s0`
-        du header **`hub2-signature`** (fenêtre de rotation du secret). Secret manquant, corps ou
-        header absent, ou signature invalide → `401`.
+        **Signature** : le serveur recalcule `HMAC-SHA256(rawBody, secret)` en hexadécimal et le
+        compare, en temps constant, à `s1` puis `s0` de l'en-tête **`hub2-signature`** (fenêtre de
+        rotation du secret). Secret manquant, corps ou en-tête absent, ou signature invalide →
+        `401`.
 
-        **Réponse** : toujours `200` avec un corps `{}`, même sur type non supporté ou données
-        invalides (on acquitte la réception pour éviter les retries Hub2 ; les échecs de
-        traitement sont journalisés). Aucun `BearerAuth`.
+        **Réponse** : toujours `200` avec un corps `{}`, même en cas de type non supporté ou de
+        données invalides (la réception est acquittée pour éviter les renvois Hub2 ; les échecs de
+        traitement sont journalisés). Aucune authentification par jeton (l'authenticité est
+        établie par la signature).
       tags:
         - Webhooks
       parameters:
@@ -43,8 +44,7 @@ paths:
       description: |
         **Entrant, appelé par Hub2.** Notifie l'échec d'un paiement (checkout). Le code d'échec
         natif (`data.lastPaymentFailure.code` / `data.failureCause.code` / `data.code`) est
-        traduit en `ProviderErrorCode` canonique. Signature vérifiée (route `payments.failed`).
-        Réponse toujours `200 {}`.
+        normalisé en un code d'erreur standard. Signature vérifiée. Réponse toujours `200 {}`.
       tags:
         - Webhooks
       parameters:
@@ -135,10 +135,9 @@ paths:
       operationId: waveWebhook
       summary: Webhook Wave
       description: |
-        **Entrant, appelé par Wave.** Règle les opérations passées par Wave (normalisées par le
-        `WaveWebhookNormalizer`). Le schéma de charge utile et la vérification de signature Wave
-        sont **TODO à confirmer** (voir `wave_webhook_controller` / `wave_webhook_normalizer`).
-        Réponse `200` attendue.
+        **Entrant, appelé par Wave.** Règle les opérations réalisées via Wave. Le schéma de la
+        charge utile et la vérification de signature Wave seront précisés ultérieurement. Réponse
+        `200` attendue.
       tags:
         - Webhooks
       requestBody:
@@ -147,7 +146,7 @@ paths:
           application/json:
             schema:
               type: object
-              description: Charge utile Wave — TODO à confirmer.
+              description: Charge utile Wave.
       responses:
         '200':
           $ref: '#/components/responses/WebhookAck'
@@ -186,12 +185,12 @@ components:
           description: |
             Charge utile de l'événement. Pour les checkouts, la référence aiglesend est dans
             `purchaseReference` ; pour les transferts, dans `reference`. `data.id` = référence
-            provider. En cas d'échec, `lastPaymentFailure`/`failureCause`/`code` portent le code
-            natif traduit vers un `ProviderErrorCode`.
+            côté prestataire. En cas d'échec, `lastPaymentFailure`/`failureCause`/`code` portent le
+            code d'erreur natif du prestataire, normalisé en un code d'erreur standard.
           properties:
             id:
               type: string
-              description: Référence côté provider Hub2.
+              description: Référence côté prestataire Hub2.
             purchaseReference:
               type: string
               description: Référence aiglesend (événements checkout/payment_intent).

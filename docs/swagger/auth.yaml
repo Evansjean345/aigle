@@ -6,7 +6,7 @@ paths:
       description: |
         Vérifie qu'un numéro correspond à un compte existant (le numéro local est concaténé à
         l'indicatif du pays côté serveur). Renvoie `201` si le compte existe, `404` sinon.
-        Middleware `geoip` (pas d'authentification, pas de headers device).
+        Endpoint public (aucune authentification ni en-tête d'appareil requis).
       tags:
         - Auth
       requestBody:
@@ -48,9 +48,10 @@ paths:
       operationId: registerUser
       summary: Inscription d'un nouvel utilisateur
       description: |
-        Crée un compte (statut `inactive`) et son portefeuille, puis envoie un OTP de
-        vérification. **Ne renvoie pas de token** — l'appareil est fourni dans le **corps**
-        (`deviceInfo`), pas dans les headers. Middleware `geoip`.
+        Crée un compte (statut `inactive`) et son portefeuille, puis envoie un code de
+        vérification (OTP) par SMS. **Ne renvoie pas de jeton** — les informations d'appareil
+        sont fournies dans le **corps** de la requête (champ `deviceInfo`), et non dans les
+        en-têtes. Endpoint public (aucune authentification requise).
       tags:
         - Auth
       requestBody:
@@ -100,9 +101,10 @@ paths:
       operationId: verifyCredentials
       summary: Connexion (téléphone + PIN) → envoi OTP
       description: |
-        Valide le téléphone et le code PIN, puis **envoie un OTP par SMS**. **Ne renvoie pas de
-        token** : le token est émis à l'étape `verify-account`. L'appareil est fourni dans le
-        **corps** (`devicePayload`). Middleware `geoip`.
+        Valide le téléphone et le code PIN, puis **envoie un code de vérification (OTP) par SMS**.
+        **Ne renvoie pas de jeton** : le jeton est émis à l'étape `verify-account`. Les
+        informations d'appareil sont fournies dans le **corps** de la requête (champ
+        `devicePayload`). Endpoint public (aucune authentification requise).
       tags:
         - Auth
       requestBody:
@@ -147,11 +149,12 @@ paths:
   /api/mobile/auth/verify-account:
     post:
       operationId: verifyAccount
-      summary: Vérification OTP → émission du token
+      summary: Vérification OTP → émission du jeton
       description: |
-        Vérifie l'OTP reçu par SMS, fait confiance à l'appareil (device trust) et **émet le token
-        Bearer**. Utilisé aussi bien après inscription qu'après connexion. Headers device requis
-        (middleware `device`), pas de `BearerAuth`.
+        Vérifie le code de vérification (OTP) reçu par SMS, mémorise l'appareil comme **appareil
+        de confiance** et renvoie le **jeton d'accès** (à envoyer ensuite dans
+        `Authorization: Bearer <token>`). Utilisé aussi bien après l'inscription qu'après la
+        connexion. Nécessite les en-têtes d'appareil ; aucune authentification préalable.
       tags:
         - Auth
       parameters:
@@ -204,8 +207,9 @@ paths:
       operationId: sendOtp
       summary: Envoyer un code OTP
       description: |
-        (Ré)envoie un OTP par SMS. **Rate-limité** (`otpThrottle`). Headers device requis.
-        Renvoie `201` si envoyé, `200` si throttlé (avec `sent: false` et `waitTime`).
+        (Ré)envoie un code de vérification (OTP) par SMS. **Nombre d'envois limité** (anti-abus) :
+        renvoie `201` si envoyé, `200` si la limite est atteinte (avec `sent: false` et le délai
+        d'attente `waitTime`). Nécessite les en-têtes d'appareil.
       tags:
         - Auth
       parameters:
@@ -234,7 +238,7 @@ paths:
                 message: "Code OTP envoyé avec succès"
                 sent: true
         '200':
-          description: OTP non renvoyé (throttlé)
+          description: OTP non renvoyé (limite d'envoi atteinte)
           content:
             application/json:
               schema:
@@ -250,7 +254,7 @@ paths:
     post:
       operationId: forgotPasswordRequest
       summary: Demander la réinitialisation du code PIN
-      description: Envoie un OTP pour initier la réinitialisation du code PIN. Headers device requis.
+      description: Envoie un OTP pour initier la réinitialisation du code PIN. Nécessite les en-têtes d'appareil.
       tags:
         - Auth
       parameters:
@@ -279,16 +283,15 @@ paths:
                 message: "Code OTP envoyé avec succès"
                 sent: true
         '200':
-          description: OTP non renvoyé (throttlé)
+          description: OTP non renvoyé (limite d'envoi atteinte)
 
   /api/mobile/auth/forgot-password/verify:
     post:
       operationId: forgotPasswordVerify
       summary: Vérifier l'OTP de réinitialisation
       description: |
-        Vérifie le code OTP pour la réinitialisation du PIN et retourne un `reset_token`
-        temporaire nécessaire à l'étape `reset`. Structure exacte de la réponse : **TODO à
-        confirmer** (voir `verify_forgot_password_otp_use_case`).
+        Vérifie le code de vérification (OTP) de réinitialisation du PIN et retourne un
+        `reset_token` temporaire, nécessaire à l'étape `reset`. Nécessite les en-têtes d'appareil.
       tags:
         - Auth
       parameters:
@@ -309,7 +312,7 @@ paths:
               country_id: 1
       responses:
         '201':
-          description: OTP vérifié — token de réinitialisation retourné
+          description: OTP vérifié — jeton de réinitialisation retourné
           content:
             application/json:
               example:
@@ -323,7 +326,7 @@ paths:
       summary: Réinitialiser le code PIN
       description: |
         Réinitialise le PIN après vérification de l'OTP. Nécessite le `reset_token` obtenu à
-        l'étape `verify`. Headers device requis.
+        l'étape `verify`. Nécessite les en-têtes d'appareil.
       tags:
         - Auth
       parameters:
@@ -360,7 +363,7 @@ paths:
       summary: Profil de l'utilisateur connecté
       description: |
         Récupère le profil de l'utilisateur authentifié (même objet `user` que `verify-account`).
-        Headers device requis.
+        Nécessite les en-têtes d'appareil.
       tags:
         - Auth
       security:
@@ -398,9 +401,9 @@ paths:
       operationId: getSessionStatus
       summary: État de verrouillage du compte
       description: |
-        Renvoie l'état de verrouillage du compte (compte bloqué, lockout PIN temporaire) pour
-        valider un déverrouillage biométrique local contre les règles serveur. Structure exacte :
-        **TODO à confirmer** (voir `get_session_status_use_case`). Headers device requis.
+        Renvoie l'état de verrouillage du compte (compte bloqué, blocage temporaire du PIN) pour
+        valider un déverrouillage biométrique local au regard des règles serveur. Nécessite les
+        en-têtes d'appareil.
       tags:
         - Auth
       security:
@@ -425,7 +428,7 @@ paths:
     post:
       operationId: logout
       summary: Déconnexion
-      description: Déconnecte l'utilisateur et invalide le token courant. Headers device requis.
+      description: Déconnecte l'utilisateur et invalide le jeton courant. Nécessite les en-têtes d'appareil.
       tags:
         - Auth
       security:
@@ -448,7 +451,7 @@ paths:
       summary: Vérifier le code PIN
       description: |
         Vérifie la validité du code PIN de l'utilisateur authentifié (protégé contre la force
-        brute). Headers device requis.
+        brute). Nécessite les en-têtes d'appareil.
       tags:
         - Auth
       security:
@@ -499,9 +502,9 @@ paths:
       operationId: getUserInfo
       summary: Infos utilisateur (partenaire, clé API)
       description: |
-        Réservé aux **partenaires** : protégé par le middleware `apiKey` (et non par un token
-        utilisateur). Renvoie les infos publiques de l'utilisateur, ou `404` (`USER_NOT_FOUND`).
-        Modalités de la clé API : **TODO à confirmer**.
+        Réservé aux **partenaires** : authentifié par une **clé API partenaire** (et non par un
+        jeton utilisateur). Renvoie les informations publiques de l'utilisateur, ou `404`
+        (`USER_NOT_FOUND`).
       tags:
         - Auth
       requestBody:
@@ -629,7 +632,7 @@ components:
           type: boolean
         waitTime:
           type: integer
-          description: Présent si throttlé — secondes avant nouvel envoi.
+          description: Présent si la limite d'envoi est atteinte — secondes avant un nouvel envoi.
 
     LoginRequest:
       type: object
@@ -742,7 +745,7 @@ components:
           $ref: '#/components/schemas/AuthenticatedProfileResponse'
         token:
           type: string
-          description: Token d'accès Bearer (opaque).
+          description: "Jeton d'accès à envoyer dans l'en-tête `Authorization: Bearer <token>`."
         type:
           type: string
           enum: [Bearer]
@@ -808,7 +811,7 @@ components:
             message: "Requête invalide"
 
     Unauthorized:
-      description: Non autorisé — token manquant ou invalide
+      description: Non autorisé — jeton manquant ou invalide
       content:
         application/json:
           example:

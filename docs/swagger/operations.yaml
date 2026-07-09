@@ -8,11 +8,11 @@ paths:
 
         **Traitement asynchrone** : la réponse renvoie immédiatement `status: pending`. Le crédit
         définitif (`success` / `failed`) arrive via un **webhook opérateur** (voir la ressource
-        Webhooks). Avec un provider synchrone (ex. Wave), la réponse peut contenir un
+        Webhooks). Avec un prestataire synchrone (ex. Wave), la réponse peut contenir un
         `redirectUrl` que le client doit ouvrir pour autoriser le paiement.
 
-        Middlewares : `auth`, `device`, `geoip`, `idempotency`. Pas de code PIN requis.
-        Header `X-Idempotency-Key` obligatoire.
+        Nécessite une authentification (jeton Bearer), les en-têtes d'appareil et l'en-tête
+        d'idempotence `X-Idempotency-Key` (**obligatoire**). Aucun code PIN requis.
       tags:
         - Opérations
       security:
@@ -47,14 +47,14 @@ paths:
                 $ref: '#/components/schemas/OperationResponse'
               examples:
                 pending:
-                  summary: Provider asynchrone
+                  summary: Prestataire asynchrone
                   value:
                     message: "transaction initiated"
                     data:
                       transactionReference: "aig_tx_9f3a2c"
                       status: "pending"
                 redirect:
-                  summary: Provider synchrone (ex. Wave)
+                  summary: Prestataire synchrone (ex. Wave)
                   value:
                     message: "transaction initiated"
                     data:
@@ -88,7 +88,8 @@ paths:
             suit alors le format wallet-to-wallet (`data.reference`).
           - toute autre valeur → `400` « Payment method not supported ».
 
-        Middlewares : `auth`, `device`, `geoip`, `idempotency`.
+        Nécessite une authentification (jeton Bearer), les en-têtes d'appareil et l'en-tête
+        d'idempotence `X-Idempotency-Key`.
       tags:
         - Opérations
       security:
@@ -140,19 +141,19 @@ paths:
   /api/mobile/operations/transfert-inter:
     post:
       operationId: createInterTransfer
-      summary: Effectuer un transfert inter-réseaux (saga 2 jambes)
+      summary: Effectuer un transfert inter-réseaux (en deux étapes)
       description: |
-        Transfert **inter-réseaux** (opérateur A → opérateur B) via aiglesend, en **saga à 2
-        jambes** : cash-in depuis le compte débiteur (`debitaire`), puis cash-out vers le
-        bénéficiaire (`beneficiaire`). Renvoie `status: pending` ; la 2ᵉ jambe est déclenchée au
-        webhook de règlement de la 1ʳᵉ. Un `redirectUrl` peut apparaître si la 1ʳᵉ jambe passe
-        par un provider synchrone.
+        Transfert **inter-réseaux** (opérateur A → opérateur B) via aiglesend, en **deux étapes** :
+        un débit depuis le compte émetteur (`debitaire`), puis un versement vers le bénéficiaire
+        (`beneficiaire`). Renvoie `status: pending` ; la seconde étape est déclenchée à la
+        confirmation de règlement de la première. Un `redirectUrl` peut apparaître si la première
+        étape passe par un prestataire synchrone.
 
-        **PIN** : le validateur de cette opération **n'exige pas** de `pincode` (contrairement à
-        `transfert`) ; la garde d'identité valide le téléphone débiteur, pas le PIN. `debitaire.pincode`
-        est lu s'il est fourni. **TODO à confirmer** si un PIN doit être exigé ici.
+        **Code PIN** : cette opération n'exige pas de `pincode` (contrairement au transfert
+        simple). S'il est fourni, `debitaire.pincode` est pris en compte.
 
-        Middlewares : `auth`, `device`, `geoip`, `idempotency`.
+        Nécessite une authentification (jeton Bearer), les en-têtes d'appareil et l'en-tête
+        d'idempotence `X-Idempotency-Key`.
       tags:
         - Opérations
       security:
@@ -188,7 +189,7 @@ paths:
                 payment_method_id: 1
       responses:
         '200':
-          description: Transfert inter-réseaux initié (1ʳᵉ jambe en attente)
+          description: Transfert inter-réseaux initié (première étape en attente)
           content:
             application/json:
               schema:
@@ -220,7 +221,8 @@ paths:
         ⚠️ La réponse renvoie le champ sous le nom **`reference`** (et non `transactionReference`
         comme les autres opérations).
 
-        Middlewares : `auth`, `device`, `geoip`, `idempotency`.
+        Nécessite une authentification (jeton Bearer), les en-têtes d'appareil et l'en-tête
+        d'idempotence `X-Idempotency-Key`.
       tags:
         - Opérations
       security:
@@ -291,7 +293,7 @@ components:
       properties:
         transactionReference:
           type: string
-          description: Référence opaque de la transaction (générée par le serveur).
+          description: Référence de la transaction (identifiant généré par le serveur, à conserver tel quel).
         status:
           $ref: '#/components/schemas/OperationStatus'
         redirectUrl:
@@ -299,7 +301,7 @@ components:
           description: Optionnel — URL à ouvrir pour les providers synchrones (ex. Wave).
         type:
           type: string
-          description: Optionnel — type de règlement provider, si fourni.
+          description: Optionnel — type de règlement du prestataire, si fourni.
 
     OperationResponse:
       type: object
@@ -320,7 +322,7 @@ components:
           properties:
             reference:
               type: string
-              description: Référence opaque de la transaction.
+              description: Référence de la transaction (identifiant serveur, à conserver tel quel).
             status:
               $ref: '#/components/schemas/OperationStatus'
 
@@ -473,7 +475,7 @@ components:
   responses:
     OperationBadRequest:
       description: |
-        Requête rejetée : header device manquant (`MISSING_DEVICE_HEADERS`), `X-Idempotency-Key`
+        Requête rejetée : en-tête d'appareil manquant (`MISSING_DEVICE_HEADERS`), `X-Idempotency-Key`
         absent, méthode de paiement non supportée, ou refus métier (solde insuffisant, plafond…).
       content:
         application/json:
