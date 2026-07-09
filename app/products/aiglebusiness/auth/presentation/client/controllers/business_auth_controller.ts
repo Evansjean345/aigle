@@ -28,6 +28,7 @@ export default class BusinessAuthController {
       phone: payload.phone,
       otp: payload.otp,
       sessionName: request.header('user-agent')?.slice(0, 120),
+      deviceInfo: payload.device_info,
     })
 
     return response.ok(result)

@@ -129,7 +129,8 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
           user.usersUid,
           payload.deviceInfo.fingerprintHash,
           payload.deviceInfo.deviceUid,
-          payload.geoLocation as GeoIpLocation
+          payload.geoLocation as GeoIpLocation,
+          AppName.AIGLESEND
         )
       }
 

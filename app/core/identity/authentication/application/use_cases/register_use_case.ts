@@ -17,6 +17,7 @@ import securityLog from '#shared/infrastructure/logging/security_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
 import DeviceService from '#core/identity/device/application/services/device_service'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 
@@ -103,7 +104,7 @@ export default class RegisterUseCase {
 
       if (data.deviceInfoPayload) {
         const deviceCommand = DeviceCommandDTO.fromRequest(data.deviceInfoPayload)
-        await this.deviceService.saveDevice(deviceCommand, user.usersUid)
+        await this.deviceService.saveDevice(deviceCommand, user.usersUid, AppName.AIGLESEND)
       }
 
       securityLog.info(

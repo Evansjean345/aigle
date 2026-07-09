@@ -5,6 +5,8 @@ import UserDeviceRepository from '#core/identity/device/domain/interfaces/user_d
 import UserDevice from '#core/identity/device/domain/models/user_device'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
+import { type DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import NewDeviceDetected from '#core/identity/device/application/events/new_device_detected'
 import { maxDeviceConnectionAllowed } from '#config/app'
 import appLog from '#shared/infrastructure/logging/app_log'
@@ -45,11 +47,12 @@ export default class DeviceService {
   /**
    * Vérifie si le quota max de devices actifs est atteint pour un utilisateur.
    */
-  async checkIfMaxConnectionReached(userId: string): Promise<boolean> {
-    const count = await this.userDeviceRepository.countActiveByUserAndStatuses(userId, [
-      DeviceStatus.TRUSTED,
-      DeviceStatus.PENDING,
-    ])
+  async checkIfMaxConnectionReached(userId: string, app: string): Promise<boolean> {
+    const count = await this.userDeviceRepository.countActiveByUserAndStatuses(
+      userId,
+      [DeviceStatus.TRUSTED, DeviceStatus.PENDING],
+      app
+    )
     return count >= maxDeviceConnectionAllowed
   }
 
@@ -61,7 +64,8 @@ export default class DeviceService {
     userId: string,
     fingerprintHash: string,
     deviceUid: string,
-    geoLocation?: GeoIpLocation
+    geoLocation: GeoIpLocation | undefined,
+    app: string
   ): Promise<UserDevice | null> {
     const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
 
@@ -69,7 +73,11 @@ export default class DeviceService {
       return null
     }
 
-    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(userId, device.id)
+    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
+      userId,
+      device.id,
+      app
+    )
 
     if (!userDevice) {
       return null
@@ -95,7 +103,7 @@ export default class DeviceService {
    * - Vérifie le quota
    * - Émet NewDeviceDetected si nouvelle association
    */
-  async saveDevice(payload: DeviceCommandDTO, userId: string): Promise<UserDevice> {
+  async saveDevice(payload: DeviceCommandDTO, userId: string, app: string): Promise<UserDevice> {
     try {
       // 1. Trouver ou créer le device hardware
       const device = await this.deviceRepository.updateOrCreateByFingerprintHash(
@@ -112,10 +120,11 @@ export default class DeviceService {
         }
       )
 
-      // 2. Chercher une liaison active existante
+      // 2. Chercher une liaison active existante (scopée à l'app)
       const existingUserDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
         userId,
-        device.id
+        device.id,
+        app
       )
 
       if (existingUserDevice) {
@@ -128,17 +137,18 @@ export default class DeviceService {
         return this.userDeviceRepository.save(existingUserDevice)
       }
 
-      // 3. Nouvelle association — vérifier le quota
-      await this.ensureMaxDevicesNotReached(userId)
+      // 3. Nouvelle association — vérifier le quota (par app)
+      await this.ensureMaxDevicesNotReached(userId, app)
 
-      // 4. Déterminer si primary
-      const activeCount = await this.userDeviceRepository.countActiveByUserId(userId)
+      // 4. Déterminer si primary (par app)
+      const activeCount = await this.userDeviceRepository.countActiveByUserId(userId, app)
       const shouldBePrimary = activeCount === 0
 
       // 5. Créer la nouvelle liaison
       const userDevice = new UserDevice()
       userDevice.userId = userId
       userDevice.deviceId = device.id
+      userDevice.app = app
       userDevice.status = DeviceStatus.PENDING
       userDevice.isPrimary = shouldBePrimary
       userDevice.ipFirstSeen = payload.ipFirstSeen
@@ -170,6 +180,30 @@ export default class DeviceService {
   }
 
   /**
+   * Enregistre + truste un appareil pour une app donnée, et renvoie un identifiant
+   * MINIMAL (pas le modèle `UserDevice`) — destiné aux PRODUITS qui ne doivent pas
+   * dépendre du modèle core (invariant produit→core). Utilisé par le login mobile
+   * business (device trust scopé `app='aiglebusiness'`).
+   */
+  async registerAndTrustForApp(
+    deviceRequest: DeviceRequestDTO,
+    userId: string,
+    app: string,
+    geoLocation?: GeoIpLocation
+  ): Promise<{ userDeviceId: string } | null> {
+    const payload = DeviceCommandDTO.fromRequest(deviceRequest)
+    await this.saveDevice(payload, userId, app)
+    const trusted = await this.trustDevice(
+      userId,
+      payload.fingerprintHash,
+      payload.deviceUid,
+      geoLocation,
+      app
+    )
+    return trusted ? { userDeviceId: trusted.id } : null
+  }
+
+  /**
    * Met à jour le push token pour une liaison user↔device.
    */
   async updatePushToken(
@@ -189,7 +223,11 @@ export default class DeviceService {
       throw new UnauthenticatedDeviceException()
     }
 
-    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(userId, device.id)
+    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
+      userId,
+      device.id,
+      AppName.AIGLESEND
+    )
 
     if (!userDevice) {
       throw new UnauthenticatedDeviceException()
@@ -224,7 +262,11 @@ export default class DeviceService {
       return null
     }
 
-    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(userId, device.id)
+    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
+      userId,
+      device.id,
+      AppName.AIGLESEND
+    )
 
     if (userDevice) {
       // Attacher le device déjà chargé pour éviter une requête supplémentaire
@@ -282,7 +324,11 @@ export default class DeviceService {
    * Révoque une liaison user↔device.
    */
   async revokeDevice(userId: string, deviceId: string): Promise<UserDevice | null> {
-    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(userId, deviceId)
+    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
+      userId,
+      deviceId,
+      AppName.AIGLESEND
+    )
 
     if (!userDevice) {
       return null
@@ -301,8 +347,8 @@ export default class DeviceService {
     return this.userDeviceRepository.findAllByDeviceId(deviceId)
   }
 
-  private async ensureMaxDevicesNotReached(userId: string): Promise<void> {
-    const maxReached = await this.checkIfMaxConnectionReached(userId)
+  private async ensureMaxDevicesNotReached(userId: string, app: string): Promise<void> {
+    const maxReached = await this.checkIfMaxConnectionReached(userId, app)
 
     if (maxReached) {
       throw new MaxDevicesConnectedException()

@@ -10,10 +10,15 @@ export default class UserDeviceRepositoryImpl implements UserDeviceRepository {
     return await userDevice.save()
   }
 
-  async findActiveByUserAndDevice(userId: string, deviceId: string): Promise<UserDevice | null> {
+  async findActiveByUserAndDevice(
+    userId: string,
+    deviceId: string,
+    app: string
+  ): Promise<UserDevice | null> {
     return UserDevice.query()
       .where('userId', userId)
       .where('deviceId', deviceId)
+      .where('app', app)
       .whereNull('unlinkedAt')
       .first()
   }
@@ -30,9 +35,14 @@ export default class UserDeviceRepositoryImpl implements UserDeviceRepository {
     return UserDevice.query().where('deviceId', deviceId).whereNull('unlinkedAt')
   }
 
-  async countActiveByUserAndStatuses(userId: string, statuses: string[]): Promise<number> {
+  async countActiveByUserAndStatuses(
+    userId: string,
+    statuses: string[],
+    app: string
+  ): Promise<number> {
     const result = await UserDevice.query()
       .where('userId', userId)
+      .where('app', app)
       .whereNull('unlinkedAt')
       .whereIn('status', statuses)
       .count('* as total')
@@ -40,9 +50,10 @@ export default class UserDeviceRepositoryImpl implements UserDeviceRepository {
     return Number(result[0].$extras.total)
   }
 
-  async countActiveByUserId(userId: string): Promise<number> {
+  async countActiveByUserId(userId: string, app: string): Promise<number> {
     const result = await UserDevice.query()
       .where('userId', userId)
+      .where('app', app)
       .whereNull('unlinkedAt')
       .count('* as total')
 

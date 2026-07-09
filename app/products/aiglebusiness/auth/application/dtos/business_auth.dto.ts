@@ -1,4 +1,5 @@
 import { type UserLookupResult } from '#core/identity/user/application/dtos/user_lookup_result'
+import { type DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
 
 // ── RequestDto (input use cases) ────────────────────────────────────
 
@@ -11,6 +12,8 @@ export interface BusinessVerifyLoginRequestDto {
   phone: string
   otp: string
   sessionName?: string
+  /** Mobile business : présent → l'appareil est trusté (scopé app='aiglebusiness'). */
+  deviceInfo?: DeviceRequestDTO
 }
 
 // ── Response (output HTTP) ──────────────────────────────────────────

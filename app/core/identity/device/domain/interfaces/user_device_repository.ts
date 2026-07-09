@@ -15,7 +15,11 @@ export default abstract class UserDeviceRepository {
    * Find an active association between a user and a device.
    * Active means unlinkedAt is null.
    */
-  abstract findActiveByUserAndDevice(userId: string, deviceId: string): Promise<UserDevice | null>
+  abstract findActiveByUserAndDevice(
+    userId: string,
+    deviceId: string,
+    app: string
+  ): Promise<UserDevice | null>
 
   /**
    * Find all active associations for a user (with preloaded device).
@@ -35,12 +39,16 @@ export default abstract class UserDeviceRepository {
   /**
    * Count active associations for a user with specific statuses.
    */
-  abstract countActiveByUserAndStatuses(userId: string, statuses: string[]): Promise<number>
+  abstract countActiveByUserAndStatuses(
+    userId: string,
+    statuses: string[],
+    app: string
+  ): Promise<number>
 
   /**
    * Count total active associations for a user.
    */
-  abstract countActiveByUserId(userId: string): Promise<number>
+  abstract countActiveByUserId(userId: string, app: string): Promise<number>
 
   /**
    * Check if a user has ever used a device (active or historical).

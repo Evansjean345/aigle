@@ -3,7 +3,10 @@ import { randomUUID } from 'node:crypto'
 import app from '@adonisjs/core/services/app'
 import DeviceService from '#core/identity/device/application/services/device_service'
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
+import { DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
+import UserDevice from '#core/identity/device/domain/models/user_device'
 import { makeUser, authTestSetup } from '#tests/helpers/auth_test_helpers'
 
 /**
@@ -26,6 +29,17 @@ function deviceCommand(fingerprint: string, uid: string): DeviceCommandDTO {
   return cmd
 }
 
+/** Forme requête brute (snake_case) attendue par registerAndTrustForApp. */
+function deviceRequest(fingerprint: string, uid: string): DeviceRequestDTO {
+  const req = new DeviceRequestDTO()
+  req.fingerprint_hash = fingerprint
+  req.device_uid = uid
+  req.platform = 'android'
+  req.is_emulator = false
+  req.is_rooted = false
+  return req
+}
+
 test.group('DeviceService | trust', (group) => {
   group.each.setup(authTestSetup())
 
@@ -35,12 +49,13 @@ test.group('DeviceService | trust', (group) => {
     const fp = randomUUID()
     const uid = randomUUID()
 
-    await service.saveDevice(deviceCommand(fp, uid), user.usersUid)
-    const trusted = await service.trustDevice(user.usersUid, fp, uid)
+    await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLESEND)
+    const trusted = await service.trustDevice(user.usersUid, fp, uid, undefined, AppName.AIGLESEND)
 
     assert.isNotNull(trusted)
     assert.equal(trusted!.status, DeviceStatus.TRUSTED)
     assert.equal(trusted!.userId, user.usersUid)
+    assert.equal(trusted!.app, AppName.AIGLESEND)
   })
 
   test('deviceUid discordant → null (pas de confiance)', async ({ assert }) => {
@@ -48,8 +63,14 @@ test.group('DeviceService | trust', (group) => {
     const user = await makeUser()
     const fp = randomUUID()
 
-    await service.saveDevice(deviceCommand(fp, randomUUID()), user.usersUid)
-    const trusted = await service.trustDevice(user.usersUid, fp, 'un-autre-uid')
+    await service.saveDevice(deviceCommand(fp, randomUUID()), user.usersUid, AppName.AIGLESEND)
+    const trusted = await service.trustDevice(
+      user.usersUid,
+      fp,
+      'un-autre-uid',
+      undefined,
+      AppName.AIGLESEND
+    )
 
     assert.isNull(trusted)
   })
@@ -58,7 +79,46 @@ test.group('DeviceService | trust', (group) => {
     const service = await app.container.make(DeviceService)
     const user = await makeUser()
 
-    const trusted = await service.trustDevice(user.usersUid, randomUUID(), randomUUID())
+    const trusted = await service.trustDevice(
+      user.usersUid,
+      randomUUID(),
+      randomUUID(),
+      undefined,
+      AppName.AIGLESEND
+    )
     assert.isNull(trusted)
+  })
+
+  test('même user + même device, 2 apps → 2 liens indépendants (isolation par app)', async ({
+    assert,
+  }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+    const fp = randomUUID()
+    const uid = randomUUID()
+
+    // registerAndTrustForApp expose l'API produit (DTO minimal) pour les 2 apps.
+    const s = await service.registerAndTrustForApp(
+      deviceRequest(fp, uid),
+      user.usersUid,
+      AppName.AIGLESEND
+    )
+    const b = await service.registerAndTrustForApp(
+      deviceRequest(fp, uid),
+      user.usersUid,
+      AppName.AIGLEBUSINESS
+    )
+
+    assert.isNotNull(s)
+    assert.isNotNull(b)
+    assert.notEqual(s!.userDeviceId, b!.userDeviceId)
+
+    // Deux liens user_device (un par app) pour le même (user, device).
+    const links = await UserDevice.query().where('user_id', user.usersUid)
+    assert.lengthOf(links, 2)
+    assert.sameMembers(
+      links.map((l) => l.app),
+      [AppName.AIGLESEND, AppName.AIGLEBUSINESS]
+    )
   })
 })

@@ -60,6 +60,9 @@ header `X-Client-App`, pas d'ability/scope marquant aiglesend vs aiglebusiness.
 | 8 | **Session web = le token lui-même** (pas de nouvelle table, précise #2). « Mes sessions » = lister les access tokens actifs du user (nom = navigateur, `deviceInfo` json = userAgent+IP, `last_used_at`, `created_at`) ; révoquer = `accessTokens.delete`. Exposé via un service core (le produit ne touche pas le modèle User) | `UserDevice` + `Device` synthétique (pollue Device de fingerprints factices) ; table `web_session` dédiée (duplique listing/révocation) | Naturel pour le web (token=session), zéro table, révocation native ; `access_tokens` porte déjà name/deviceInfo/last_used_at | 2026-07-08 |
 | 9 | **OTP SYSTÉMATIQUE au login web, pas de skip « navigateur connu »** (révise #5/#6) : sauter l'OTP sur un portail **financier** = faille. Le remember-token navigateur est **abandonné** (pas reporté). Le Lot 3 se réduit donc à **lister/révoquer les sessions** | inclure le skip-OTP (remember-token) ; le reporter à un Lot 4 | Sécurité d'une appli financière : l'OTP à chaque login web est la bonne posture, pas une friction à supprimer | 2026-07-08 |
 | 4 | **Stamp = ability `app:<produit>` dans le token** (les abilities sont inutilisées aujourd'hui, aucun `.allows()`) ; `requireApp` lit `currentAccessToken.abilities` en **inclusion littérale**. **Transition = forcer le re-login** (enforce strict d'emblée, tokens sans stamp refusés). Sémantique middleware : bon `app` → passe ; **autre** `app:*` → **403** (cloisonnement) ; **aucun** `app:*` (legacy) → **401** (re-login) | backfill `app:aiglesend` + enforce (moins disruptif) ; grandfather les tokens sans stamp (faille transitoire) | Le plus propre ; abilities repurposables sans risque ; contexte pré-prod tolère la déconnexion | 2026-07-08 |
+| 10 | **Device trust pour aiglebusiness MOBILE** (comme aiglesend), **web business garde les sessions Lot 3** (précise #2). Le login business (étape verify) accepte un `deviceInfo` **optionnel** ; s'il est présent → `saveDevice` + `trustDevice` scopés `app='aiglebusiness'`. Trou comblé : le login business (Lot 2) ne trustait aucun appareil | web business aussi en device (pas de fingerprint navigateur, #2) | Cohérent avec « device par plateforme » (#2) ; le mobile business est un vrai appareil de confiance | 2026-07-09 |
+| 11 | **Distinction d'app = colonne `app` sur `user_devices`** (le LIEN), **pas** sur `devices` (le matériel, app-agnostique — même téléphone, 2 apps). **Un `user_device` par (user, device, app)**. `DeviceService` + repo deviennent **app-scoped** (`findActiveByUserAndDeviceAndApp`, `countActiveByUserIdAndApp`) ; les appelants aiglesend passent `app='aiglesend'` | colonne sur `devices` (matériel ≠ app) ; 1 lien multi-app (set d'apps) | Le matériel est partagé, le lien de confiance est par-app ; même téléphone trusté indépendamment par app | 2026-07-09 |
+| 12 | **Quota (`MAX_DEVICE_CONNECTIONS`), `is_primary` et lookups = PAR-APP** (aujourd'hui globaux). Backfill : les `user_devices` existants → `app='aiglesend'` (tout le device trust actuel est aiglesend, business n'avait pas de flux device) | quota global (un login business pourrait évincer un appareil aiglesend) | Les contextes sont indépendants : N appareils de confiance aiglesend ET N aiglebusiness ; primary par app | 2026-07-09 |
 
 ## Objectif (validé 2026-07-08)
 
@@ -179,6 +182,21 @@ user → 404/403 (ownership) ; le listing n'expose pas le hash du token.
 - **Tests** `business_sessions_flow.spec` (5) : liste (courante marquée), révocation (token révoqué →
   401, la liste décroît), ownership (token d'autrui → 404), sans jeton → 401, cloisonnement aiglesend → 403.
 - Vérifs : tsc/eslint/depcruise clean (0 error), suite 250/254 (4 core pré-existants).
+
+## Extension : device trust mobile business (décisions #10-#12) — IMPLÉMENTÉ ✅
+
+- **Schéma** : colonne `app` sur `user_devices` (migration ; défaut `aiglesend` → backfill auto).
+  `devices` (matériel) inchangé. **Un `user_device` par (user, device, app)**.
+- **Core device app-scoped** : `DeviceService.saveDevice(…, app)` / `trustDevice(…, app)` ; quota
+  (`MAX_DEVICE_CONNECTIONS`), `is_primary` et lookups **par app** ; les appelants aiglesend
+  (register, verify-account, verify-credentials, revoke, push) passent `AIGLESEND`.
+- **API produit** `DeviceService.registerAndTrustForApp(deviceRequest, userId, app)` → renvoie un
+  **DTO minimal `{ userDeviceId }`** (pas le modèle `UserDevice`) → invariant produit→core tenu.
+- **Login mobile business** : `verify` accepte un `device_info` **optionnel** → device trusté
+  `app='aiglebusiness'`, token nommé `device:<id>`. Web (sans device_info) inchangé (sessions Lot 3).
+- **Tests** : `device_service.spec` (trust app-aware + isolation par-app : même user+device, 2 apps →
+  2 liens) ; `business_device_flow.spec` (verify+device → lien `app=aiglebusiness` TRUSTED ; web sans
+  device → 0 lien). Suite 253/257 (4 core pré-existants), depcruise 0 error.
 
 ## Prochaine session
 

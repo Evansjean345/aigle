@@ -19,6 +19,9 @@ export default class UserDevice extends BaseModel {
   declare status: DeviceStatus
 
   @column()
+  declare app: string
+
+  @column()
   declare isPrimary: boolean
 
   @column()

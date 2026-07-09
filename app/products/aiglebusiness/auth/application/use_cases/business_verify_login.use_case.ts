@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import UserDirectoryService from '#core/identity/user/application/services/user_directory_service'
 import OtpVerificationService from '#core/identity/otp/application/services/otp_verification_service'
 import IssueAppTokenService from '#core/identity/authentication/application/services/issue_app_token_service'
+import DeviceService from '#core/identity/device/application/services/device_service'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import BusinessLoginOtpTemplate from '#aiglebusiness/auth/domain/templates/business_login_otp_template'
 import {
@@ -20,7 +21,8 @@ export default class BusinessVerifyLoginUseCase {
   constructor(
     private readonly userDirectory: UserDirectoryService,
     private readonly otpVerification: OtpVerificationService,
-    private readonly issueAppToken: IssueAppTokenService
+    private readonly issueAppToken: IssueAppTokenService,
+    private readonly deviceService: DeviceService
   ) {}
 
   async execute(request: BusinessVerifyLoginRequestDto): Promise<BusinessAuthTokenDTO> {
@@ -35,8 +37,24 @@ export default class BusinessVerifyLoginUseCase {
       new BusinessLoginOtpTemplate()
     )
 
+    // Mobile business : truste l'appareil (scopé app='aiglebusiness') si fourni.
+    // Le nom du token porte alors la session `device:<id>` (comme aiglesend).
+    let tokenName = request.sessionName
+
+    if (request.deviceInfo) {
+      const trusted = await this.deviceService.registerAndTrustForApp(
+        request.deviceInfo,
+        user.userId,
+        AppName.AIGLEBUSINESS
+      )
+
+      if (trusted) {
+        tokenName = `device:${trusted.userDeviceId}`
+      }
+    }
+
     const token = await this.issueAppToken.issue(user.userId, AppName.AIGLEBUSINESS, {
-      name: request.sessionName,
+      name: tokenName,
     })
 
     return BusinessAuthTokenDTO.from(token, user)

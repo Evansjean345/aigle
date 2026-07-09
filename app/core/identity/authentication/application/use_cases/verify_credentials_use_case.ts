@@ -5,6 +5,7 @@ import {
 } from '#core/identity/authentication/application/dtos/login.dto'
 import OtpSendingService from '#core/identity/otp/application/services/otp_sending_service'
 import DeviceService from '#core/identity/device/application/services/device_service'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
 import { bypassEnabled, appPhoneNumberReview } from '#config/app'
 import CountryRepository from '#core/catalog/country/domain/interfaces/country_repository'
@@ -124,7 +125,7 @@ export default class VerifyCredentialsUseCase {
 
     if (data.device) {
       const deviceCommand = DeviceCommandDTO.fromRequest(data.device)
-      await this.deviceService.saveDevice(deviceCommand, user.usersUid)
+      await this.deviceService.saveDevice(deviceCommand, user.usersUid, AppName.AIGLESEND)
     }
 
     securityLog.info(
