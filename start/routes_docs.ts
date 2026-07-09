@@ -16,21 +16,21 @@ router.get('/swagger/aiglebusiness', async ({ response }) => {
 
 // --- Documentation UI routes (Edge views) ---
 router.get('/docs/aiglesend', async ({ view }) => {
-  return view.render('docs/swagger-ui', {
+  return view.render('docs/api-reference', {
     title: 'Aigle API — Aiglesend',
     specUrl: '/swagger/aiglesend',
   })
 })
 
 router.get('/docs/admin', async ({ view }) => {
-  return view.render('docs/swagger-ui', {
+  return view.render('docs/api-reference', {
     title: 'Aigle API — Admin',
     specUrl: '/swagger/admin',
   })
 })
 
 router.get('/docs/aiglebusiness', async ({ view }) => {
-  return view.render('docs/swagger-ui', {
+  return view.render('docs/api-reference', {
     title: 'Aigle API — Aiglebusiness',
     specUrl: '/swagger/aiglebusiness',
   })

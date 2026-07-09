@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ title }}</title>
+  <style>
+    body { margin: 0; }
+    /* Barre de navigation entre les specs (au-dessus de Scalar) */
+    .custom-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.55rem 1.25rem; background: #0d1117; color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      border-bottom: 1px solid #21262d; position: sticky; top: 0; z-index: 50;
+    }
+    .custom-topbar .brand { font-size: 1.05rem; font-weight: 600; letter-spacing: .3px; }
+    .custom-topbar nav { display: flex; gap: .5rem; }
+    .custom-topbar a {
+      color: #adbac7; text-decoration: none; padding: .3rem .8rem; border-radius: 6px;
+      font-size: .85rem; border: 1px solid #30363d; transition: background .15s, color .15s;
+    }
+    .custom-topbar a:hover { background: #161b22; color: #e6edf3; }
+    .custom-topbar a.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="custom-topbar">
+    <span class="brand">🦅 Aigle API</span>
+    <nav>
+      <a href="/docs">🏠 Index</a>
+      <a href="/docs/aiglesend">📱 Aiglesend</a>
+      <a href="/docs/aiglebusiness">🏢 Business</a>
+      <a href="/docs/admin">🔧 Admin</a>
+    </nav>
+  </div>
+
+  <script
+    id="api-reference"
+    data-url="{{ specUrl }}"
+    data-configuration='{"theme":"default","layout":"modern","hideDownloadButton":false,"defaultHttpClient":{"targetKey":"shell","clientKey":"curl"}}'
+  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+
+  <script>
+    // Lien actif dans la barre
+    document.querySelectorAll('.custom-topbar nav a').forEach(function (a) {
+      if (a.getAttribute('href') === location.pathname) a.classList.add('active');
+    });
+  </script>
+</body>
+</html>

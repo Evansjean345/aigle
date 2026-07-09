@@ -22,9 +22,10 @@ paths:
       operationId: businessCheckPhone
       summary: Connexion business — étape 0 (vérifier le numéro)
       description: |
-        Vérifie qu'un numéro correspond à un **user Aigle KYC-vérifié** (prérequis AigleBusiness)
-        avant de demander le PIN. Non authentifié. Ne renvoie **aucune PII** (pas de nom), juste
-        le numéro **masqué** en cas de succès.
+        Vérifie qu'un numéro correspond à un compte Aigle dont la vérification d'identité (KYC)
+        est validée — condition d'accès à AigleBusiness — avant de demander le code PIN.
+        Endpoint public (non authentifié). Pour préserver la confidentialité, aucune donnée
+        personnelle n'est renvoyée : seul le numéro **masqué** est retourné en cas de succès.
       tags:
         - Business - Authentification
       requestBody:
@@ -68,9 +69,11 @@ paths:
       operationId: businessLogin
       summary: Connexion business — étape 1 (phone + PIN → OTP)
       description: |
-        Première étape du login business (portail web + app mobile). Valide le **PIN** de
-        l'utilisateur puis envoie un **OTP** par SMS. Aucun token émis à ce stade.
-        Réponse générique en cas d'échec (anti-énumération : PIN faux et numéro inconnu → 401).
+        Première étape de la connexion business (portail web et application mobile). Valide le
+        **code PIN** de l'utilisateur, puis envoie un **code de vérification (OTP)** par SMS.
+        Aucun jeton n'est émis à cette étape : appelez ensuite `/verify` avec le code reçu.
+        Pour votre sécurité, un échec renvoie toujours le même message générique (401), que le
+        PIN soit erroné ou le numéro inconnu.
       tags:
         - Business - Authentification
       requestBody:
@@ -93,9 +96,10 @@ paths:
                 is_emulator: false
                 is_rooted: false
         description: >-
-          `device_info` est **optionnel** (mobile business uniquement — omis sur le portail web).
-          Fourni ici → l'appareil est enregistré en PENDING (déclenche l'alerte « nouvel appareil »),
-          puis trusté au verify (OTP).
+          `device_info` est **optionnel** et concerne uniquement l'application mobile
+          (à omettre sur le portail web). Lorsqu'il est fourni, l'appareil est mémorisé et une
+          alerte « nouvel appareil » peut être envoyée ; il devient un **appareil de confiance**
+          une fois le code OTP validé à l'étape `/verify`.
       responses:
         '200':
           description: OTP envoyé
@@ -118,13 +122,15 @@ paths:
       operationId: businessVerifyLogin
       summary: Connexion business — étape 2 (OTP → token)
       description: |
-        Vérifie l'**OTP** et émet un access token **stampé `app:aiglebusiness` + `channel:<canal>`**
-        (utilisable uniquement sur les endpoints business) + un profil minimal.
+        Valide le **code de vérification (OTP)** reçu par SMS et renvoie un **jeton d'accès** —
+        à placer dans l'en-tête `Authorization: Bearer <token>` pour appeler les endpoints
+        business — ainsi que le profil de l'utilisateur.
 
-        **Canal obligatoire** (`X-Client-Channel: mobile|web`). Canal **`mobile`** → les headers device
-        (`X-Device-Fingerprint`, `X-Device-Uid`) sont **requis** → l'appareil enregistré au login
-        (PENDING) est **trusté**. Canal **`web`** → pas de headers device (sessions gérées par les
-        access tokens, cf. `/auth/sessions`).
+        Indiquez le canal du client via l'en-tête `X-Client-Channel` (`mobile` ou `web`) :
+        - **`mobile`** : envoyez aussi les en-têtes `X-Device-Fingerprint` et `X-Device-Uid`.
+          L'appareil utilisé lors de la connexion devient alors un **appareil de confiance**.
+        - **`web`** : aucun en-tête d'appareil n'est nécessaire. Vous gérez vos connexions via
+          `/api/business/auth/sessions`.
       tags:
         - Business - Authentification
       parameters:
@@ -134,7 +140,7 @@ paths:
           schema:
             type: string
             enum: [mobile, web]
-          description: Canal du client. `mobile` exige les headers device ; stampé sur le token.
+          description: Canal du client. En `mobile`, les en-têtes d'appareil ci-dessous sont requis.
           example: web
         - name: X-Device-Fingerprint
           in: header
@@ -167,7 +173,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BusinessAuthTokenResponse'
         '400':
-          description: OTP invalide/expiré (propagé du core)
+          description: Code de vérification (OTP) invalide ou expiré
           content:
             application/json:
               example:
@@ -186,8 +192,9 @@ paths:
       operationId: listBusinessSessions
       summary: Lister mes sessions actives
       description: |
-        Sessions actives de l'utilisateur business (une session = un access token). La session
-        courante est marquée `current: true`. Réservé à un token `app:aiglebusiness`.
+        Liste les sessions actives de l'utilisateur (une session = une connexion). La session
+        utilisée pour la requête courante est marquée `current: true`. Réservé aux jetons
+        AigleBusiness.
       tags:
         - Business - Authentification
       security:
@@ -202,7 +209,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/UserSession'
         '401':
-          description: Non authentifié, ou token sans stamp d'app (re-login requis)
+          description: Non authentifié, ou jeton non associé à AigleBusiness (reconnectez-vous)
         '403':
           $ref: '#/components/responses/WrongAppForbidden'
 
@@ -211,8 +218,9 @@ paths:
       operationId: revokeBusinessSession
       summary: Révoquer une session
       description: |
-        Révoque une session (déconnecte ce navigateur/appareil). L'ownership est vérifié :
-        révoquer le token d'un autre utilisateur → 404. Réservé à un token `app:aiglebusiness`.
+        Révoque une session (déconnecte l'appareil ou le navigateur correspondant). Vous ne
+        pouvez révoquer que vos propres sessions ; toute autre → 404. Réservé aux jetons
+        AigleBusiness.
       tags:
         - Business - Authentification
       security:
@@ -228,7 +236,7 @@ paths:
         '204':
           description: Session révoquée
         '401':
-          description: Non authentifié, ou token sans stamp d'app (re-login requis)
+          description: Non authentifié, ou jeton non associé à AigleBusiness (reconnectez-vous)
         '403':
           $ref: '#/components/responses/WrongAppForbidden'
         '404':
@@ -723,9 +731,9 @@ paths:
       operationId: acceptInvitation
       summary: Accepter une invitation
       description: |
-        Accepte l'invitation avec l'OTP reçu par SMS (2e facteur). Bascule le membre
-        **PENDING → ACTIVE**. Semi-public (token + OTP). Les erreurs OTP (invalide, expiré,
-        verrouillé) proviennent du core.
+        Accepte l'invitation à l'aide du code de vérification (OTP) reçu par SMS (2ᵉ facteur).
+        Le membre passe du statut `pending` au statut `active`. Accessible avec le lien
+        d'invitation et l'OTP (aucune connexion préalable requise).
       tags:
         - Business - Invitations
       parameters:
@@ -746,7 +754,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/MemberResponse'
         '400':
-          description: OTP invalide (propagé du core)
+          description: Code de vérification (OTP) invalide, expiré ou verrouillé
           content:
             application/json:
               example:
@@ -1136,8 +1144,9 @@ components:
     DeviceInfo:
       type: object
       description: >-
-        Informations d'appareil (mobile business). Présent → l'appareil est enregistré
-        et trusté, scopé app='aiglebusiness'. Omis sur le portail web.
+        Informations sur l'appareil (application mobile). Lorsqu'il est fourni, l'appareil est
+        mémorisé pour AigleBusiness et devient un appareil de confiance après validation de
+        l'OTP. À omettre sur le portail web.
       required:
         - fingerprint_hash
         - device_uid
@@ -1209,7 +1218,7 @@ components:
       properties:
         token:
           type: string
-          description: Access token opaque, stampé app:aiglebusiness
+          description: "Jeton d'accès à envoyer dans l'en-tête `Authorization: Bearer <token>`"
         profile:
           $ref: '#/components/schemas/BusinessAuthProfile'
 
@@ -1223,12 +1232,12 @@ components:
         name:
           type: string
           nullable: true
-          description: Libellé (device:<id> en mobile, user-agent en web)
+          description: Libellé de la session (identifiant d'appareil en mobile, navigateur en web)
         channel:
           type: string
           nullable: true
           enum: [mobile, web]
-          description: Canal de la session (stampé au login)
+          description: Canal de la session, tel qu'indiqué à la connexion
         lastUsedAt:
           type: string
           format: date-time
