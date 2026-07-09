@@ -17,6 +17,8 @@ import { TransactionType } from '#core/money/transactions/domain/enums/transacti
 import { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
 import { PaymentStatus } from '#core/money/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#core/money/transactions/domain/enums/payment_step'
+import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
+import WalletInactiveException from '#core/money/wallet/domain/exceptions/wallet_inactive_exception'
 import type Wallet from '#core/money/wallet/domain/models/wallet'
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
@@ -41,14 +43,10 @@ export default class ExternalInUseCase {
   ) {}
 
   async handle(cmd: ExternalInCommand): Promise<MovementResult> {
-    const wallet = await this.resolveWalletWithUser(cmd.toAccountId)
+    const wallet = await this.resolveWallet(cmd.toAccountId)
     const { amount, fees, total } = await this.feeResolver.resolve(cmd.feeContext, cmd.amount)
 
-    await this.partyValidator.validate({
-      user: wallet.user,
-      amount,
-      transactionType: cmd.type,
-    })
+    await this.validateRecipient(wallet, amount, cmd.type)
 
     const { paymentMethodCode, deviceInfo, geoIpLocation } = this.extractMeta(cmd)
     const rawPhone = cmd.source.msisdn
@@ -70,10 +68,11 @@ export default class ExternalInUseCase {
           idempotency: cmd.idempotencyKey || undefined,
         },
         wallet.id,
-        wallet.user,
+        wallet.user ?? null,
         deviceInfo,
         geoIpLocation,
-        trx
+        trx,
+        wallet.accountId ?? cmd.toAccountId
       )
       const payment = await this.paymentService.createPayment(
         {
@@ -84,7 +83,7 @@ export default class ExternalInUseCase {
           step: PaymentStep.DEPOSIT_INIT,
         },
         transaction,
-        wallet.user,
+        wallet.user ?? null,
         trx
       )
 
@@ -149,10 +148,38 @@ export default class ExternalInUseCase {
     }
   }
 
-  private async resolveWalletWithUser(accountId: string): Promise<Wallet> {
-    const wallet = await this.walletService.getByUserId(accountId)
-    await wallet.load('user')
+  /**
+   * Résout le wallet destinataire par compte user ou
+   * marchand (compte org sans user). Charge l'user s'il existe
+   */
+  private async resolveWallet(accountId: string): Promise<Wallet> {
+    const wallet = await this.walletService.getByAccountId(accountId)
+    if (wallet.userId) await wallet.load('user')
     return wallet
+  }
+
+  /**
+   * Valide le destinataire d'un crédit externe.
+   *  - **user** (deposit consumer) : validation complète (compte actif + limites) — inchangée ;
+   *  - **marchand** (checkout, compte org sans user) : le payeur anonyme n'a ni KYC ni device ;
+   *    on valide uniquement que le wallet destinataire est **actif** (l'existence de l'alias
+   *    payable garantit déjà un marchand opérationnel).
+   */
+  private async validateRecipient(
+    wallet: Wallet,
+    amount: number,
+    type: ExternalInCommand['type']
+  ): Promise<void> {
+    if (wallet.userId && wallet.user) {
+      await this.partyValidator.validate({ user: wallet.user, amount, transactionType: type })
+      return
+    }
+
+    if (wallet.status !== WalletStatus.Active) {
+      throw new WalletInactiveException(
+        'Impossible de finaliser le paiement vers ce compte pour le moment.'
+      )
+    }
   }
 
   private extractMeta(cmd: ExternalInCommand): {

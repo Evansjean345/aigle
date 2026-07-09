@@ -31,8 +31,6 @@ export default class SettleProviderWebhookUseCase {
   ) {}
 
   async handle(event: ProviderWebhookEvent): Promise<void> {
-    // Trace forensique de la réception (transaction_logs), AVANT tout traitement : même si la
-    // transaction est introuvable ou que le settlement échoue, on garde le brut reçu. Best-effort.
     emitter
       .emit('activity:transaction-log', {
         event: 'WEBHOOK_RECEIVED',
@@ -81,13 +79,13 @@ export default class SettleProviderWebhookUseCase {
     switch (transaction.operationType) {
       case TransactionType.DEPOSIT:
         return 'deposit'
+      case TransactionType.CHECKOUT:
+        return 'deposit'
       case TransactionType.TRANSFERT:
         return 'transfert'
       case TransactionType.TRANSFERT_INTER:
         return operationType === 'payout' ? 'transfert_inter_second' : 'transfert_inter_first'
       default:
-        // Filet de sécurité si un type non couvert atteint la réception : on retombe sur le type
-        // d'opération provider (checkout = entrant type deposit, payout = sortant type transfert).
         return this.kindFromOperationType(transaction, operationType)
     }
   }

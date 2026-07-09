@@ -9,7 +9,7 @@ export enum TransactionType {
   TRANSFERT_INTER = 'inter_reseau',
 
   // ── Business (ajoutés au Lot 6) ──
-  // CHECKOUT = 'checkout',
+  CHECKOUT = 'checkout',
   // PAYOUT = 'payout',
   // MASS_PAYOUT = 'mass_payout',
 }

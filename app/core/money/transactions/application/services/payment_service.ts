@@ -52,13 +52,13 @@ export default class PaymentService {
       status?: PaymentStatus
     },
     transaction: Transaction,
-    user: AccountRef,
+    user: AccountRef | null,
     trx?: TransactionClientContract
   ): Promise<Payment> {
     transactionLog.info(
       'INIT_PAYMENT_CREATION',
-      { transaction_id: transaction.id, user_id: user.id, method: payload.payment_method },
-      `Creating payment '${payload.step}' for transaction ${transaction.id} by user ${user.id} with method ${payload.payment_method}`
+      { transaction_id: transaction.id, user_id: user?.id ?? null, method: payload.payment_method },
+      `Creating payment '${payload.step}' for transaction ${transaction.id} by user ${user?.id ?? 'n/a'} with method ${payload.payment_method}`
     )
     const payment = new Payment()
 
