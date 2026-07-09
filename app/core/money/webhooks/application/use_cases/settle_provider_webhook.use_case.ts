@@ -1,11 +1,11 @@
 import { inject } from '@adonisjs/core'
+import { Exception } from '@adonisjs/core/exceptions'
 import emitter from '@adonisjs/core/services/emitter'
-import Transaction from '#core/money/transactions/domain/models/transaction'
+import type Transaction from '#core/money/transactions/domain/models/transaction'
+import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
 import { redactSensitive } from '#shared/infrastructure/logging/redact_sensitive'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
-import { PaymentStatus } from '#core/money/transactions/domain/enums/payment_status'
 import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
-import PaymentService from '#core/money/transactions/application/services/payment_service'
 import TransactionNotFoundException from '#core/money/transactions/domain/exceptions/transaction_not_found_exception'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 import type { ProviderWebhookEvent } from '#core/money/webhooks/domain/value_objects/provider_webhook_event'
@@ -17,8 +17,7 @@ import type { SettlementKind } from '#core/money/money_movement/domain/types/mon
  *
  * 1. charge la transaction par `reference` ;
  * 2. déduit le `SettlementKind` de son `operationType` interne + le type d'opération provider
- *    (checkout vs payout) — l'inter-réseau distingue jambe 1 (checkout) et jambe 2 (payout) selon
- *    l'état déjà réglé du 1er paiement ;
+ *    (checkout vs payout) — l'inter-réseau distingue jambe 1 (checkout) et jambe 2 (payout) ;
  * 3. délègue à l'engine (porte unique de l'argent), qui possède toute la mécanique de settlement.
  *
  * Adaptateur entrant : aucune logique argent ici, comme les handlers de webhook aiglehub.
@@ -27,7 +26,7 @@ import type { SettlementKind } from '#core/money/money_movement/domain/types/mon
 export default class SettleProviderWebhookUseCase {
   constructor(
     private readonly engine: MoneyMovementEngine,
-    private readonly paymentService: PaymentService
+    private readonly transactionRepository: TransactionRepository
   ) {}
 
   async handle(event: ProviderWebhookEvent): Promise<void> {
@@ -39,13 +38,13 @@ export default class SettleProviderWebhookUseCase {
       })
       .catch(() => {})
 
-    const transaction = await Transaction.query().where('reference', event.reference).first()
+    const transaction = await this.transactionRepository.findByReference(event.reference)
 
     if (!transaction) {
       throw new TransactionNotFoundException('Transaction introuvable pour ce webhook provider')
     }
 
-    const kind = await this.resolveKind(transaction, event.operationType)
+    const kind = this.resolveKind(transaction, event.operationType)
 
     paymentLog.info(
       'PROVIDER_WEBHOOK_SETTLE',
@@ -67,15 +66,16 @@ export default class SettleProviderWebhookUseCase {
   }
 
   /**
-   * Déduit le `SettlementKind` du type interne de la transaction + le type d'opération provider.
-   * L'inter-réseau (`inter_reseau`) est une saga 2 jambes : checkout = jambe 1 (cash-in), payout =
-   * jambe 2 (cash-out). Un `checkout` reçu alors que le 1er paiement est déjà réglé est traité comme
-   * un rejeu de jambe 1 (l'engine le neutralise via son idempotence).
+   * Déduit le `SettlementKind` du type interne de la transaction (+ le type d'opération provider
+   * pour l'inter-réseau : checkout = jambe 1 cash-in, payout = jambe 2 cash-out).
+   *
+   * Un type non couvert est une **anomalie** (transaction non réglable par webhook) : on **échoue
+   * bruyamment** plutôt que de deviner un règlement — c'est de l'argent, pas de fallback silencieux.
    */
-  private async resolveKind(
+  private resolveKind(
     transaction: Transaction,
     operationType: 'checkout' | 'payout'
-  ): Promise<SettlementKind> {
+  ): SettlementKind {
     switch (transaction.operationType) {
       case TransactionType.DEPOSIT:
         return 'deposit'
@@ -86,21 +86,10 @@ export default class SettleProviderWebhookUseCase {
       case TransactionType.TRANSFERT_INTER:
         return operationType === 'payout' ? 'transfert_inter_second' : 'transfert_inter_first'
       default:
-        return this.kindFromOperationType(transaction, operationType)
+        throw new Exception(
+          `Type d'opération non réglable par webhook : ${transaction.operationType}`,
+          { status: 500, code: 'E_UNSUPPORTED_SETTLEMENT_KIND' }
+        )
     }
-  }
-
-  private async kindFromOperationType(
-    transaction: Transaction,
-    operationType: 'checkout' | 'payout'
-  ): Promise<SettlementKind> {
-    const payments = await this.paymentService.findByTransaction(transaction.transactionsUid)
-    const firstSettled = payments[0]?.status === PaymentStatus.SUCCESS
-
-    if (operationType === 'payout') {
-      return payments.length >= 2 && firstSettled ? 'transfert_inter_second' : 'transfert'
-    }
-
-    return 'deposit'
   }
 }
