@@ -1,11 +1,10 @@
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
-import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import User from '#core/identity/user/domain/models/user'
-import { UserStatus } from '#core/identity/user/domain/enum'
 import IssueAppTokenService from '#core/identity/authentication/application/services/issue_app_token_service'
 import { AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
+import { makeUser, authTestSetup } from '#tests/helpers/auth_test_helpers'
 
 /**
  * Émission de token stampé par app (socle du cloisonnement, Lot 1) : le token porte
@@ -13,27 +12,8 @@ import { AppName, appAbility } from '#core/identity/authentication/domain/enums/
  * (par userId, appelants produit).
  */
 
-async function makeUser(): Promise<User> {
-  const user = new User()
-  user.countryId = 52
-  user.firstname = 'Token'
-  user.lastname = 'User'
-  user.phone = `225${Math.floor(1_00_000_000 + Math.random() * 8_99_999_999)}`
-  user.status = UserStatus.ACTIVE
-  user.accountType = 'freemium'
-  await user.save()
-  return user
-}
-
 test.group('IssueAppTokenService', (group) => {
-  group.each.setup(async () => {
-    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
-    await db.beginGlobalTransaction()
-    return async () => {
-      await db.rollbackGlobalTransaction()
-      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
-    }
-  })
+  group.each.setup(authTestSetup())
 
   test('issueForUser stampe app:aiglesend et renvoie le token en clair', async ({ assert }) => {
     const service = await app.container.make(IssueAppTokenService)

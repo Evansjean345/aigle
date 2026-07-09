@@ -1,11 +1,10 @@
 import { test } from '@japa/runner'
-import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import User from '#core/identity/user/domain/models/user'
 import { UserStatus } from '#core/identity/user/domain/enum'
-import NotificationService from '#core/notifications/application/services/notification_service'
 import RegisterUseCase from '#core/identity/authentication/application/use_cases/register_use_case'
 import UserAlreadyExistsException from '#core/identity/authentication/domain/exceptions/user_already_exists_exception'
+import { authTestSetup, CI_COUNTRY_ID } from '#tests/helpers/auth_test_helpers'
 
 /**
  * Inscription mobile aiglesend : crée un utilisateur INACTIVE + son compte, puis
@@ -13,13 +12,9 @@ import UserAlreadyExistsException from '#core/identity/authentication/domain/exc
  * SMS neutralisé (frontière core). Pays 52 = CI (phone_code 225).
  */
 
-class SilentNotificationService {
-  async sendSms(): Promise<void> {}
-}
-
 function registerPayload(localPhone: string) {
   return {
-    country_id: 52,
+    country_id: CI_COUNTRY_ID,
     phone: localPhone,
     firstname: 'New',
     lastname: 'User',
@@ -28,16 +23,7 @@ function registerPayload(localPhone: string) {
 }
 
 test.group('Auth | register', (group) => {
-  group.each.setup(async () => {
-    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
-    await db.beginGlobalTransaction()
-    app.container.swap(NotificationService, () => new SilentNotificationService() as never)
-    return async () => {
-      app.container.restore(NotificationService)
-      await db.rollbackGlobalTransaction()
-      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
-    }
-  })
+  group.each.setup(authTestSetup({ silentSms: true }))
 
   test('nouveau numéro → crée un utilisateur INACTIVE', async ({ assert }) => {
     const useCase = await app.container.make(RegisterUseCase)

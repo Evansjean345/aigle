@@ -1,10 +1,5 @@
 import { test } from '@japa/runner'
-import db from '@adonisjs/lucid/services/db'
-import app from '@adonisjs/core/services/app'
-import User from '#core/identity/user/domain/models/user'
-import { UserStatus } from '#core/identity/user/domain/enum'
-import OtpVerificationService from '#core/identity/otp/application/services/otp_verification_service'
-import NotificationService from '#core/notifications/application/services/notification_service'
+import { makeUser, authTestSetup } from '#tests/helpers/auth_test_helpers'
 
 /**
  * Caractérise le login business (Lot 2) : phone + PIN → OTP → token stampé
@@ -12,43 +7,11 @@ import NotificationService from '#core/notifications/application/services/notifi
  * vérification OTP réelle sont neutralisés (frontière core).
  */
 
-class SilentNotificationService {
-  async sendSms(): Promise<void> {}
-}
-class PermissiveOtpVerification {
-  async verify(): Promise<void> {}
-}
-
-async function makeUserWithPin(pin: string): Promise<User> {
-  const user = new User()
-  user.countryId = 52
-  user.firstname = 'Biz'
-  user.lastname = 'User'
-  user.phone = `225${Math.floor(1_00_000_000 + Math.random() * 8_99_999_999)}`
-  user.status = UserStatus.ACTIVE
-  user.accountType = 'freemium'
-  // Le PIN brut : le mixin d'auth (passwordColumnName='pincode') le hash au save.
-  user.pincode = pin
-  await user.save()
-  return user
-}
-
 test.group('Business auth | login', (group) => {
-  group.each.setup(async () => {
-    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
-    await db.beginGlobalTransaction()
-    app.container.swap(NotificationService, () => new SilentNotificationService() as never)
-    app.container.swap(OtpVerificationService, () => new PermissiveOtpVerification() as never)
-    return async () => {
-      app.container.restore(NotificationService)
-      app.container.restore(OtpVerificationService)
-      await db.rollbackGlobalTransaction()
-      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
-    }
-  })
+  group.each.setup(authTestSetup({ silentSms: true, permissiveOtp: true }))
 
   test('login PIN valide → OTP envoyé (200)', async ({ client }) => {
-    const user = await makeUserWithPin('1234')
+    const user = await makeUser({ pincode: '1234' })
     const res = await client
       .post('/api/business/auth/login')
       .json({ phone: user.phone, pincode: '1234' })
@@ -56,7 +19,7 @@ test.group('Business auth | login', (group) => {
   })
 
   test('login PIN invalide → rejet', async ({ client }) => {
-    const user = await makeUserWithPin('1234')
+    const user = await makeUser({ pincode: '1234' })
     const res = await client
       .post('/api/business/auth/login')
       .json({ phone: user.phone, pincode: '9999' })
@@ -74,13 +37,12 @@ test.group('Business auth | login', (group) => {
     client,
     assert,
   }) => {
-    const user = await makeUserWithPin('1234')
+    const user = await makeUser({ pincode: '1234' })
     await client.post('/api/business/auth/login').json({ phone: user.phone, pincode: '1234' })
 
     const verifyRes = await client
       .post('/api/business/auth/verify')
       .json({ phone: user.phone, otp: '0000' })
-
     verifyRes.assertStatus(200)
     const token = verifyRes.body().token
     assert.isString(token)
