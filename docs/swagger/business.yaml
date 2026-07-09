@@ -248,6 +248,10 @@ paths:
         - Business - Authentification
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
       responses:
         '200':
           description: Liste des sessions
@@ -257,6 +261,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/UserSession'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '401':
           description: Non authentifié, ou jeton non associé à AigleBusiness (reconnectez-vous)
         '403':
@@ -281,9 +287,14 @@ paths:
           schema:
             type: string
           description: Identifiant de la session (access token) à révoquer
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
       responses:
         '204':
           description: Session révoquée
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '401':
           description: Non authentifié, ou jeton non associé à AigleBusiness (reconnectez-vous)
         '403':
@@ -312,6 +323,10 @@ paths:
         - Business - Organisations
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
       requestBody:
         required: true
         content:
@@ -336,6 +351,8 @@ paths:
                 status: active
                 payableCode: a3f1c8e2-7b04-4c9a-9f22-1d5e6a8b3c40
                 payableQr: https://pay.aigle/a3f1c8e2-7b04-4c9a-9f22-1d5e6a8b3c40
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '403':
           description: KYC du propriétaire non valide
           content:
@@ -371,6 +388,10 @@ paths:
         - Business - Organisations
       security:
         - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
       responses:
         '200':
           description: Liste des organisations de l'utilisateur (avec son rôle et ses permissions)
@@ -380,6 +401,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/MyOrganisationResponse'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
 
   /api/business/organisations/{organisationId}/permissions-catalog:
     get:
@@ -397,6 +420,9 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
       responses:
         '200':
           description: Catalogue des permissions
@@ -415,6 +441,8 @@ paths:
                   name: Voir les transactions
                   description: Consulter l'historique des transactions de l'organisation.
                   sensitive: false
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '403':
           $ref: '#/components/responses/RolesManageForbidden'
 
@@ -431,6 +459,9 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
       responses:
         '200':
           description: Liste des rôles
@@ -440,6 +471,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RoleResponse'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '403':
           $ref: '#/components/responses/RolesManageForbidden'
 
@@ -456,6 +489,9 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
       requestBody:
         required: true
         content:
@@ -475,12 +511,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/RoleResponse'
         '400':
-          description: Permission inconnue (hors catalogue)
+          description: >-
+            En-tête `X-Client-Channel` manquant/invalide, ou permission inconnue (hors catalogue).
           content:
             application/json:
-              example:
-                code: E_INVALID_PERMISSION_SLUG
-                message: 'Permission inconnue : foo:bar'
+              examples:
+                channelRequired:
+                  summary: Canal manquant ou invalide
+                  value:
+                    code: E_CHANNEL_REQUIRED
+                    message: Header X-Client-Channel requis (mobile|web)
+                invalidPermission:
+                  summary: Permission hors catalogue
+                  value:
+                    code: E_INVALID_PERMISSION_SLUG
+                    message: 'Permission inconnue : foo:bar'
         '403':
           $ref: '#/components/responses/RolesManageForbidden'
         '409':
@@ -512,6 +557,9 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
         - $ref: '#/components/parameters/RoleId'
       requestBody:
         required: true
@@ -561,10 +609,15 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
         - $ref: '#/components/parameters/RoleId'
       responses:
         '204':
           description: Rôle supprimé
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '403':
           description: Permission `roles:manage` absente, ou rôle système protégé
           content:
@@ -588,6 +641,9 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
       responses:
         '200':
           description: Liste des membres
@@ -597,6 +653,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/MemberResponse'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '403':
           $ref: '#/components/responses/MembersManageForbidden'
 
@@ -614,6 +672,9 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
       requestBody:
         required: true
         content:
@@ -630,6 +691,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MemberResponse'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '403':
           description: >-
             Permission `members:manage` absente, invité non KYC-vérifié, ou rôle système non
@@ -678,6 +741,9 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
         - $ref: '#/components/parameters/MemberId'
       responses:
         '200':
@@ -686,6 +752,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MemberResponse'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '403':
           $ref: '#/components/responses/MembersManageForbidden'
         '404':
@@ -707,6 +775,9 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
         - $ref: '#/components/parameters/MemberId'
       requestBody:
         required: true
@@ -723,6 +794,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MemberResponse'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '403':
           description: >-
             Permission `members:manage` absente, membre OWNER protégé, ou tentative de promotion
@@ -757,10 +830,15 @@ paths:
         - BearerAuth: []
       parameters:
         - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
         - $ref: '#/components/parameters/MemberId'
       responses:
         '204':
           description: Membre retiré
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '403':
           description: Permission `members:manage` absente, ou membre OWNER protégé
           content:
@@ -784,6 +862,7 @@ paths:
         - Business - Invitations
       parameters:
         - $ref: '#/components/parameters/InvitationToken'
+        - $ref: '#/components/parameters/ClientChannelHeader'
       responses:
         '200':
           description: Invitation valide, OTP envoyé
@@ -794,6 +873,8 @@ paths:
               example:
                 organisationName: Entreprise Ali
                 phoneMasked: '225******00'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '404':
           $ref: '#/components/responses/InvitationInvalid'
         '410':
@@ -813,6 +894,7 @@ paths:
         - Business - Invitations
       parameters:
         - $ref: '#/components/parameters/InvitationToken'
+        - $ref: '#/components/parameters/ClientChannelHeader'
       requestBody:
         required: true
         content:
@@ -829,12 +911,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/MemberResponse'
         '400':
-          description: Code de vérification (OTP) invalide, expiré ou verrouillé
+          description: >-
+            En-tête `X-Client-Channel` manquant/invalide, ou code de vérification (OTP)
+            invalide/expiré/verrouillé.
           content:
             application/json:
-              example:
-                code: E_INVALID_OTP
-                message: Code OTP invalide
+              examples:
+                channelRequired:
+                  summary: Canal manquant ou invalide
+                  value:
+                    code: E_CHANNEL_REQUIRED
+                    message: Header X-Client-Channel requis (mobile|web)
+                invalidOtp:
+                  summary: OTP invalide
+                  value:
+                    code: E_INVALID_OTP
+                    message: Code OTP invalide
         '404':
           $ref: '#/components/responses/InvitationInvalid'
         '410':
@@ -850,9 +942,12 @@ paths:
         - Business - Invitations
       parameters:
         - $ref: '#/components/parameters/InvitationToken'
+        - $ref: '#/components/parameters/ClientChannelHeader'
       responses:
         '204':
           description: Invitation refusée
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '404':
           $ref: '#/components/responses/InvitationInvalid'
 
@@ -922,8 +1017,52 @@ components:
       schema:
         type: string
       description: Token du lien d'invitation (extrait du lien SMS)
+    ClientChannelHeader:
+      name: X-Client-Channel
+      in: header
+      required: true
+      schema:
+        type: string
+        enum: [mobile, web]
+      description: >-
+        Canal du client. **Obligatoire sur toutes les routes business** (traçage/audit).
+        En `mobile`, les en-têtes d'appareil sont requis.
+      example: web
+    DeviceFingerprintHeader:
+      name: X-Device-Fingerprint
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Empreinte de l'appareil — **requis quand le canal est mobile**.
+      example: a1b2c3d4e5f6
+    DeviceUidHeader:
+      name: X-Device-Uid
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Identifiant unique de l'appareil — **requis quand le canal est mobile**.
+      example: 550e8400-e29b-41d4-a716-446655440000
 
   responses:
+    ChannelRequired:
+      description: >-
+        En-tête `X-Client-Channel` manquant/invalide, ou en-têtes d'appareil absents en
+        canal mobile (routes après login).
+      content:
+        application/json:
+          examples:
+            channelRequired:
+              summary: Canal manquant ou invalide
+              value:
+                code: E_CHANNEL_REQUIRED
+                message: Header X-Client-Channel requis (mobile|web)
+            deviceRequired:
+              summary: Appareil requis en canal mobile
+              value:
+                code: E_DEVICE_REQUIRED
+                message: Appareil requis pour le canal mobile
     RolesManageForbidden:
       description: Permission `roles:manage` absente (non-membre, ou membre au rôle insuffisant)
       content:
