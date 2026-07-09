@@ -88,6 +88,23 @@ la page web aigleplay étant hors périmètre ici.
 **Notification :** event de crédit marchand → listener push « encaissement reçu ».
 **Doc + tests** à chaque étape (règle [[always-update-api-doc]]).
 
+## Tarification business — RÉSOLU (Option A : service type dédié)
+Le SPM (tarification) est clé par `(service_type × payment_method × provider_from × provider_to)` —
+aucune dimension user ni produit. Le calcul de frais n'est **pas** couplé au user (vérifié :
+contrôleur, use case, `CatalogResolver`, `fee_calculator`). Le « couplage aiglesend » venait de
+l'absence de service type marchand.
+- **Décision** : service type dédié **`checkout`** (« Paiement marchand ») ; sa tarification
+  business vit dans ses propres lignes SPM (tarif aiglesend `deposit` ≠ tarif business `checkout`).
+  **Aucune migration** (SPM déjà clé par service_type). Les futures ops business (`payout`,
+  `mass_payout`) seront leurs propres service types.
+- **Déjà créé en back-office** : le service type `checkout` + ses lignes SPM (tarifs business)
+  existent → **rien à seeder**.
+- Le flux checkout utilise `serviceTypeCode: 'checkout'` → `fee_resolver` → tarifs business.
+  `TransactionType.CHECKOUT = 'checkout'` (enum code, aligné).
+- **Catalogue aigleplay** : exposer un endpoint **public neutre** (le catalogue existant est
+  préfixé `mobile/` mais déjà sans auth) — ex. `GET /api/checkout/payment-options` renvoyant les
+  options `checkout` (via le use case catalogue existant). À intégrer au module `core/money/checkout`.
+
 ## PRÉREQUIS — D8 : argent account-centrique (décision utilisateur : Option 1)
 Créditer un marchand = créditer un **compte org sans user**. Or `transactions` est user-centrique
 (`users_id`/`users_uid` FK users, pas de `account_id`) et `partyValidator` exige un `User`. C'est le
