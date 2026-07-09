@@ -114,24 +114,25 @@ export default class SettleDepositUseCase {
 
     this.activity.emit({ event: 'SUCCESS', transactionId: transaction.reference })
 
-    if (transaction.operationType === TransactionType.CHECKOUT) {
-      this.support.emitAudit(transaction, 'CHECKOUT_COMPLETED', AuditResult.SUCCESS, {
+    const isCheckout = transaction.operationType === TransactionType.CHECKOUT
+
+    // Audit identique (acteur `system`, cible = la transaction qui porte déjà account_id/
+    // users_uid) ; seul le nom d'action distingue encaissement marchand vs deposit.
+    this.support.emitAudit(
+      transaction,
+      isCheckout ? 'CHECKOUT_COMPLETED' : 'DEPOSIT_COMPLETED',
+      AuditResult.SUCCESS,
+      {
         amount: Number(transaction.amount),
         totalAmount: creditAmount,
         status: TransactionStatus.SUCCESS,
-        accountId: transaction.accountId,
-      })
-      // TODO(notif marchand) : dispatcher un event core « encaissement reçu » consommé par un
-      // listener produit (aiglebusiness) qui résout le compte → org → devices business.
-      return
-    }
+      }
+    )
 
-    this.support.emitAudit(transaction, 'DEPOSIT_COMPLETED', AuditResult.SUCCESS, {
-      amount: Number(transaction.amount),
-      totalAmount: creditAmount,
-      status: TransactionStatus.SUCCESS,
-      userId: transaction.usersUid,
-    })
+    // Le flux consumer (notif user, volume, compteurs sécurité) ne concerne que le deposit :
+    // un checkout crédite un compte marchand sans user → ces listeners tourneraient à vide.
+    // TODO(notif marchand) : event core « encaissement reçu » → listener produit (aiglebusiness).
+    if (isCheckout) return
 
     await this.support.dispatchFlowEvent('DepositTransactionCompleted', transaction, {
       amount: transaction.amount,
@@ -156,24 +157,22 @@ export default class SettleDepositUseCase {
       errorMessage: 'Payment failed via webhook',
     })
 
-    // Checkout : rien à rembourser (external-in, aucun compte Aigle débité) → audit CHECKOUT
-    // et pas de flux d'échec consumer (qui porte la logique de refund).
-    if (transaction.operationType === TransactionType.CHECKOUT) {
-      this.support.emitAudit(transaction, 'CHECKOUT_FAILED', AuditResult.FAILURE, {
+    const isCheckout = transaction.operationType === TransactionType.CHECKOUT
+
+    this.support.emitAudit(
+      transaction,
+      isCheckout ? 'CHECKOUT_FAILED' : 'DEPOSIT_FAILED',
+      AuditResult.FAILURE,
+      {
         amount: Number(transaction.amount),
         status: TransactionStatus.FAILED,
-        accountId: transaction.accountId,
         error: this.support.errorMessage(error),
-      })
-      return
-    }
+      }
+    )
 
-    this.support.emitAudit(transaction, 'DEPOSIT_FAILED', AuditResult.FAILURE, {
-      amount: Number(transaction.amount),
-      status: TransactionStatus.FAILED,
-      userId: transaction.usersUid,
-      error: this.support.errorMessage(error),
-    })
+    // Checkout : rien à rembourser (external-in, aucun compte Aigle débité) → pas de flux
+    // d'échec consumer (qui porte la logique de refund).
+    if (isCheckout) return
 
     await this.support.dispatchFlowEvent('DepositTransactionFailed', transaction, {
       amount: transaction.amount,
