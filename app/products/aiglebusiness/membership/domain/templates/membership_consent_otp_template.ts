@@ -18,7 +18,7 @@ export default class MembershipConsentOtpTemplate extends OtpMessageTemplate {
 
   formatSmsMessage(code: string): string {
     return (
-      `Votre code d'adhésion à ${this.organisationName} est : ${code}, ` +
+      `Votre code d'adhésion à ${this.organisationName} est: ${code}, ` +
       `ce code expire dans ${this.expirySeconds / 60} minutes. ` +
       "Si vous n'êtes pas à l'origine de cette demande, ignorez ce message. " +
       'Ce code est strictement confidentiel, ne le partagez à personne.'

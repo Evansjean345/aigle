@@ -10,6 +10,7 @@ import {
 } from '#aiglebusiness/membership/application/dtos/member.dto'
 import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
 import RoleNotFoundException from '#aiglebusiness/membership/domain/exceptions/role_not_found_exception'
+import SystemRoleNotAssignableException from '#aiglebusiness/membership/domain/exceptions/system_role_not_assignable_exception'
 import InviteeNotAigleUserException from '#aiglebusiness/membership/domain/exceptions/invitee_not_aigle_user_exception'
 import InviteeKycNotVerifiedException from '#aiglebusiness/membership/domain/exceptions/invitee_kyc_not_verified_exception'
 import MemberAlreadyExistsException from '#aiglebusiness/membership/domain/exceptions/member_already_exists_exception'
@@ -35,6 +36,13 @@ export default class InviteMemberUseCase {
 
     if (!role || role.organisationId !== request.organisationId) {
       throw new RoleNotFoundException()
+    }
+
+    // Un rôle système (OWNER) n'est jamais invitable : la propriété est unique et ne
+    // se transmet que par transfert explicite. Sans cela, un membre avec members:manage
+    // pourrait fabriquer un second propriétaire (escalade de privilèges).
+    if (role.isSystem) {
+      throw new SystemRoleNotAssignableException()
     }
 
     const invitee = await this.userDirectory.findByPhone(request.phone)

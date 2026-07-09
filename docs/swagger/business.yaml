@@ -578,12 +578,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/MemberResponse'
         '403':
-          description: Permission `members:manage` absente, ou invité non KYC-vérifié
+          description: >-
+            Permission `members:manage` absente, invité non KYC-vérifié, ou rôle système non
+            attribuable (on ne peut pas inviter quelqu'un comme **propriétaire** : la propriété
+            est unique et se transmet uniquement par un transfert explicite).
           content:
             application/json:
-              example:
-                code: E_INVITEE_KYC_NOT_VERIFIED
-                message: L'invité doit avoir un KYC vérifié pour rejoindre une organisation
+              examples:
+                kycNotVerified:
+                  summary: Invité non KYC-vérifié
+                  value:
+                    code: E_INVITEE_KYC_NOT_VERIFIED
+                    message: L'invité doit avoir un KYC vérifié pour rejoindre une organisation
+                systemRole:
+                  summary: Rôle système (propriétaire) non attribuable
+                  value:
+                    code: E_SYSTEM_ROLE_NOT_ASSIGNABLE
+                    message: "Ce rôle ne peut pas être attribué. La propriété de l’organisation est unique et se transmet uniquement par un transfert explicite."
         '404':
           description: Rôle introuvable dans l'organisation, ou invité sans compte Aigle
           content:
@@ -634,8 +645,9 @@ paths:
       operationId: changeMemberRole
       summary: Changer le rôle d'un membre
       description: |
-        Réaffecte le rôle d'un membre. Le membre **OWNER** est protégé (403), et le nouveau
-        rôle doit appartenir à l'organisation. Réservé à `members:manage`.
+        Réaffecte le rôle d'un membre. Le membre **OWNER** est protégé (403), on ne peut pas non
+        plus **promouvoir** un membre vers le rôle propriétaire (403), et le nouveau rôle doit
+        appartenir à l'organisation. Réservé à `members:manage`.
       tags:
         - Business - Membres
       security:
@@ -659,12 +671,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/MemberResponse'
         '403':
-          description: Permission `members:manage` absente, ou membre OWNER protégé
+          description: >-
+            Permission `members:manage` absente, membre OWNER protégé, ou tentative de promotion
+            vers le rôle propriétaire (rôle système non attribuable).
           content:
             application/json:
-              example:
-                code: E_OWNER_MEMBER_IMMUTABLE
-                message: Le propriétaire de l'organisation ne peut pas être modifié ni retiré
+              examples:
+                ownerImmutable:
+                  summary: Le membre cible est le propriétaire
+                  value:
+                    code: E_OWNER_MEMBER_IMMUTABLE
+                    message: Le propriétaire de l'organisation ne peut pas être modifié ni retiré
+                systemRole:
+                  summary: Promotion vers le rôle propriétaire refusée
+                  value:
+                    code: E_SYSTEM_ROLE_NOT_ASSIGNABLE
+                    message: "Ce rôle ne peut pas être attribué. La propriété de l’organisation est unique et se transmet uniquement par un transfert explicite."
         '404':
           $ref: '#/components/responses/MemberNotFound'
 

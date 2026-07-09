@@ -274,6 +274,52 @@ test.group('Business members | invitation & lifecycle', (group) => {
     )
   })
 
+  test('inviter avec le rôle OWNER (système) → refusé, aucune ligne créée', async ({ assert }) => {
+    const { organisationId } = await seedOrgWithRole()
+    const invitee = await makeUser()
+    const ownerRole = await OrganisationRole.query()
+      .where('organisation_id', organisationId)
+      .where('slug', OWNER_ROLE_SLUG)
+      .firstOrFail()
+    const invite = await app.container.make(InviteMemberUseCase)
+
+    // La propriété est unique : on ne peut pas fabriquer un second OWNER par invitation.
+    await assert.rejects(
+      () => invite.execute({ organisationId, phone: invitee.phone, roleId: ownerRole.id }),
+      /transfert explicite/
+    )
+
+    // La garde est en amont : aucun membre n'a été posé pour l'invité.
+    const created = await OrganisationMember.query().where('user_id', invitee.usersUid)
+    assert.lengthOf(created, 0)
+  })
+
+  test('promouvoir un membre vers le rôle OWNER (système) → refusé', async ({ assert }) => {
+    const { organisationId, roleId } = await seedOrgWithRole()
+    const invitee = await makeUser()
+    const invite = await app.container.make(InviteMemberUseCase)
+    const accept = await app.container.make(AcceptInvitationUseCase)
+    const changeRole = await app.container.make(ChangeMemberRoleUseCase)
+
+    await invite.execute({ organisationId, phone: invitee.phone, roleId })
+    const row = await OrganisationMember.query().where('user_id', invitee.usersUid).firstOrFail()
+    await accept.execute(row.invitationToken!, '1234')
+
+    const ownerRole = await OrganisationRole.query()
+      .where('organisation_id', organisationId)
+      .where('slug', OWNER_ROLE_SLUG)
+      .firstOrFail()
+
+    await assert.rejects(
+      () => changeRole.execute({ organisationId, memberId: row.id, roleId: ownerRole.id }),
+      /transfert explicite/
+    )
+
+    // Pas de promotion silencieuse : le membre garde son rôle d'origine.
+    const unchanged = await OrganisationMember.findOrFail(row.id)
+    assert.equal(unchanged.roleId, roleId)
+  })
+
   test('retrait : PENDING → hard delete ; ACTIVE → REMOVED', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
     const invite = await app.container.make(InviteMemberUseCase)

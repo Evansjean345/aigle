@@ -10,6 +10,7 @@ import { OWNER_ROLE_SLUG } from '#aiglebusiness/membership/domain/system_roles'
 import RoleNotFoundException from '#aiglebusiness/membership/domain/exceptions/role_not_found_exception'
 import MemberNotFoundException from '#aiglebusiness/membership/domain/exceptions/member_not_found_exception'
 import OwnerMemberImmutableException from '#aiglebusiness/membership/domain/exceptions/owner_member_immutable_exception'
+import SystemRoleNotAssignableException from '#aiglebusiness/membership/domain/exceptions/system_role_not_assignable_exception'
 
 /**
  * Réaffecte le rôle d'un membre. Le membre OWNER (rôle système) est protégé, et le
@@ -38,6 +39,12 @@ export default class ChangeMemberRoleUseCase {
 
     if (!role || role.organisationId !== request.organisationId) {
       throw new RoleNotFoundException()
+    }
+
+    // On ne promeut jamais un membre vers un rôle système (OWNER) : la propriété est
+    // unique et ne se transmet que par transfert explicite (pas d'escalade via change-role).
+    if (role.isSystem) {
+      throw new SystemRoleNotAssignableException()
     }
 
     await this.memberRepository.updateRole(member.id, request.roleId)
