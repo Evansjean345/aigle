@@ -2,6 +2,7 @@ import SmsNotificationChannel from '#core/notifications/domain/interfaces/sms_no
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import { type Notification } from '#core/notifications/domain/notification'
 import env from '#start/env'
+import { appEnv } from '#config/app'
 import notificationLog from '#shared/infrastructure/logging/notification_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import { maskPhone } from '#shared/utils/utiles'
@@ -58,6 +59,13 @@ export default class SmsNotificationChannelImpl implements SmsNotificationChanne
         { phone: phone ? '***' : 'missing', messageLength: message?.length || 0 },
         'Invalid parameters for SMS sending'
       )
+      return
+    }
+
+    // En développement, on n'appelle pas la passerelle MTarget : on affiche le SMS en
+    // console (comme les OTP, cf. SmsOtpDelivery) pour éviter les envois réels et les coûts.
+    if (appEnv === 'development') {
+      console.log(`[SMS dev] → +${phone}\n${message}`)
       return
     }
 
