@@ -1,8 +1,10 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
+import { AuditResult } from '#core/audit/domain/enums'
 import GetInvitationUseCase from '#aiglebusiness/membership/application/use_cases/members/get_invitation.use_case'
 import AcceptInvitationUseCase from '#aiglebusiness/membership/application/use_cases/members/accept_invitation.use_case'
 import DeclineInvitationUseCase from '#aiglebusiness/membership/application/use_cases/members/decline_invitation.use_case'
+import { businessTraceContext, emitBusinessAudit } from '#aiglebusiness/shared/business_audit'
 import { acceptInvitationValidator } from '#aiglebusiness/membership/presentation/client/validators/member_validators'
 
 /**
@@ -24,15 +26,40 @@ export default class InvitationController {
   }
 
   /** Accepte l'invitation avec l'OTP → membre ACTIVE. */
-  async accept({ params, request, response }: HttpContext): Promise<void> {
+  async accept(ctx: HttpContext): Promise<void> {
+    const { params, request, response } = ctx
     const payload = await request.validateUsing(acceptInvitationValidator)
     const result = await this.acceptInvitation.execute(params.token as string, payload.otp)
+
+    // Acteur = l'invité lui-même (flux semi-public, pas de token d'auth).
+    emitBusinessAudit(businessTraceContext(ctx), {
+      eventCategory: 'MEMBERSHIP',
+      eventAction: 'MEMBER_ACCEPTED',
+      actorId: result.userId,
+      targetType: 'OrganisationMember',
+      targetId: String(result.id),
+      result: AuditResult.SUCCESS,
+      metadata: { roleId: result.roleId },
+    })
+
     return response.ok(result)
   }
 
   /** Refuse l'invitation. */
-  async decline({ params, response }: HttpContext): Promise<void> {
-    await this.declineInvitation.execute(params.token as string)
+  async decline(ctx: HttpContext): Promise<void> {
+    const { params, response } = ctx
+    const result = await this.declineInvitation.execute(params.token as string)
+
+    emitBusinessAudit(businessTraceContext(ctx), {
+      eventCategory: 'MEMBERSHIP',
+      eventAction: 'MEMBER_DECLINED',
+      actorId: result.userId,
+      targetType: 'OrganisationMember',
+      targetId: String(result.id),
+      result: AuditResult.SUCCESS,
+      metadata: { organisationId: result.organisationId },
+    })
+
     return response.noContent()
   }
 }

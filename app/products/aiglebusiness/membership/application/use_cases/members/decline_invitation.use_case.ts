@@ -11,7 +11,7 @@ import InvitationTokenInvalidException from '#aiglebusiness/membership/domain/ex
 export default class DeclineInvitationUseCase {
   constructor(private readonly memberRepository: OrganisationMemberRepository) {}
 
-  async execute(token: string): Promise<void> {
+  async execute(token: string): Promise<{ id: number; userId: string; organisationId: string }> {
     const member = await this.memberRepository.findByInvitationToken(token)
 
     if (!member || member.status !== MemberStatus.PENDING) {
@@ -19,5 +19,7 @@ export default class DeclineInvitationUseCase {
     }
 
     await this.memberRepository.updateStatus(member.id, MemberStatus.REMOVED, true)
+
+    return { id: member.id, userId: member.userId, organisationId: member.organisationId }
   }
 }

@@ -11,7 +11,7 @@ export default class SystemRoleNotAssignableException extends Exception {
   static code = 'E_SYSTEM_ROLE_NOT_ASSIGNABLE'
 
   constructor(
-    message: string = "Ce rôle ne peut pas être attribué. La propriété de l’organisation est unique et se transmet uniquement par un transfert explicite."
+    message: string = 'Ce rôle ne peut pas être attribué. La propriété de l’organisation est unique et se transmet uniquement par un transfert explicite.'
   ) {
     super(message, {
       status: SystemRoleNotAssignableException.status,

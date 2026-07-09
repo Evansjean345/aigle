@@ -1,9 +1,15 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
+import { AuditResult } from '#core/audit/domain/enums'
 import ListRolesUseCase from '#aiglebusiness/membership/application/use_cases/roles/list_roles.use_case'
 import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/create_role.use_case'
 import UpdateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/update_role.use_case'
 import DeleteRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/delete_role.use_case'
+import {
+  businessActorId,
+  businessTraceContext,
+  emitBusinessAudit,
+} from '#aiglebusiness/shared/business_audit'
 import {
   createRoleValidator,
   updateRoleValidator,
@@ -30,7 +36,8 @@ export default class RoleController {
   }
 
   /** Crée un rôle personnalisé. */
-  async store({ params, request, response }: HttpContext): Promise<void> {
+  async store(ctx: HttpContext): Promise<void> {
+    const { params, request, response } = ctx
     const organisationId = params.organisationId as string
     const payload = await request.validateUsing(createRoleValidator)
     const result = await this.createRole.execute({
@@ -39,11 +46,23 @@ export default class RoleController {
       permissionSlugs: payload.permission_slugs,
     })
 
+    emitBusinessAudit(businessTraceContext(ctx), {
+      eventCategory: 'ROLE',
+      eventAction: 'ROLE_CREATED',
+      actorId: businessActorId(ctx),
+      targetType: 'OrganisationRole',
+      targetId: String(result.id),
+      result: AuditResult.SUCCESS,
+      newValues: { name: result.name, permissions: result.permissions },
+      metadata: { organisationId },
+    })
+
     return response.created(result)
   }
 
   /** Édite un rôle (nom et/ou permissions). */
-  async update({ params, request, response }: HttpContext): Promise<void> {
+  async update(ctx: HttpContext): Promise<void> {
+    const { params, request, response } = ctx
     const organisationId = params.organisationId as string
     const payload = await request.validateUsing(updateRoleValidator)
     const result = await this.updateRole.execute({
@@ -53,13 +72,37 @@ export default class RoleController {
       permissionSlugs: payload.permission_slugs,
     })
 
+    emitBusinessAudit(businessTraceContext(ctx), {
+      eventCategory: 'ROLE',
+      eventAction: 'ROLE_UPDATED',
+      actorId: businessActorId(ctx),
+      targetType: 'OrganisationRole',
+      targetId: String(result.id),
+      result: AuditResult.SUCCESS,
+      newValues: { name: result.name, permissions: result.permissions },
+      metadata: { organisationId },
+    })
+
     return response.ok(result)
   }
 
   /** Supprime un rôle personnalisé. */
-  async destroy({ params, response }: HttpContext): Promise<void> {
+  async destroy(ctx: HttpContext): Promise<void> {
+    const { params, response } = ctx
     const organisationId = params.organisationId as string
-    await this.deleteRole.execute(organisationId, Number(params.roleId))
+    const roleId = Number(params.roleId)
+    await this.deleteRole.execute(organisationId, roleId)
+
+    emitBusinessAudit(businessTraceContext(ctx), {
+      eventCategory: 'ROLE',
+      eventAction: 'ROLE_DELETED',
+      actorId: businessActorId(ctx),
+      targetType: 'OrganisationRole',
+      targetId: String(roleId),
+      result: AuditResult.SUCCESS,
+      metadata: { organisationId },
+    })
+
     return response.noContent()
   }
 }

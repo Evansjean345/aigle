@@ -31,7 +31,10 @@ export default class BusinessLoginUseCase {
     private readonly deviceService: DeviceService
   ) {}
 
-  async execute(request: BusinessLoginRequestDto, context: BusinessAuthTraceContext): Promise<void> {
+  async execute(
+    request: BusinessLoginRequestDto,
+    context: BusinessAuthTraceContext
+  ): Promise<void> {
     const user = await this.userDirectory.findByPhone(request.phone)
 
     if (!user) {
