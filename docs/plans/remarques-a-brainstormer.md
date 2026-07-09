@@ -30,8 +30,20 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 | R1 | 🔴 Critique | à brainstormer | Permissions du RBAC **team** créées en CRUD par l'admin au lieu d'être **déclarées en code** par chaque feature — faille de sécurité (contrôle d'accès orphelin / privilege escalation) |
 | R2 | 🟠 Majeur | à brainstormer | Notifications **push** non scopées par app : `expo_push_channel.getTrustedDevices(recipientId)` envoie à TOUS les appareils de confiance (aiglesend + business). Une notif aiglesend pousse aussi vers l'app business |
 | R3 | 🟢 Feature | **décidé — à implémenter** | Flux de **transfert de propriété** d'une organisation (owner unique). Le verrou (owner non attribuable) est en place ; il manque l'endpoint de transmission explicite |
+| R4 | 🟠 Majeur | à faire (endgame D8) | Supprimer `user_id`/`users_uid` de `wallets` & `transactions` une fois le core argent **entièrement** account-centrique (`account_id` suffit). Aujourd'hui encore très référencés → nettoyage différé après la migration complète des lookups |
 
 ---
+
+## Remarques
+
+### R4 — Retirer user_id/users_uid de wallets & transactions (fin de D8)
+- **Niveau** : 🟠 Majeur (nettoyage de dette sur des tables argent — rayon d'impact large)
+- **Date** : 2026-07-09
+- **Contexte** : la fondation D8 (sous-lot 4) rend le core argent **account-centrique** (`account_id` sur wallets et transactions ; `account_id == usersUid` pour un user). À terme, `user_id`/`users_uid` sur `wallets` et `transactions` deviennent **redondants** — le propriétaire d'un compte vit dans `core/money/account` (owner_type + owner_ref).
+- **Pourquoi différé** : ces colonnes sont **encore très utilisées** — relation `belongsTo(User)` + scope `search` sur `transactions`, `WalletService.getByUserId` / `resolveRecipient` / `updateWalletStatus`, et de nombreux use cases (`settle_deposit` etc.). La suppression n'est possible qu'**après** avoir migré TOUS ces lookups vers `account_id` (deposit/transfert/w2w/inter + admin). Retirer les colonnes/FK d'une table argent est une opération à haut risque.
+- **Séquence cible** : (1) finir de rendre external_in/settle/transfert/w2w account-centriques ; (2) migrer les lookups résiduels `getByUserId` → `getByAccountId` ; (3) remplacer la relation/scope `user` par une résolution via `account` ; (4) migration de suppression de colonnes (après stabilisation du sous-lot 4 + mass-paiement).
+- **Impact** : simplifie le modèle argent, supprime la double clé user/account, aligne sur le pivot account. **À ne PAS faire tant que des lookups user subsistent.**
+- **Statut** : à faire (endgame D8), après sous-lot 4 & mass-paiement
 
 ## Remarques
 
