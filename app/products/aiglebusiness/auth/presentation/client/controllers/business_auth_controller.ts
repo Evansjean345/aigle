@@ -61,7 +61,6 @@ export default class BusinessAuthController {
         phone: payload.phone,
         otp: payload.otp,
         sessionName: request.header('user-agent')?.slice(0, 120),
-        // Appareil via HEADERS (middleware businessDevice) : fingerprint + uid pour le trust.
         deviceFingerprint: deviceInfo?.fingerprintHash || undefined,
         deviceUid: deviceInfo?.deviceUid || undefined,
       },

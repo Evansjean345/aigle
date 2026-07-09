@@ -67,6 +67,8 @@ export async function createUserWithWallet(opts: CreateUserOpts = {}): Promise<U
 
   const wallet = new Wallet()
   wallet.userId = user.usersUid
+  // account_id == users_uid pour un compte user (D8) — comme le pose openFor en prod.
+  wallet.accountId = user.usersUid
   wallet.balance = opts.balance ?? 0
   wallet.currencySymbol = 'XOF'
   wallet.qrcodeToken = randomUUID()

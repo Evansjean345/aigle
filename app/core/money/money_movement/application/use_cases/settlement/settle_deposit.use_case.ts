@@ -43,7 +43,9 @@ export default class SettleDepositUseCase {
         return this.support.result(transaction, true)
       }
 
-      const wallet = await this.walletService.getByUserId(transaction.usersUid, trx)
+      // Crédit par COMPTE (D8) : résout le wallet du titulaire — user (account_id == usersUid)
+      // ou marchand (compte org sans user). Un checkout est un deposit vers un compte marchand.
+      const wallet = await this.walletService.getByAccountId(transaction.accountId, trx)
 
       if (cmd.outcome === 'success') {
         await this.applySuccess(transaction, payment, wallet, cmd.operatorResponse, trx)
