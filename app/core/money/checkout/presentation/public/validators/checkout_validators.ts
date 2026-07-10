@@ -19,7 +19,11 @@ const initiateSchema = vine.object({
     ),
   phone: vine.string().trim(),
   country: vine.string().trim(),
+  // Mode Orange : payment_link (défaut) ou otp. Redirection : success/error url.
+  payment_mode: vine.enum(['otp', 'payment_link']).optional(),
   otp: vine.string().trim().optional(),
+  success_url: vine.string().trim().url().optional(),
+  error_url: vine.string().trim().url().optional(),
 })
 
 export const initiateCheckoutValidator = vine.create(initiateSchema)

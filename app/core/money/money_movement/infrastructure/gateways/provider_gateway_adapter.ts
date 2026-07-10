@@ -77,7 +77,9 @@ export default class ProviderGatewayAdapter implements ExternalMovementGateway {
       provider: adapter.providerName,
       phoneNumber: ctx.phone.replaceAll(' ', ''),
       country: ProviderGatewayAdapter.DEFAULT_COUNTRY,
-      metadata: { provider: ctx.operator },
+      // `provider` (routage) + params opaques du provider (payment_mode/otp/urls…) déballés
+      // par l'adaptateur cible (ex. Hub2 → resolveOrangeFlow).
+      metadata: { provider: ctx.operator, ...(ctx.providerParams ?? {}) },
     })
 
     // Trace forensique de l'I/O provider dans transaction_logs (brut redacté). Best-effort.

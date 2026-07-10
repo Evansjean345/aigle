@@ -48,7 +48,7 @@ export default class ExternalInUseCase {
 
     await this.validateRecipient(wallet, amount, cmd.type)
 
-    const { paymentMethodCode, deviceInfo, geoIpLocation } = this.extractMeta(cmd)
+    const { paymentMethodCode, deviceInfo, geoIpLocation, providerParams } = this.extractMeta(cmd)
     const rawPhone = cmd.source.msisdn
 
     const trx = await db.transaction()
@@ -133,6 +133,7 @@ export default class ExternalInUseCase {
           paymentMethod: paymentMethodCode,
           phone: rawPhone,
           userId: cmd.initiatedBy,
+          providerParams,
         })
     )
 
@@ -186,16 +187,19 @@ export default class ExternalInUseCase {
     paymentMethodCode: string
     deviceInfo?: DeviceHeadersInfo
     geoIpLocation?: GeoIpLocation
+    providerParams?: Record<string, unknown>
   } {
     const meta = (cmd.metadata ?? {}) as {
       paymentMethodCode?: string
       deviceInfo?: DeviceHeadersInfo
       geoIpLocation?: GeoIpLocation
+      providerParams?: Record<string, unknown>
     }
     return {
       paymentMethodCode: meta.paymentMethodCode ?? '',
       deviceInfo: meta.deviceInfo,
       geoIpLocation: meta.geoIpLocation,
+      providerParams: meta.providerParams,
     }
   }
 

@@ -18,8 +18,17 @@ export interface InitiateCheckoutRequestDto {
   phone: string
   /** Pays du payeur (ex. `ci`). */
   country: string
-  /** OTP éventuel (certains opérateurs). */
+  /**
+   * Mode de paiement Orange : `payment_link` (**défaut**, redirection) ou `otp` (déprécié à
+   * terme). Ignoré pour les autres opérateurs.
+   */
+  paymentMode?: 'otp' | 'payment_link'
+  /** OTP saisi par le payeur (mode `otp` uniquement). */
   otp?: string
+  /** Redirection : URL de retour succès (flux par lien — Orange payment_link, Wave). */
+  successUrl?: string
+  /** Redirection : URL de retour annulation/échec. */
+  errorUrl?: string
   geoIpLocation?: GeoIpLocation
 }
 

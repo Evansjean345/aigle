@@ -178,6 +178,13 @@ export interface ExternalInitiationBase {
   paymentMethod: string
   phone: string
   userId: string
+  /**
+   * Paramètres **opaques** spécifiques au provider (ex. `payment_mode`, `otp`, `success_url`,
+   * `error_url` pour Orange/Wave). L'engine ne les interprète pas — il les transporte jusqu'à
+   * `ProviderRequest.metadata` ; seul l'adaptateur du provider les déballe. Garde l'engine
+   * provider-agnostic (ADR : l'engine manipule des codes, les providers leurs spécificités).
+   */
+  providerParams?: Record<string, unknown>
 }
 
 /** Initiation sortante : débit compte → opérateur (transfert). */

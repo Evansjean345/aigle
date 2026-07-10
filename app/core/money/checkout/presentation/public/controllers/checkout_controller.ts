@@ -35,7 +35,10 @@ export default class CheckoutController {
       paymentMethodCode: payload.payment_method_code,
       phone: payload.phone,
       country: payload.country,
+      paymentMode: payload.payment_mode,
       otp: payload.otp,
+      successUrl: payload.success_url,
+      errorUrl: payload.error_url,
       geoIpLocation: geoLocation,
     })
 

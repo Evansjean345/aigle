@@ -90,7 +90,7 @@ function checkoutWebhook(reference: string, ok: boolean) {
   )!
 }
 
-function initiatePayload(code: string, amount = 5000) {
+function initiatePayload(code: string, amount = 5000, overrides: Record<string, unknown> = {}) {
   return {
     code,
     amount,
@@ -98,6 +98,7 @@ function initiatePayload(code: string, amount = 5000) {
     paymentMethodCode: 'mobile-money',
     phone: '0700000009',
     country: 'ci',
+    ...overrides,
   }
 }
 
@@ -158,6 +159,21 @@ test.group('Checkout | paiement marchand (e2e)', (group) => {
     assert.equal(tx.status, TransactionStatus.SUCCESS)
     const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
     assert.equal(pay.status, PaymentStatus.SUCCESS)
+  })
+
+  test('providerParams (payment_mode/otp) transmis à l’adaptateur provider', async ({ assert }) => {
+    const { code } = await makeMerchant()
+    const initiate = await app.container.make(InitiateCheckoutUseCase)
+
+    // Mode OTP explicite → doit traverser jusqu'à la metadata du ProviderRequest.
+    await initiate.execute(initiatePayload(code, 5000, { paymentMode: 'otp', otp: '123456' }))
+
+    const invoke = gateway.resolver.invokes.at(-1)
+    assert.exists(invoke)
+    const metadata = invoke!.request.metadata
+    assert.equal(metadata.provider, 'moov') // routage
+    assert.equal(metadata.payment_mode, 'otp')
+    assert.equal(metadata.otp, '123456')
   })
 
   test('webhook échec → marchand NON crédité, transaction FAILED', async ({ assert }) => {

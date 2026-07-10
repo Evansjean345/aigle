@@ -1,7 +1,11 @@
 export type OrangePaymentMode = 'otp' | 'payment_link'
 
+/**
+ * Résout le mode Orange. **Défaut = `payment_link`** (redirection) : l'OTP sera déprécié,
+ * il faut le demander explicitement (`payment_mode === 'otp'`).
+ */
 export function resolveOrangePaymentMode(payload: Record<string, any>): OrangePaymentMode {
-  return payload.payment_mode === 'payment_link' ? 'payment_link' : 'otp'
+  return payload.payment_mode === 'otp' ? 'otp' : 'payment_link'
 }
 
 /**
@@ -36,12 +40,9 @@ class OrangePaymentLinkFlow implements OrangePaymentFlow {
 }
 
 /**
- * Sélectionne la stratégie Orange à partir des `payment_details` persistés.
- * Seul un `payment_mode` explicitement égal à `payment_link` active le flux par
- * lien ; tout le reste retombe sur le flux OTP (mode par défaut).
+ * Sélectionne la stratégie Orange. **Défaut = flux par lien (`payment_link`)** : l'OTP est
+ * en voie de dépréciation → il n'est appliqué que si `payment_mode === 'otp'` explicite.
  */
 export function resolveOrangeFlow(paymentDetails: Record<string, any>): OrangePaymentFlow {
-  return paymentDetails.payment_mode === 'payment_link'
-    ? new OrangePaymentLinkFlow()
-    : new OrangeOtpFlow()
+  return paymentDetails.payment_mode === 'otp' ? new OrangeOtpFlow() : new OrangePaymentLinkFlow()
 }

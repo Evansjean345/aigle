@@ -1058,6 +1058,13 @@ paths:
         payeur** : il est débité `montant + frais`, le marchand reçoit le **montant plein**.
         Traitement **asynchrone** : la réponse est `pending` ; l'état final arrive via le
         règlement opérateur (suivre `/api/checkout/{reference}/status`).
+
+        **Orange** — deux modes :
+        - **`payment_link`** (**défaut**) : fournir `success_url`/`error_url` ; la réponse renvoie
+          un `redirectUrl` vers lequel envoyer le payeur (retour sur `success_url`/`error_url`).
+        - **`otp`** (déprécié à terme) : fournir `payment_mode: otp` + `otp`.
+
+        Les autres opérateurs à redirection (ex. Wave) utilisent aussi `success_url`/`error_url`.
       tags:
         - Paiement marchand
       parameters:
@@ -1412,10 +1419,27 @@ components:
           type: string
           description: Pays du payeur.
           example: ci
+        payment_mode:
+          type: string
+          enum: [otp, payment_link]
+          nullable: true
+          description: >-
+            Mode Orange : `payment_link` (**défaut**, redirection) ou `otp` (déprécié à terme).
+            Ignoré pour les autres opérateurs.
         otp:
           type: string
           nullable: true
-          description: Code OTP éventuel (selon l'opérateur).
+          description: Code OTP saisi par le payeur (mode `otp` uniquement).
+        success_url:
+          type: string
+          format: uri
+          nullable: true
+          description: URL de retour après paiement réussi (flux par lien).
+        error_url:
+          type: string
+          format: uri
+          nullable: true
+          description: URL de retour après annulation/échec (flux par lien).
 
     CheckoutInitiateResponse:
       type: object

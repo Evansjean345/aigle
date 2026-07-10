@@ -63,6 +63,14 @@ export default class InitiateCheckoutUseCase {
       metadata: {
         paymentMethodCode: request.paymentMethodCode,
         geoIpLocation: request.geoIpLocation,
+        // Sac opaque transmis à l'adaptateur provider (Hub2). Orange : `payment_mode`
+        // (`payment_link` par défaut) + `otp` (mode OTP) ; redirection : `success_url`/`error_url`.
+        providerParams: {
+          payment_mode: request.paymentMode,
+          otp: request.otp,
+          success_url: request.successUrl,
+          error_url: request.errorUrl,
+        },
       },
     }
 
