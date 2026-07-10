@@ -116,8 +116,6 @@ export default class SettleDepositUseCase {
 
     const isCheckout = transaction.operationType === TransactionType.CHECKOUT
 
-    // Audit identique (acteur `system`, cible = la transaction qui porte déjà account_id/
-    // users_uid) ; seul le nom d'action distingue encaissement marchand vs deposit.
     this.support.emitAudit(
       transaction,
       isCheckout ? 'CHECKOUT_COMPLETED' : 'DEPOSIT_COMPLETED',
@@ -129,9 +127,6 @@ export default class SettleDepositUseCase {
       }
     )
 
-    // Un seul event de complétion, avec le flag `type` : chaque listener s'y abonne et **filtre
-    // sur le flag** (consumer agit sur `deposit`, un futur listener marchand sur `checkout`).
-    // Le use case annonce le fait ; il ne décide pas des effets.
     await this.support.dispatchFlowEvent('DepositTransactionCompleted', transaction, {
       type: isCheckout ? 'checkout' : 'deposit',
       amount: isCheckout ? creditAmount : transaction.amount,
@@ -170,8 +165,6 @@ export default class SettleDepositUseCase {
       }
     )
 
-    // Un seul event d'échec, avec le flag `type` : les listeners filtrent (consumer →
-    // logique de refund sur `deposit` ; un checkout n'a rien à rembourser, external-in).
     await this.support.dispatchFlowEvent('DepositTransactionFailed', transaction, {
       type: isCheckout ? 'checkout' : 'deposit',
       amount: Number(transaction.amount),
