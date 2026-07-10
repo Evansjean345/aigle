@@ -120,6 +120,10 @@ const aiglebusinessOptions: swaggerJsdoc.Options = {
     tags: [
       { name: 'Business - Organisations', description: 'Création et liste des organisations' },
       { name: 'QR marchand', description: 'Résolution publique du QR marchand (page de paiement)' },
+      {
+        name: 'Paiement marchand',
+        description: 'Encaissement marchand public (page aigleplay) : options, initiation, statut',
+      },
       { name: 'Business - Santé', description: 'Liveness du module business' },
     ],
   },

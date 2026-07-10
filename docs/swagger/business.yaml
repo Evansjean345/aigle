@@ -1012,6 +1012,142 @@ paths:
               example:
                 code: MERCHANT_QR_NOT_FOUND
 
+  /api/checkout/payment-options:
+    get:
+      operationId: checkoutPaymentOptions
+      summary: Options de paiement (page aigleplay)
+      description: |
+        Catalogue **public** des moyens de paiement pour un encaissement marchand (service
+        `checkout`), avec leur tarification business. Consommé par la page de paiement aigleplay.
+        Aucune authentification.
+      tags:
+        - Paiement marchand
+      responses:
+        '200':
+          description: Options de paiement du service `checkout`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOptions'
+              example:
+                serviceType: checkout
+                methods:
+                  - code: mobile-money
+                    name: Mobile Money
+                    id: 4
+                    order: 1
+                    providers:
+                      - id: 7
+                        code: moov
+                        name: Moov
+                        isActive: true
+                        feeFixed: 100
+                        feePercent: 0
+                        currency: XOF
+
+  /api/checkout/{code}:
+    post:
+      operationId: initiateCheckout
+      summary: Initier un paiement marchand
+      description: |
+        Initie un paiement vers le marchand désigné par `code` (alias payable). **Public** : le
+        payeur n'est pas forcément un utilisateur Aigle (aucune authentification). Le compte
+        marchand est résolu côté serveur (jamais exposé).
+
+        Le montant est **saisi par le payeur** (QR statique). Les **frais sont à la charge du
+        payeur** : il est débité `montant + frais`, le marchand reçoit le **montant plein**.
+        Traitement **asynchrone** : la réponse est `pending` ; l'état final arrive via le
+        règlement opérateur (suivre `/api/checkout/{reference}/status`).
+      tags:
+        - Paiement marchand
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Code de l'alias payable (extrait du lien du QR)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutInitiateRequest'
+            example:
+              amount: 5000
+              provider_code: moov
+              payment_method_code: mobile-money
+              phone: '0700000009'
+              country: ci
+      responses:
+        '201':
+          description: Paiement initié (en attente de confirmation opérateur)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutInitiateResponse'
+              example:
+                reference: aig_tx_9f3a2c
+                status: pending
+        '404':
+          description: Marchand introuvable pour ce code
+          content:
+            application/json:
+              example:
+                code: E_MERCHANT_NOT_FOUND
+                message: Marchand introuvable pour ce code.
+        '409':
+          description: Le marchand n'accepte pas les paiements (alias inactif)
+          content:
+            application/json:
+              example:
+                code: E_MERCHANT_INACTIVE
+                message: Ce marchand n'accepte pas les paiements pour le moment.
+        '422':
+          description: Payload invalide (montant, provider/moyen hors catalogue…)
+          content:
+            application/json:
+              example:
+                errors:
+                  - field: provider_code
+                    message: The selected provider_code is invalid
+
+  /api/checkout/{reference}/status:
+    get:
+      operationId: checkoutStatus
+      summary: État d'un paiement marchand
+      description: |
+        Renvoie l'état d'un paiement marchand par sa **référence** (polling — le règlement est
+        asynchrone). **Public**, scopé aux paiements `checkout` (n'expose pas l'état d'une
+        transaction consumer).
+      tags:
+        - Paiement marchand
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Référence de la transaction retournée à l'initiation
+      responses:
+        '200':
+          description: État du paiement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutStatusResponse'
+              example:
+                reference: aig_tx_9f3a2c
+                status: pending
+                amount: 5100
+        '404':
+          description: Paiement introuvable pour cette référence
+          content:
+            application/json:
+              example:
+                code: E_TRANSACTION_NOT_FOUND
+                message: Paiement introuvable pour cette référence.
+
 components:
   parameters:
     OrganisationId:
@@ -1252,6 +1388,113 @@ components:
         active:
           type: boolean
           example: true
+
+    CheckoutInitiateRequest:
+      type: object
+      required: [amount, provider_code, payment_method_code, phone, country]
+      properties:
+        amount:
+          type: number
+          description: Montant saisi par le payeur (unité mineure).
+          example: 5000
+        provider_code:
+          type: string
+          description: Opérateur mobile money du payeur.
+          example: moov
+        payment_method_code:
+          type: string
+          example: mobile-money
+        phone:
+          type: string
+          description: Numéro du payeur.
+          example: '0700000009'
+        country:
+          type: string
+          description: Pays du payeur.
+          example: ci
+        otp:
+          type: string
+          nullable: true
+          description: Code OTP éventuel (selon l'opérateur).
+
+    CheckoutInitiateResponse:
+      type: object
+      required: [reference, status]
+      properties:
+        reference:
+          type: string
+          description: Référence de la transaction (pour suivre le statut).
+          example: aig_tx_9f3a2c
+        status:
+          type: string
+          enum: [pending, success, failed]
+          example: pending
+        redirectUrl:
+          type: string
+          nullable: true
+          description: Présent si l'opérateur renvoie une redirection synchrone.
+
+    CheckoutStatusResponse:
+      type: object
+      required: [reference, status, amount]
+      properties:
+        reference:
+          type: string
+          example: aig_tx_9f3a2c
+        status:
+          type: string
+          enum: [pending, success, failed]
+          example: pending
+        amount:
+          type: number
+          description: Montant débité au payeur (montant saisi + frais).
+          example: 5100
+
+    PaymentOptions:
+      type: object
+      description: Catalogue des moyens de paiement d'un service, avec tarification.
+      properties:
+        serviceType:
+          type: string
+          example: checkout
+        methods:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                example: mobile-money
+              name:
+                type: string
+                example: Mobile Money
+              id:
+                type: integer
+              order:
+                type: integer
+              providers:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    code:
+                      type: string
+                      example: moov
+                    name:
+                      type: string
+                    isActive:
+                      type: boolean
+                    feeFixed:
+                      type: number
+                      example: 100
+                    feePercent:
+                      type: number
+                      example: 0
+                    currency:
+                      type: string
+                      example: XOF
 
     MemberResponse:
       type: object
