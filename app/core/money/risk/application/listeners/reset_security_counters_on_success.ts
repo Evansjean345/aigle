@@ -36,8 +36,11 @@ export default class ResetSecurityCountersOnSuccess {
       return
     }
 
+    // Compteurs de sécurité PAR USER : un checkout marchand n'a pas de user → ignoré.
+    if (event instanceof DepositTransactionCompleted && event.data.type === 'checkout') return
+
     const { userId } = event.data
-    await this.reset(userId)
+    await this.reset(userId!)
   }
 
   private async reset(

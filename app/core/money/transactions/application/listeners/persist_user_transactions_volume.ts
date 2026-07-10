@@ -34,8 +34,11 @@ export default class PersistUserTransactionsVolume {
       return
     }
 
+    // Volume PAR USER : un encaissement marchand (checkout) n'a pas de user → ignoré.
+    if (event instanceof DepositTransactionCompleted && event.data.type === 'checkout') return
+
     const { userId, amount, reference } = event.data
-    await this.persist(reference, userId, amount)
+    await this.persist(reference, userId!, amount)
   }
 
   /**

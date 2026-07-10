@@ -129,13 +129,13 @@ export default class SettleDepositUseCase {
       }
     )
 
-    // Le flux consumer (notif user, volume, compteurs sécurité) ne concerne que le deposit :
-    // un checkout crédite un compte marchand sans user → ces listeners tourneraient à vide.
-    // TODO(notif marchand) : event core « encaissement reçu » → listener produit (aiglebusiness).
-    if (isCheckout) return
-
+    // Un seul event de complétion, avec le flag `type` : chaque listener s'y abonne et **filtre
+    // sur le flag** (consumer agit sur `deposit`, un futur listener marchand sur `checkout`).
+    // Le use case annonce le fait ; il ne décide pas des effets.
     await this.support.dispatchFlowEvent('DepositTransactionCompleted', transaction, {
-      amount: transaction.amount,
+      type: isCheckout ? 'checkout' : 'deposit',
+      amount: isCheckout ? creditAmount : transaction.amount,
+      accountId: transaction.accountId,
       userId: transaction.usersUid,
       balanceAfter: updatedWallet.balance || 0,
     })
@@ -170,12 +170,12 @@ export default class SettleDepositUseCase {
       }
     )
 
-    // Checkout : rien à rembourser (external-in, aucun compte Aigle débité) → pas de flux
-    // d'échec consumer (qui porte la logique de refund).
-    if (isCheckout) return
-
+    // Un seul event d'échec, avec le flag `type` : les listeners filtrent (consumer →
+    // logique de refund sur `deposit` ; un checkout n'a rien à rembourser, external-in).
     await this.support.dispatchFlowEvent('DepositTransactionFailed', transaction, {
-      amount: transaction.amount,
+      type: isCheckout ? 'checkout' : 'deposit',
+      amount: Number(transaction.amount),
+      accountId: transaction.accountId,
       userId: transaction.usersUid,
     })
   }
