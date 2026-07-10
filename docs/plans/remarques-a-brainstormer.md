@@ -31,8 +31,21 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 | R2 | 🟠 Majeur | à brainstormer | Notifications **push** non scopées par app : `expo_push_channel.getTrustedDevices(recipientId)` envoie à TOUS les appareils de confiance (aiglesend + business). Une notif aiglesend pousse aussi vers l'app business |
 | R3 | 🟢 Feature | **décidé — à implémenter** | Flux de **transfert de propriété** d'une organisation (owner unique). Le verrou (owner non attribuable) est en place ; il manque l'endpoint de transmission explicite |
 | R4 | 🟠 Majeur | à faire (endgame D8) | Supprimer `user_id`/`users_uid` de `wallets` & `transactions` une fois le core argent **entièrement** account-centrique (`account_id` suffit). Aujourd'hui encore très référencés → nettoyage différé après la migration complète des lookups |
+| R5 | 🟠 Majeur | **décidé (design) — à implémenter** | **Palier/niveau porté par le COMPTE** (pas le user) : `account` porte son niveau → limites/volume/blocages-argent clés par `account_id`. Unifie KYC (user) et KYB (org) sous une seule résolution `account → niveau → limites`. Auth (PIN/OTP/brute-force) reste par user |
 
 ---
+
+### R5 — Palier/niveau porté par le compte (unification KYC/KYB)
+- **Niveau** : 🟠 Majeur (transverse identity + money + business ; money-critical)
+- **Date** : 2026-07-10
+- **Décision (design acté avec l'utilisateur)** :
+  - Le **niveau/palier est une propriété du COMPTE** (`account`), pas du user. `organisation <-> user => account`, le compte porte son niveau. **Pas** de dimension `app` explicite : l'app est **impliquée par `ownerType`** (compte user → aiglesend / compte org → aiglebusiness).
+  - Résolution **unifiée** : `account → niveau → limites`. Supprime la branche « ce compte est-il un user (→ KYC) ou une org (→ KYB) ? » dans la validation des limites.
+  - **Séparation nette** — concerns **ARGENT → `account_id`** : limites (`transaction_limit_validation_service`), volume (`persist_user_transactions_volume`), compteurs sécurité argent (`reset_security_counters_on_success`, `handle_transaction_failure`). Concerns **AUTH → restent `user_id`** : blocage PIN (`auth:pin:block:${userId}`), blocage OTP (`auth:user:otp:block:${userId}`), brute-force login (`security_alert:failed_auth`) — **un compte marchand ne s'authentifie pas** ; c'est son propriétaire (user) qui saisit PIN/OTP.
+- **État actuel** : limites sur table `KycLevel` (single/daily/monthly/balanceLimit), pointée par `User.kycLevel`. L'org a `OrganisationLevel` (L0/L1/L2) **sans** table de limites. Deux mondes à unifier sur `account`.
+- **Esquisse** : ajouter le niveau (+ résolution des limites) au compte (`accounts.tier` ou table `account_tier` reliant niveau→limites, réutilisable pour user KYC & org KYB) ; migrer les lookups argent `userId` → `accountId` ; définir les limites d'un compte marchand (KYB → paliers business).
+- **Pourquoi différé** : transverse (identity/money/business), money-critical, et **le checkout MVP n'en a pas besoin** (un marchand qui *reçoit* n'a pas de limite bloquante ; les gardes actuelles sautent proprement le marchand). Naturellement couplé à [[R4]] (endgame D8 account-centrique).
+- **Statut** : décidé (design) — à implémenter après le sous-lot 4 (checkout) & mass-paiement, groupé avec R4.
 
 ## Remarques
 
