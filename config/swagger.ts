@@ -118,12 +118,16 @@ const aiglebusinessOptions: swaggerJsdoc.Options = {
         "Documentation de l'API du produit business Aiglebusiness — organisations, membres, QR marchand.",
     },
     tags: [
+      { name: 'Business - Authentification', description: 'Connexion business (check-phone, login, OTP, sessions)' },
       { name: 'Business - Organisations', description: 'Création et liste des organisations' },
-      { name: 'QR marchand', description: 'Résolution publique du QR marchand (page de paiement)' },
+      { name: 'Business - Rôles', description: 'RBAC : rôles et catalogue de permissions' },
+      { name: 'Business - Membres', description: 'Gestion des membres d’une organisation' },
+      { name: 'Business - Invitations', description: 'Acceptation/refus d’invitation (semi-public)' },
       {
         name: 'Paiement marchand',
         description: 'Encaissement marchand public (page aigleplay) : options, initiation, statut',
       },
+      { name: 'QR marchand', description: 'Résolution publique du QR marchand (page de paiement)' },
       { name: 'Business - Santé', description: 'Liveness du module business' },
     ],
   },
