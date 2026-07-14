@@ -1,6 +1,11 @@
 import { type DateTime } from 'luxon'
 import { type TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
 import { PaymentResponseDTO } from '#core/money/transactions/application/dto/payment.dto'
+import TransactionDisplayService, {
+  type TransactionDisplay,
+  type PaymentDetailsInput,
+} from '#core/money/transactions/application/services/transaction_display_service'
+import type { AccountHolderResult } from '#core/money/transactions/application/services/account_holder_resolver'
 import type Transaction from '#core/money/transactions/domain/models/transaction'
 import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
@@ -18,15 +23,30 @@ export class AdminTransactionResponseDTO {
   declare createdAt: DateTime
   declare updatedAt: DateTime
   declare payment: PaymentResponseDTO[]
-  declare user?: {
-    id: string
-    firstname: string
-    lastname: string
-    wallet: {
+  /**
+   * Partie prenante de la transaction, **uniforme** : un compte **user** (nom + lien profil) ou un
+   * compte **marchand** (nom résolu via l'alias payable). Remplace l'ancien `user` (qui affichait
+   * `-` pour les comptes marchands sans user, depuis le refactor account-centric).
+   */
+  declare party?: {
+    accountId: string
+    type: 'user' | 'merchant' | 'unknown'
+    name: string | null
+    /** Présent uniquement pour un compte user (lien vers le profil admin). */
+    userId?: string
+    /** Wallet du compte user (préchargé en détails) — pour l'ajustement admin. Absent en liste. */
+    wallet?: {
       id: number
       balance: number
     }
   }
+  /**
+   * Classification d'affichage dérivée (taxonomie 2026-07), **partagée avec le mobile** : `kind`
+   * (encaissement / paiement marchand / P2P / dépôt / transfert externe / inter-réseau…), `scope`,
+   * `flow` et `counterparty`. Complète `party` (le **titulaire** du leg) par la **contrepartie** du
+   * flux — côté admin le libellé s'appuie sur le numéro brut (pas de résolution de contact).
+   */
+  declare display: TransactionDisplay
   declare ledgers?: {
     id: number
     walletId: number
@@ -88,7 +108,18 @@ export class AdminTransactionResponseDTO {
     createdAt: DateTime
   } | null
 
-  static fromTransaction(transaction: Transaction): AdminTransactionResponseDTO {
+  /**
+   * @param transaction La transaction.
+   * @param holders Map `accountId → titulaire résolu` (`AccountHolderResolver`) — le titulaire est
+   *   résolu par **compte** (account-centric), plus par la relation `user` préchargée.
+   * @param wallet Wallet du compte (id + solde), résolu par `account_id` en vue détails — pour
+   *   l'ajustement admin. Absent en liste.
+   */
+  static fromTransaction(
+    transaction: Transaction,
+    holders?: Map<string, AccountHolderResult>,
+    wallet?: { id: number; balance: number }
+  ): AdminTransactionResponseDTO {
     const dto = new AdminTransactionResponseDTO()
 
     let paymentResponse: PaymentResponseDTO[] = []
@@ -109,17 +140,33 @@ export class AdminTransactionResponseDTO {
     dto.createdAt = transaction.createdAt
     dto.updatedAt = transaction.updatedAt
     dto.payment = paymentResponse
-    dto.user = transaction.user
-      ? {
-          id: transaction.user.usersUid,
-          firstname: transaction.user.firstname,
-          lastname: transaction.user.lastname,
-          wallet: {
-            id: Number(transaction.user?.wallet?.id),
-            balance: Number(transaction.user?.wallet?.balance),
-          },
-        }
-      : undefined
+    dto.display = TransactionDisplayService.toDisplay({
+      operationType: transaction.operationType,
+      direction: transaction.direction,
+      // `paymentDetails` est parsé en objet par le modèle (colonne JSON) malgré son type `string`.
+      paymentDetails: transaction.payment?.[0]
+        ?.paymentDetails as unknown as PaymentDetailsInput | null,
+      description: transaction.description,
+    })
+    const holder = holders?.get(transaction.accountId)
+    if (holder?.user) {
+      const fullName =
+        `${holder.user.firstname ?? ''} ${holder.user.lastname ?? ''}`.trim()
+      dto.party = {
+        accountId: transaction.accountId,
+        type: 'user',
+        name: fullName || null,
+        userId: holder.user.userId,
+        wallet,
+      }
+    } else {
+      dto.party = {
+        accountId: transaction.accountId,
+        type: holder?.merchantName ? 'merchant' : 'unknown',
+        name: holder?.merchantName ?? null,
+        wallet,
+      }
+    }
     dto.ledgers = transaction.ledgers?.length
       ? transaction.ledgers.map((ledger) => ({
           id: ledger.id,
@@ -192,11 +239,12 @@ export class AdminTransactionResponseDTO {
   }
 
   static async fromPaginator(
-    paginatedTransactions: ModelPaginatorContract<Transaction>
+    paginatedTransactions: ModelPaginatorContract<Transaction>,
+    holders?: Map<string, AccountHolderResult>
   ): Promise<PaginatedAdminTransactionsResponseDTO> {
     const items = paginatedTransactions.all()
     return {
-      data: items.map(AdminTransactionResponseDTO.fromTransaction),
+      data: items.map((t) => AdminTransactionResponseDTO.fromTransaction(t, holders)),
       meta: {
         total: paginatedTransactions.total,
         currentPage: paginatedTransactions.currentPage,

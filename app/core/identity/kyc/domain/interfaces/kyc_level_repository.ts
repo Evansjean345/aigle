@@ -22,6 +22,12 @@ export default abstract class KycLevelRepository {
   abstract findByLevel(level: number): Promise<KycLevel | null>
 
   /**
+   * Trouve la grille de limites pour un couple `(segment, level)` — clé du refactor
+   * account-centric (particulier / marchand / enterprise partagent la table).
+   */
+  abstract findBySegmentAndLevel(segment: string, level: number): Promise<KycLevel | null>
+
+  /**
    * Enregistre ou met à jour un niveau KYC
    */
   abstract save(kycLevel: KycLevel): Promise<KycLevel>

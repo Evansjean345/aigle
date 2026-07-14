@@ -17,6 +17,11 @@ export default class PayableAliasRepositoryImpl implements PayableAliasRepositor
     return await PayableAlias.query({ client: trx }).where('account_id', accountId).first()
   }
 
+  async findByAccountIds(accountIds: string[]): Promise<PayableAlias[]> {
+    if (accountIds.length === 0) return []
+    return await PayableAlias.query().whereIn('account_id', accountIds)
+  }
+
   async create(
     data: Partial<PayableAlias>,
     trx?: TransactionClientContract

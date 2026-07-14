@@ -4,10 +4,11 @@ import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import User from '#core/identity/user/domain/models/user'
 import { UserStatus } from '#core/identity/user/domain/enum'
-import Account from '#core/money/account/domain/models/account'
+import Account from '#core/identity/account/domain/models/account'
 import Wallet from '#core/money/wallet/domain/models/wallet'
-import { AccountOwnerType } from '#core/money/account/domain/enums/account_owner_type'
-import AccountProvisioningService from '#core/money/account/application/services/account_provisioning_service'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
+import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import AccountService from '#core/identity/account/application/services/account_service'
 import WalletService from '#core/money/wallet/application/services/wallet_service'
 import TransactionService from '#core/money/transactions/application/services/transaction_service'
 import Transaction from '#core/money/transactions/domain/models/transaction'
@@ -18,13 +19,14 @@ import { TransactionType } from '#core/money/transactions/domain/enums/transacti
 const CI_COUNTRY_ID = 52
 
 /**
- * Caractérise la fondation account (sous-lot 1) : la porte unique
- * AccountProvisioning.openFor crée account + wallet atomiquement, avec un
- * account_id dérivé (= owner_ref) et de façon idempotente.
+ * Caractérise la fondation account (refactor account-centric β) : `AccountService.openAccount`
+ * crée le **compte** (identity) avec `account_id` dérivé (= owner_ref) de façon idempotente, et le
+ * **wallet** est créé par **money** en réaction à l'event `AccountOpened` (provisioning
+ * unidirectionnel `money → identity`). Sans `trx`, `openAccount` annonce lui-même (dispatch awaité →
+ * wallet créé de façon synchrone).
  *
- * Non couvert par la suite payments-flow (qui seed les wallets directement).
- * Couvre les deux natures de propriétaire : user (wallet lié au users_uid) et
- * organisation (wallet sans user, user_id null — colonne relâchée en nullable).
+ * Non couvert par la suite payments-flow (qui seed les wallets directement). Couvre les deux natures
+ * de propriétaire : user (wallet lié au users_uid) et organisation (wallet sans user, user_id null).
  */
 async function createUser(): Promise<User> {
   const phone = `+22507${Math.floor(1_000_000 + Math.random() * 8_999_999)}`
@@ -39,6 +41,19 @@ async function createUser(): Promise<User> {
   return user
 }
 
+/**
+ * Ouvre un compte via `AccountService` (sans trx → le wallet est créé par money sur `AccountOpened`),
+ * et renvoie l'`accountId`. Segment `particulier` pour un user, `marchand` pour une org (le segment
+ * exact n'influe pas sur les assertions compte/wallet ci-dessous).
+ */
+async function openAccountFor(ownerType: AccountOwnerType, ownerRef: string): Promise<string> {
+  const accountService = await app.container.make(AccountService)
+  const segment =
+    ownerType === AccountOwnerType.USER ? AccountSegment.PARTICULIER : AccountSegment.MARCHAND
+  const account = await accountService.openAccount({ ownerType, ownerRef, segment, level: 1 })
+  return account.accountId
+}
+
 test.group('Fondation account | openFor(user)', (group) => {
   group.each.setup(async () => {
     await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
@@ -51,9 +66,8 @@ test.group('Fondation account | openFor(user)', (group) => {
 
   test('crée un compte + wallet dérivés du users_uid', async ({ assert }) => {
     const user = await createUser()
-    const provisioning = await app.container.make(AccountProvisioningService)
 
-    const accountId = await provisioning.openFor(AccountOwnerType.USER, user.usersUid)
+    const accountId = await openAccountFor(AccountOwnerType.USER, user.usersUid)
 
     // account_id dérivé = owner_ref = users_uid
     assert.equal(accountId, user.usersUid)
@@ -70,10 +84,9 @@ test.group('Fondation account | openFor(user)', (group) => {
 
   test('est idempotent : deuxième appel, aucun doublon account/wallet', async ({ assert }) => {
     const user = await createUser()
-    const provisioning = await app.container.make(AccountProvisioningService)
 
-    const first = await provisioning.openFor(AccountOwnerType.USER, user.usersUid)
-    const second = await provisioning.openFor(AccountOwnerType.USER, user.usersUid)
+    const first = await openAccountFor(AccountOwnerType.USER, user.usersUid)
+    const second = await openAccountFor(AccountOwnerType.USER, user.usersUid)
 
     assert.equal(first, second)
 
@@ -97,9 +110,8 @@ test.group('Fondation account | openFor(organisation)', (group) => {
 
   test('crée un compte + wallet sans user propriétaire (user_id null)', async ({ assert }) => {
     const organisationId = randomUUID()
-    const provisioning = await app.container.make(AccountProvisioningService)
 
-    const accountId = await provisioning.openFor(AccountOwnerType.ORGANISATION, organisationId)
+    const accountId = await openAccountFor(AccountOwnerType.ORGANISATION, organisationId)
 
     // account_id dérivé = owner_ref = organisation_id
     assert.equal(accountId, organisationId)
@@ -131,13 +143,12 @@ test.group('Fondation D8 | argent account-centrique', (group) => {
   })
 
   test('getByAccountId résout le wallet (user ET organisation)', async ({ assert }) => {
-    const provisioning = await app.container.make(AccountProvisioningService)
     const wallets = await app.container.make(WalletService)
 
     const user = await createUser()
-    await provisioning.openFor(AccountOwnerType.USER, user.usersUid)
+    await openAccountFor(AccountOwnerType.USER, user.usersUid)
     const orgId = randomUUID()
-    await provisioning.openFor(AccountOwnerType.ORGANISATION, orgId)
+    await openAccountFor(AccountOwnerType.ORGANISATION, orgId)
 
     // account_id == usersUid pour un user ; == organisation_id pour une org.
     const userWallet = await wallets.getByAccountId(user.usersUid)
@@ -150,12 +161,11 @@ test.group('Fondation D8 | argent account-centrique', (group) => {
   })
 
   test('createTransaction consumer : account_id peuplé (== usersUid)', async ({ assert }) => {
-    const provisioning = await app.container.make(AccountProvisioningService)
     const wallets = await app.container.make(WalletService)
     const transactions = await app.container.make(TransactionService)
 
     const user = await createUser()
-    await provisioning.openFor(AccountOwnerType.USER, user.usersUid)
+    await openAccountFor(AccountOwnerType.USER, user.usersUid)
     const wallet = await wallets.getByAccountId(user.usersUid)
 
     const created = await transactions.createTransaction(
@@ -176,12 +186,11 @@ test.group('Fondation D8 | argent account-centrique', (group) => {
   })
 
   test('createTransaction marchand : account_id = org, sans user', async ({ assert }) => {
-    const provisioning = await app.container.make(AccountProvisioningService)
     const wallets = await app.container.make(WalletService)
     const transactions = await app.container.make(TransactionService)
 
     const orgId = randomUUID()
-    await provisioning.openFor(AccountOwnerType.ORGANISATION, orgId)
+    await openAccountFor(AccountOwnerType.ORGANISATION, orgId)
     const wallet = await wallets.getByAccountId(orgId)
 
     // user = null, accountId explicite (le marchand n'a pas de user).

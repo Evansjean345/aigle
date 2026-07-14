@@ -55,6 +55,12 @@ export const businessPortalUrl: string = env.get('BUSINESS_PORTAL_URL', 'http://
 export const aigleplayPortailUrl: string = env.get('AIGLEPLAY_PORTAIL_URL', 'https://pay.aigle')
 
 /**
+ * Page de retour aigleplay après paiement (Orange payment_link / opérateurs à redirection).
+ * Le payeur y est renvoyé pour voir le résultat de son encaissement : `<portail>/notify`.
+ */
+export const aigleplayNotifyUrl: string = `${aigleplayPortailUrl}/notify`
+
+/**
  * The configuration settings used by the HTTP server
  */
 export const http = defineConfig({

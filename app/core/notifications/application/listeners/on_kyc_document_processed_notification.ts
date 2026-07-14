@@ -3,6 +3,7 @@ import UserKycStatusUpdated from '#core/identity/user/application/events/user_ky
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import { UserKycStatus } from '#core/identity/user/domain/enum'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import { inject } from '@adonisjs/core'
 
 @inject()
@@ -32,7 +33,7 @@ export default class OnKycDocumentProcessedNotification {
       message += ` Raison : ${event.comment}`
     }
 
-    const notification = new Notification(event.userId, title, message)
+    const notification = new Notification(event.userId, title, message, undefined, AppName.AIGLESEND)
     await this.notificationService.sendVia(NotificationChannelType.PushNotification, notification)
   }
 }

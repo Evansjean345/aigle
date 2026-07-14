@@ -1,4 +1,5 @@
 import { inject } from '@adonisjs/core'
+import adonisApp from '@adonisjs/core/services/app'
 import { DateTime } from 'luxon'
 import DeviceRepository from '#core/identity/device/domain/interfaces/device_repository'
 import UserDeviceRepository from '#core/identity/device/domain/interfaces/user_device_repository'
@@ -215,13 +216,18 @@ export default class DeviceService {
   }
 
   /**
-   * Met à jour le push token pour une liaison user↔device.
+   * Met à jour le push token pour une liaison user↔device, **scopée par app**.
+   *
+   * `app` par défaut `AIGLESEND` (rétro-compat des appelants existants) ; le canal
+   * business passe `AIGLEBUSINESS` pour cibler la liaison de confiance de cette app —
+   * le token push est ainsi rattaché au bon appareil/app (cf. scoping notifications).
    */
   async updatePushToken(
     fingerprintHash: string,
     deviceUid: string,
     pushToken: string,
-    userId: string
+    userId: string,
+    app: AppName = AppName.AIGLESEND
   ): Promise<UserDevice> {
     const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
 
@@ -237,7 +243,7 @@ export default class DeviceService {
     const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
       userId,
       device.id,
-      AppName.AIGLESEND
+      app
     )
 
     if (!userDevice) {
@@ -293,7 +299,9 @@ export default class DeviceService {
     }
 
     // Intégrité de l'appareil (matériel) : rooté / émulateur → refus.
-    if (device.isRooted || device.isEmulator) {
+    // ⚠️ DEV : en dehors de la production, on **n'applique pas** ce refus, sinon
+    // aucun émulateur ne peut travailler. Le contrôle reste **actif en production**.
+    if (adonisApp.inProduction && (device.isRooted || device.isEmulator)) {
       throw new Exception(
         'Opération impossible sur un appareil non sécurisé (rooté ou émulateur).',
         {

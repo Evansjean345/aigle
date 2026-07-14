@@ -37,7 +37,7 @@ export default class GetUserWalletOverviewUseCase {
       throw new UserAccountNotFoundException()
     }
 
-    const wallet = await this.walletService.getByUserId(user.usersUid)
+    const wallet = await this.walletService.getByAccountId(user.usersUid)
     const latestTransactions = await this.transactionRepository.getLatestTransactionByUserId(
       user.usersUid,
       9

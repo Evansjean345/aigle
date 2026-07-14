@@ -3,11 +3,14 @@ import { inject } from '@adonisjs/core'
 import CheckBusinessPhoneUseCase from '#aiglebusiness/auth/application/use_cases/check_business_phone.use_case'
 import BusinessLoginUseCase from '#aiglebusiness/auth/application/use_cases/business_login.use_case'
 import BusinessVerifyLoginUseCase from '#aiglebusiness/auth/application/use_cases/business_verify_login.use_case'
+import CheckPinUseCase from '#core/identity/authentication/application/use_cases/check_pin_use_case'
+import User from '#core/identity/user/domain/models/user'
 import { type BusinessAuthTraceContext } from '#aiglebusiness/auth/application/business_auth_audit'
 import {
   businessCheckPhoneValidator,
   businessLoginValidator,
   businessVerifyLoginValidator,
+  businessCheckPinValidator,
 } from '#aiglebusiness/auth/presentation/client/validators/business_auth_validators'
 
 @inject()
@@ -15,7 +18,8 @@ export default class BusinessAuthController {
   constructor(
     private readonly checkBusinessPhone: CheckBusinessPhoneUseCase,
     private readonly businessLogin: BusinessLoginUseCase,
-    private readonly businessVerifyLogin: BusinessVerifyLoginUseCase
+    private readonly businessVerifyLogin: BusinessVerifyLoginUseCase,
+    private readonly checkPin: CheckPinUseCase
   ) {}
 
   /**
@@ -68,5 +72,29 @@ export default class BusinessAuthController {
     )
 
     return response.ok(result)
+  }
+
+  /**
+   * Vérifie le PIN de l'utilisateur **authentifié** (déverrouillage / lock-screen).
+   * Miroir d'aiglesend (`check-pin`) : délègue au use case core `CheckPinUseCase`
+   * (mêmes garanties — `PinAttemptGuard` : blocage/temporisation, audit). Le numéro
+   * vient du token (pas du corps) ; le compte marchand ne s'authentifie pas, c'est
+   * son propriétaire (user) qui saisit le PIN.
+   */
+  async checkPinCode(ctx: HttpContext): Promise<void> {
+    const { request, response, geoLocation } = ctx
+    const payload = await request.validateUsing(businessCheckPinValidator)
+    const user = ctx.auth.user! as User
+
+    const result = await this.checkPin.execute({
+      phone: user.phone,
+      pincode: payload.pincode,
+      ipAddress: geoLocation?.ip ?? request.ip(),
+      userAgent: request.header('user-agent') ?? null,
+      requestId: request.header('x-request-id') ?? null,
+      geoLocation,
+    })
+
+    return response.created({ isValid: result })
   }
 }

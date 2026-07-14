@@ -50,30 +50,26 @@ export default class InternalMoveUseCase {
   ) {}
 
   async handle(cmd: InternalMoveCommand): Promise<MovementResult> {
-    const senderWallet = await this.resolveWalletWithUser(cmd.fromAccountId)
-    const recipientWallet = await this.resolveWalletWithUser(cmd.toAccountId)
+    const senderWallet = await this.resolveWallet(cmd.fromAccountId)
+    const recipientWallet = await this.resolveWallet(cmd.toAccountId)
 
     const { amount, fees, total } = await this.feeResolver.resolve(cmd.feeContext, cmd.amount)
 
     await this.partyValidator.validate({
-      user: senderWallet.user,
+      accountId: senderWallet.accountId ?? cmd.fromAccountId,
       amount: total,
       transactionType: TransactionType.WALLET_TRANSFERT,
       direction: TransactionDirection.DEBIT,
     })
-    await this.partyValidator.validate({
-      user: recipientWallet.user,
-      amount,
-      transactionType: TransactionType.WALLET_TRANSFERT,
-      direction: TransactionDirection.CREDIT,
-      isRecipient: true,
-    })
 
-    const { deviceInfo, geoIpLocation } = this.extractRequestContext(cmd)
+    await this.validateRecipient(recipientWallet, amount, cmd.toAccountId)
+
+    const { deviceInfo, geoIpLocation, recipientLabel } = this.extractRequestContext(cmd)
     const senderBefore = Number(senderWallet.balance)
     const recipientBefore = Number(recipientWallet.balance)
 
     const trx = await db.transaction()
+
     try {
       const debited = await this.walletService.debitBalance(senderWallet.id, amount, trx)
       const senderTx = await this.transactionService.createTransaction(
@@ -84,17 +80,29 @@ export default class InternalMoveUseCase {
           total_amount: total,
           fees,
           balanceAfter: debited.balance,
-          operation_type: TransactionType.WALLET_TRANSFERT,
-          description: `Transfert à ${recipientWallet.user.firstname} ${recipientWallet.user.lastname}`,
+          operation_type: cmd.type,
+          description: recipientWallet.user
+            ? `Transfert à ${recipientWallet.user.firstname} ${recipientWallet.user.lastname}`
+            : recipientLabel
+              ? `Paiement à ${recipientLabel}`
+              : 'Paiement marchand',
           idempotency: cmd.idempotencyKey || undefined,
         },
         senderWallet.id,
         senderWallet.user,
         deviceInfo,
         geoIpLocation,
-        trx
+        trx,
+        senderWallet.accountId ?? cmd.fromAccountId
       )
-      await this.createInternalPayment(senderTx, recipientWallet.user, trx)
+
+      await this.createInternalPayment(
+        senderTx,
+        recipientWallet.user,
+        cmd.type,
+        trx,
+        recipientLabel
+      )
       await this.ledgerService.recordWalletTransfer(
         {
           transaction: senderTx,
@@ -104,6 +112,7 @@ export default class InternalMoveUseCase {
           fees,
           balanceBefore: senderBefore,
           balanceAfter: debited.balance,
+          operationType: TransactionType.WALLET_TRANSFERT,
         },
         trx
       )
@@ -123,16 +132,23 @@ export default class InternalMoveUseCase {
           total_amount: total,
           fees: 0,
           balanceAfter: credited.balance,
-          operation_type: TransactionType.WALLET_TRANSFERT,
-          description: `Transfert reçu de ${senderWallet.user.firstname} ${senderWallet.user.lastname}`,
+          operation_type: cmd.type,
+          // Symétrie avec le leg payeur : un encaissement marchand (`checkout`) est « Paiement reçu
+          // de … » ; un P2P reste « Transfert reçu de … ».
+          description:
+            cmd.type === TransactionType.CHECKOUT
+              ? `Paiement reçu de ${senderWallet.user.firstname} ${senderWallet.user.lastname}`
+              : `Transfert reçu de ${senderWallet.user.firstname} ${senderWallet.user.lastname}`,
         },
         recipientWallet.id,
         recipientWallet.user,
         deviceInfo,
         geoIpLocation,
-        trx
+        trx,
+        recipientWallet.accountId ?? cmd.toAccountId
       )
-      await this.createInternalPayment(recipientTx, senderWallet.user, trx)
+
+      await this.createInternalPayment(recipientTx, senderWallet.user, cmd.type, trx)
       await this.ledgerService.recordWalletTransfer(
         {
           transaction: recipientTx,
@@ -142,13 +158,14 @@ export default class InternalMoveUseCase {
           fees: 0,
           balanceBefore: recipientBefore,
           balanceAfter: credited.balance,
+          operationType: TransactionType.WALLET_TRANSFERT,
         },
         trx
       )
 
       await trx.commit()
 
-      this.emitActivity(senderTx, recipientTx, senderWallet, recipientWallet, {
+      this.emitActivity(senderTx, recipientTx, senderWallet, recipientWallet, cmd, {
         fees,
         total,
         senderBefore,
@@ -157,12 +174,13 @@ export default class InternalMoveUseCase {
         recipientAfter: credited.balance,
       })
 
-      // Fait argent « mouvement interne réglé » émis par le CORE (l'engine possède les records).
-      // Le produit ne re-lit plus les transactions pour dispatcher : les listeners (volume,
-      // notification) écoutent cet event core.
       WalletToWalletTransactionCompleted.dispatch(senderTx, recipientTx, {
-        recipientPhone: recipientWallet.user.phone,
+        type: recipientWallet.userId ? 'p2p' : 'merchant',
+        recipientPhone: recipientWallet.user?.phone ?? null,
         senderPhone: senderWallet.user.phone,
+        recipientAccountId: recipientWallet.accountId ?? cmd.toAccountId,
+        senderBalanceAfter: debited.balance,
+        recipientBalanceAfter: credited.balance,
       }).catch((err) =>
         transferLog.error(
           'EVENT_DISPATCH_FAILED',
@@ -189,37 +207,82 @@ export default class InternalMoveUseCase {
     }
   }
 
-  private async resolveWalletWithUser(accountId: string): Promise<Wallet> {
-    const wallet = await this.walletService.getByUserId(accountId)
-    await wallet.load('user')
+  private async resolveWallet(accountId: string): Promise<Wallet> {
+    const wallet = await this.walletService.getByAccountId(accountId)
+    if (wallet.userId) await wallet.load('user')
     return wallet
+  }
+
+  /**
+   * Valide le destinataire d'un mouvement interne — **account-centric** : user (w2w) comme marchand
+   * (compte org) sont validés via `PartyValidator` (standing du compte : statut party + wallet actif
+   * + limites du niveau). Le marchand est ainsi soumis aux **limites de réception** de son niveau KYB.
+   */
+  private async validateRecipient(
+    wallet: Wallet,
+    amount: number,
+    accountId: string
+  ): Promise<void> {
+    await this.partyValidator.validate({
+      accountId: wallet.accountId ?? accountId,
+      amount,
+      transactionType: TransactionType.WALLET_TRANSFERT,
+      direction: TransactionDirection.CREDIT,
+      isRecipient: true,
+    })
   }
 
   private extractRequestContext(cmd: InternalMoveCommand): {
     deviceInfo?: DeviceHeadersInfo
     geoIpLocation?: GeoIpLocation
+    recipientLabel?: string
   } {
     const meta = (cmd.metadata ?? {}) as {
       deviceInfo?: DeviceHeadersInfo
       geoIpLocation?: GeoIpLocation
+      recipientLabel?: string
     }
-    return { deviceInfo: meta.deviceInfo, geoIpLocation: meta.geoIpLocation }
+    return {
+      deviceInfo: meta.deviceInfo,
+      geoIpLocation: meta.geoIpLocation,
+      recipientLabel: meta.recipientLabel,
+    }
   }
 
+  /**
+   * Crée le payment miroir d'une jambe interne. `payment_details` porte la **contrepartie** de la
+   * jambe (privacy-first, taxonomie S3) :
+   * - contrepartie **User** (P2P, ou payeur côté marchand) → `{ operator, phone, user }` (le `phone`
+   *   sert à la résolution en contact côté app ; le nom n'est jamais exposé à un pair) ;
+   * - contrepartie **marchand** (leg payeur d'un paiement marchand) → `{ operator, name }` : le
+   *   **nom commercial** est exposable, contrairement à un nom d'utilisateur.
+   *
+   * @param transaction
+   * @param counterparty
+   * @param operationType Label métier de la jambe (`cmd.type`) — aligné sur la transaction.
+   * @param trx
+   * @param merchantLabel Nom du marchand, écrit quand la contrepartie est un marchand (User null).
+   */
   private createInternalPayment(
     transaction: Transaction,
-    counterparty: User,
-    trx: TransactionClientContract
+    counterparty: User | null,
+    operationType: TransactionType,
+    trx: TransactionClientContract,
+    merchantLabel?: string | null
   ) {
     return this.paymentService.createPayment(
       {
         payment_method: PaymentMethod.INTERNAL,
-        operation_type: TransactionType.WALLET_TRANSFERT,
-        payment_details: {
-          operator: PaymentMethod.WALLET,
-          phone: counterparty.phone,
-          user: `${counterparty.firstname} ${counterparty.lastname}`,
-        },
+        operation_type: operationType,
+        payment_details: counterparty
+          ? {
+              operator: PaymentMethod.WALLET,
+              phone: counterparty.phone,
+              user: `${counterparty.firstname} ${counterparty.lastname}`,
+            }
+          : merchantLabel
+            ? { operator: PaymentMethod.WALLET, name: merchantLabel }
+            : { operator: PaymentMethod.WALLET },
         status: PaymentStatus.SUCCESS,
         step: PaymentStep.WALLET_TO_WALLET,
       },
@@ -234,6 +297,7 @@ export default class InternalMoveUseCase {
     recipientTx: Transaction,
     senderWallet: Wallet,
     recipientWallet: Wallet,
+    cmd: InternalMoveCommand,
     amounts: {
       fees: number
       total: number
@@ -243,6 +307,36 @@ export default class InternalMoveUseCase {
       recipientAfter: number
     }
   ): void {
+    // Début de vie (miroir du flux externe) : le journal admin raconte TOUTE la transaction —
+    // création (acteur = initiateur), validation des parties, calcul des frais — pas seulement
+    // le mouvement d'argent.
+    const meta = (cmd.metadata ?? {}) as { geoIpLocation?: GeoIpLocation }
+    this.activity.emit({
+      event: 'CREATED',
+      transactionId: senderTx.reference,
+      amount: Number(senderTx.amount),
+      fees: amounts.fees,
+      total: amounts.total,
+      provider: 'aigle',
+      paymentMethod: PaymentMethod.WALLET,
+      transactionType: cmd.type,
+      actorId: cmd.initiatedBy,
+      ipAddress: meta.geoIpLocation?.ip ?? null,
+    })
+    this.activity.emit({
+      event: 'VALIDATION_PASSED',
+      transactionId: senderTx.reference,
+      checks: ['sender_account', 'recipient_account', 'wallets', 'limits'],
+      actorId: cmd.initiatedBy,
+    })
+    this.activity.emit({
+      event: 'FEES_CALCULATED',
+      transactionId: senderTx.reference,
+      amount: Number(senderTx.amount),
+      fees: amounts.fees,
+      total: amounts.total,
+    })
+
     this.activity.emit({
       event: 'WALLET_DEBITED',
       transactionId: senderTx.reference,

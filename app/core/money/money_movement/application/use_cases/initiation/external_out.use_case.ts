@@ -47,7 +47,7 @@ export default class ExternalOutUseCase {
     const { amount, fees, total } = await this.feeResolver.resolve(cmd.feeContext, cmd.amount)
 
     await this.partyValidator.validate({
-      user: wallet.user,
+      accountId: wallet.accountId ?? cmd.fromAccountId,
       amount,
       transactionType: cmd.type,
     })
@@ -182,7 +182,7 @@ export default class ExternalOutUseCase {
   }
 
   private async resolveWalletWithUser(accountId: string): Promise<Wallet> {
-    const wallet = await this.walletService.getByUserId(accountId)
+    const wallet = await this.walletService.getByAccountId(accountId)
     await wallet.load('user')
     return wallet
   }

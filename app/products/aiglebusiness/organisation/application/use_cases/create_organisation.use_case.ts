@@ -2,8 +2,9 @@ import { inject } from '@adonisjs/core'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import { UserKycStatus } from '#core/identity/user/domain/enum'
-import AccountProvisioningService from '#core/money/account/application/services/account_provisioning_service'
-import { AccountOwnerType } from '#core/money/account/domain/enums/account_owner_type'
+import AccountService from '#core/identity/account/application/services/account_service'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
+import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
 import MembershipService from '#aiglebusiness/membership/application/services/membership_service'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
@@ -32,7 +33,7 @@ import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/d
 export default class CreateOrganisationUseCase {
   constructor(
     private readonly organisationRepository: OrganisationRepository,
-    private readonly accountProvisioning: AccountProvisioningService,
+    private readonly accountService: AccountService,
     private readonly payableAliasService: PayableAliasService,
     private readonly membershipService: MembershipService
   ) {}
@@ -53,11 +54,21 @@ export default class CreateOrganisationUseCase {
     }
 
     const isMerchant = request.accountType === OrganisationAccountType.MARCHAND
+    const segment = isMerchant ? AccountSegment.MARCHAND : AccountSegment.ENTERPRISE
 
-    const organisation = await db.transaction(async (trx) => {
+    const { organisation, account } = await db.transaction(async (trx) => {
       const organisationId = randomUUID()
 
-      await this.accountProvisioning.openFor(AccountOwnerType.ORGANISATION, organisationId, trx)
+      const openedAccount = await this.accountService.openAccount(
+        {
+          ownerType: AccountOwnerType.ORGANISATION,
+          ownerRef: organisationId,
+          segment,
+          level: isMerchant ? 1 : 0,
+        },
+        trx
+      )
+
       const payableCode = isMerchant
         ? await this.payableAliasService.register(organisationId, request.name, trx)
         : null
@@ -75,10 +86,11 @@ export default class CreateOrganisationUseCase {
         trx
       )
 
-      // Amorce le RBAC : rôle OWNER (toutes permissions) + membre OWNER (le créateur).
       await this.membershipService.seedForNewOrganisation(organisationId, request.ownerUserId, trx)
-      return created
+      return { organisation: created, account: openedAccount }
     })
+
+    await this.accountService.announceOpened(account)
 
     return OrganisationResponseDTO.fromModel(organisation)
   }

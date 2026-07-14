@@ -10,4 +10,6 @@ export interface UserLookupResult {
   lastname: string | null
   phone: string
   kycVerified: boolean
+  /** Photo de profil — exposée uniquement si le KYC est vérifié (photo validée). */
+  pictureUrl: string | null
 }

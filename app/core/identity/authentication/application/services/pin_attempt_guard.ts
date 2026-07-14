@@ -5,6 +5,8 @@ import UserRepository from '#core/identity/user/domain/interfaces/user_repositor
 import SlidingWindowCounter from '#shared/domain/cache/sliding_window_counter'
 import TimedFlag from '#shared/domain/cache/timed_flag'
 import { UserStatus } from '#core/identity/user/domain/enum'
+import AccountService from '#core/identity/account/application/services/account_service'
+import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
 import AccountBlockedException from '#core/identity/authentication/domain/exceptions/account_blocked_exception'
 import PinTemporarilyBlockedException from '#core/identity/authentication/domain/exceptions/pin_temporarily_blocked_exception'
 import { SecurityAlertType, AlertSeverity, AuditResult } from '#core/audit/domain/enums'
@@ -47,7 +49,8 @@ export default class PinAttemptGuard {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly counter: SlidingWindowCounter,
-    private readonly block: TimedFlag
+    private readonly block: TimedFlag,
+    private readonly accountService: AccountService
   ) {}
 
   async assertNotBlocked(user: User): Promise<void> {
@@ -168,6 +171,19 @@ export default class PinAttemptGuard {
         'PIN_GUARD_TOKEN_REVOCATION_ERROR',
         { userId: user.id, error: (error as Error).message },
         'PinAttemptGuard: failed to revoke tokens after auto-block'
+      )
+    }
+
+    // Push-sync : gèle aussi l'argent du compte (le compte est la source de la validation money).
+    // Appel direct (pas d'event) pour ne pas déclencher la notification « bloqué par l'administration »
+    // du listener de `UserStateChanged`. Best-effort : un échec ne casse pas le blocage auth.
+    try {
+      await this.accountService.setStatus(user.usersUid, AccountStatus.BLOCKED)
+    } catch (error) {
+      securityLog.error(
+        'PIN_GUARD_ACCOUNT_STATUS_SYNC_ERROR',
+        { userId: user.id, error: (error as Error).message },
+        'PinAttemptGuard: failed to sync account status after auto-block'
       )
     }
 

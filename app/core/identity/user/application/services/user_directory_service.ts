@@ -42,12 +42,14 @@ export default class UserDirectoryService {
   }
 
   private toResult(user: User): UserLookupResult {
+    const kycVerified = user.kycStatus === UserKycStatus.VERIFIED
     return {
       userId: user.usersUid,
       firstname: user.firstname ?? null,
       lastname: user.lastname ?? null,
       phone: user.phone,
-      kycVerified: user.kycStatus === UserKycStatus.VERIFIED,
+      kycVerified,
+      pictureUrl: kycVerified ? user.pictureUrl || null : null,
     }
   }
 }

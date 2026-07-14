@@ -11,6 +11,7 @@ import TransfertUseCase from '#aiglesend/operations/application/use_cases/transf
 import { DepositRequestDto } from '#aiglesend/operations/application/dtos/deposit.dto'
 import { TransfertRequestDto } from '#aiglesend/operations/application/dtos/transfert.dto'
 import { Hub2WebhookNormalizer } from '#core/money/webhooks/application/normalizers/hub2_webhook_normalizer'
+import { mobileDeviceDeepLink } from '#config/app'
 import SettleProviderWebhookUseCase from '#core/money/webhooks/application/use_cases/settle_provider_webhook.use_case'
 import {
   createUserWithWallet,
@@ -125,6 +126,21 @@ test.group('Settlement | caractérisation', (group) => {
 
     const pay = await Payment.query().where('transactions_id', tx.id).firstOrFail()
     assert.equal(pay.status, PaymentStatus.SUCCESS)
+  })
+
+  test('deposit : le PRODUIT envoie son deep link (success/error url) au provider', async ({
+    assert,
+  }) => {
+    const { user } = await createUserWithWallet({ balance: 10000 })
+
+    const initUseCase = await app.container.make(DepositUseCase)
+    await initUseCase.execute(buildDepositDto(), user)
+
+    // Chaque produit fournit ses propres liens : aiglesend consumer → deep link de l'app.
+    const invoke = gateway.resolver.invokes.at(-1)
+    assert.exists(invoke)
+    assert.equal(invoke!.request.metadata.success_url, mobileDeviceDeepLink)
+    assert.equal(invoke!.request.metadata.error_url, mobileDeviceDeepLink)
   })
 
   test('deposit échec : tx + payment FAILED, wallet inchangé', async ({ assert }) => {

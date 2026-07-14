@@ -25,10 +25,6 @@ export interface InitiateCheckoutRequestDto {
   paymentMode?: 'otp' | 'payment_link'
   /** OTP saisi par le payeur (mode `otp` uniquement). */
   otp?: string
-  /** Redirection : URL de retour succès (flux par lien — Orange payment_link, Wave). */
-  successUrl?: string
-  /** Redirection : URL de retour annulation/échec. */
-  errorUrl?: string
   geoIpLocation?: GeoIpLocation
 }
 

@@ -1,7 +1,7 @@
 ---
 type: backlog
 description: Remarques / observations à brainstormer et corriger plus tard (ne pas traiter à la volée)
-derniere_maj: 2026-07-09
+derniere_maj: 2026-07-11
 ---
 
 # Remarques à brainstormer
@@ -28,12 +28,50 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 | # | Niveau | Statut | Remarque |
 |---|--------|--------|----------|
 | R1 | 🔴 Critique | à brainstormer | Permissions du RBAC **team** créées en CRUD par l'admin au lieu d'être **déclarées en code** par chaque feature — faille de sécurité (contrôle d'accès orphelin / privilege escalation) |
-| R2 | 🟠 Majeur | à brainstormer | Notifications **push** non scopées par app : `expo_push_channel.getTrustedDevices(recipientId)` envoie à TOUS les appareils de confiance (aiglesend + business). Une notif aiglesend pousse aussi vers l'app business |
+| R2 | 🟠 Majeur | ✅ FAIT (2026-07-11) | Notifications **push** scopées par app. Infra : `Notification.targetApp?` + `expo_push_channel.send` → `getTrustedDevices(recipientId, app)`. **Scopés `aiglesend`** : dépôt, transfert, w2w (transfert émis/reçu + payeur pay-merchant), KYC (soumis/traité). **Scopé `aiglebusiness`** : encaissement marchand (checkout + pay-merchant reçu). **Volontairement all-apps** (sécurité account-wide, le porteur doit être averti partout) : `user_state_changed` (blocage/activation compte), `wallet_status_changed` (gel wallet). `new_device` déjà scopé (via `getActiveUserDevices(userId, app)`) |
 | R3 | 🟢 Feature | **décidé — à implémenter** | Flux de **transfert de propriété** d'une organisation (owner unique). Le verrou (owner non attribuable) est en place ; il manque l'endpoint de transmission explicite |
 | R4 | 🟠 Majeur | à faire (endgame D8) | Supprimer `user_id`/`users_uid` de `wallets` & `transactions` une fois le core argent **entièrement** account-centrique (`account_id` suffit). Aujourd'hui encore très référencés → nettoyage différé après la migration complète des lookups |
 | R5 | 🟠 Majeur | **décidé (design) — à implémenter** | **Palier/niveau + documents de vérification portés par le COMPTE** (pas user/org) : `account` porte son niveau → limites/volume/blocages-argent par `account_id` ; docs KYC/KYB ancrés `account_id`. Unifie KYC (user) et KYB (org) sous `account → niveau → limites`. Auth (PIN/OTP/brute-force) reste par user. ⚠️ KYB (sous-lot 2) à construire account-anchored dès le départ |
+| R6 | 🟠 Majeur | à brainstormer | **Consommation cross-feature par REPOSITORY** au lieu du service : des services/use cases injectent directement le `Repository` d'une **autre feature** (ex. `AccountStandingService` → `KycLevelRepository`). Viole « feature consomme feature par son **service** » (généralisation de `produit-consomme-core-par-service`). Répandu dans le code → passe de durcissement dédiée |
+| R7 | 🟡 Mineur | ✅ FAIT (2026-07-11) | Notif marchand du **paiement interne** (`pay-merchant`) : listener produit `OnMerchantPaymentReceivedNotification` (event `WalletToWalletTransactionCompleted` type=`merchant` → owner de l'org). **+** le payeur est désormais notifié (« Paiement effectué ») via le listener consumer (avant : rien pour lui). 5 tests verts |
+| R9 | 🟡 Mineur | ✅ FAIT (2026-07-11) | **`balanceAfter` jamais peuplé** sur le modèle `Transaction` (notifs P2P affichaient « undefined »). Corrigé : le solde est désormais porté par l'event `WalletToWalletTransactionCompleted` (`senderBalanceAfter`/`recipientBalanceAfter` depuis `debited.balance`/`credited.balance` d'`internal_move`) ; les 3 notifs w2w (transfert émis/reçu, paiement marchand payeur) l'affichent |
+| R10 | 🟡 Mineur | à faire (plus tard) | **Tests fonctionnels de l'API transactions business** manquants (`GET /business/organisations/:organisationId/transactions` + `/:reference`). Couvrir : liste + détail scopés au compte, 403 sans `transactions:view`, 404 cross-account, propriétaire marchand voit ses encaissements. Endpoint livré & documenté (swagger), tests différés à la demande de l'utilisateur |
+| R8 | 🟡 Mineur | décidé (direction) — à implémenter | **Pas de montant (`amount_step`) porté par la tarification du catalogue** (SPM), pas hardcodé côté mobile. Les opérateurs externes (mobile money) imposent des montants **multiples de 5** ; les mouvements internes aigle (wallet-to-wallet, marchand) **non**. À exposer dans `payment-options` comme `minAmount`/`fees`, le mobile valide via `provider.amountStep` |
 
 ---
+
+### R6 — Consommation cross-feature par repository (au lieu du service)
+- **Niveau** : 🟠 Majeur (couplage structurel inter-feature ; érode l'extractibilité)
+- **Date** : 2026-07-10
+- **Contexte** : une feature qui a besoin de données d'une **autre feature** injecte directement son
+  `Repository` (port de persistance) plutôt que de passer par un **service applicatif** de cette
+  feature. Cas relevé pendant le refactor account-centric : `AccountStandingService`
+  (`identity/account`) injecte `KycLevelRepository` (`identity/kyc`) pour lire la grille de limites.
+  L'utilisateur signale que le **motif est répandu** dans le code (pas un cas isolé).
+- **Pourquoi c'est un anti-pattern** : le repository est un **détail interne** d'une feature (sa
+  persistance). Le consommer depuis l'extérieur couple les deux features à la **forme de stockage**,
+  court-circuite les invariants/projections que le service de la feature propriétaire garantit, et
+  casse l'extractibilité (on ne peut plus extraire la feature sans traîner ses consommateurs). C'est
+  la **généralisation** de la règle depcruise `produit-consomme-core-par-service` (produit → core par
+  service), qui devrait valoir **feature → feature** en général — mais n'est aujourd'hui **pas
+  outillée** pour l'inter-feature **intra-contexte** (money/identity/catalog internes).
+- **Pourquoi différé** : correction transverse (nombreux call-sites) ; nécessite de décider, feature
+  par feature, **quel service** exposer (contrat minimal, `Result`) et parfois **où doit vivre la
+  donnée** (ex. la grille `(segment, level) → limites` est-elle un concern `kyc` ou `account` ?
+  l'account-centric plaide pour la déplacer côté `account`). Pré-empter localement risquerait
+  d'introduire un service jetable.
+- **Pistes (à brainstormer, pas à figer)** :
+  1. Généraliser `produit-consomme-core-par-service` en une règle depcruise **feature → feature**
+     (interdire l'import d'un `domain/interfaces/*repository` / `domain/models` d'une **autre**
+     feature, même intra-contexte) — WARN d'abord, le temps de résorber.
+  2. Chaque feature expose un **service d'accès en lecture** (façon `UserDirectoryService`) renvoyant
+     un `Result` minimal ; les consommateurs passent par lui.
+  3. Repositionner les données mal placées (ex. **catalogue des niveaux/limites** → feature
+     `account`, ce qui **supprimerait** la dépendance `account → kyc` du cas relevé).
+- **Cas concret à corriger lors du durcissement** : `AccountStandingService` → passer par un service
+  `kyc` (ou déplacer le catalogue de niveaux vers `account`), au lieu de `KycLevelRepository`.
+- **Statut** : à brainstormer (durcissement dédié). En attendant, le cas `AccountStandingService` est
+  **laissé tel quel** (dépendance repo cross-feature intra-`identity`), tracé ici.
 
 ### R5 — Palier/niveau porté par le compte (unification KYC/KYB)
 - **Niveau** : 🟠 Majeur (transverse identity + money + business ; money-critical)
@@ -58,7 +96,9 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 - **Date** : 2026-07-09
 - **Contexte** : la fondation D8 (sous-lot 4) rend le core argent **account-centrique** (`account_id` sur wallets et transactions ; `account_id == usersUid` pour un user). À terme, `user_id`/`users_uid` sur `wallets` et `transactions` deviennent **redondants** — le propriétaire d'un compte vit dans `core/money/account` (owner_type + owner_ref).
 - **Pourquoi différé** : ces colonnes sont **encore très utilisées** — relation `belongsTo(User)` + scope `search` sur `transactions`, `WalletService.getByUserId` / `resolveRecipient` / `updateWalletStatus`, et de nombreux use cases (`settle_deposit` etc.). La suppression n'est possible qu'**après** avoir migré TOUS ces lookups vers `account_id` (deposit/transfert/w2w/inter + admin). Retirer les colonnes/FK d'une table argent est une opération à haut risque.
-- **Séquence cible** : (1) finir de rendre external_in/settle/transfert/w2w account-centriques ; (2) migrer les lookups résiduels `getByUserId` → `getByAccountId` ; (3) remplacer la relation/scope `user` par une résolution via `account` ; (4) migration de suppression de colonnes (après stabilisation du sous-lot 4 + mass-paiement).
+- **Séquence cible** : ~~(1) finir de rendre external_in/settle/transfert/w2w account-centriques~~ ✅ ; ~~(2) migrer les lookups résiduels `getByUserId` → `getByAccountId`~~ ✅ (clôture sous-lot 4, 2026-07-10) ; (3) remplacer la relation/scope `user` par une résolution via `account` ; (4) migration de suppression de colonnes (après stabilisation du sous-lot 4 + mass-paiement).
+- **FAIT (2026-07-10, clôture sous-lot 4)** : les 7 lookups `getByUserId` hors `wallet_service` migrés vers `getByAccountId` (external_out/e2e/internal_move/settle_transfert/settle_inter_second/admin_refund/wallet_overview) ; `internal_move` rendu **account-aware sur la jambe destinataire** (user OU org marchand, null-safe : validation, description, paiement, event `WalletToWalletTransactionCompleted` avec flag `type: p2p|merchant` + `recipientAccountId`, listeners consumer self-filtrent). Reste **(3)+(4)** = endgame (relation `belongsTo(User)`/scope search + drop colonnes), toujours après mass-paiement.
+- **FAIT (2026-07-11, étape 3 partielle — affichage titulaires)** : création d'**`AccountHolderResolver`** (`transactions/application/services`) — résolution des titulaires par `account_id` (chaîne wallet/transaction → account → owner) en 2 requêtes batch : comptes user via `UserDirectoryService.mapByIds` (invariant β `accountId == usersUid`), comptes org via alias payable. Basculés dessus : **ledgers admin+user** (`get_all_ledgers`, `get_user_ledgers` — preload `wallet.user` supprimé du repo), **transactions admin** (`get_all_transactions`, `get_user_transactions`, `get_transaction_details` — preload `user` supprimé du listing ; le wallet des détails est résolu par `walletService.getByAccountId`, ce qui rend l'**ajustement possible sur un wallet d'organisation**). Reste en (3) : `findByUidOrId` (preload user), **scope `search`** par nom (whereHas user), events `settle_*`/listeners (`usersUid`), signature `createTransaction`. Puis (4) drop des colonnes.
 - **Impact** : simplifie le modèle argent, supprime la double clé user/account, aligne sur le pivot account. **À ne PAS faire tant que des lookups user subsistent.**
 - **Périmètre chiffré (scan 2026-07-09)** :
   - `transaction.usersUid` lu à **~22 endroits** : les 4 `settle_*` (events `userId: transaction.usersUid`), listeners `persist_user_transactions_volume` + `reset_security_counters_on_success` (`sTx/rTx.usersUid`), `transaction_failure_handler`. Tous à migrer vers `account_id` (pour un consumer `account_id == usersUid` → équivalent).
@@ -123,3 +163,62 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 
 Puis ajouter la ligne dans la table récap en tête (# | Niveau | Statut | Remarque).
 -->
+
+### R7 — Notification marchand absente pour le paiement interne (pay-merchant)
+- **Niveau** : 🟡 Mineur (feature de notif manquante, pas un défaut d'intégrité)
+- **Date** : 2026-07-10
+- **Contexte** : le listener `OnCheckoutReceivedNotification` (notif « paiement reçu » au propriétaire
+  de l'org) écoute `DepositTransactionCompleted` filtré `type='checkout'` (encaissement externe). Le
+  nouveau **paiement marchand interne** (`pay-merchant`, feature aiglesend→marchand) émet
+  `WalletToWalletTransactionCompleted` avec `type='merchant'` — **aucun listener** ne notifie donc le
+  marchand pour un encaissement interne.
+- **Piste** : un listener produit (aiglebusiness) sur `WalletToWalletTransactionCompleted`, filtre
+  `type='merchant'`, résout `recipientAccountId` → org → owner → push (miroir de
+  `OnCheckoutReceivedNotification`). Owner-only (MVP), cf. décision existante.
+- **Statut** : à faire (petite feature) — grouper avec l'harmonisation des notifs d'encaissement.
+
+### R10 — Tests fonctionnels de l'API transactions business (différés)
+- **Niveau** : 🟡 Mineur (trou de couverture, pas un défaut d'intégrité — endpoint livré et fonctionnel)
+- **Date** : 2026-07-11
+- **Contexte** : exposition des transactions business (`business_transactions_controller` +
+  `business_transactions_routes`, use cases core `get_account_transactions` /
+  `get_account_transaction_details`, repo `getAllByAccountId` / `findByReferenceAndAccountId`).
+  Endpoint **livré et documenté** dans `docs/swagger/business.yaml`. La compilation/les tests n'ont
+  pas encore été relancés.
+- **Comportements à couvrir** (fonctionnels HTTP, convention `tests/functional/business/`) :
+  1. Un propriétaire (marchand) liste **ses** transactions → 200 + pagination.
+  2. Détail par référence scopé au compte → 200 sur une réf de l'org.
+  3. Référence appartenant à **un autre compte** → 404 (le filtre porte sur `account_id`).
+  4. Membre **sans** `transactions:view` → 403 (`orgPermission`).
+  5. Invariant `account_id == organisationId` (le marchand ne voit que ses encaissements).
+- **À vérifier au passage** : `npx tsc --noEmit` propre sur les fichiers touchés + run
+  `PORT=3399 node --enable-source-maps --import @poppinss/ts-exec bin/test.ts --files="business_transactions_flow"`.
+- **Pourquoi différé** : reporté explicitement à la demande de l'utilisateur.
+- **Statut** : à faire (plus tard). Lié à [[pre-prod-admin-tests]] (trous de couverture avant prod).
+
+### R8 — Pas de montant (`amount_step`) porté par la tarification du catalogue
+- **Niveau** : 🟡 Mineur (règle métier de saisie ; incohérence si hardcodée)
+- **Date** : 2026-07-10
+- **Contexte** : les **opérateurs externes** (mobile money) exigent des montants **multiples de 5**
+  (dénominations), pour éviter les décalages d'arrondi. Les **mouvements internes aigle**
+  (wallet-to-wallet, paiement marchand) n'ont **pas** cette contrainte. Un premier jet côté mobile
+  hardcodait « multiple de 5 » puis distinguait `methodCode === 'wallet'` vs externe — **rejeté** :
+  distinction fragile, valeur en dur, non pilotée par la donnée.
+- **Direction (décidée avec l'utilisateur)** : le **pas de montant vit dans la tarification du
+  catalogue**, à côté de `min_amount`/`fee_fixed`/`fee_percent` — donc sur la ligne **`ServiceProviderMethod`**
+  (SPM), par `(serviceType × paymentMethod × providerFrom)`. Chaque tarif porte son `amount_step`
+  (opérateurs externes = 5 ; wallet aigle = 1 = pas de contrainte).
+- **Esquisse d'implémentation** :
+  - **DB** : migration `service_provider_methods += amount_step` (int, défaut 1). Backfill / seed :
+    lignes `mobile-money` (externe) → 5 ; lignes `wallet` (aigle) → 1.
+  - **Modèle** : `ServiceProviderMethod.amountStep`.
+  - **Catalogue** : `get_payment_options_by_service_type.use_case` ajoute `amountStep` à la projection
+    provider (à côté de `minAmount`), exposé par `/mobile/services/payment-options/:serviceType`.
+  - **Mobile** : `Provider` (type catalogue) += `amountStep` ; un helper `isAmountValidForProvider(amount,
+    provider)` valide `amount % (provider.amountStep ?? 1) === 0`. Utilisé uniformément par les écrans
+    montant (transfert/dépôt/inter). Pour un mouvement interne (provider aigle, step=1) ou sans catalogue
+    (pay-merchant), **aucune contrainte** — la donnée porte la règle, plus de `methodCode !== 'wallet'`
+    en dur. Message : « Le montant doit être un multiple de {step} F CFA ».
+  - **Cohérence back** : idéalement, le core money **rejette** aussi un montant non conforme au pas de
+    la ligne SPM (défense serveur, pas seulement UI).
+- **Statut** : décidé (direction) — à implémenter plus tard (reporté sur demande utilisateur).

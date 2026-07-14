@@ -7,6 +7,25 @@ import AccountBlockedException from '#core/identity/authentication/domain/except
 import PinTemporarilyBlockedException from '#core/identity/authentication/domain/exceptions/pin_temporarily_blocked_exception'
 import type UserRepository from '#core/identity/user/domain/interfaces/user_repository'
 import type User from '#core/identity/user/domain/models/user'
+import type AccountService from '#core/identity/account/application/services/account_service'
+import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
+
+/**
+ * Stub d'`AccountService` capturant les appels `setStatus` — pour vérifier le push-sync du blocage
+ * vers le compte (le gel argent suit le blocage auth).
+ */
+function buildAccountServiceStub(): {
+  service: AccountService
+  calls: Array<{ accountId: string; status: AccountStatus }>
+} {
+  const calls: Array<{ accountId: string; status: AccountStatus }> = []
+  const service = {
+    setStatus: async (accountId: string, status: AccountStatus) => {
+      calls.push({ accountId, status })
+    },
+  } as unknown as AccountService
+  return { service, calls }
+}
 
 interface CounterStub {
   counter: SlidingWindowCounter
@@ -83,6 +102,7 @@ function buildUserRepoStub(): { repo: UserRepository; savedUsers: User[] } {
 function makeUser(overrides: Partial<User> = {}): User {
   return {
     id: 42,
+    usersUid: 'user-uid-42',
     status: UserStatus.ACTIVE,
     ...overrides,
   } as unknown as User
@@ -93,7 +113,7 @@ function buildGuard(
   flag: TimedFlag,
   repo: UserRepository
 ): PinAttemptGuard {
-  const guard = new PinAttemptGuard(repo, counter, flag)
+  const guard = new PinAttemptGuard(repo, counter, flag, buildAccountServiceStub().service)
   ;(guard as unknown as { revokeTokens: (user: User) => Promise<void> }).revokeTokens =
     async () => {}
   return guard
@@ -191,12 +211,13 @@ test.group('PinAttemptGuard | recordFailure', () => {
     assert.lengthOf(savedUsers, 0)
   })
 
-  test('auto-blocks user at 9 failures and revokes tokens', async ({ assert }) => {
+  test('auto-blocks user at 9 failures, revokes tokens et gèle le compte', async ({ assert }) => {
     const counter = buildCounterStub({ nextCount: 9 })
     const flag = buildFlagStub()
     const { repo, savedUsers } = buildUserRepoStub()
+    const accountStub = buildAccountServiceStub()
     let revoked = false
-    const guard = new PinAttemptGuard(repo, counter.counter, flag.flag)
+    const guard = new PinAttemptGuard(repo, counter.counter, flag.flag, accountStub.service)
     ;(guard as unknown as { revokeTokens: (user: User) => Promise<void> }).revokeTokens =
       async () => {
         revoked = true
@@ -209,13 +230,22 @@ test.group('PinAttemptGuard | recordFailure', () => {
     assert.lengthOf(savedUsers, 1)
     assert.isTrue(revoked)
     assert.lengthOf(flag.setCalls, 0, 'no extra block flag needed once status=BLOCKED')
+    // Push-sync : le blocage auth gèle aussi le compte (money).
+    assert.lengthOf(accountStub.calls, 1)
+    assert.equal(accountStub.calls[0].accountId, user.usersUid)
+    assert.equal(accountStub.calls[0].status, AccountStatus.BLOCKED)
   })
 
   test('tolerates token revocation failure after auto-block', async ({ assert }) => {
     const counter = buildCounterStub({ nextCount: 9 })
     const flag = buildFlagStub()
     const { repo, savedUsers } = buildUserRepoStub()
-    const guard = new PinAttemptGuard(repo, counter.counter, flag.flag)
+    const guard = new PinAttemptGuard(
+      repo,
+      counter.counter,
+      flag.flag,
+      buildAccountServiceStub().service
+    )
     ;(guard as unknown as { revokeTokens: (user: User) => Promise<void> }).revokeTokens =
       async () => {
         throw new Error('token service down')
@@ -237,7 +267,12 @@ test.group('PinAttemptGuard | recordFailure', () => {
       },
     } as unknown as UserRepository
     let revoked = false
-    const guard = new PinAttemptGuard(repo, counter.counter, flag.flag)
+    const guard = new PinAttemptGuard(
+      repo,
+      counter.counter,
+      flag.flag,
+      buildAccountServiceStub().service
+    )
     ;(guard as unknown as { revokeTokens: (user: User) => Promise<void> }).revokeTokens =
       async () => {
         revoked = true

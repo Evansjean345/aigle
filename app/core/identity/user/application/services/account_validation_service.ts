@@ -1,8 +1,6 @@
 import User from '#core/identity/user/domain/models/user'
-import { UserStatus } from '#core/identity/user/domain/enum'
+import app from '@adonisjs/core/services/app'
 import { Exception } from '@adonisjs/core/exceptions'
-import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
-import WalletInactiveException from '#core/money/wallet/domain/exceptions/wallet_inactive_exception'
 import DeviceService from '#core/identity/device/application/services/device_service'
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import { inject } from '@adonisjs/core'
@@ -21,7 +19,10 @@ import InvalidPincodeException from '#core/identity/authentication/domain/except
 import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 /**
- * Service for validating user account status and associated wallet information.
+ * Service d'auth du compte utilisateur : validation de l'**appareil** (device trust, obsolescence,
+ * intégrité) et du **PIN**. Le contrôle du **statut argent** (compte actif + wallet actif) a migré
+ * vers la validation money account-centric (`PartyValidator` → `getStanding` + `WalletStatus`) —
+ * refactor account-centric, É3/É5 : identity ne dépend plus de money ici.
  */
 @inject()
 export default class AccountValidationService {
@@ -35,38 +36,6 @@ export default class AccountValidationService {
     private readonly deviceService: DeviceService,
     private readonly checkAppUpdateUseCase: CheckAppUpdateUseCase
   ) {}
-
-  /**
-   * Validates the status of a user's account.
-   *
-   * @param {User} user - The user object whose account status is to be validated.
-   * @param {boolean} isRecipient - Whether the user being validated is the recipient of a transfer.
-   * @return {void} Throws an exception if the user's account is inactive.
-   */
-  async validateAccount(user: User, isRecipient: boolean = false): Promise<void> {
-    if (user.status !== UserStatus.ACTIVE) {
-      throw new Exception('Votre compte est inactif. Veuillez contacter le service support.', {
-        status: 403,
-        code: 'E_ACCOUNT_INACTIVE',
-      })
-    }
-
-    await user.load('wallet')
-
-    if (!user.wallet) {
-      throw new Exception('Aucun portefeuille associé à ce compte.', {
-        status: 403,
-        code: 'E_NO_WALLET_ASSOCIATED',
-      })
-    }
-
-    if (user.wallet.status !== WalletStatus.Active) {
-      const message = isRecipient
-        ? 'Impossible de finaliser le transfert vers ce compte pour le moment.'
-        : 'Votre portefeuille est inactif. Veuillez contacter le service support.'
-      throw new WalletInactiveException(message)
-    }
-  }
 
   /**
    * Validates if the device used is trusted and belongs to the user.
@@ -117,8 +86,10 @@ export default class AccountValidationService {
       throw new UnauthenticatedDeviceException()
     }
 
-    // 2. Vérification de l'intégrité (Root / Emulator) via le device hardware
-    if (userDevice.device?.isRooted || userDevice.device?.isEmulator) {
+    // 2. Vérification de l'intégrité (Root / Emulator) via le device hardware.
+    // ⚠️ DEV : contrôle **désactivé hors production** (émulateurs autorisés) ;
+    // **actif en production**.
+    if (app.inProduction && (userDevice.device?.isRooted || userDevice.device?.isEmulator)) {
       throw new Exception(
         'Opération impossible sur un appareil non sécurisé (rooté ou émulateur).',
         {

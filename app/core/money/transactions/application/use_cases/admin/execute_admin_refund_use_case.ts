@@ -35,7 +35,7 @@ export default class ExecuteAdminRefundUseCase {
 
     try {
       const transaction = await this.transactionService.findByReference(reference)
-      const wallet = await this.walletService.getByUserId(transaction.usersUid, trx)
+      const wallet = await this.walletService.getByAccountId(transaction.accountId, trx)
 
       const refund = await this.refundService.adminRefund(
         transaction,

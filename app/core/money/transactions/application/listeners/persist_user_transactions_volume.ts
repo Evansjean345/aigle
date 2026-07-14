@@ -27,9 +27,12 @@ export default class PersistUserTransactionsVolume {
   ) {
     if (event instanceof WalletToWalletTransactionCompleted) {
       const { senderTransaction: sTx, receiverTransaction: rTx } = event
+      // Volume PAR USER : le bénéficiaire marchand (compte org sans user) n'a pas de volume.
       await Promise.all([
         this.persist(sTx.reference, sTx.usersUid, sTx.amount, sTx.createdAt),
-        this.persist(rTx.reference, rTx.usersUid, rTx.amount, rTx.createdAt),
+        ...(rTx.usersUid
+          ? [this.persist(rTx.reference, rTx.usersUid, rTx.amount, rTx.createdAt)]
+          : []),
       ])
       return
     }

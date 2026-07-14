@@ -1,6 +1,7 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import QrJwtService from '#core/qr/application/services/qr_jwt_service'
+import PayableAliasService from '#core/qr/application/services/payable_alias_service'
 
 /**
  * QrController handles QR token issuance, verification, and resolution.
@@ -9,11 +10,15 @@ import QrJwtService from '#core/qr/application/services/qr_jwt_service'
 @inject()
 export default class QrController {
   /**
-   * Constructor for initializing the class with QR service.
+   * Constructor for initializing the class with QR services.
    *
-   * @param {QrJwtService} qrService - The QR JwtService instance to handle QR-related operations.
+   * @param {QrJwtService} qrService - The QR JwtService instance to handle wallet QR tokens.
+   * @param {PayableAliasService} payableAliasService - Résolution des alias payables (QR marchand).
    */
-  constructor(private readonly qrService: QrJwtService) {}
+  constructor(
+    private readonly qrService: QrJwtService,
+    private readonly payableAliasService: PayableAliasService
+  ) {}
 
   /**
    * Issues a token with additional metadata such as `iat`, `exp`, and `nonce` for the authenticated user.
@@ -81,5 +86,25 @@ export default class QrController {
     }
 
     return response.ok(res)
+  }
+
+  /**
+   * Résout un **marchand** à partir du `code` de son QR (alias payable) — canal mobile authentifié.
+   * Sert l'écran de paiement marchand : afficher le **nom** + l'**état** avant de payer. Ne renvoie
+   * jamais l'`account_id` (le paiement reprend le code et résout le compte côté serveur).
+   *
+   * @return `{ displayName, active }`, ou `404` (`MERCHANT_QR_NOT_FOUND`) si le code est inconnu.
+   */
+  async resolveMerchant({ params, response }: HttpContext): Promise<void> {
+    const resolved = await this.payableAliasService.resolve(params.code)
+
+    if (!resolved) {
+      return response.notFound({ code: 'MERCHANT_QR_NOT_FOUND' })
+    }
+
+    return response.ok({
+      displayName: resolved.displayName,
+      active: resolved.active,
+    })
   }
 }

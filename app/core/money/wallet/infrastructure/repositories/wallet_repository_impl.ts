@@ -70,6 +70,11 @@ export default class WalletRepositoryImpl implements WalletRepository {
     return await query.first()
   }
 
+  async findByAccountIds(accountIds: string[], trx?: TransactionClientContract): Promise<Wallet[]> {
+    if (accountIds.length === 0) return []
+    return await Wallet.query({ client: trx }).whereIn('accountId', accountIds)
+  }
+
   async findByUserId(userId: string, trx?: TransactionClientContract): Promise<Wallet | null> {
     const query = Wallet.query({ client: trx }).where('userId', userId)
 

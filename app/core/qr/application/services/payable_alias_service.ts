@@ -58,4 +58,17 @@ export default class PayableAliasService {
       active: alias.active,
     }
   }
+
+  /**
+   * Résout en **batch** les **noms d'affichage** de plusieurs comptes marchands, indexés par
+   * `accountId`. Une seule requête (`whereIn`) — pour nommer la partie prenante marchande d'une
+   * liste de transactions (admin) sans N+1. Les comptes sans alias sont absents de la Map.
+   *
+   * @param accountIds Comptes dont on veut le nom marchand.
+   */
+  async mapDisplayNamesByAccountIds(accountIds: string[]): Promise<Map<string, string>> {
+    const uniqueIds = [...new Set(accountIds.filter(Boolean))]
+    const aliases = await this.payableAliasRepository.findByAccountIds(uniqueIds)
+    return new Map(aliases.map((alias) => [alias.accountId, alias.displayName]))
+  }
 }

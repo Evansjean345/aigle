@@ -10,6 +10,7 @@ import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import IdentityGate from '#core/identity/authentication/application/services/identity_gate'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
+import { mobileDeviceDeepLink } from '#config/app'
 import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
 import type {
   ExternalInCommand,
@@ -67,6 +68,10 @@ export default class DepositUseCase {
         paymentMethodCode: payload.paymentMethodCode,
         deviceInfo: payload.deviceInfo,
         geoIpLocation: payload.geoIpLocation,
+        providerParams: {
+          success_url: mobileDeviceDeepLink,
+          error_url: mobileDeviceDeepLink,
+        },
       },
     }
 

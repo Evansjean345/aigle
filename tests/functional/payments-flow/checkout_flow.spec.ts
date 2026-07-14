@@ -14,14 +14,16 @@ import ServiceType from '#core/catalog/catalogs/domain/models/service_type'
 import ServiceProviderMethod from '#core/catalog/catalogs/domain/models/service_provider_method'
 import PaymentMethod from '#core/catalog/catalogs/domain/models/payment_method'
 import Provider from '#core/catalog/catalogs/domain/models/provider'
-import AccountProvisioningService from '#core/money/account/application/services/account_provisioning_service'
-import { AccountOwnerType } from '#core/money/account/domain/enums/account_owner_type'
+import AccountService from '#core/identity/account/application/services/account_service'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
+import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
 import WalletService from '#core/money/wallet/application/services/wallet_service'
 import InitiateCheckoutUseCase from '#core/money/checkout/application/use_cases/initiate_checkout.use_case'
 import GetCheckoutStatusUseCase from '#core/money/checkout/application/use_cases/get_checkout_status.use_case'
 import SettleProviderWebhookUseCase from '#core/money/webhooks/application/use_cases/settle_provider_webhook.use_case'
 import { Hub2WebhookNormalizer } from '#core/money/webhooks/application/normalizers/hub2_webhook_normalizer'
+import { aigleplayNotifyUrl } from '#config/app'
 import { swapProviderGateway } from '#tests/functional/payments-flow/mocks/operations_fixtures'
 
 /**
@@ -66,12 +68,18 @@ async function seedCheckoutCatalog(): Promise<void> {
 
 /** Crée un compte marchand (org) + wallet + alias payable, renvoie {orgId, code, walletId}. */
 async function makeMerchant(): Promise<{ orgId: string; code: string; walletId: number }> {
-  const provisioning = await app.container.make(AccountProvisioningService)
+  const accountService = await app.container.make(AccountService)
   const wallets = await app.container.make(WalletService)
   const aliases = await app.container.make(PayableAliasService)
 
   const orgId = randomUUID()
-  await provisioning.openFor(AccountOwnerType.ORGANISATION, orgId)
+  // Ouvre le compte marchand (sans trx → le wallet est créé par money sur `AccountOpened`).
+  await accountService.openAccount({
+    ownerType: AccountOwnerType.ORGANISATION,
+    ownerRef: orgId,
+    segment: AccountSegment.MARCHAND,
+    level: 1,
+  })
   const code = await aliases.register(orgId, 'Boutique Ali')
   const wallet = await wallets.getByAccountId(orgId)
 
@@ -201,6 +209,63 @@ test.group('Checkout | paiement marchand (e2e)', (group) => {
 
     const initiate = await app.container.make(InitiateCheckoutUseCase)
     await assert.rejects(() => initiate.execute(initiatePayload(code)))
+  })
+
+  test('validation HTTP : mode lien (défaut) sans URL → 201 (URLs en config, pas côté client)', async ({
+    client,
+  }) => {
+    const { code } = await makeMerchant()
+    const res = await client.post(`/api/checkout/${code}`).json({
+      amount: 5000,
+      provider_code: 'moov',
+      payment_method_code: 'mobile-money',
+      phone: '0700000009',
+      country: 'ci',
+      // pas de payment_mode (→ lien par défaut) : aigle est notre app unique, la page de retour
+      // est le portail aiglepay (config). Le client n'a aucune URL à fournir.
+    })
+    res.assertStatus(201)
+  })
+
+  test('validation HTTP : mode otp sans otp → 422', async ({ client }) => {
+    const { code } = await makeMerchant()
+    const res = await client.post(`/api/checkout/${code}`).json({
+      amount: 5000,
+      provider_code: 'moov',
+      payment_method_code: 'mobile-money',
+      phone: '0700000009',
+      country: 'ci',
+      payment_mode: 'otp',
+    })
+    res.assertStatus(422)
+  })
+
+  test('validation HTTP : mode otp avec otp → 201', async ({ client }) => {
+    const { code } = await makeMerchant()
+    const res = await client.post(`/api/checkout/${code}`).json({
+      amount: 5000,
+      provider_code: 'moov',
+      payment_method_code: 'mobile-money',
+      phone: '0700000009',
+      country: 'ci',
+      payment_mode: 'otp',
+      otp: '123456',
+    })
+    res.assertStatus(201)
+  })
+
+  test('checkout mode lien : le retour est le portail aiglepay (config), pas le client', async ({
+    assert,
+  }) => {
+    const { code } = await makeMerchant()
+    const initiate = await app.container.make(InitiateCheckoutUseCase)
+
+    await initiate.execute(initiatePayload(code)) // mode lien par défaut
+
+    const invoke = gateway.resolver.invokes.at(-1)
+    assert.exists(invoke)
+    assert.equal(invoke!.request.metadata.success_url, aigleplayNotifyUrl)
+    assert.equal(invoke!.request.metadata.error_url, aigleplayNotifyUrl)
   })
 
   test('statut : renvoie l’état par référence (scopé CHECKOUT)', async ({ assert }) => {

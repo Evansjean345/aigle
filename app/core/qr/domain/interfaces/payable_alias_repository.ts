@@ -19,6 +19,12 @@ export default abstract class PayableAliasRepository {
   ): Promise<PayableAlias | null>
 
   /**
+   * Retrouve les alias d'un ensemble de comptes (batch — évite le N+1 lors de l'enrichissement
+   * d'une liste, ex. affichage admin des transactions marchandes). Renvoie les alias trouvés (0..n).
+   */
+  abstract findByAccountIds(accountIds: string[]): Promise<PayableAlias[]>
+
+  /**
    * Crée et persiste un alias.
    */
   abstract create(

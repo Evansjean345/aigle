@@ -1,7 +1,9 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
-import AccountProvisioningService from '#core/money/account/application/services/account_provisioning_service'
-import { AccountOwnerType } from '#core/money/account/domain/enums/account_owner_type'
+import AccountService from '#core/identity/account/application/services/account_service'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
+import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
 import {
   RegisterRequestDto,
   RegisterResponseDto,
@@ -28,14 +30,14 @@ export default class RegisterUseCase {
    *
    * @param {UserRepository} userRepository - The repository used for managing user data.
    * @param {CountryRepository} countryRepository - The repository used for managing country data.
-   * @param {AccountProvisioningService} accountProvisioning - Porte d'ouverture de compte money (account + wallet).
+   * @param {AccountService} accountService - Porte d'ouverture de compte (identity ; le wallet est créé par money sur `AccountOpened`).
    * @param {OtpSendingService} otpSendingService - The service used for sending OTPs.
    * @param {DeviceService} deviceService - The service used for managing device-related operations.
    */
   constructor(
     protected userRepository: UserRepository,
     protected countryRepository: CountryRepository,
-    private readonly accountProvisioning: AccountProvisioningService,
+    private readonly accountService: AccountService,
     private readonly otpSendingService: OtpSendingService,
     private readonly deviceService: DeviceService
   ) {}
@@ -99,8 +101,17 @@ export default class RegisterUseCase {
 
       const userCreated = await this.userRepository.save(user, trx)
 
-      await this.accountProvisioning.openFor(AccountOwnerType.USER, userCreated.usersUid, trx)
+      const account = await this.accountService.openAccount(
+        {
+          ownerType: AccountOwnerType.USER,
+          ownerRef: userCreated.usersUid,
+          segment: AccountSegment.PARTICULIER,
+          level: KycLevelState.NOT_VERIFY,
+        },
+        trx
+      )
       await trx.commit()
+      await this.accountService.announceOpened(account)
 
       if (data.deviceInfoPayload) {
         const deviceCommand = DeviceCommandDTO.fromRequest(data.deviceInfoPayload)

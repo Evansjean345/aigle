@@ -100,9 +100,9 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
         transactionQuery.select(['id', 'reference', 'operation_type', 'status', 'description'])
       })
       .preload('wallet', (walletQuery) => {
-        walletQuery.select(['id', 'user_id']).preload('user', (userQuery) => {
-          userQuery.select(['firstname', 'lastname', 'picture_url', 'kyc_status'])
-        })
+        // Account-centric : le titulaire est résolu par `account_id` (wallet → account → owner)
+        // via `LedgerHolderResolver` — plus de preload du FK hérité `user_id`.
+        walletQuery.select(['id', 'account_id'])
       })
       .orderBy('createdAt', 'desc')
 

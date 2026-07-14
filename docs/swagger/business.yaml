@@ -236,6 +236,63 @@ paths:
                 code: E_INVALID_CREDENTIALS
                 message: Identifiants invalides
 
+  /api/business/auth/check-pin:
+    post:
+      operationId: checkBusinessPin
+      summary: Vérifier le PIN (déverrouillage / lock-screen)
+      description: |
+        Vérifie le code PIN de l'utilisateur **authentifié** (écran de verrouillage). Le numéro est
+        déduit du jeton ; seul le PIN transite. Mêmes garanties qu'aiglesend (`/mobile/auth/check-pin`) :
+        anti-brute-force (`PinAttemptGuard` — blocage progressif / temporaire) et audit.
+        Réservé aux jetons AigleBusiness ; appareil de confiance requis (canal mobile).
+      tags:
+        - Business - Authentification
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pincode]
+              properties:
+                pincode:
+                  type: string
+                  minLength: 5
+                  maxLength: 5
+                  description: Code PIN à 5 chiffres.
+                  example: "12345"
+      responses:
+        '201':
+          description: PIN valide
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  isValid: { type: boolean, example: true }
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
+        '401':
+          description: PIN invalide, non authentifié, ou jeton non associé à AigleBusiness
+          content:
+            application/json:
+              example:
+                code: INVALID_PINCODE
+                message: Code PIN invalide
+        '403':
+          description: Compte bloqué ou PIN temporairement verrouillé (trop de tentatives)
+          content:
+            application/json:
+              example:
+                code: PIN_TEMPORARILY_BLOCKED
+                message: Trop de tentatives. Réessayez plus tard.
+
   /api/business/auth/sessions:
     get:
       operationId: listBusinessSessions
@@ -875,6 +932,207 @@ paths:
         '404':
           $ref: '#/components/responses/MemberNotFound'
 
+  /api/business/organisations/{organisationId}/transactions:
+    get:
+      operationId: listOrganisationTransactions
+      summary: Lister les transactions de l'organisation
+      description: |
+        Historique paginé des transactions du **compte de l'organisation** (encaissements marchands,
+        et à terme paiements). Account-centric : le compte ne voit que **ses** transactions.
+        Chaque transaction porte le bloc `display` (type métier dérivé + contrepartie privacy-first).
+        Réservé à la permission `transactions:view` (l'OWNER passe d'office).
+      tags:
+        - Business - Transactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, default: 1 }
+          description: Numéro de page (16 transactions par page).
+      responses:
+        '200':
+          description: Liste paginée des transactions de l'organisation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBusinessTransactions'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
+        '403':
+          description: Permission `transactions:view` absente
+          content:
+            application/json:
+              example:
+                code: E_FORBIDDEN_ORG_PERMISSION
+                message: Vous n'avez pas la permission requise pour cette action
+
+  /api/business/organisations/{organisationId}/transactions/{reference}:
+    get:
+      operationId: getOrganisationTransaction
+      summary: Détail d'une transaction de l'organisation
+      description: |
+        Détail d'une transaction du compte de l'organisation, par référence. **Scopé au compte** :
+        une référence d'un autre compte renvoie `404`. Réservé à `transactions:view`.
+      tags:
+        - Business - Transactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string }
+          description: Référence de la transaction.
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: Détail de la transaction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessTransaction'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
+        '404':
+          description: Transaction introuvable pour ce compte
+
+  /api/business/services/payment-options/{serviceType}:
+    get:
+      operationId: getBusinessPaymentOptionsByServiceType
+      summary: Catalogue des options de transfert/paiement par type de service
+      description: |
+        Liste les options de paiement/transfert pour un **type de service** (`serviceType`), groupées
+        par méthode (mobile money, wallet…) et provider, avec la tarification (frais fixes/pourcentage,
+        montant minimum). Miroir de l'endpoint aiglesend `/mobile/services/payment-options/{serviceType}`,
+        exposé sur le canal business. Sert à charger les catalogues de transfert côté app business.
+      tags:
+        - Business - Catalog
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: serviceType
+          in: path
+          required: true
+          schema: { type: string }
+          description: Code du type de service (`wallet_transfert`, `transfert`, `inter_reseau`, `deposit`…).
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: Catalogue des options pour ce type de service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOptionsByServiceType'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
+        '404':
+          description: Type de service introuvable
+          content:
+            application/json:
+              example:
+                code: SERVICE_TYPE_NOT_FOUND
+                message: service type not found
+
+  /api/business/services/payment-options/{serviceType}/to:
+    get:
+      operationId: getBusinessPaymentOptionsByServiceTypeTo
+      summary: Options de destination (inter-réseau) filtrées par provider source
+      description: |
+        Options de **destination** pour un transfert inter-réseau, filtrées par le provider source
+        (`fromProviderCode`). Miroir de `/mobile/services/payment-options/{serviceType}/to` d'aiglesend.
+      tags:
+        - Business - Catalog
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: serviceType
+          in: path
+          required: true
+          schema: { type: string }
+          description: Code du type de service (typiquement `inter_reseau`).
+        - name: fromProviderCode
+          in: query
+          required: true
+          schema: { type: string }
+          description: Code du provider source (obligatoire).
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: Options de destination filtrées
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOptionsByServiceType'
+        '400':
+          description: fromProviderCode manquant, ou en-tête canal absent
+          content:
+            application/json:
+              example:
+                code: FROM_PROVIDER_REQUIRED
+                message: fromProviderCode is required
+
+  /api/business/devices/push-token:
+    put:
+      operationId: updateBusinessDevicePushToken
+      summary: Enregistrer le token push de l'appareil
+      description: |
+        Enregistre / actualise le **token push Expo** de l'appareil courant pour l'utilisateur
+        authentifié, scopé à l'app `aiglebusiness`. Stockage **par appareil** (pas par organisation) :
+        l'appareil est identifié par les en-têtes `X-Device-*`, l'utilisateur par le Bearer token.
+        Nécessite un appareil **de confiance** (TRUSTED) pour cette app. Miroir du flux aiglesend
+        (`PUT /api/mobile/devices/push-token`).
+      tags:
+        - Business - Devices
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pushToken]
+              properties:
+                pushToken:
+                  type: string
+                  description: Token push Expo de l'appareil.
+                  example: ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+      responses:
+        '200':
+          description: Token push enregistré
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userDeviceId:
+                    type: integer
+                    example: 42
+                  pushToken:
+                    type: string
+                    example: ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
+        '401':
+          description: Appareil non authentifié ou non de confiance pour cette app
+
   /api/business/invitations/{token}:
     get:
       operationId: openInvitation
@@ -1060,11 +1318,10 @@ paths:
         règlement opérateur (suivre `/api/checkout/{reference}/status`).
 
         **Orange** — deux modes :
-        - **`payment_link`** (**défaut**) : fournir `success_url`/`error_url` ; la réponse renvoie
-          un `redirectUrl` vers lequel envoyer le payeur (retour sur `success_url`/`error_url`).
+        - **`payment_link`** (**défaut**) : la réponse renvoie un `redirectUrl` vers lequel envoyer
+          le payeur. La **page de retour est fixe** (portail aiglepay, définie côté serveur) — le
+          client n'a **aucune URL à fournir**.
         - **`otp`** (déprécié à terme) : fournir `payment_mode: otp` + `otp`.
-
-        Les autres opérateurs à redirection (ex. Wave) utilisent aussi `success_url`/`error_url`.
       tags:
         - Paiement marchand
       parameters:
@@ -1318,6 +1575,109 @@ components:
             message: Ce token n'est pas autorisé pour cette application
 
   schemas:
+    BusinessTransactionCounterparty:
+      type: object
+      description: >
+        Contrepartie du leg (privacy-first) : pour un `user`/`external`, seul `{ phone, operator }`
+        est exposé (le nom n'est jamais renvoyé) ; seul un `merchant` porte un `name`.
+      properties:
+        nature: { type: string, enum: [user, merchant, external], example: user }
+        name: { type: string, nullable: true, example: null }
+        phone: { type: string, nullable: true, example: "2250708123456" }
+        operator: { type: string, nullable: true, example: aiglesend }
+
+    BusinessTransactionDisplay:
+      type: object
+      description: Classification d'affichage dérivée (taxonomie), partagée avec le mobile.
+      properties:
+        kind:
+          type: string
+          enum: [deposit, external_transfer, inter_network, merchant_collection, p2p_transfer, merchant_payment, refund, unknown]
+          example: merchant_collection
+        scope: { type: string, enum: [internal, external], example: internal }
+        flow: { type: string, enum: [in, out, neutral], example: in }
+        counterparty:
+          $ref: '#/components/schemas/BusinessTransactionCounterparty'
+
+    BusinessTransaction:
+      type: object
+      description: Transaction du compte de l'organisation (vue business).
+      properties:
+        transactionId: { type: string, example: "aig_tx_4b7e1d" }
+        reference: { type: string, example: "aigle_htHWIQdS" }
+        amount: { type: number, example: 5000 }
+        fees: { type: number, example: 0 }
+        totalAmount: { type: number, example: 5000 }
+        operationType: { type: string, example: checkout }
+        direction: { type: string, enum: [debit, credit, external], example: credit }
+        status: { type: string, example: success }
+        balanceAfter: { type: number, example: 12000 }
+        dateTransaction: { type: string, format: date-time }
+        display:
+          $ref: '#/components/schemas/BusinessTransactionDisplay'
+        payment:
+          type: array
+          items: { type: object }
+
+    PaginatedBusinessTransactions:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/BusinessTransaction'
+        meta:
+          type: object
+          properties:
+            total: { type: integer, example: 42 }
+            currentPage: { type: integer, example: 1 }
+            firstPage: { type: integer, example: 1 }
+            lastPage: { type: integer, example: 3 }
+            perPage: { type: integer, example: 16 }
+
+    CatalogProvider:
+      type: object
+      description: Un provider (opérateur/canal) d'une méthode de paiement, avec sa tarification.
+      properties:
+        id: { type: integer, example: 3 }
+        code: { type: string, example: wave }
+        name: { type: string, example: Wave }
+        isActive: { type: boolean, example: true }
+        logo: { type: string, nullable: true, example: https://cdn.aigle.ci/logos/wave.png }
+        feeFixed: { type: number, example: 0 }
+        feePercent: { type: number, example: 1.5 }
+        currency: { type: string, nullable: true, example: XOF }
+        minAmount: { type: number, nullable: true, example: 100 }
+        applyFees: { type: boolean, nullable: true, example: true }
+        toProviderCode: { type: string, nullable: true }
+        toProviderName: { type: string, nullable: true }
+        isInterNetwork: { type: boolean, nullable: true }
+
+    CatalogPaymentMethod:
+      type: object
+      description: Une méthode de paiement (ex. mobile money, wallet) et ses providers.
+      properties:
+        id: { type: integer, example: 1 }
+        code: { type: string, example: mobile-money }
+        name: { type: string, example: Mobile Money }
+        order: { type: integer, example: 1 }
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogProvider'
+
+    PaymentOptionsByServiceType:
+      type: object
+      description: |
+        Catalogue des options de paiement/transfert pour un type de service donné
+        (`wallet_transfert`, `transfert`, `inter_reseau`, `deposit`…), groupées par méthode.
+      properties:
+        serviceType: { type: string, example: transfert }
+        methods:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogPaymentMethod'
+
     CreateOrganisationRequest:
       type: object
       required:
@@ -1385,6 +1745,24 @@ components:
               items:
                 type: string
               example: [transactions:view, wallet:view]
+            wallet:
+              nullable: true
+              description: >-
+                Solde du compte de l'organisation (encaissements marchand). Présent
+                uniquement si l'utilisateur a la permission `wallet:view` dans l'org,
+                sinon `null`.
+              type: object
+              required: [balance, currency, status]
+              properties:
+                balance:
+                  type: number
+                  example: 125000
+                currency:
+                  type: string
+                  example: XOF
+                status:
+                  type: string
+                  example: active
 
     MerchantResolveResponse:
       type: object
@@ -1430,16 +1808,6 @@ components:
           type: string
           nullable: true
           description: Code OTP saisi par le payeur (mode `otp` uniquement).
-        success_url:
-          type: string
-          format: uri
-          nullable: true
-          description: URL de retour après paiement réussi (flux par lien).
-        error_url:
-          type: string
-          format: uri
-          nullable: true
-          description: URL de retour après annulation/échec (flux par lien).
 
     CheckoutInitiateResponse:
       type: object

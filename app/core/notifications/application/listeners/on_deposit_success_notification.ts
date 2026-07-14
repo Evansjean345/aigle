@@ -2,6 +2,7 @@ import NotificationService from '#core/notifications/application/services/notifi
 import DepositTransactionCompleted from '#core/money/transactions/application/events/deposit_transaction_completed'
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import { inject } from '@adonisjs/core'
 
 @inject()
@@ -24,7 +25,9 @@ export default class OnDepositSuccessNotification {
     const notification = new Notification(
       event.data.userId!,
       'Dépot effectué avec succès',
-      `Votre dépôt de ${event.data.amount} F CFA a été crédité sur votre compte. Nouveau solde: ${event.data.balanceAfter} CFA. Référence: ${event.data.reference}`
+      `Votre dépôt de ${event.data.amount} F CFA a été crédité sur votre compte. Nouveau solde: ${event.data.balanceAfter} CFA. Référence: ${event.data.reference}`,
+      undefined,
+      AppName.AIGLESEND
     )
 
     await this.notificationService.sendVia(NotificationChannelType.PushNotification, notification)

@@ -45,6 +45,36 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       .paginate(page, perPage)
   }
 
+  async getAllByAccountId(
+    accountId: string,
+    page: number,
+    perPage: number = 16
+  ): Promise<ModelPaginatorContract<Transaction>> {
+    return await Transaction.query()
+      .preload('payment')
+      .preload('ledgers')
+      .where('accountId', accountId)
+      .orderBy('createdAt', 'desc')
+      .paginate(page, perPage)
+  }
+
+  async findByReferenceAndAccountId(
+    reference: string,
+    accountId: string,
+    preloads?: string[]
+  ): Promise<Transaction | null> {
+    const query = Transaction.query()
+      .preload('payment')
+      .where('reference', reference)
+      .where('accountId', accountId)
+
+    if (preloads?.includes('ledgers')) {
+      query.preload('ledgers')
+    }
+
+    return await query.first()
+  }
+
   /**
    * Retrieves a transaction record by matching either the unique user identifier (UID) or the record's numeric ID.
    *
@@ -201,7 +231,9 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       userId?: string
     }
   ): Promise<ModelPaginatorContract<Transaction>> {
-    const query = Transaction.query().preload('user').preload('payment')
+    // Account-centric : la partie prenante est résolue par `account_id` (AccountHolderResolver),
+    // plus par un preload de la relation `user` (FK héritée — cf. R4).
+    const query = Transaction.query().preload('payment')
     query
       .if(filters?.userId, (q) => q.where('usersUid', filters!.userId!))
       .if(filters?.type, (q) => q.withScopes((scope) => scope.filterByType(filters!.type!)))

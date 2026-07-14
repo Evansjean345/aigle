@@ -10,6 +10,7 @@ import IdentityGate from '#core/identity/authentication/application/services/ide
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
+import { mobileDeviceDeepLink } from '#config/app'
 import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
 import type {
   ExternalToExternalCommand,
@@ -79,6 +80,10 @@ export default class InterTransfertUseCase {
         pinCode: payload.pinCode,
         deviceInfo: payload.deviceInfo,
         geoIpLocation: payload.geoIpLocation,
+        providerParams: {
+          success_url: mobileDeviceDeepLink,
+          error_url: mobileDeviceDeepLink,
+        },
       },
     }
 

@@ -2,6 +2,7 @@ import NotificationService from '#core/notifications/application/services/notifi
 import KycDocumentSubmitted from '#core/identity/kyc/application/events/kyc_document_submitted'
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import { inject } from '@adonisjs/core'
 
 @inject()
@@ -20,7 +21,9 @@ export default class OnKycDocumentSubmittedNotification {
     const notification = new Notification(
       event.userId,
       'Documents soumis 📄',
-      'Vos documents KYC ont été soumis avec succès et sont en cours de vérification. ⏳'
+      'Vos documents KYC ont été soumis avec succès et sont en cours de vérification. ⏳',
+      undefined,
+      AppName.AIGLESEND
     )
 
     await this.notificationService.sendVia(NotificationChannelType.PushNotification, notification)

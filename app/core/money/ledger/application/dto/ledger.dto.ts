@@ -1,5 +1,5 @@
 import type Ledger from '#core/money/ledger/domain/models/ledger'
-import { UserKycStatus } from '#core/identity/user/domain/enum'
+import type { AccountHolderResult } from '#core/money/transactions/application/services/account_holder_resolver'
 
 export class LedgerTransactionDto {
   declare id: number
@@ -16,9 +16,16 @@ export interface LedgerUserDto {
   userUid: string | null
 }
 
+/**
+ * Wallet d'une écriture — **titulaire uniforme** (account-centric) : `user` pour un compte
+ * utilisateur, sinon `merchantName` (nom commercial résolu via l'alias payable) pour un compte
+ * d'organisation. Aligné sur le `party` des transactions admin.
+ */
 export interface LedgerWalletDto {
   id: number
-  user: LedgerUserDto
+  accountId: string | null
+  user: LedgerUserDto | null
+  merchantName: string | null
 }
 
 export class LedgerDto {
@@ -35,10 +42,14 @@ export class LedgerDto {
   declare transaction: LedgerTransactionDto
   declare wallet: LedgerWalletDto
 
-  static fromLedger(ledger: Ledger): LedgerDto {
+  /**
+   * @param holders Map `accountId → titulaire résolu` (`LedgerHolderResolver`) — le titulaire est
+   *   résolu par **compte** (chaîne wallet → account → owner), plus par le FK hérité `user_id`.
+   */
+  static fromLedger(ledger: Ledger, holders?: Map<string, AccountHolderResult>): LedgerDto {
     const transaction = ledger.transaction
     const wallet = ledger.wallet
-    const user = wallet?.user
+    const holder = wallet?.accountId ? holders?.get(wallet.accountId) : undefined
 
     const dto = new LedgerDto()
     dto.id = ledger.id
@@ -60,12 +71,17 @@ export class LedgerDto {
     }
     dto.wallet = {
       id: wallet?.id,
-      user: {
-        firstname: user?.firstname,
-        lastname: user?.lastname,
-        pictureUrl: user?.kycStatus === UserKycStatus.VERIFIED ? user?.pictureUrl || null : null,
-        userUid: wallet?.userId,
-      },
+      accountId: wallet?.accountId ?? null,
+      user: holder?.user
+        ? {
+            firstname: holder.user.firstname ?? '',
+            lastname: holder.user.lastname ?? '',
+            pictureUrl: holder.user.pictureUrl,
+            // Invariant β : accountId == usersUid pour un compte user.
+            userUid: holder.user.userId,
+          }
+        : null,
+      merchantName: holder?.merchantName ?? null,
     }
     return dto
   }

@@ -10,6 +10,8 @@ const TransfertInterController = () =>
   import('#aiglesend/operations/presentation/mobile/controllers/transfert_inter_controller')
 const WalletToWalletController = () =>
   import('#aiglesend/operations/presentation/mobile/controllers/wallet_to_wallet_controller')
+const PayMerchantController = () =>
+  import('#aiglesend/operations/presentation/mobile/controllers/pay_merchant_controller')
 
 const mobileOperationRoutes = () =>
   router
@@ -18,6 +20,7 @@ const mobileOperationRoutes = () =>
       router.post('transfert', [TransfertController])
       router.post('transfert-inter', [TransfertInterController])
       router.post('wallet-to-wallet', [WalletToWalletController])
+      router.post('pay-merchant', [PayMerchantController])
     })
     .prefix('mobile/operations')
     .use([

@@ -43,3 +43,14 @@ export const businessVerifyLoginValidator = vine.compile(
     otp: vine.string().trim().minLength(4).maxLength(8),
   })
 )
+
+/**
+ * Vérification du PIN (déverrouillage / lock-screen) d'un utilisateur **déjà
+ * authentifié**. Seul le PIN transite ; le numéro vient du token. PIN à 5 chiffres
+ * (aligné sur le lock-screen mobile et le `checkPinValidator` aiglesend).
+ */
+export const businessCheckPinValidator = vine.compile(
+  vine.object({
+    pincode: vine.string().trim().minLength(5).maxLength(5),
+  })
+)

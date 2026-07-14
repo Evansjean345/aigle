@@ -48,7 +48,7 @@ export default class ExternalToExternalUseCase {
     const { amount, fees, total } = await this.feeResolver.resolve(cmd.feeContext, cmd.amount)
 
     await this.partyValidator.validate({
-      user: wallet.user,
+      accountId: wallet.accountId ?? cmd.initiatedBy,
       amount,
       transactionType: cmd.type,
     })
@@ -156,6 +156,7 @@ export default class ExternalToExternalUseCase {
           phone: cmd.source.msisdn,
           userId: cmd.initiatedBy,
           pinCode: meta.pinCode,
+          providerParams: meta.providerParams,
         })
     )
 
@@ -172,7 +173,7 @@ export default class ExternalToExternalUseCase {
   }
 
   private async resolveWalletWithUser(accountId: string): Promise<Wallet> {
-    const wallet = await this.walletService.getByUserId(accountId)
+    const wallet = await this.walletService.getByAccountId(accountId)
     await wallet.load('user')
     return wallet
   }
@@ -183,6 +184,7 @@ export default class ExternalToExternalUseCase {
     pinCode?: string
     deviceInfo?: DeviceHeadersInfo
     geoIpLocation?: GeoIpLocation
+    providerParams?: Record<string, unknown>
   } {
     const meta = (cmd.metadata ?? {}) as {
       paymentMethodDepositCode?: string
@@ -190,6 +192,7 @@ export default class ExternalToExternalUseCase {
       pinCode?: string
       deviceInfo?: DeviceHeadersInfo
       geoIpLocation?: GeoIpLocation
+      providerParams?: Record<string, unknown>
     }
     return {
       paymentMethodDepositCode: meta.paymentMethodDepositCode ?? '',
@@ -197,6 +200,7 @@ export default class ExternalToExternalUseCase {
       pinCode: meta.pinCode,
       deviceInfo: meta.deviceInfo,
       geoIpLocation: meta.geoIpLocation,
+      providerParams: meta.providerParams,
     }
   }
 

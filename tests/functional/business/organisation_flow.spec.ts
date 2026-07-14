@@ -4,11 +4,11 @@ import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import { UserKycStatus } from '#core/identity/user/domain/enum'
 import Organisation from '#aiglebusiness/organisation/domain/models/organisation'
-import Account from '#core/money/account/domain/models/account'
+import Account from '#core/identity/account/domain/models/account'
 import Wallet from '#core/money/wallet/domain/models/wallet'
 import PayableAlias from '#core/qr/domain/models/payable_alias'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
-import { AccountOwnerType } from '#core/money/account/domain/enums/account_owner_type'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
@@ -201,6 +201,11 @@ test.group('Business organisation | liste', (group) => {
       assert.equal(org.role.slug, 'owner')
       assert.isTrue(org.permissions.includes('members:manage'))
       assert.isTrue(org.permissions.includes('roles:manage'))
+      // OWNER a `wallet:view` → le solde du compte de l'org est projeté (0 à la création).
+      assert.isNotNull(org.wallet)
+      assert.equal(org.wallet!.balance, 0)
+      assert.equal(org.wallet!.currency, 'XOF')
+      assert.isString(org.wallet!.status)
     }
   })
 
@@ -235,6 +240,37 @@ test.group('Business organisation | liste', (group) => {
     assert.equal(theirs[0].role.slug, role.slug)
     assert.equal(theirs[0].role.name, 'Comptable')
     assert.deepEqual(theirs[0].permissions, ['transactions:view'])
+    // Sans `wallet:view`, le solde n'est pas exposé.
+    assert.isNull(theirs[0].wallet)
+  })
+
+  test('un membre avec `wallet:view` voit le solde de l’org', async ({ assert }) => {
+    const create = await app.container.make(CreateOrganisationUseCase)
+    const createRole = await app.container.make(CreateRoleUseCase)
+    const list = await app.container.make(ListOrganisationsUseCase)
+
+    const org = await create.execute(
+      command({ name: 'Org Solde', accountType: OrganisationAccountType.ENTERPRISE })
+    )
+
+    const memberUserId = randomUUID()
+    const role = await createRole.execute({
+      organisationId: org.organisationId,
+      name: 'Trésorier',
+      permissionSlugs: ['wallet:view'],
+    })
+    const member = new OrganisationMember()
+    member.organisationId = org.organisationId
+    member.userId = memberUserId
+    member.roleId = role.id
+    member.status = MemberStatus.ACTIVE
+    await member.save()
+
+    const theirs = await list.execute(memberUserId)
+    assert.lengthOf(theirs, 1)
+    assert.isNotNull(theirs[0].wallet)
+    assert.equal(theirs[0].wallet!.balance, 0)
+    assert.equal(theirs[0].wallet!.currency, 'XOF')
   })
 
   test('un membre RETIRÉ (removed) ne voit plus l’organisation', async ({ assert }) => {

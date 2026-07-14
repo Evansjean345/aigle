@@ -222,6 +222,7 @@ export default class LedgerService {
       fees: number
       balanceBefore: number
       balanceAfter: number
+      operationType?: LedgerOperationType | string
     },
     trx?: TransactionClientContract
   ): Promise<Ledger> {
@@ -235,6 +236,7 @@ export default class LedgerService {
         transaction: params.transaction,
         walletId: params.walletId,
         direction: params.direction,
+        operationType: params.operationType,
         description,
         amountBrut: params.amount,
         fees: params.fees,

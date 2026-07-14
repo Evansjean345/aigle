@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import { randomUUID } from 'node:crypto'
 import { Exception } from '@adonisjs/core/exceptions'
+import { aigleplayNotifyUrl } from '#config/app'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
 import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
@@ -64,12 +65,14 @@ export default class InitiateCheckoutUseCase {
         paymentMethodCode: request.paymentMethodCode,
         geoIpLocation: request.geoIpLocation,
         // Sac opaque transmis à l'adaptateur provider (Hub2). Orange : `payment_mode`
-        // (`payment_link` par défaut) + `otp` (mode OTP) ; redirection : `success_url`/`error_url`.
+        // (`payment_link` par défaut) + `otp` (mode OTP). Les URLs de redirection sont FIXES :
+        // aigle est notre app de paiement unique (pas d'intégration tierce) → le portail aiglepay
+        // est la seule page de retour, définie en config (pas fournie par le client).
         providerParams: {
           payment_mode: request.paymentMode,
           otp: request.otp,
-          success_url: request.successUrl,
-          error_url: request.errorUrl,
+          success_url: aigleplayNotifyUrl,
+          error_url: aigleplayNotifyUrl,
         },
       },
     }

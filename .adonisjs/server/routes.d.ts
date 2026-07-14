@@ -93,6 +93,9 @@ export type ScannedRoutes = {
     'admin_wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'event_stream': { paramsTuple?: []; params?: {} }
+    'subscribe': { paramsTuple?: []; params?: {} }
+    'unsubscribe': { paramsTuple?: []; params?: {} }
     'auth.check_phone': { paramsTuple?: []; params?: {} }
     'auth.register': { paramsTuple?: []; params?: {} }
     'auth.verify_credentials': { paramsTuple?: []; params?: {} }
@@ -114,6 +117,7 @@ export type ScannedRoutes = {
     'transfert': { paramsTuple?: []; params?: {} }
     'transfert_inter': { paramsTuple?: []; params?: {} }
     'wallet_to_wallet': { paramsTuple?: []; params?: {} }
+    'pay_merchant': { paramsTuple?: []; params?: {} }
     'provider.hub2.payments.success': { paramsTuple?: []; params?: {} }
     'provider.hub2.payments.failed': { paramsTuple?: []; params?: {} }
     'provider.hub2.transfers.success': { paramsTuple?: []; params?: {} }
@@ -127,6 +131,7 @@ export type ScannedRoutes = {
     'qr.issue': { paramsTuple?: []; params?: {} }
     'qr.resolve': { paramsTuple?: []; params?: {} }
     'qr.verify': { paramsTuple?: []; params?: {} }
+    'qr.resolve_merchant': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'kyc_submittion.submit_kyc_documents': { paramsTuple?: []; params?: {} }
     'app_version.check': { paramsTuple?: []; params?: {} }
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
@@ -141,6 +146,7 @@ export type ScannedRoutes = {
     'business_auth.verify': { paramsTuple?: []; params?: {} }
     'business_session.index': { paramsTuple?: []; params?: {} }
     'business_session.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'business_auth.check_pin_code': { paramsTuple?: []; params?: {} }
     'business_health': { paramsTuple?: []; params?: {} }
     'organisation.store': { paramsTuple?: []; params?: {} }
     'organisation.index': { paramsTuple?: []; params?: {} }
@@ -157,14 +163,16 @@ export type ScannedRoutes = {
     'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'invitation.accept': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'invitation.decline': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'business_transactions.list': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'business_device.update_push_token': { paramsTuple?: []; params?: {} }
+    'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
+    'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'checkout.options': { paramsTuple?: []; params?: {} }
     'checkout.initiate': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'checkout.status': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'health': { paramsTuple?: []; params?: {} }
-    'event_stream': { paramsTuple?: []; params?: {} }
-    'subscribe': { paramsTuple?: []; params?: {} }
-    'unsubscribe': { paramsTuple?: []; params?: {} }
   }
   GET: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
@@ -214,6 +222,7 @@ export type ScannedRoutes = {
     'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'event_stream': { paramsTuple?: []; params?: {} }
     'auth.user_auth': { paramsTuple?: []; params?: {} }
     'auth.session_status': { paramsTuple?: []; params?: {} }
     'wallet_over_view': { paramsTuple?: []; params?: {} }
@@ -224,6 +233,7 @@ export type ScannedRoutes = {
     'mobile_transactions.get_transaction_quota': { paramsTuple?: []; params?: {} }
     'mobile_transactions.details': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'mobile_transactions.stream_transaction': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
+    'qr.resolve_merchant': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'app_version.check': { paramsTuple?: []; params?: {} }
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
     'debit_phone.index': { paramsTuple?: []; params?: {} }
@@ -234,11 +244,14 @@ export type ScannedRoutes = {
     'role.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'business_transactions.list': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
+    'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'checkout.options': { paramsTuple?: []; params?: {} }
     'checkout.status': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'health': { paramsTuple?: []; params?: {} }
-    'event_stream': { paramsTuple?: []; params?: {} }
   }
   HEAD: {
     'drive.fs.serve': { paramsTuple: [...ParamValue[]]; params: {'*': ParamValue[]} }
@@ -288,6 +301,7 @@ export type ScannedRoutes = {
     'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'event_stream': { paramsTuple?: []; params?: {} }
     'auth.user_auth': { paramsTuple?: []; params?: {} }
     'auth.session_status': { paramsTuple?: []; params?: {} }
     'wallet_over_view': { paramsTuple?: []; params?: {} }
@@ -298,6 +312,7 @@ export type ScannedRoutes = {
     'mobile_transactions.get_transaction_quota': { paramsTuple?: []; params?: {} }
     'mobile_transactions.details': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'mobile_transactions.stream_transaction': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
+    'qr.resolve_merchant': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'app_version.check': { paramsTuple?: []; params?: {} }
     'device.get_user_devices': { paramsTuple?: []; params?: {} }
     'debit_phone.index': { paramsTuple?: []; params?: {} }
@@ -308,11 +323,14 @@ export type ScannedRoutes = {
     'role.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'business_transactions.list': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
+    'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
     'checkout.options': { paramsTuple?: []; params?: {} }
     'checkout.status': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'health': { paramsTuple?: []; params?: {} }
-    'event_stream': { paramsTuple?: []; params?: {} }
   }
   POST: {
     'admin_management.login': { paramsTuple?: []; params?: {} }
@@ -331,6 +349,8 @@ export type ScannedRoutes = {
     'kyc.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_app_version.store': { paramsTuple?: []; params?: {} }
     'admin_wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
+    'subscribe': { paramsTuple?: []; params?: {} }
+    'unsubscribe': { paramsTuple?: []; params?: {} }
     'auth.check_phone': { paramsTuple?: []; params?: {} }
     'auth.register': { paramsTuple?: []; params?: {} }
     'auth.verify_credentials': { paramsTuple?: []; params?: {} }
@@ -346,6 +366,7 @@ export type ScannedRoutes = {
     'transfert': { paramsTuple?: []; params?: {} }
     'transfert_inter': { paramsTuple?: []; params?: {} }
     'wallet_to_wallet': { paramsTuple?: []; params?: {} }
+    'pay_merchant': { paramsTuple?: []; params?: {} }
     'provider.hub2.payments.success': { paramsTuple?: []; params?: {} }
     'provider.hub2.payments.failed': { paramsTuple?: []; params?: {} }
     'provider.hub2.transfers.success': { paramsTuple?: []; params?: {} }
@@ -362,6 +383,7 @@ export type ScannedRoutes = {
     'business_auth.check_phone': { paramsTuple?: []; params?: {} }
     'business_auth.login': { paramsTuple?: []; params?: {} }
     'business_auth.verify': { paramsTuple?: []; params?: {} }
+    'business_auth.check_pin_code': { paramsTuple?: []; params?: {} }
     'organisation.store': { paramsTuple?: []; params?: {} }
     'role.store': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'member.store': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
@@ -369,8 +391,6 @@ export type ScannedRoutes = {
     'invitation.accept': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'invitation.decline': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'checkout.initiate': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
-    'subscribe': { paramsTuple?: []; params?: {} }
-    'unsubscribe': { paramsTuple?: []; params?: {} }
   }
   PUT: {
     'team_management.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -390,6 +410,7 @@ export type ScannedRoutes = {
     'admin_wallet.activate': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'admin_wallet.deactivate': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'device.update_push_token': { paramsTuple?: []; params?: {} }
+    'business_device.update_push_token': { paramsTuple?: []; params?: {} }
   }
   DELETE: {
     'team_management.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

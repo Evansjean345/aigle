@@ -4,8 +4,10 @@ import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import {
   WalletCreatedResult,
   toRecipientAccountResult,
+  toWalletBalanceResult,
   type RecipientAccountResult,
   type ResolveRecipientQuery,
+  type WalletBalanceResult,
 } from '#core/money/wallet/application/dtos/wallet.dto'
 import Wallet from '#core/money/wallet/domain/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
@@ -112,6 +114,23 @@ export default class WalletService {
     }
 
     return wallet
+  }
+
+  /**
+   * Port batch : renvoie le **solde projeté** (Result minimal) de plusieurs comptes, indexé par
+   * `accountId`. Une seule requête (`whereIn`) — évite le N+1 sur une liste de comptes (ex. « mes
+   * organisations »). Les comptes sans wallet sont simplement absents de la Map.
+   */
+  async getBalancesByAccountIds(
+    accountIds: string[],
+    trx?: TransactionClientContract
+  ): Promise<Map<string, WalletBalanceResult>> {
+    const wallets = await this.walletRepository.findByAccountIds(accountIds, trx)
+    return new Map(
+      wallets
+        .filter((wallet) => wallet.accountId !== null)
+        .map((wallet) => [wallet.accountId as string, toWalletBalanceResult(wallet)])
+    )
   }
 
   /**

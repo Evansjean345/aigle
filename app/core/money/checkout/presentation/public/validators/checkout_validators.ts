@@ -19,11 +19,12 @@ const initiateSchema = vine.object({
     ),
   phone: vine.string().trim(),
   country: vine.string().trim(),
-  // Mode Orange : payment_link (défaut) ou otp. Redirection : success/error url.
+  // Mode Orange : payment_link (défaut) ou otp.
+  //  - mode `otp` → `otp` requis (saisi par le payeur) ;
+  //  - mode `payment_link` (défaut) → aucune URL à fournir : aigle est notre app de paiement
+  //    unique, la page de retour est le portail aiglepay (config, cf. use case), pas le client.
   payment_mode: vine.enum(['otp', 'payment_link']).optional(),
-  otp: vine.string().trim().optional(),
-  success_url: vine.string().trim().url().optional(),
-  error_url: vine.string().trim().url().optional(),
+  otp: vine.string().trim().optional().requiredWhen('payment_mode', '=', 'otp'),
 })
 
 export const initiateCheckoutValidator = vine.create(initiateSchema)

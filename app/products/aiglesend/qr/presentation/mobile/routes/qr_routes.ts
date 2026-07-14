@@ -12,6 +12,10 @@ export default function mobileQrRoutes() {
         .use([middleware.auth(), middleware.requireApp({ app: AppName.AIGLESEND })])
       router.post('resolve', [QrController, 'resolve'])
       router.post('verify', [QrController, 'verify'])
+      // Résolution du QR marchand (nom + état) pour l'écran de paiement marchand. Authentifié.
+      router
+        .get('merchant/:code', [QrController, 'resolveMerchant'])
+        .use([middleware.auth(), middleware.requireApp({ app: AppName.AIGLESEND })])
     })
     .prefix('mobile/qr')
     .use(middleware.device())

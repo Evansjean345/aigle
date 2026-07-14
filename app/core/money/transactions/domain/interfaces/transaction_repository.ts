@@ -100,6 +100,34 @@ export default abstract class TransactionRepository {
   ): Promise<ModelPaginatorContract<Transaction>>
 
   /**
+   * Liste paginée des transactions d'un **compte** (`account_id`) — account-centric.
+   * Pour une organisation, `account_id == organisationId` → liste les transactions du compte org.
+   *
+   * @param {string} accountId - Identifiant du compte titulaire.
+   * @param {number} page - Numéro de page.
+   * @param {number} [perPage] - Taille de page.
+   */
+  abstract getAllByAccountId(
+    accountId: string,
+    page: number,
+    perPage?: number
+  ): Promise<ModelPaginatorContract<Transaction>>
+
+  /**
+   * Transaction par référence **scopée à un compte** (`account_id`) — empêche l'accès croisé
+   * (un compte ne voit que ses propres transactions).
+   *
+   * @param {string} reference - Référence de la transaction.
+   * @param {string} accountId - Compte titulaire attendu.
+   * @param {string[]} [preloads] - Relations à précharger.
+   */
+  abstract findByReferenceAndAccountId(
+    reference: string,
+    accountId: string,
+    preloads?: string[]
+  ): Promise<Transaction | null>
+
+  /**
    * Fetches a paginated list of all transactions.
    *
    * @param {number} [page] - The page number to retrieve. Optional.

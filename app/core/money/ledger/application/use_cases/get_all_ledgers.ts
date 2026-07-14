@@ -1,16 +1,20 @@
 import { inject } from '@adonisjs/core'
 import LedgerRepository from '#core/money/ledger/domain/interfaces/ledger_repository'
+import AccountHolderResolver from '#core/money/transactions/application/services/account_holder_resolver'
 import { LedgerDto } from '#core/money/ledger/application/dto/ledger.dto'
 import { LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
 
 @inject()
 export default class GetAllLedgersUseCase {
   /**
-   * Constructs an instance of the class with the specified LedgerRepository.
-   *
    * @param {LedgerRepository} ledgerRepository - The repository used to manage ledger data.
+   * @param {AccountHolderResolver} holderResolver - Résout les titulaires par `account_id`
+   *   (account-centric : wallet → account → owner, user ou marchand).
    */
-  constructor(private readonly ledgerRepository: LedgerRepository) {}
+  constructor(
+    private readonly ledgerRepository: LedgerRepository,
+    private readonly holderResolver: AccountHolderResolver
+  ) {}
 
   /**
    * Executes a query to fetch paginated ledger data with optional filters.
@@ -39,7 +43,13 @@ export default class GetAllLedgersUseCase {
     }
   ): Promise<{ meta: any; data: LedgerDto[] }> {
     const paginatedLedgers = await this.ledgerRepository.findAll(page, perPage, filters)
-    const data = paginatedLedgers.all().map(LedgerDto.fromLedger)
+    const ledgers = paginatedLedgers.all()
+
+    // Titulaires résolus par account_id (user via directory identité, org via alias payable).
+    const holders = await this.holderResolver.resolve(
+      ledgers.map((ledger) => ledger.wallet?.accountId)
+    )
+    const data = ledgers.map((ledger) => LedgerDto.fromLedger(ledger, holders))
 
     return {
       meta: paginatedLedgers.getMeta(),

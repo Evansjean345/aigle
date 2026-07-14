@@ -45,6 +45,18 @@ export default abstract class WalletRepository {
   ): Promise<Wallet | null>
 
   /**
+   * Fetches wallets for a set of account ids (batch — évite le N+1 sur une liste de comptes).
+   *
+   * @param {string[]} accountIds - The account ids owning the wallets.
+   * @param trx - Optional transaction client.
+   * @return {Promise<Wallet[]>} The matching wallets (0..n).
+   */
+  abstract findByAccountIds(
+    accountIds: string[],
+    trx?: TransactionClientContract
+  ): Promise<Wallet[]>
+
+  /**
    * Finds a wallet by its primary key ID.
    *
    * @param {number} id - The wallet ID.

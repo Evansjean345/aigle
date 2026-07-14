@@ -265,6 +265,87 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /api/mobile/operations/pay-merchant:
+    post:
+      operationId: payMerchant
+      summary: Paiement marchand depuis le wallet (interne, instantané)
+      description: |
+        Paiement d'un **marchand** depuis le portefeuille aiglesend, en scannant son **QR marchand**.
+        Mouvement **interne instantané** (statut définitif dans la réponse), **sans frais**. Le
+        `code` provient du QR (alias payable) ; le compte marchand est résolu côté serveur et n'est
+        jamais exposé. **Code PIN requis** (débit du wallet).
+
+        Le marchand est soumis aux **limites de réception** de son niveau (KYB) : un paiement qui les
+        dépasserait est refusé (`403`). La description du débit porte le **nom du marchand**.
+
+        Nécessite une authentification (jeton Bearer), les en-têtes d'appareil et l'en-tête
+        d'idempotence `X-Idempotency-Key`.
+      tags:
+        - Opérations
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/DeviceFingerprint'
+        - $ref: '#/components/parameters/DeviceUid'
+        - $ref: '#/components/parameters/DevicePlatform'
+        - $ref: '#/components/parameters/AppVersion'
+        - $ref: '#/components/parameters/DeviceOsVersion'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayMerchantRequest'
+            example:
+              code: "aig_mrc_7f3a2c"
+              amount: 5000
+              pincode: "12345"
+      responses:
+        '200':
+          description: Paiement marchand effectué (définitif)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayMerchantResponse'
+              example:
+                message: "Paiement marchand effectué avec succès"
+                data:
+                  reference: "aig_tx_a1b2c3"
+                  status: "success"
+                  merchant: "Boutique Ali"
+        '400':
+          $ref: '#/components/responses/OperationBadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: |
+            Marchand inactif, compte bloqué, ou **limite de réception du marchand dépassée**. Le code
+            `E_RECIPIENT_LIMIT_EXCEEDED` signale que c'est le **destinataire** (le marchand) qui ne
+            peut pas recevoir ce montant — le client affiche un message marchand, sans blâmer le payeur.
+          content:
+            application/json:
+              examples:
+                merchantInactive:
+                  value:
+                    code: E_MERCHANT_INACTIVE
+                    message: Ce marchand n'accepte pas les paiements pour le moment.
+                recipientLimit:
+                  value:
+                    code: E_RECIPIENT_LIMIT_EXCEEDED
+                    message: Le destinataire ne peut pas recevoir ce montant pour le moment.
+        '404':
+          description: Marchand introuvable pour ce code
+          content:
+            application/json:
+              example:
+                code: E_MERCHANT_NOT_FOUND
+                message: Marchand introuvable pour ce code.
+        '409':
+          $ref: '#/components/responses/DuplicateTransaction'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
 components:
   parameters:
     IdempotencyKey:
@@ -471,6 +552,57 @@ components:
           minLength: 5
           maxLength: 5
           description: Code PIN de l'expéditeur (exactement 5 caractères).
+
+    PayMerchantRequest:
+      type: object
+      required:
+        - code
+        - amount
+        - pincode
+      properties:
+        code:
+          type: string
+          description: Code du marchand extrait du QR (alias payable).
+          example: aig_mrc_7f3a2c
+        amount:
+          type: number
+          minimum: 1
+          description: Montant (entier ≥ 1, XOF).
+          example: 5000
+        pincode:
+          type: string
+          minLength: 5
+          maxLength: 5
+          description: Code PIN du payeur (exactement 5 caractères).
+          example: "12345"
+
+    PayMerchantResponse:
+      type: object
+      required:
+        - message
+        - data
+      properties:
+        message:
+          type: string
+          example: Paiement marchand effectué avec succès
+        data:
+          type: object
+          required:
+            - reference
+            - status
+            - merchant
+          properties:
+            reference:
+              type: string
+              description: Référence de la transaction (débit du payeur).
+              example: aig_tx_a1b2c3
+            status:
+              type: string
+              example: success
+            merchant:
+              type: string
+              description: Nom du marchand crédité (résolu depuis le QR).
+              example: Boutique Ali
 
   responses:
     OperationBadRequest:

@@ -42,6 +42,8 @@ import KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_docu
 import KycDocumentRepositoryImpl from '#core/identity/kyc/infrastructure/repositories/kyc_document_repository_impl'
 import KycLevelRepository from '#core/identity/kyc/domain/interfaces/kyc_level_repository'
 import KycLevelRepositoryImpl from '#core/identity/kyc/infrastructure/repositories/kyc_level_repository_impl'
+import KycLevelCache from '#core/identity/kyc/application/interfaces/kyc_level_cache'
+import KycLevelCacheService from '#core/identity/kyc/infrastructure/services/kyc_level_cache_service'
 import ResetPasswordTokenProvider from '#core/identity/authentication/domain/interfaces/reset_password_token_provider'
 import RedisResetPasswordTokenProvider from '#core/identity/authentication/infrastructure/redis_reset_password_token_provider'
 import SlidingWindowCounter from '#shared/domain/cache/sliding_window_counter'
@@ -62,8 +64,8 @@ import AuditLogRepository from '#core/audit/domain/interfaces/audit_log_reposito
 import AuditLogRepositoryImpl from '#core/audit/infrastructure/repositories/audit_log_repository_impl'
 import AuditRecorder from '#core/audit/domain/interfaces/audit_recorder'
 import { AuditService } from '#core/audit/infrastructure/audit_service'
-import AccountRepository from '#core/money/account/domain/interfaces/account_repository'
-import AccountRepositoryImpl from '#core/money/account/infrastructure/repositories/account_repository_impl'
+import AccountRepository from '#core/identity/account/domain/interfaces/account_repository'
+import AccountRepositoryImpl from '#core/identity/account/infrastructure/repositories/account_repository_impl'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 import OrganisationRepositoryImpl from '#aiglebusiness/organisation/infrastructure/repositories/organisation_repository_impl'
 import PayableAliasRepository from '#core/qr/domain/interfaces/payable_alias_repository'
@@ -86,6 +88,7 @@ export default class RepositoryProvider {
       [WalletRepository, WalletRepositoryImpl],
       [CountryRepository, CountryRepositoryImpl],
       [CountryCache, CountryCacheService],
+      [KycLevelCache, KycLevelCacheService],
       [OtpRepository, OtpRepositoryImpl],
       [ServiceTypeRepository, ServiceTypeRepositoryImpl],
       [PaymentMethodRepository, PaymentMethodRepositoryImpl],

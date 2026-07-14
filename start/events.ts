@@ -12,6 +12,7 @@ import UserKycStatusUpdated from '#core/identity/user/application/events/user_ky
 import NewDeviceDetected from '#core/identity/device/application/events/new_device_detected'
 import UserStateChanged from '#core/identity/user/application/events/user_state_changed'
 import WalletStatusChanged from '#core/money/wallet/application/events/wallet_status_changed'
+import AccountOpened from '#core/identity/account/application/events/account_opened'
 
 const AuditListener = () => import('#core/audit/application/listeners/audit_listener')
 
@@ -26,6 +27,12 @@ const ResetSecurityCountersOnSuccessListener = () =>
 
 const OnDepositSuccessNotification = () =>
   import('#core/notifications/application/listeners/on_deposit_success_notification')
+
+const OnCheckoutReceivedNotification = () =>
+  import('#aiglebusiness/organisation/application/listeners/on_checkout_received_notification')
+
+const OnMerchantPaymentReceivedNotification = () =>
+  import('#aiglebusiness/organisation/application/listeners/on_merchant_payment_received_notification')
 
 const OnTransfertSuccessNotification = () =>
   import('#core/notifications/application/listeners/on_transfert_success_notification')
@@ -52,6 +59,12 @@ const OnUserStateChangedNotification = () =>
   import('#core/notifications/application/listeners/on_user_state_changed_notification')
 const OnWalletStatusChangedNotification = () =>
   import('#core/notifications/application/listeners/on_wallet_status_changed_notification')
+const CreateWalletOnAccountOpened = () =>
+  import('#core/money/wallet/application/listeners/create_wallet_on_account_opened')
+const SyncAccountStatusOnUserStateChanged = () =>
+  import('#core/identity/account/application/listeners/sync_account_status_on_user_state_changed')
+const SyncAccountLevelOnKycUpdated = () =>
+  import('#core/identity/account/application/listeners/sync_account_level_on_kyc_updated')
 const HandleTransactionFailure = () =>
   import('#core/money/risk/application/listeners/handle_transaction_failure')
 
@@ -71,6 +84,7 @@ declare module '@adonisjs/core/types' {
 
 emitter.listen(DepositTransactionCompleted, [
   OnDepositSuccessNotification,
+  OnCheckoutReceivedNotification,
   PersistUserTransactionsVolumeListener,
   ResetSecurityCountersOnSuccessListener,
 ])
@@ -82,6 +96,7 @@ emitter.listen(TransfertTransactionCompleted, [
 emitter.listen(WalletToWalletTransactionCompleted, [
   PersistUserTransactionsVolumeListener,
   WalletToWalletTransactionPushNotificationListener,
+  OnMerchantPaymentReceivedNotification,
   ResetSecurityCountersOnSuccessListener,
 ])
 emitter.listen(KycDocumentSubmitted, [
@@ -90,10 +105,17 @@ emitter.listen(KycDocumentSubmitted, [
   OnKycSubmittedAdminBroadcast,
 ])
 emitter.listen(KycDocumentProcessed, [OnUserKycStatusUpdate, OnKycProcessedAdminBroadcast])
-emitter.listen(UserKycStatusUpdated, [OnKycDocumentProcessedNotification])
+emitter.listen(UserKycStatusUpdated, [
+  OnKycDocumentProcessedNotification,
+  SyncAccountLevelOnKycUpdated,
+])
 emitter.listen(NewDeviceDetected, [OnNewDeviceDetectedNotification])
-emitter.listen(UserStateChanged, [OnUserStateChangedNotification])
+emitter.listen(UserStateChanged, [
+  OnUserStateChangedNotification,
+  SyncAccountStatusOnUserStateChanged,
+])
 emitter.listen(WalletStatusChanged, [OnWalletStatusChangedNotification])
+emitter.listen(AccountOpened, [CreateWalletOnAccountOpened])
 
 emitter.listen(DepositTransactionFailed, [HandleTransactionFailure])
 emitter.listen(TransfertTransactionFailed, [HandleTransactionFailure])

@@ -50,7 +50,7 @@ export default class SettleTransfertInterSecondUseCase {
         return this.support.result(transaction, true)
       }
 
-      const wallet = await this.walletService.getByUserId(transaction.usersUid, trx)
+      const wallet = await this.walletService.getByAccountId(transaction.accountId, trx)
 
       if (cmd.outcome === 'success') {
         await this.applySuccess(

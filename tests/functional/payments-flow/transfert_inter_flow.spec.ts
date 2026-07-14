@@ -8,6 +8,7 @@ import { TransactionDirection } from '#core/money/transactions/domain/enums/tran
 import { PaymentStatus } from '#core/money/transactions/domain/enums/payment_status'
 import InterTransfertUseCase from '#aiglesend/operations/application/use_cases/transfert_inter.usecase'
 import { InterTransfertRequestDto } from '#aiglesend/operations/application/dtos/transfert_inter.dto'
+import { mobileDeviceDeepLink } from '#config/app'
 import {
   createUserWithWallet,
   reloadBalance,
@@ -101,6 +102,26 @@ test.group('Flux transfert_inter | caractérisation', (group) => {
       assert.equal(invoke.resolve.operator, 'moov')
       assert.equal(invoke.request.amount, 5000)
       assert.equal(invoke.request.transactionId, tx.reference)
+    } finally {
+      gateway.restore()
+    }
+  })
+
+  test('inter jambe 1 : le PRODUIT envoie son deep link (success/error url) au provider', async ({
+    assert,
+  }) => {
+    const { user } = await createUserWithWallet({ balance: 10000 })
+    const gateway = swapProviderGateway()
+
+    try {
+      const useCase = await app.container.make(InterTransfertUseCase)
+      await useCase.execute(buildDto({ amount: 5000 }), user)
+
+      // Jambe 1 = cash-in Orange (payment_link par défaut) : aiglesend consumer fournit son deep link.
+      const invoke = gateway.resolver.invokes.at(-1)
+      assert.exists(invoke)
+      assert.equal(invoke!.request.metadata.success_url, mobileDeviceDeepLink)
+      assert.equal(invoke!.request.metadata.error_url, mobileDeviceDeepLink)
     } finally {
       gateway.restore()
     }

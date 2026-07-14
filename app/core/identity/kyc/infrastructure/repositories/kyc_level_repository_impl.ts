@@ -40,6 +40,17 @@ export default class KycLevelRepositoryImpl implements KycLevelRepository {
   }
 
   /**
+   * Trouve la grille de limites d'un couple `(segment, level)`.
+   *
+   * @param {string} segment - Segment du compte (`particulier` | `marchand` | `enterprise`).
+   * @param {number} level - Niveau du compte.
+   * @return {Promise<KycLevel | null>} La ligne de limites, ou null si le couple n'existe pas.
+   */
+  async findBySegmentAndLevel(segment: string, level: number): Promise<KycLevel | null> {
+    return KycLevel.query().where('segment', segment).where('level', level).first()
+  }
+
+  /**
    * Persists the given KYC level to the database.
    *
    * @param {KycLevel} kycLevel - The KYC level object to be saved.

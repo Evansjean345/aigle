@@ -1,36 +1,96 @@
 import { inject } from '@adonisjs/core'
-import AccountValidationService from '#core/identity/user/application/services/account_validation_service'
+import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
+import WalletService from '#core/money/wallet/application/services/wallet_service'
 import TransactionLimitValidationService from '#core/money/transactions/application/services/transaction_limit_validation_service'
+import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
+import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
+import WalletInactiveException from '#core/money/wallet/domain/exceptions/wallet_inactive_exception'
+import AccountBlockedException from '#core/money/money_movement/domain/exceptions/account_blocked_exception'
+import RecipientLimitExceededException from '#core/money/money_movement/domain/exceptions/recipient_limit_exceeded_exception'
+import SingleLimitExceededException from '#core/money/transactions/domain/exceptions/single_limit_exceeded_exception'
+import DailyLimitExceededException from '#core/money/transactions/domain/exceptions/daily_limit_exceeded_exception'
+import MonthlyLimitExceededException from '#core/money/transactions/domain/exceptions/monthly_limit_exceeded_exception'
+import BalanceLimitExceededException from '#core/money/transactions/domain/exceptions/balance_limit_exceeded_exception'
 import type { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import type { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
-import type User from '#core/identity/user/domain/models/user'
 
 /**
- * Brique partagée de l'engine : valide une partie prenante d'un mouvement (compte actif +
- * wallet actif, puis limites/tier selon le montant et la direction). Utilisée par toutes les
- * primitives (moveInternal en valide deux, les primitives externes une). Centralise la garde
- * « le core gate par compte + limites » (doc centrale §4.6).
+ * Brique partagée de l'engine : valide une partie prenante d'un mouvement — **account-centric**
+ * (refactor 2026-07). Orchestrateur money par `accountId` : lit le **standing** du compte (identity,
+ * `getStanding` — source unique en lecture), puis contrôle dans l'ordre :
+ *  1. **statut party** actif (le compte n'est pas bloqué) ;
+ *  2. **gel argent** : le wallet du compte est actif (`WalletStatus`) ;
+ *  3. **limites** (unitaire / volume / solde) selon le niveau du compte.
+ *
+ * Ne dépend plus du modèle `User` ni de `wallet.user` : le compte est la source de la validation.
+ * Utilisée par toutes les primitives (moveInternal en valide deux, les primitives externes une).
  */
 @inject()
 export default class PartyValidator {
   constructor(
-    private readonly accountValidationService: AccountValidationService,
+    private readonly accountStandingService: AccountStandingService,
+    private readonly walletService: WalletService,
     private readonly limitValidationService: TransactionLimitValidationService
   ) {}
 
+  /**
+   * Valide la partie prenante `accountId` pour un mouvement de `amount`.
+   *
+   * @param params.accountId Compte de la partie prenante.
+   * @param params.amount Montant du mouvement.
+   * @param params.transactionType Type de transaction.
+   * @param params.direction Direction (défaut DEBIT côté limites).
+   * @param params.isRecipient Indique un destinataire (contexte, non requis — les limites de
+   *   réception se déduisent de type + direction).
+   * @throws {AccountBlockedException} Si le statut du compte n'est pas actif.
+   * @throws {WalletInactiveException} Si le wallet du compte est gelé.
+   * @throws Les exceptions de limites (`SingleLimitExceededException`, etc.).
+   */
   async validate(params: {
-    user: User
+    accountId: string
     amount: number
     transactionType: TransactionType
     direction?: TransactionDirection
     isRecipient?: boolean
   }): Promise<void> {
-    await this.accountValidationService.validateAccount(params.user, params.isRecipient ?? false)
-    await this.limitValidationService.validateTransactionLimit({
-      user: params.user,
-      amount: params.amount,
-      transactionType: params.transactionType,
-      direction: params.direction,
-    })
+    const standing = await this.accountStandingService.getStanding(params.accountId)
+
+    if (standing.status !== AccountStatus.ACTIVE) {
+      throw new AccountBlockedException()
+    }
+
+    const wallet = await this.walletService.getByAccountId(params.accountId)
+    if (wallet.status !== WalletStatus.Active) {
+      throw new WalletInactiveException()
+    }
+
+    try {
+      await this.limitValidationService.validateTransactionLimit({
+        accountId: params.accountId,
+        amount: params.amount,
+        transactionType: params.transactionType,
+        direction: params.direction,
+        limits: standing.limits,
+        walletBalance: Number(wallet.balance),
+      })
+    } catch (error) {
+      // Côté **destinataire** (ex. marchand plafonné), on requalifie un dépassement de limite en
+      // `RecipientLimitExceededException` (code dédié) : le client sait que c'est le destinataire qui
+      // ne peut pas recevoir, pas le payeur. Les limites émetteur remontent inchangées.
+      if (params.isRecipient && PartyValidator.isLimitException(error)) {
+        throw new RecipientLimitExceededException()
+      }
+      throw error
+    }
+  }
+
+  /** Vrai si l'erreur est un dépassement de plafond (unitaire / quotidien / mensuel / solde). */
+  private static isLimitException(error: unknown): boolean {
+    return (
+      error instanceof SingleLimitExceededException ||
+      error instanceof DailyLimitExceededException ||
+      error instanceof MonthlyLimitExceededException ||
+      error instanceof BalanceLimitExceededException
+    )
   }
 }

@@ -9,8 +9,13 @@ export default class WalletToWalletTransactionCompleted extends BaseEvent {
     public senderTransaction: Transaction,
     public receiverTransaction: Transaction,
     public payload: {
-      recipientPhone: string
+      type: 'p2p' | 'merchant'
+      recipientPhone: string | null
       senderPhone: string
+      recipientAccountId: string
+      /** Soldes réels **après** mouvement (le modèle `Transaction` ne les porte pas — cf. R9). */
+      senderBalanceAfter: number
+      recipientBalanceAfter: number
     }
   ) {
     super()

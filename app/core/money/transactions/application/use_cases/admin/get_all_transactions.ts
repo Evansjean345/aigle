@@ -6,15 +6,19 @@ import {
 } from '#core/money/transactions/application/dto/admin_transaction.dto'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
+import AccountHolderResolver from '#core/money/transactions/application/services/account_holder_resolver'
 
 @inject()
 export default class GetAllTransactionsUseCase {
   /**
-   * Creates an instance of the class with the given transactions repository.
-   *
-   * @param {TransactionRepository} transactionsRepository - The repository used for handling transactions.
+   * @param {TransactionRepository} transactionsRepository - Repo des transactions.
+   * @param {AccountHolderResolver} holderResolver - Résout la partie prenante par `account_id`
+   *   (account-centric : user via directory identité, org via alias payable), en batch.
    */
-  constructor(private readonly transactionsRepository: TransactionRepository) {}
+  constructor(
+    private readonly transactionsRepository: TransactionRepository,
+    private readonly holderResolver: AccountHolderResolver
+  ) {}
 
   /**
    * Executes the method to retrieve all transactions from the repository.
@@ -37,6 +41,12 @@ export default class GetAllTransactionsUseCase {
     }
   ): Promise<PaginatedAdminTransactionsResponseDTO> {
     const transactions = await this.transactionsRepository.all(page, perPage, filters)
-    return AdminTransactionResponseDTO.fromPaginator(transactions)
+
+    // Partie prenante résolue par account_id (user OU marchand) — plus de relation `user` préchargée.
+    const holders = await this.holderResolver.resolve(
+      transactions.all().map((t) => t.accountId)
+    )
+
+    return AdminTransactionResponseDTO.fromPaginator(transactions, holders)
   }
 }

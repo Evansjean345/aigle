@@ -5,15 +5,18 @@ import {
   PaginatedAdminTransactionsResponseDTO,
 } from '#core/money/transactions/application/dto/admin_transaction.dto'
 import InvalidUserIdException from '#core/money/transactions/domain/exceptions/invalid_user_id_exception'
+import AccountHolderResolver from '#core/money/transactions/application/services/account_holder_resolver'
 
 @inject()
 export default class GetUserTransactionsUseCase {
   /**
-   * Creates an instance of the class with the given transactions repository.
-   *
    * @param {TransactionRepository} transactionsRepository - The repository used for handling transactions.
+   * @param {AccountHolderResolver} holderResolver - Résout la partie prenante par `account_id`.
    */
-  constructor(private readonly transactionsRepository: TransactionRepository) {}
+  constructor(
+    private readonly transactionsRepository: TransactionRepository,
+    private readonly holderResolver: AccountHolderResolver
+  ) {}
 
   /**
    * Executes the method to retrieve all transactions for a specific user.
@@ -33,6 +36,7 @@ export default class GetUserTransactionsUseCase {
     }
 
     const paginated = await this.transactionsRepository.getAllByUserId(userId, page, perPage)
-    return AdminTransactionResponseDTO.fromPaginator(paginated)
+    const holders = await this.holderResolver.resolve(paginated.all().map((t) => t.accountId))
+    return AdminTransactionResponseDTO.fromPaginator(paginated, holders)
   }
 }

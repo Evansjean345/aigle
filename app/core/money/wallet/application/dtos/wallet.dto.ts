@@ -28,6 +28,23 @@ export interface WalletOverviewResult {
   transactions: MobileTransactionResponseDTO[]
 }
 
+/**
+ * Projection minimale du solde d'un wallet, exposée hors du contexte money (port de service).
+ * N'expose ni l'`id` ORM ni l'`accountId` — juste ce qu'un consommateur produit affiche. Sert
+ * la vue « mes organisations » (solde par compte marchand), sans laisser fuiter le modèle Wallet.
+ */
+export interface WalletBalanceResult {
+  balance: number
+  currency: string
+  status: WalletStatus
+}
+
+export const toWalletBalanceResult = (wallet: Wallet): WalletBalanceResult => ({
+  balance: wallet.balance ?? 0,
+  currency: wallet.currencySymbol ?? 'XOF',
+  status: wallet.status,
+})
+
 export const toWalletOverviewResult = (
   wallet: Wallet,
   transactions: Transaction[]

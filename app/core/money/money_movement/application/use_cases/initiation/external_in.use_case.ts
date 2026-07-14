@@ -161,18 +161,25 @@ export default class ExternalInUseCase {
 
   /**
    * Valide le destinataire d'un crédit externe.
-   *  - **user** (deposit consumer) : validation complète (compte actif + limites) — inchangée ;
+   *  - **user** (deposit consumer) : validation account-centric complète (statut + wallet + limites)
+   *    via `PartyValidator` par `accountId` ;
    *  - **marchand** (checkout, compte org sans user) : le payeur anonyme n'a ni KYC ni device ;
-   *    on valide uniquement que le wallet destinataire est **actif** (l'existence de l'alias
-   *    payable garantit déjà un marchand opérationnel).
+   *    on valide uniquement que le wallet destinataire est **actif** (l'existence de l'alias payable
+   *    garantit déjà un marchand opérationnel). NB : l'enforcement des **limites de réception
+   *    marchand** par le standing (S4) est un suivi — hors de ce lot de validation.
    */
   private async validateRecipient(
     wallet: Wallet,
     amount: number,
     type: ExternalInCommand['type']
   ): Promise<void> {
-    if (wallet.userId && wallet.user) {
-      await this.partyValidator.validate({ user: wallet.user, amount, transactionType: type })
+    if (wallet.userId) {
+      await this.partyValidator.validate({
+        accountId: wallet.accountId ?? wallet.userId,
+        amount,
+        transactionType: type,
+        isRecipient: true,
+      })
       return
     }
 

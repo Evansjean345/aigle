@@ -25,6 +25,8 @@ export default function businessAuthRoutes() {
         .group(() => {
           router.get('auth/sessions', [BusinessSessionController, 'index'])
           router.delete('auth/sessions/:id', [BusinessSessionController, 'destroy'])
+          // Déverrouillage / lock-screen : vérifie le PIN du user authentifié.
+          router.post('auth/check-pin', [BusinessAuthController, 'checkPinCode'])
         })
         .use([
           middleware.auth(),

@@ -6,6 +6,7 @@ import { UserStatus } from '#core/identity/user/domain/enum'
 import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
 import AccountValidationService from '#core/identity/user/application/services/account_validation_service'
 import TransactionLimitValidationService from '#core/money/transactions/application/services/transaction_limit_validation_service'
+import PartyValidator from '#core/money/money_movement/application/services/party_validator'
 import DebitPhoneValidationService from '#core/identity/user/application/services/debit_phone_validation_service'
 import { ProviderResolver } from '#core/money/provider_gateway/infrastructure/provider_resolver'
 import { ProviderResponse } from '#core/money/provider_gateway/domain/value_objects/provider_response'
@@ -98,6 +99,15 @@ class PermissiveLimitValidation {
   async validateTransactionLimit(): Promise<void> {}
 }
 
+/**
+ * Validation money (account-centric) neutralisée : le `PartyValidator` réel lit le standing du
+ * compte (identity) + le wallet — hors chemin argent caractérisé. On le remplace par un no-op (les
+ * fixtures créent user+wallet mais pas de compte/standing seedé).
+ */
+class PermissivePartyValidator {
+  async validate(): Promise<void> {}
+}
+
 /** Garde debit_phone (dépôt/inter) neutralisée. */
 class PermissiveDebitPhoneValidation {
   async validateDebitPhone(): Promise<void> {}
@@ -113,11 +123,13 @@ export function swapGuards(): () => void {
     TransactionLimitValidationService,
     () => new PermissiveLimitValidation() as any
   )
+  app.container.swap(PartyValidator, () => new PermissivePartyValidator() as any)
   app.container.swap(DebitPhoneValidationService, () => new PermissiveDebitPhoneValidation() as any)
 
   return () => {
     app.container.restore(AccountValidationService)
     app.container.restore(TransactionLimitValidationService)
+    app.container.restore(PartyValidator)
     app.container.restore(DebitPhoneValidationService)
   }
 }

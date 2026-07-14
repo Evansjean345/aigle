@@ -48,6 +48,12 @@ paths:
                         step: "transfert_confirmed"
                         paymentDetails: { operator: "orange", phone: "2250708123456", user: "Awa Traoré" }
                         error: null
+                    display:
+                      kind: "external_transfer"
+                      scope: "external"
+                      flow: "out"
+                      counterparty:
+                        { nature: "external", name: null, phone: "2250708123456", operator: "orange" }
                 meta:
                   total: 45
                   currentPage: 1
@@ -136,6 +142,12 @@ paths:
                     step: "transfert_confirmed"
                     paymentDetails: { operator: "orange", phone: "2250708123456", user: "Awa Traoré" }
                     error: null
+                display:
+                  kind: "external_transfer"
+                  scope: "external"
+                  flow: "out"
+                  counterparty:
+                    { nature: "external", name: null, phone: "2250708123456", operator: "orange" }
         '401':
           description: Non autorisé
         '404':
@@ -390,6 +402,7 @@ components:
         - direction
         - dateTransaction
         - payment
+        - display
       properties:
         transactionId:
           type: string
@@ -431,6 +444,76 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TransactionPayment'
+        display:
+          $ref: '#/components/schemas/TransactionDisplay'
+
+    TransactionCounterparty:
+      type: object
+      description: >
+        Contrepartie du leg (**privacy-first**). Pour un `user` ou un opérateur `external`, seul
+        `{ phone, operator }` est exposé — **jamais** le nom : l'app le résout en **contact local**
+        via le carnet du porteur. Seul un **marchand** (identité commerciale) porte un `name`.
+      required: [nature, name, phone, operator]
+      properties:
+        nature:
+          type: string
+          enum: [user, merchant, external]
+          description: Nature de la contrepartie.
+          example: "user"
+        name:
+          type: string
+          nullable: true
+          description: Nom commercial — **présent uniquement** pour un marchand (sinon `null`).
+          example: null
+        phone:
+          type: string
+          nullable: true
+          description: Numéro de la contrepartie (user/external) — à résoudre en contact côté app.
+          example: "2250708123456"
+        operator:
+          type: string
+          nullable: true
+          description: Opérateur (`aiglesend` pour un mouvement interne ; `wave`/`orange`… en externe).
+          example: "aiglesend"
+
+    TransactionDisplay:
+      type: object
+      description: >
+        Classification d'affichage **dérivée** (taxonomie 2026-07), partagée mobile + admin. Lève
+        l'ambiguïté historique de `operationType` : le libellé humain et le signe sont composés côté
+        client à partir de `kind` + `flow` + `counterparty`.
+      required: [kind, scope, flow, counterparty]
+      properties:
+        kind:
+          type: string
+          enum:
+            - deposit
+            - external_transfer
+            - inter_network
+            - merchant_collection
+            - p2p_transfer
+            - merchant_payment
+            - refund
+            - unknown
+          description: >
+            Type métier affiché. `p2p_transfer` = transfert entre utilisateurs ; `merchant_payment`
+            = paiement chez un marchand ; `merchant_collection` = encaissement marchand (checkout,
+            interne ou externe).
+          example: "p2p_transfer"
+        scope:
+          type: string
+          enum: [internal, external]
+          description: L'argent reste dans aigle (`internal`) ou franchit un opérateur (`external`).
+          example: "internal"
+        flow:
+          type: string
+          enum: [in, out, neutral]
+          description: >
+            Sens vis-à-vis du compte du leg : `in` (crédit, +), `out` (débit, −), `neutral` (jambe
+            de transit d'un inter-réseau).
+          example: "out"
+        counterparty:
+          $ref: '#/components/schemas/TransactionCounterparty'
 
     PaginatedTransactions:
       type: object
