@@ -139,7 +139,7 @@ test.group('PersistUserTransactionsVolume | account-centric', () => {
     ])
   })
 
-  test('transfert consumer sortant → incrémente par le compte émetteur (user)', async ({
+  test('transfert consumer sortant → incrémente par le compte émetteur (accountId == user)', async ({
     assert,
   }) => {
     const { listener, calls } = build()
@@ -149,11 +149,33 @@ test.group('PersistUserTransactionsVolume | account-centric', () => {
         reference: 'trf-1',
         balanceAfter: 1000,
         amount: 4000,
+        accountId: 'user-1',
         userId: 'user-1',
         beneficiaryPhone: '+2250705050505',
       })
     )
 
     assert.deepEqual(calls, [{ key: 'user-1', amount: 4000 }])
+  })
+
+  test('payout marchand sortant → incrémente le compte ORG (accountId, sans user)', async ({
+    assert,
+  }) => {
+    const { listener, calls } = build()
+
+    // Payout : un external_out depuis un compte org — la transaction n'a PAS de user
+    // (`userId` null), seule la clé `accountId` (l'org) identifie le compte.
+    await listener.handle(
+      new TransfertTransactionCompleted({
+        reference: 'pay-1',
+        balanceAfter: 95000,
+        amount: 5000,
+        accountId: 'org-42',
+        userId: null as unknown as string,
+        beneficiaryPhone: '+2250705050505',
+      })
+    )
+
+    assert.deepEqual(calls, [{ key: 'org-42', amount: 5000 }])
   })
 })

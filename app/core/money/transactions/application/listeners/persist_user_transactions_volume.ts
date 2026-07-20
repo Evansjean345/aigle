@@ -45,9 +45,11 @@ export default class PersistUserTransactionsVolume {
       return
     }
 
-    // Transfert consumer sortant : l'émetteur est un user (accountId == userId).
-    const { userId, amount, reference } = event.data
-    await this.persist(reference, userId, amount)
+    // Transfert/payout sortant : volume du **compte émetteur** (`accountId`). Pour un user
+    // `accountId == usersUid` ; pour un **payout** org (sans user) c'est l'org — sinon la clé
+    // tomberait sur `usersUid` null et le volume marchand ne monterait jamais.
+    const { accountId, amount, reference } = event.data
+    await this.persist(reference, accountId, amount)
   }
 
   /**

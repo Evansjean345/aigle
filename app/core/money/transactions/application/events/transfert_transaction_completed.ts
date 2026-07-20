@@ -4,6 +4,9 @@ export interface TransfertTransactionCompletedPayload {
   reference: string
   balanceAfter: number
   amount: number
+  /** Compte émetteur (`account_id`). Pour un user == usersUid ; pour un **payout** org, l'org. */
+  accountId: string
+  /** Émetteur user (null pour un compte org sans user, ex. payout). */
   userId: string
   beneficiaryPhone: string
 }

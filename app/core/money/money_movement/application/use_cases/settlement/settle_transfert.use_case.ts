@@ -82,6 +82,8 @@ export default class SettleTransfertUseCase {
 
     await this.support.dispatchFlowEvent('TransfertTransactionCompleted', transaction, {
       amount: transaction.amount,
+      // `accountId` = compte émetteur (payout org : usersUid null). Clé du volume de transaction.
+      accountId: transaction.accountId,
       userId: transaction.usersUid,
       balanceAfter: currentBalance,
       beneficiaryPhone: this.paymentService.extractBeneficiaryPhone(payment),
