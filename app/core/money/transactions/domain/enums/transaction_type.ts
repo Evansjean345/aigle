@@ -10,6 +10,6 @@ export enum TransactionType {
 
   // ── Business (ajoutés au Lot 6) ──
   CHECKOUT = 'checkout',
-  // PAYOUT = 'payout',
+  PAYOUT = 'payout',
   // MASS_PAYOUT = 'mass_payout',
 }

@@ -45,6 +45,7 @@ export default class RefundService {
    * @param {WalletService} walletService
    * @param {LedgerService} ledgerService
    * @param {TransactionService} transactionService
+   * @param refundRepository
    */
   constructor(
     private readonly walletService: WalletService,
@@ -257,6 +258,7 @@ export default class RefundService {
     const refundableOperationTypes: TransactionType[] = [
       TransactionType.TRANSFERT,
       TransactionType.TRANSFERT_INTER,
+      TransactionType.PAYOUT,
     ]
 
     if (!refundableOperationTypes.includes(transaction.operationType)) {
@@ -282,7 +284,7 @@ export default class RefundService {
       transaction.status !== TransactionStatus.SUCCESS
     ) {
       throw new TransactionNotRefundableException(
-        'Seules les transactions réussies peuvent être remboursées manuellement'
+        'seules les transactions réussies peuvent être remboursées manuellement'
       )
     }
   }

@@ -82,7 +82,11 @@ export default class ExternalOutUseCase {
         wallet.user,
         deviceInfo,
         geoIpLocation,
-        trx
+        trx,
+        // Rattache la transaction au **compte source** (account-centric). Pour un user
+        // `accountId == usersUid` (comportement inchangé) ; pour un **compte org** (payout, sans
+        // user) c'est l'org — sinon `account_id` tomberait à null (dérivé du user absent).
+        wallet.accountId ?? cmd.fromAccountId
       )
       const payment = await this.paymentService.createPayment(
         {
@@ -114,7 +118,10 @@ export default class ExternalOutUseCase {
       paymentId = payment.id
       balanceAfter = debited.balance
     } catch (error) {
-      if (trx.isCompleted) {
+      // Rollback SI la transaction n'est pas déjà terminée (commit/rollback). La condition inverse
+      // laissait la transaction **ouverte** sur erreur → verrou `FOR UPDATE` du wallet jamais
+      // relâché → `ER_LOCK_WAIT_TIMEOUT` sur les débits suivants. Aligné sur les settle_*.
+      if (!trx.isCompleted) {
         await trx.rollback()
       }
       this.activity.failed(

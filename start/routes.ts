@@ -17,6 +17,7 @@ import businessAuthRoutes from '#aiglebusiness/auth/presentation/client/routes/b
 import businessClientRoutes from '#aiglebusiness/organisation/presentation/client/routes/business_routes'
 import membershipClientRoutes from '#aiglebusiness/membership/presentation/client/routes/membership_routes'
 import businessTransactionsRoutes from '#aiglebusiness/transactions/presentation/client/routes/business_transactions_routes'
+import businessPayoutRoutes from '#aiglebusiness/payout/presentation/client/routes/business_payout_routes'
 import businessDeviceRoutes from '#aiglebusiness/device/presentation/client/routes/business_device_routes'
 import businessCatalogRoutes from '#aiglebusiness/catalog/presentation/client/routes/business_catalog_routes'
 import payableAliasRoutes from '#core/qr/presentation/public/routes/payable_alias_routes'
@@ -39,6 +40,7 @@ router
     router.group(businessClientRoutes)
     router.group(membershipClientRoutes)
     router.group(businessTransactionsRoutes)
+    router.group(businessPayoutRoutes)
     router.group(businessDeviceRoutes)
     router.group(businessCatalogRoutes)
     router.group(payableAliasRoutes)

@@ -124,6 +124,10 @@ const aiglebusinessOptions: swaggerJsdoc.Options = {
       { name: 'Business - Membres', description: 'Gestion des membres d’une organisation' },
       { name: 'Business - Invitations', description: 'Acceptation/refus d’invitation (semi-public)' },
       {
+        name: 'Business - Transferts',
+        description: 'Décaissement depuis le compte de l’organisation (transfert unique)',
+      },
+      {
         name: 'Paiement marchand',
         description: 'Encaissement marchand public (page aigleplay) : options, initiation, statut',
       },

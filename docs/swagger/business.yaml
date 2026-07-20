@@ -932,6 +932,89 @@ paths:
         '404':
           $ref: '#/components/responses/MemberNotFound'
 
+  /api/business/organisations/{organisationId}/transfers:
+    post:
+      operationId: initiateOrganisationTransfer
+      summary: Initier un transfert (décaissement) depuis le compte de l'organisation
+      description: |
+        Décaisse depuis le **compte de l'organisation** vers un bénéficiaire **mobile money**
+        (transfert unique). Account-centric : la **source** est le compte org (`organisationId`) ;
+        l'initiateur est le **membre** authentifié (traçabilité d'audit).
+
+        Le mouvement est **asynchrone** : réponse `202` immédiate avec le statut `pending`. Le
+        règlement (`success`/`failed` + **refund** du compte org sur échec) arrive ensuite via le
+        **webhook opérateur** — un payout se règle comme un transfert consumer.
+
+        **Autorisation** : permission `payout:initiate` (sensitive ; l'OWNER passe d'office).
+        **Aucune restriction par segment** — marchand **comme** entreprise peuvent décaisser : le
+        plafonnement est assuré par les **limites de transactions** du compte (selon son niveau KYB).
+        Un niveau dont la grille impose des plafonds à `0` est de facto bloqué par ses limites.
+
+        Les **frais** sont à la charge de la business (`total = montant + frais`).
+      tags:
+        - Business - Transferts
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+        - name: X-Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string }
+          description: Clé d'idempotence (anti double-décaissement sur rejeu).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayoutRequest'
+            example:
+              amount: 25000
+              phone: '+2250700000000'
+              providerCode: wave
+              paymentMethodCode: mobile_money
+      responses:
+        '202':
+          description: Transfert accepté — en cours de traitement (règlement par webhook)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayoutResponse'
+              example:
+                message: payout initié
+                data:
+                  transactionReference: aigle_pay_9f3a2c
+                  status: pending
+        '400':
+          description: Solde insuffisant (ou canal requis manquant)
+          content:
+            application/json:
+              example:
+                code: E_INSUFFICIENT_FUNDS
+                message: Solde insuffisant pour effectuer cette opération.
+        '403':
+          description: |
+            Permission `payout:initiate` absente **ou** limite de transaction dépassée (le plafond du
+            compte selon son niveau KYB).
+          content:
+            application/json:
+              examples:
+                permission:
+                  summary: Permission absente
+                  value:
+                    code: E_FORBIDDEN_ORG_PERMISSION
+                    message: Vous n'avez pas la permission requise pour cette action
+                limite:
+                  summary: Plafond dépassé
+                  value:
+                    code: DAILY_LIMIT_EXCEEDED
+                    message: Le plafond journalier de transaction est dépassé.
+        '422':
+          description: Payload invalide (montant, téléphone, provider, moyen de paiement)
+
   /api/business/organisations/{organisationId}/transactions:
     get:
       operationId: listOrganisationTransactions
@@ -971,6 +1054,71 @@ paths:
               example:
                 code: E_FORBIDDEN_ORG_PERMISSION
                 message: Vous n'avez pas la permission requise pour cette action
+
+  /api/business/organisations/{organisationId}/transactions/quotas:
+    get:
+      operationId: getOrganisationTransactionQuotas
+      summary: Quotas & plafonds du compte de l'organisation
+      description: |
+        Plafonds de transaction du **compte de l'organisation** et leur consommation courante
+        (account-centric). Pendant business du `/api/mobile/transactions/quotas` d'aiglesend, résolu
+        depuis le **standing du compte** (`segment` + `level` → grille `kyc_level`) plutôt que le
+        niveau KYC d'un utilisateur.
+
+        Pour chaque bloc : `limit` est le plafond, `consumed` la consommation de la période, et
+        `remaining` la capacité restante. Un plafond **`null` = illimité** (le plafond n'est pas
+        contrôlé) ; `remaining` / `remainingCapacity` valent alors `null`.
+
+        Réservé à la permission `transactions:view` (l'OWNER passe d'office).
+      tags:
+        - Business - Transactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: Quotas et plafonds du compte
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountQuotas'
+              example:
+                daily:
+                  consumed: 150000
+                  limit: 2000000
+                  remaining: 1850000
+                monthly:
+                  consumed: 4200000
+                  limit: 20000000
+                  remaining: 15800000
+                wallet:
+                  currentBalance: 12000
+                  limit: 5000000
+                  remainingCapacity: 4988000
+                singleTransaction:
+                  limit: 1000000
+                segment: marchand
+                level: 2
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
+        '403':
+          description: Permission `transactions:view` absente
+          content:
+            application/json:
+              example:
+                code: E_FORBIDDEN_ORG_PERMISSION
+                message: Vous n'avez pas la permission requise pour cette action
+        '404':
+          description: Compte introuvable
+          content:
+            application/json:
+              example:
+                code: E_ACCOUNT_NOT_FOUND
+                message: Compte introuvable
 
   /api/business/organisations/{organisationId}/transactions/{reference}:
     get:
@@ -1634,6 +1782,81 @@ components:
             firstPage: { type: integer, example: 1 }
             lastPage: { type: integer, example: 3 }
             perPage: { type: integer, example: 16 }
+
+    PayoutRequest:
+      type: object
+      required: [amount, phone, providerCode, paymentMethodCode]
+      description: Ordre de transfert unique depuis le compte de l'organisation vers un mobile money.
+      properties:
+        amount:
+          type: integer
+          minimum: 1
+          description: Montant net à envoyer (XOF, entier). Les frais s'ajoutent au débit.
+          example: 25000
+        phone:
+          type: string
+          description: MSISDN du bénéficiaire (mobile money).
+          example: '+2250700000000'
+        providerCode:
+          type: string
+          description: Code opérateur/provider (ex. `wave`, `orange`, `moov`).
+          example: wave
+        paymentMethodCode:
+          type: string
+          description: Code du moyen de paiement catalogue.
+          example: mobile_money
+
+    PayoutResponse:
+      type: object
+      description: Accusé d'initiation (mouvement PENDING ; règlement ultérieur par webhook).
+      properties:
+        message: { type: string, example: payout initié }
+        data:
+          type: object
+          properties:
+            transactionReference: { type: string, example: aigle_pay_9f3a2c }
+            status:
+              type: string
+              description: Statut du mouvement à l'initiation (toujours `pending`).
+              example: pending
+
+    AccountQuotaLine:
+      type: object
+      description: |
+        Ligne de quota : plafond, consommation courante et capacité restante. `limit`/`remaining`
+        à `null` signifient **illimité**.
+      properties:
+        consumed: { type: number, example: 150000 }
+        limit: { type: number, nullable: true, example: 2000000 }
+        remaining: { type: number, nullable: true, example: 1850000 }
+
+    AccountQuotas:
+      type: object
+      description: |
+        Quotas & plafonds du compte de l'organisation (account-centric). `segment` et `level`
+        identifient la grille de limites appliquée. Les plafonds `null` = illimité.
+      properties:
+        daily:
+          $ref: '#/components/schemas/AccountQuotaLine'
+        monthly:
+          $ref: '#/components/schemas/AccountQuotaLine'
+        wallet:
+          type: object
+          description: Plafond de solde du wallet et capacité d'encaissement restante.
+          properties:
+            currentBalance: { type: number, example: 12000 }
+            limit: { type: number, nullable: true, example: 5000000 }
+            remainingCapacity: { type: number, nullable: true, example: 4988000 }
+        singleTransaction:
+          type: object
+          description: Plafond unitaire (montant maximum par transaction).
+          properties:
+            limit: { type: number, nullable: true, example: 1000000 }
+        segment:
+          type: string
+          enum: [particulier, marchand, enterprise]
+          example: marchand
+        level: { type: integer, example: 2 }
 
     CatalogProvider:
       type: object

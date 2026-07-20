@@ -22,7 +22,7 @@ ont conçu l'ensemble ; on **livre par lots** :
 
 | Lot | Contenu | Dépend de | Statut |
 |-----|---------|-----------|--------|
-| **1 — Transfert unique** | Payout **interactif inline** (N=1) : membre `payout:initiate` → gate **ENTREPRISE L2** → résolution org→account → `initiateExternalOut` **direct dans la requête** (débit normal, **pas** de réservation-hold, **pas** de relais) → settlement/refund par webhook **déjà en place**. Frais service type `payout`, `TransactionType.PAYOUT`. Destination **externe** (mobile money). | Engine + settlement existants | **design en cours (S7)** |
+| **1 — Transfert unique** | Payout **interactif inline** (N=1) : membre `payout:initiate` → résolution org→account → `initiateExternalOut` **direct dans la requête** (débit normal, **pas** de réservation-hold, **pas** de relais) → settlement/refund par webhook **déjà en place**. **Aucune restriction par segment** : le **plafonnement = les limites de transactions** du compte (via `PartyValidator`). Frais grille `transfert`, `TransactionType.PAYOUT`. Destination **externe** (mobile money). | Engine + settlement existants | **design en cours (S7)** |
 | **2 — Paiement en masse** | Batch pipeline complet (S1–S6) : `payout_batch`/`payout_item`, réservation-hold, ingestion XLSX, relais outbox + gouverneur d'égress, agrégation/succès partiel, maker-checker, réconciliation cron. | Lot 1 | à faire |
 
 **Conséquence pour le Lot 1** : le chemin interactif (D-exec-6) **n'a besoin ni des tables batch,
@@ -42,6 +42,13 @@ est **reporté au Lot 2**.
   (zéro seeder). Le service type `payout` dédié (S6-P4) est **reporté** — retarification ultérieure.
 - **L1-D5 — Permission seule** : auth membre + `payout:initiate` (sensitive) + device business
   suffisent ; pas de PIN/OTP au Lot 1. Confirmation forte ⤳ Lot 2 (avec le maker-checker).
+- **L1-D6 — Pas de restriction par segment ; les LIMITES sont le gate** *(2026-07-20, supersede
+  la ⭐ règle d'éligibilité S6)* : **marchand comme entreprise peuvent décaisser**. Le contrôle
+  d'autorisation de montant repose **entièrement** sur les **limites de transactions** du compte,
+  résolues via `(segment, level)` → grille `kyc_level` et appliquées par le **`PartyValidator`** dans
+  `external_out` (chemin argent existant). Conséquence naturelle de la grille : enterprise niveau 0
+  (plafonds `0`) → **de facto bloqué** ; marchand → plafonné à ses limites ; enterprise niveau 2
+  (`null`) → illimité. **Aucun code de gate produit** (pas de `PayoutNotEligibleException`).
 
 ### Lot 1 — Design détaillé  *(validé 2026-07-20)*
 
@@ -55,15 +62,14 @@ businessDevice → orgPermission(payout:initiate)`.
 
 **Flux** (`InitiatePayoutUseCase`, produit → core par service) :
 1. `accountId = organisationId` (invariant account-centric).
-2. **Gate éligibilité** via `AccountStandingService.getStanding(accountId)` → exige
-   `segment == ENTERPRISE && level == 2`. Sinon `403` (`PayoutNotEligibleException`) — marchand
-   *receive-only* / entreprise non-KYB.
-3. Construit `ExternalOutCommand` : `type = TransactionType.PAYOUT`, `destination = {msisdn, operator}`,
+2. Construit `ExternalOutCommand` : `type = TransactionType.PAYOUT`, `destination = {msisdn, operator}`,
    `feeContext = { serviceTypeCode: TRANSFERT, paymentMethodCode: <mobile-money>, providerFromCode:
-   'aigle', includeFees: true }`, `fromAccountId = accountId`, `initiatedBy = <membre uid>`,
+   <provider>, includeFees: false }`, `fromAccountId = accountId`, `initiatedBy = <membre uid>`,
    `idempotencyKey`, `metadata { deviceInfo, geoIpLocation, paymentMethodCode }`.
-4. `engine.initiateExternalOut(cmd)` → débit gardé + transaction `PENDING` + Hub2.
-5. Audit produit + réponse `202 { reference, status: pending }`.
+3. `engine.initiateExternalOut(cmd)` → débit gardé + transaction `PENDING` + Hub2. **Le contrôle des
+   limites (le gate) vit ici** : `PartyValidator` lit le standing du compte et applique les plafonds
+   `(segment, level)` — pas de gate produit (L1-D6).
+4. Audit produit + réponse `202 { reference, status: pending }`.
 
 **Frais.** La business paie (`total = montant + frais`), résolus par `FeeResolver` via `feeContext`
 (grille `transfert`, L1-D4).
@@ -71,13 +77,18 @@ businessDevice → orgPermission(payout:initiate)`.
 **Cycle async.** Réponse `PENDING` immédiate ; `SUCCESS`/`FAILED` (+ refund/recrédit sur échec) via
 **webhook opérateur déjà branché** (`engine.settle` + controller webhook existants). Rien à ajouter.
 
-**Erreurs** (réutilisent l'existant sauf la 1re) : non-éligible → `403` `PayoutNotEligibleException` ·
-permission absente → `403` (middleware `orgPermission`) · solde insuffisant → `InsufficientFundsException`
-(débit gardé, race-safe) · compte/wallet gelé → `PartyValidator` (exception existante).
+**Gate = limites de transactions (L1-D6).** Aucun contrôle par segment. `PartyValidator` (dans
+`external_out`) applique les limites du niveau : enterprise niveau 0 (plafonds `0`) → bloqué,
+marchand → plafonné, enterprise niveau 2 → illimité.
 
-**Tests** (sous-ensemble B9/B10) : `202` + débit + transaction `PAYOUT` (ENTERPRISE L2 + permission) ·
-`403` marchand / niveau < 2 · `403` sans `payout:initiate` · settlement webhook success / échec→refund
-(intégration, réutilise l'existant) · frais = total débité.
+**Erreurs** (toutes réutilisent l'existant) : dépassement de plafond → exceptions de limites
+(`SingleLimitExceededException`, etc.) · permission absente → `403` (middleware `orgPermission`) ·
+solde insuffisant → `InsufficientFundsException` (débit gardé, race-safe) · compte/wallet gelé →
+`PartyValidator`.
+
+**Tests** : `202` + débit + transaction `PAYOUT` (permission OK) · dépassement de limite → rejet ·
+`403` sans `payout:initiate` · settlement webhook success / échec→refund (intégration, réutilise
+l'existant) · frais = total débité.
 
 **Hors scope Lot 1** (→ Lot 2, explicite) : maker-checker / approbation / seuil · tables
 `payout_batch`/`payout_item` · ingestion fichier XLSX · mass-payout · relais outbox + gouverneur
@@ -86,11 +97,11 @@ d'égress · réconciliation cron · destination **interne** (`moveInternal`) ·
 ### Découpage tracer-bullets — Lot 1  *(TDD, money réutilisé → produit d'abord)*
 | # | Slice (comportement) | Test prioritaire |
 |---|---|---|
-| **L1-B1** | `TransactionType.PAYOUT` décommenté + `InitiatePayoutUseCase` (mapping `ExternalOutCommand`, `engine.initiateExternalOut`) | unit : commande bien formée (type PAYOUT, feeContext transfert, fromAccountId=org) |
-| **L1-B2** | **Gate d'éligibilité** ENTERPRISE L2 (`AccountStandingService`) + `PayoutNotEligibleException` | func : marchand/niveau<2 → 403 ; enterprise L2 → passe |
-| **L1-B3** | **Présentation** `aiglebusiness/payout` : route `POST …/transfers`, controller, validator, middlewares (dont `orgPermission(payout:initiate)`) | func HTTP : 202 PENDING + débit + tx PAYOUT ; 403 sans permission |
-| **L1-B4** | **Settlement** (intégration, réutilise l'existant) : webhook success → tx success ; échec → refund | func : recrédit sur échec, tx success sur succès |
-| **L1-D-doc** | Swagger `business.yaml` : endpoint transfert unique (202, 403, schémas) — [[always-update-api-doc]] | doc même passe |
+| **L1-B1** | `TransactionType.PAYOUT` décommenté + `InitiatePayoutUseCase` (mapping `ExternalOutCommand`, `engine.initiateExternalOut`) | unit : commande bien formée (type PAYOUT, feeContext transfert, fromAccountId=org) ✅ |
+| ~~**L1-B2**~~ | ~~Gate d'éligibilité ENTERPRISE L2~~ — **abandonné (L1-D6)** : pas de restriction par segment, les **limites** (`PartyValidator`, déjà testé) sont le gate | — |
+| **L1-B3** | **Présentation** `aiglebusiness/payout` : route `POST …/transfers`, controller, validator, middlewares (dont `orgPermission(payout:initiate)`) | func HTTP : 202 PENDING + débit + tx PAYOUT ; 403 sans permission — 🟡 code en place, test HTTP à finir |
+| **L1-B4** | **Settlement** — un payout **est** un transfert : réglé par `settle_transfert` (succès → SUCCESS, échec → `refunded` + recrédit). A révélé **3 gaps** corrigés : (1) `resolveKind` mappe `PAYOUT → 'transfert'` ; (2) `RefundService` rend `PAYOUT` remboursable ; (3) `external_out` passe `accountId` (compte org, sinon `account_id` null). | func : succès→SUCCESS wallet inchangé ; échec→REFUNDED + recrédit ✅ |
+| **L1-D-doc** | Swagger `business.yaml` : `POST …/transfers` (tag `Business - Transferts`, schémas `PayoutRequest`/`PayoutResponse`, 202/400/403/422) | ✅ |
 
 ## Existant réutilisé (rien à réinventer)
 - **Engine** — toutes les primitives argent existent :
@@ -713,10 +724,11 @@ Membre B (payout:approve, ≠ A) :
   d'approbation.
 - **P4 → frais** : business paie via service type catalogue **`payout`** dédié ; `TransactionType.PAYOUT`.
 - **P5 → KYB** : gate sur le **niveau** ; plafonds fins **différés à [[R5]]**.
-- **⭐ Règle d'éligibilité (2026-07-11)** : **seule une ENTREPRISE vérifiée (KYB, `LEVEL_2`) fait du
-  payout** (unique **et** masse). Un compte **MARCHAND est receive-only** — **aucun payout** (cohérent
-  avec « le marchand encaisse mais ne transfère pas »). Gate : `accountType == ENTERPRISE &&
-  level == LEVEL_2`.
+- **⭐ Règle d'éligibilité (2026-07-11)** : ~~seule une ENTREPRISE vérifiée (KYB, `LEVEL_2`) fait du
+  payout ; MARCHAND receive-only~~. **⚠️ SUPERSÉDÉE le 2026-07-20 (voir L1-D6)** : **pas de
+  restriction par segment** — marchand comme entreprise peuvent décaisser, le **gate = les limites de
+  transactions** du compte (`PartyValidator`). Un compte trop bas (enterprise niveau 0 = plafonds 0)
+  est **bloqué par ses limites**, pas par une règle de segment.
 
 ---
 
