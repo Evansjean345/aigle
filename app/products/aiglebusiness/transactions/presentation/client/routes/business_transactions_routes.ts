@@ -18,6 +18,10 @@ export default function businessTransactionsRoutes() {
         BusinessTransactionsController,
         'list',
       ])
+      router.get('organisations/:organisationId/transactions/quotas', [
+        BusinessTransactionsController,
+        'quotas',
+      ])
       router.get('organisations/:organisationId/transactions/:reference', [
         BusinessTransactionsController,
         'details',

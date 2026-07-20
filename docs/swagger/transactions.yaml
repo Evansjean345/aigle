@@ -68,8 +68,11 @@ paths:
       operationId: getTransactionQuotas
       summary: Quotas de transactions
       description: |
-        Récupère les quotas de transactions de l'utilisateur basés sur son niveau KYC.
-        Indique les limites par opération, journalières et mensuelles.
+        Récupère les quotas de transactions de l'utilisateur basés sur son **niveau KYC**.
+
+        Pour chaque bloc : `limit` est le plafond, `consumed` la consommation de la période, et
+        `remaining` la capacité restante. `kycLevel` reflète l'état KYC de l'utilisateur
+        (`1` = non vérifié, `2` = KYC vérifié).
       tags:
         - Transactions
       security:
@@ -85,16 +88,33 @@ paths:
           description: Quotas de l'utilisateur
           content:
             application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionQuotas'
               example:
+                daily:
+                  consumed: 15000
+                  limit: 200000
+                  remaining: 185000
+                monthly:
+                  consumed: 45000
+                  limit: 1000000
+                  remaining: 955000
+                wallet:
+                  currentBalance: 12000
+                  limit: 500000
+                  remainingCapacity: 488000
+                singleTransaction:
+                  limit: 50000
                 kycLevel: 1
-                singleLimit: 50000
-                dailyLimit: 200000
-                monthlyLimit: 1000000
-                balanceLimit: 500000
-                dailyUsed: 15000
-                monthlyUsed: 45000
         '401':
           description: Non autorisé
+        '404':
+          description: Niveau KYC ou portefeuille introuvable pour cet utilisateur
+          content:
+            application/json:
+              example:
+                code: KYC_LEVEL_NOT_FOUND
+                message: Niveau KYC non trouvé pour cet utilisateur.
 
   /api/mobile/transactions/{reference}:
     get:
@@ -543,3 +563,53 @@ components:
               type: integer
               description: Taille de page fixe (16).
               example: 16
+
+    TransactionQuotaLine:
+      type: object
+      description: 'Ligne de quota : plafond, consommation courante et capacité restante (XOF).'
+      properties:
+        consumed:
+          type: number
+          example: 15000
+        limit:
+          type: number
+          example: 200000
+        remaining:
+          type: number
+          example: 185000
+
+    TransactionQuotas:
+      type: object
+      description: |
+        Quotas & plafonds de l'utilisateur, résolus depuis son **niveau KYC**. Pendant mobile
+        (user-centric) des quotas business (account-centric).
+      properties:
+        daily:
+          $ref: '#/components/schemas/TransactionQuotaLine'
+        monthly:
+          $ref: '#/components/schemas/TransactionQuotaLine'
+        wallet:
+          type: object
+          description: Plafond de solde du portefeuille et capacité restante.
+          properties:
+            currentBalance:
+              type: number
+              example: 12000
+            limit:
+              type: number
+              example: 500000
+            remainingCapacity:
+              type: number
+              example: 488000
+        singleTransaction:
+          type: object
+          description: Plafond unitaire (montant maximum par transaction).
+          properties:
+            limit:
+              type: number
+              example: 50000
+        kycLevel:
+          type: integer
+          enum: [1, 2]
+          description: État KYC de l'utilisateur — `1` = non vérifié, `2` = KYC vérifié.
+          example: 1
