@@ -1,8 +1,9 @@
 ---
 type: design
-statut: brainstorming en cours
-derniere_maj: 2026-07-11
+statut: approved (Lot 1 — transfert unique) ; Lot 2 (mass-payout) en attente
+derniere_maj: 2026-07-20
 session_courante: S7
+lot: 1 — transfert unique (interactif)
 ---
 
 # Paiement business — transfert unique + paiement en masse (payout)
@@ -14,6 +15,82 @@ mais **ne peut rien envoyer**. On lui ouvre la capacité de **payer** :
 
 > Méthode : brainstorming **session par session** (proposé → validé → suivant). **Rien codé** tant
 > que ce n'est pas bouclé. Migrations lancées par l'utilisateur.
+
+## Découpage en lots  *(décidé 2026-07-20)*
+On **implémente le transfert unique d'abord**, le paiement en masse ensuite. Les sessions S1–S6
+ont conçu l'ensemble ; on **livre par lots** :
+
+| Lot | Contenu | Dépend de | Statut |
+|-----|---------|-----------|--------|
+| **1 — Transfert unique** | Payout **interactif inline** (N=1) : membre `payout:initiate` → gate **ENTREPRISE L2** → résolution org→account → `initiateExternalOut` **direct dans la requête** (débit normal, **pas** de réservation-hold, **pas** de relais) → settlement/refund par webhook **déjà en place**. Frais service type `payout`, `TransactionType.PAYOUT`. Destination **externe** (mobile money). | Engine + settlement existants | **design en cours (S7)** |
+| **2 — Paiement en masse** | Batch pipeline complet (S1–S6) : `payout_batch`/`payout_item`, réservation-hold, ingestion XLSX, relais outbox + gouverneur d'égress, agrégation/succès partiel, maker-checker, réconciliation cron. | Lot 1 | à faire |
+
+**Conséquence pour le Lot 1** : le chemin interactif (D-exec-6) **n'a besoin ni des tables batch,
+ni du relais, ni de la réservation** — la traçabilité passe par la **transaction core** créée par
+`initiateExternalOut` (`TransactionType.PAYOUT`). Tout le pipeline async (S3b, S4, S5-réconciliation)
+est **reporté au Lot 2**.
+
+### Décisions Lot 1  *(validées 2026-07-20)*
+- **L1-D1 — Transfert direct uniquement** : pas de maker-checker, pas de seuil au Lot 1. Le
+  transfert unique s'exécute **inline** dans la requête. Approbation + persistance `payout` →
+  **Lot 2**.
+- **L1-D2 — Zéro nouvelle table** : aucune migration de données pour le Lot 1. La transaction core
+  (`TransactionType.PAYOUT`) est la source de traçabilité/reporting.
+- **L1-D3 — Endpoint `/transfers`** : `POST /api/business/organisations/{organisationId}/transfers`
+  (vocabulaire « transfert », proche de l'usage). Le mass-payout du Lot 2 prendra sa propre ressource.
+- **L1-D4 — Frais = grille `transfert` existante** : `feeContext.serviceTypeCode = TRANSFERT` au Lot 1
+  (zéro seeder). Le service type `payout` dédié (S6-P4) est **reporté** — retarification ultérieure.
+- **L1-D5 — Permission seule** : auth membre + `payout:initiate` (sensitive) + device business
+  suffisent ; pas de PIN/OTP au Lot 1. Confirmation forte ⤳ Lot 2 (avec le maker-checker).
+
+### Lot 1 — Design détaillé  *(validé 2026-07-20)*
+
+**Architecture.** Un seul nouveau module **produit** `aiglebusiness/payout` (présentation `client`),
+**routeur mince** (miroir de `pay_merchant`). **Aucun** code argent core nouveau, **aucune** table.
+Ajouts transverses minimes : décommenter `TransactionType.PAYOUT`.
+
+**Endpoint.** `POST /api/business/organisations/{organisationId}/transfers`
+Middlewares (canal business) : `geoip → businessChannel → auth → requireApp(AIGLEBUSINESS) →
+businessDevice → orgPermission(payout:initiate)`.
+
+**Flux** (`InitiatePayoutUseCase`, produit → core par service) :
+1. `accountId = organisationId` (invariant account-centric).
+2. **Gate éligibilité** via `AccountStandingService.getStanding(accountId)` → exige
+   `segment == ENTERPRISE && level == 2`. Sinon `403` (`PayoutNotEligibleException`) — marchand
+   *receive-only* / entreprise non-KYB.
+3. Construit `ExternalOutCommand` : `type = TransactionType.PAYOUT`, `destination = {msisdn, operator}`,
+   `feeContext = { serviceTypeCode: TRANSFERT, paymentMethodCode: <mobile-money>, providerFromCode:
+   'aigle', includeFees: true }`, `fromAccountId = accountId`, `initiatedBy = <membre uid>`,
+   `idempotencyKey`, `metadata { deviceInfo, geoIpLocation, paymentMethodCode }`.
+4. `engine.initiateExternalOut(cmd)` → débit gardé + transaction `PENDING` + Hub2.
+5. Audit produit + réponse `202 { reference, status: pending }`.
+
+**Frais.** La business paie (`total = montant + frais`), résolus par `FeeResolver` via `feeContext`
+(grille `transfert`, L1-D4).
+
+**Cycle async.** Réponse `PENDING` immédiate ; `SUCCESS`/`FAILED` (+ refund/recrédit sur échec) via
+**webhook opérateur déjà branché** (`engine.settle` + controller webhook existants). Rien à ajouter.
+
+**Erreurs** (réutilisent l'existant sauf la 1re) : non-éligible → `403` `PayoutNotEligibleException` ·
+permission absente → `403` (middleware `orgPermission`) · solde insuffisant → `InsufficientFundsException`
+(débit gardé, race-safe) · compte/wallet gelé → `PartyValidator` (exception existante).
+
+**Tests** (sous-ensemble B9/B10) : `202` + débit + transaction `PAYOUT` (ENTERPRISE L2 + permission) ·
+`403` marchand / niveau < 2 · `403` sans `payout:initiate` · settlement webhook success / échec→refund
+(intégration, réutilise l'existant) · frais = total débité.
+
+**Hors scope Lot 1** (→ Lot 2, explicite) : maker-checker / approbation / seuil · tables
+`payout_batch`/`payout_item` · ingestion fichier XLSX · mass-payout · relais outbox + gouverneur
+d'égress · réconciliation cron · destination **interne** (`moveInternal`) · service type `payout` dédié.
+
+### Découpage tracer-bullets — Lot 1  *(TDD, money réutilisé → produit d'abord)*
+| # | Slice (comportement) | Test prioritaire |
+|---|---|---|
+| **L1-B1** | `TransactionType.PAYOUT` décommenté + `InitiatePayoutUseCase` (mapping `ExternalOutCommand`, `engine.initiateExternalOut`) | unit : commande bien formée (type PAYOUT, feeContext transfert, fromAccountId=org) |
+| **L1-B2** | **Gate d'éligibilité** ENTERPRISE L2 (`AccountStandingService`) + `PayoutNotEligibleException` | func : marchand/niveau<2 → 403 ; enterprise L2 → passe |
+| **L1-B3** | **Présentation** `aiglebusiness/payout` : route `POST …/transfers`, controller, validator, middlewares (dont `orgPermission(payout:initiate)`) | func HTTP : 202 PENDING + débit + tx PAYOUT ; 403 sans permission |
+| **L1-B4** | **Settlement** (intégration, réutilise l'existant) : webhook success → tx success ; échec → refund | func : recrédit sur échec, tx success sur succès |
+| **L1-D-doc** | Swagger `business.yaml` : endpoint transfert unique (202, 403, schémas) — [[always-update-api-doc]] | doc même passe |
 
 ## Existant réutilisé (rien à réinventer)
 - **Engine** — toutes les primitives argent existent :
