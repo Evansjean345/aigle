@@ -3,6 +3,7 @@ import NotificationService from '#core/notifications/application/services/notifi
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import DepositTransactionCompleted from '#core/money/transactions/application/events/deposit_transaction_completed'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 
 /**
@@ -24,10 +25,16 @@ export default class OnCheckoutReceivedNotification {
     const organisation = await Organisation.findBy('organisationId', event.data.accountId)
     if (!organisation) return
 
+    // `targetApp = aiglebusiness` : un encaissement est une notif **marchand** — elle ne doit partir
+    // que vers l'app business du propriétaire, pas vers son app aiglesend (consumer). Sans ce scope,
+    // l'envoi couvre les appareils des deux apps et un seul push Expo mélange deux projets → rejet
+    // (« same project per request »). Aligné sur le jumeau interne OnMerchantPaymentReceivedNotification.
     const notification = new Notification(
       organisation.ownerUserId,
       'Paiement reçu',
-      `Vous avez reçu un paiement de ${event.data.amount} F CFA. Référence: ${event.data.reference}`
+      `Vous avez reçu un paiement de ${event.data.amount} F CFA. Référence: ${event.data.reference}`,
+      undefined,
+      AppName.AIGLEBUSINESS
     )
 
     await this.notificationService.sendVia(NotificationChannelType.PushNotification, notification)

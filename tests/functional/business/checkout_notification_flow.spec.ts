@@ -10,6 +10,7 @@ import DepositTransactionCompleted from '#core/money/transactions/application/ev
 import type { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import type NotificationService from '#core/notifications/application/services/notification_service'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 
 /**
  * Caractérise la notification marchand d'un ENCAISSEMENT (checkout réglé). Le listener produit
@@ -66,6 +67,23 @@ test.group('Notification marchand | encaissement checkout', (group) => {
     assert.equal(notification.recipientId, ownerUserId)
     assert.include(notification.message, '5000')
     assert.include(notification.message, 'aig_tx_9f3a2c')
+  })
+
+  test('checkout réglé → notif scopée à l’app BUSINESS (aiglebusiness), pas aux appareils aiglesend', async ({
+    assert,
+  }) => {
+    const ownerUserId = randomUUID()
+    const organisationId = await makeOrg(ownerUserId)
+
+    const notifier = new CapturingNotificationService()
+    const listener = new OnCheckoutReceivedNotification(notifier as unknown as NotificationService)
+
+    await listener.handle(checkoutEvent(organisationId, 5000, 'aig_tx_scope'))
+
+    // `targetApp` DOIT valoir aiglebusiness : sinon la notif part vers TOUS les appareils du
+    // propriétaire (aiglesend + aiglebusiness) et un seul envoi Expo mélange deux projets → rejet
+    // « All push notification messages in the same request must be for the same project ».
+    assert.equal(notifier.calls[0].notification.targetApp, AppName.AIGLEBUSINESS)
   })
 
   test('event deposit (consumer) → aucun envoi (self-filtre sur le flag type)', async ({
