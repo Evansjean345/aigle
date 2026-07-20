@@ -27,35 +27,43 @@ export default class PersistUserTransactionsVolume {
   ) {
     if (event instanceof WalletToWalletTransactionCompleted) {
       const { senderTransaction: sTx, receiverTransaction: rTx } = event
-      // Volume PAR USER : le bénéficiaire marchand (compte org sans user) n'a pas de volume.
+      // Volume PAR COMPTE (account-centric) : émetteur ET bénéficiaire — y compris un **marchand**
+      // (compte org sans user). `Transaction.accountId` == usersUid pour un user, l'org pour un
+      // marchand : la clé de volume s'aligne ainsi sur la lecture (validation/quotas par accountId).
       await Promise.all([
-        this.persist(sTx.reference, sTx.usersUid, sTx.amount, sTx.createdAt),
-        ...(rTx.usersUid
-          ? [this.persist(rTx.reference, rTx.usersUid, rTx.amount, rTx.createdAt)]
-          : []),
+        this.persist(sTx.reference, sTx.accountId, sTx.amount, sTx.createdAt),
+        this.persist(rTx.reference, rTx.accountId, rTx.amount, rTx.createdAt),
       ])
       return
     }
 
-    // Volume PAR USER : un encaissement marchand (checkout) n'a pas de user → ignoré.
-    if (event instanceof DepositTransactionCompleted && event.data.type === 'checkout') return
+    // Dépôt (consumer OU encaissement marchand `checkout`) : volume du **compte crédité**. L'event
+    // porte `accountId` même sans user → l'encaissement marchand n'est plus ignoré.
+    if (event instanceof DepositTransactionCompleted) {
+      const { reference, accountId, amount } = event.data
+      await this.persist(reference, accountId, amount)
+      return
+    }
 
+    // Transfert consumer sortant : l'émetteur est un user (accountId == userId).
     const { userId, amount, reference } = event.data
-    await this.persist(reference, userId!, amount)
+    await this.persist(reference, userId, amount)
   }
 
   /**
-   * Marque la référence comme traitée (idempotence) puis incrémente le volume.
+   * Marque la référence comme traitée (idempotence) puis incrémente le volume **du compte**.
+   * `accountId` est la clé de volume (opaque côté cache) : elle vaut `usersUid` pour un user et
+   * l'org pour un marchand.
    */
   private async persist(
     reference: string,
-    userId: string,
+    accountId: string,
     amount: number,
     timestamp?: Date | string | import('luxon').DateTime
   ): Promise<void> {
     const ok = await this.idempotency.checkAndMark(reference)
     if (!ok) return
 
-    await this.transactionVolumeCache.incrementOnSuccess({ userId, amount, timestamp })
+    await this.transactionVolumeCache.incrementOnSuccess({ userId: accountId, amount, timestamp })
   }
 }
