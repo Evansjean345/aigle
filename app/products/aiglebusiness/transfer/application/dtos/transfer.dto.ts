@@ -3,19 +3,20 @@ import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_servic
 import type { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 
 /**
- * Initiateur d'un payout : le **membre** (user) qui déclenche pour le compte de l'organisation.
- * `usersUid` = traçabilité (qui a initié) ; la **source** du mouvement reste le compte org.
+ * Initiateur d'un transfert business : le **membre** (user) qui déclenche pour le compte de
+ * l'organisation. `usersUid` = traçabilité (qui a initié) ; la **source** du mouvement reste le
+ * compte org.
  */
-export interface PayoutActor {
+export interface TransferActor {
   id: number | string
   usersUid: string
 }
 
 /**
- * Payload d'un **transfert unique** business (Lot 1). Destination mobile money (externe).
- * Le `serviceType`/`type` est fixé côté serveur (`PAYOUT`) — le client ne le fournit pas.
+ * Payload d'un **transfert unique** business. Destination mobile money (externe). Le type
+ * (`TransactionType.TRANSFERT`) est fixé côté serveur — le client ne le fournit pas.
  */
-export interface PayoutRequestDto {
+export interface TransferRequestDto {
   amount: number | string
   /** MSISDN du bénéficiaire (mobile money). */
   phone: string
@@ -30,7 +31,7 @@ export interface PayoutRequestDto {
   requestId?: string | null
 }
 
-export interface PayoutResponseDTO {
+export interface TransferResponseDTO {
   message: string
   data: {
     transactionReference: string

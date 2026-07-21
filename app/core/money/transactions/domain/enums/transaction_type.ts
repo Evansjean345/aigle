@@ -10,6 +10,7 @@ export enum TransactionType {
 
   // ── Business (ajoutés au Lot 6) ──
   CHECKOUT = 'checkout',
-  PAYOUT = 'payout',
+  // Pas de type `payout` : un décaissement business vers un compte externe est un `TRANSFERT`
+  // (taxonomie unifiée). Le `'payout'` provider (gateway cash-out) est un concept distinct.
   // MASS_PAYOUT = 'mass_payout',
 }

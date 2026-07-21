@@ -82,11 +82,9 @@ export default class SettleProviderWebhookUseCase {
       case TransactionType.CHECKOUT:
         return 'deposit'
       case TransactionType.TRANSFERT:
-      // Un **payout** business est un transfert (external_out) : même règlement que le transfert
-      // consumer aiglesend — succès → SUCCESS, échec → FAILED + refund (via `settle_transfert`).
-      case TransactionType.PAYOUT:
         return 'transfert'
       case TransactionType.TRANSFERT_INTER:
+        // `operationType` = opération PROVIDER (checkout = cash-in jambe 1 ; payout = cash-out jambe 2).
         return operationType === 'payout' ? 'transfert_inter_second' : 'transfert_inter_first'
       default:
         throw new Exception(

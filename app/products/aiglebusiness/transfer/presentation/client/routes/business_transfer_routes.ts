@@ -3,18 +3,18 @@ import { middleware } from '#start/kernel'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import { BUSINESS_PERMISSION } from '#aiglebusiness/membership/domain/permissions.config'
 
-const BusinessPayoutController = () =>
-  import('#aiglebusiness/payout/presentation/client/controllers/business_payout_controller')
+const BusinessTransferController = () =>
+  import('#aiglebusiness/transfer/presentation/client/controllers/business_transfer_controller')
 
 /**
  * Transfert unique d'une organisation (canal client), scopé `organisations/:organisationId`.
- * Autorisation **déclarative** : permission `payout:initiate` (sensitive, bypass OWNER, vérif live
- * via `orgPermission`). L'**éligibilité KYB** (entreprise niveau 2) est appliquée dans le use case.
+ * Autorisation **déclarative** : permission `transfer:initiate` (sensitive, bypass OWNER, vérif live
+ * via `orgPermission`). Le plafonnement (limites du compte) est appliqué dans le core.
  */
-export default function businessPayoutRoutes() {
+export default function businessTransferRoutes() {
   router
     .group(() => {
-      router.post('organisations/:organisationId/transfers', [BusinessPayoutController, 'create'])
+      router.post('organisations/:organisationId/transfers', [BusinessTransferController, 'create'])
     })
     .prefix('business')
     .use([
@@ -23,6 +23,6 @@ export default function businessPayoutRoutes() {
       middleware.auth(),
       middleware.requireApp({ app: AppName.AIGLEBUSINESS }),
       middleware.businessDevice(),
-      middleware.orgPermission({ permission: BUSINESS_PERMISSION.payoutInitiate }),
+      middleware.orgPermission({ permission: BUSINESS_PERMISSION.transferInitiate }),
     ])
 }

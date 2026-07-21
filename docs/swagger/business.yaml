@@ -943,7 +943,7 @@ paths:
 
         Le mouvement est **asynchrone** : réponse `202` immédiate avec le statut `pending`. Le
         règlement (`success`/`failed` + **refund** du compte org sur échec) arrive ensuite via le
-        **webhook opérateur** — un payout se règle comme un transfert consumer.
+        **webhook opérateur** — le décaissement business se règle comme un transfert consumer.
 
         **Autorisation** : permission `payout:initiate` (sensitive ; l'OWNER passe d'office).
         **Aucune restriction par segment** — marchand **comme** entreprise peuvent décaisser : le
@@ -970,7 +970,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PayoutRequest'
+              $ref: '#/components/schemas/TransferRequest'
             example:
               amount: 25000
               phone: '+2250700000000'
@@ -982,9 +982,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PayoutResponse'
+                $ref: '#/components/schemas/TransferResponse'
               example:
-                message: payout initié
+                message: transfert initié
                 data:
                   transactionReference: aigle_pay_9f3a2c
                   status: pending
@@ -1783,7 +1783,7 @@ components:
             lastPage: { type: integer, example: 3 }
             perPage: { type: integer, example: 16 }
 
-    PayoutRequest:
+    TransferRequest:
       type: object
       required: [amount, phone, providerCode, paymentMethodCode]
       description: Ordre de transfert unique depuis le compte de l'organisation vers un mobile money.
@@ -1806,11 +1806,11 @@ components:
           description: Code du moyen de paiement catalogue.
           example: mobile_money
 
-    PayoutResponse:
+    TransferResponse:
       type: object
       description: Accusé d'initiation (mouvement PENDING ; règlement ultérieur par webhook).
       properties:
-        message: { type: string, example: payout initié }
+        message: { type: string, example: transfert initié }
         data:
           type: object
           properties:

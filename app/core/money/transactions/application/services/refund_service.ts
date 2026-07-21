@@ -258,7 +258,6 @@ export default class RefundService {
     const refundableOperationTypes: TransactionType[] = [
       TransactionType.TRANSFERT,
       TransactionType.TRANSFERT_INTER,
-      TransactionType.PAYOUT,
     ]
 
     if (!refundableOperationTypes.includes(transaction.operationType)) {

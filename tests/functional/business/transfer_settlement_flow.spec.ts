@@ -9,28 +9,27 @@ import { TransactionStatus } from '#core/money/transactions/domain/enums/transac
 import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
 import { Hub2WebhookNormalizer } from '#core/money/webhooks/application/normalizers/hub2_webhook_normalizer'
 import SettleProviderWebhookUseCase from '#core/money/webhooks/application/use_cases/settle_provider_webhook.use_case'
-import InitiatePayoutUseCase from '#aiglebusiness/payout/application/use_cases/initiate_payout.use_case'
+import InitiateTransferUseCase from '#aiglebusiness/transfer/application/use_cases/initiate_transfer.use_case'
 import {
   reloadBalance,
   swapGuards,
   swapProviderGateway,
 } from '#tests/functional/payments-flow/mocks/operations_fixtures'
 import type {
-  PayoutActor,
-  PayoutRequestDto,
-} from '#aiglebusiness/payout/application/dtos/payout.dto'
+  TransferActor,
+  TransferRequestDto,
+} from '#aiglebusiness/transfer/application/dtos/transfer.dto'
 
 /**
- * L1-B4 — Settlement du **transfert unique** business. Un payout est un `external_out` (transfert) :
- * il se règle via le **même** chemin webhook (`transfer.succeeded/failed` → settler → engine.settle).
- * On fige : succès → transaction `SUCCESS`, wallet inchangé (déjà débité) ; échec → `FAILED` + refund
- * (recrédit du compte org). Montage identique à `settlement_flow` : vrai use case d'initiation,
- * provider faké, garde argent neutralisée, DB isolée par trx globale.
+ * Settlement du **transfert unique** business. Un décaissement business est un `external_out`
+ * (transfert) : il se règle via le **même** chemin webhook (`transfer.succeeded/failed` → settler →
+ * engine.settle). On fige : succès → transaction `SUCCESS`, wallet inchangé (déjà débité) ; échec →
+ * `REFUNDED` + refund (recrédit du compte org). Montage identique à `settlement_flow`.
  */
 
-const actor: PayoutActor = { id: 1, usersUid: 'member-x' }
+const actor: TransferActor = { id: 1, usersUid: 'member-x' }
 
-function payoutDto(): PayoutRequestDto {
+function transferDto(): TransferRequestDto {
   return {
     amount: 5000,
     phone: '0700000008',
@@ -53,7 +52,7 @@ async function makeOrgWallet(balance: number): Promise<{ orgId: string; wallet: 
   return { orgId, wallet }
 }
 
-/** Webhook Hub2 transfer (payout) normalisé. */
+/** Webhook Hub2 transfer normalisé. */
 function transferWebhook(reference: string, ok: boolean) {
   return Hub2WebhookNormalizer.normalize(ok ? 'transfer.succeeded' : 'transfer.failed', {
     reference,
@@ -62,7 +61,7 @@ function transferWebhook(reference: string, ok: boolean) {
   })!
 }
 
-test.group('Payout | settlement (transfert unique business)', (group) => {
+test.group('Transfert business | settlement', (group) => {
   let restoreGuards: () => void
   let gateway: ReturnType<typeof swapProviderGateway>
 
@@ -81,13 +80,13 @@ test.group('Payout | settlement (transfert unique business)', (group) => {
     }
   })
 
-  test('payout succès : transaction PAYOUT → SUCCESS, wallet org inchangé (déjà débité)', async ({
+  test('succès : transaction TRANSFERT → SUCCESS, wallet org inchangé (déjà débité)', async ({
     assert,
   }) => {
     const { orgId, wallet } = await makeOrgWallet(100000)
 
-    const useCase = await app.container.make(InitiatePayoutUseCase)
-    await useCase.execute(payoutDto(), actor, orgId, 'idem-payout-ok')
+    const useCase = await app.container.make(InitiateTransferUseCase)
+    await useCase.execute(transferDto(), actor, orgId, 'idem-transfer-ok')
 
     const tx = await Transaction.query().where('account_id', orgId).firstOrFail()
     assert.equal(tx.status, TransactionStatus.PENDING)
@@ -102,13 +101,13 @@ test.group('Payout | settlement (transfert unique business)', (group) => {
     assert.equal(await reloadBalance(wallet.id), afterInit) // succès → aucun mouvement supplémentaire
   })
 
-  test('payout échec : transaction PAYOUT → REFUNDED + refund (compte org recrédité)', async ({
+  test('échec : transaction TRANSFERT → REFUNDED + refund (compte org recrédité)', async ({
     assert,
   }) => {
     const { orgId, wallet } = await makeOrgWallet(100000)
 
-    const useCase = await app.container.make(InitiatePayoutUseCase)
-    await useCase.execute(payoutDto(), actor, orgId, 'idem-payout-ko')
+    const useCase = await app.container.make(InitiateTransferUseCase)
+    await useCase.execute(transferDto(), actor, orgId, 'idem-transfer-ko')
 
     const tx = await Transaction.query().where('account_id', orgId).firstOrFail()
     const afterInit = await reloadBalance(wallet.id)

@@ -150,7 +150,12 @@ export default class TransactionDisplayService {
 
 /** Contrepartie opérateur externe (mobile money) : `{ phone, operator }`. */
 function external(pd: PaymentDetailsInput | null): TransactionCounterparty {
-  return { nature: 'external', name: null, phone: pd?.phone ?? null, operator: pd?.operator ?? null }
+  return {
+    nature: 'external',
+    name: null,
+    phone: pd?.phone ?? null,
+    operator: pd?.operator ?? null,
+  }
 }
 
 /**
@@ -165,7 +170,10 @@ function userParty(pd: PaymentDetailsInput | null): TransactionCounterparty {
  * Contrepartie **marchand** : nom commercial (exposable). Source : `pd.name` (écrit à la source),
  * sinon fallback sur la `description` legacy « Paiement à {marchand} » (transactions antérieures).
  */
-function merchant(pd: PaymentDetailsInput | null, description?: string | null): TransactionCounterparty {
+function merchant(
+  pd: PaymentDetailsInput | null,
+  description?: string | null
+): TransactionCounterparty {
   const name = pd?.name ?? parseMerchantFromDescription(description) ?? null
   return { nature: 'merchant', name, phone: null, operator: AIGLESEND_OPERATOR }
 }

@@ -224,7 +224,7 @@ test.group('Business roles | memberHasPermission', (group) => {
     const ownerUserId = randomUUID()
     const organisationId = await createOrg(ownerUserId)
 
-    assert.isTrue(await memberHasPermission(ownerUserId, organisationId, 'payout:approve'))
+    assert.isTrue(await memberHasPermission(ownerUserId, organisationId, 'transfer:approve'))
     assert.isTrue(await memberHasPermission(ownerUserId, organisationId, 'roles:manage'))
   })
 
@@ -257,7 +257,7 @@ test.group('Business roles | memberHasPermission', (group) => {
       await memberHasPermission(memberUserId, organisationId, ['roles:manage', 'transactions:view'])
     )
     assert.isFalse(
-      await memberHasPermission(memberUserId, organisationId, ['roles:manage', 'payout:approve'])
+      await memberHasPermission(memberUserId, organisationId, ['roles:manage', 'transfer:approve'])
     )
   })
 })

@@ -50,7 +50,25 @@ est **reporté au Lot 2**.
   (plafonds `0`) → **de facto bloqué** ; marchand → plafonné à ses limites ; enterprise niveau 2
   (`null`) → illimité. **Aucun code de gate produit** (pas de `PayoutNotEligibleException`).
 
-### Lot 1 — Design détaillé  *(validé 2026-07-20)*
+- **L1-D7 — Taxonomie unifiée : PAS de type `payout`** *(2026-07-21, supersede L1-D2/B1/B4 et S6/S7
+  sur le type)* : **tout mouvement de fonds vers un compte externe** (business OU aiglesend) est un
+  **`TransactionType.TRANSFERT`**. On **n'introduit pas** de type `payout`. Conséquence : le
+  décaissement business est réglé / remboursé / affiché par le **chemin transfert existant**, sans
+  aucun cas spécial (`resolveKind`, `RefundService`, `TransactionDisplayService` inchangés). ⚠️ Ne
+  pas confondre avec l'**opération PROVIDER** `'payout'` (gateway cash-out, Hub2/Wave + jambe 2 de
+  l'inter-réseau) qui, elle, **reste**. Anciennes transactions dev `operation_type='payout'` migrées
+  vers `'transfert'`.
+- **L1-D8 — Rename code `payout` → `transfer`** *(2026-07-21)* : cohérence du nommage avec L1-D7. Le
+  module devient **`aiglebusiness/transfer/`** (`InitiateTransferUseCase`, `TransferRequestDto`,
+  `BusinessTransferController`, `transferValidator`, `businessTransferRoutes`), la permission
+  **`transfer:initiate`** / `transfer:approve` (clés `transferInitiate`/`transferApprove`), les
+  schémas swagger `TransferRequest`/`TransferResponse`. ⚠️ **DB non modifiée** : les slugs
+  `payout:initiate`/`payout:approve` restent dans `organisation_role_permissions` — **mise à jour
+  manuelle** prévue (l'OWNER bypasse la permission entre-temps). L'endpoint reste `POST …/transfers`.
+  *(NB : le reste de ce document — Lot 2 « mass-payout » — garde « payout » comme nom historique du
+  projet ; seul le Lot 1 est renommé en code.)*
+
+### Lot 1 — Design détaillé  *(validé 2026-07-20, type révisé 2026-07-21 → L1-D7)*
 
 **Architecture.** Un seul nouveau module **produit** `aiglebusiness/payout` (présentation `client`),
 **routeur mince** (miroir de `pay_merchant`). **Aucun** code argent core nouveau, **aucune** table.
@@ -62,7 +80,7 @@ businessDevice → orgPermission(payout:initiate)`.
 
 **Flux** (`InitiatePayoutUseCase`, produit → core par service) :
 1. `accountId = organisationId` (invariant account-centric).
-2. Construit `ExternalOutCommand` : `type = TransactionType.PAYOUT`, `destination = {msisdn, operator}`,
+2. Construit `ExternalOutCommand` : `type = TransactionType.TRANSFERT` (L1-D7), `destination = {msisdn, operator}`,
    `feeContext = { serviceTypeCode: TRANSFERT, paymentMethodCode: <mobile-money>, providerFromCode:
    <provider>, includeFees: false }`, `fromAccountId = accountId`, `initiatedBy = <membre uid>`,
    `idempotencyKey`, `metadata { deviceInfo, geoIpLocation, paymentMethodCode }`.
@@ -97,10 +115,10 @@ d'égress · réconciliation cron · destination **interne** (`moveInternal`) ·
 ### Découpage tracer-bullets — Lot 1  *(TDD, money réutilisé → produit d'abord)*
 | # | Slice (comportement) | Test prioritaire |
 |---|---|---|
-| **L1-B1** | `TransactionType.PAYOUT` décommenté + `InitiatePayoutUseCase` (mapping `ExternalOutCommand`, `engine.initiateExternalOut`) | unit : commande bien formée (type PAYOUT, feeContext transfert, fromAccountId=org) ✅ |
+| **L1-B1** | `InitiatePayoutUseCase` (mapping `ExternalOutCommand` **type TRANSFERT** — L1-D7, `engine.initiateExternalOut`) | unit : commande bien formée (type TRANSFERT, feeContext transfert, fromAccountId=org) ✅ |
 | ~~**L1-B2**~~ | ~~Gate d'éligibilité ENTERPRISE L2~~ — **abandonné (L1-D6)** : pas de restriction par segment, les **limites** (`PartyValidator`, déjà testé) sont le gate | — |
 | **L1-B3** | **Présentation** `aiglebusiness/payout` : route `POST …/transfers`, controller, validator, middlewares (dont `orgPermission(payout:initiate)`) | func HTTP : 202 PENDING + débit + tx PAYOUT ; 403 sans permission — 🟡 code en place, test HTTP à finir |
-| **L1-B4** | **Settlement** — un payout **est** un transfert : réglé par `settle_transfert` (succès → SUCCESS, échec → `refunded` + recrédit). A révélé **3 gaps** corrigés : (1) `resolveKind` mappe `PAYOUT → 'transfert'` ; (2) `RefundService` rend `PAYOUT` remboursable ; (3) `external_out` passe `accountId` (compte org, sinon `account_id` null). | func : succès→SUCCESS wallet inchangé ; échec→REFUNDED + recrédit ✅ |
+| **L1-B4** | **Settlement** — le décaissement **EST** un transfert (L1-D7) : réglé/remboursé par `settle_transfert` **sans cas spécial**. Gaps réels corrigés (indépendants du type) : `external_out` passe `accountId` (compte org, sinon `account_id` null) + corrige le **rollback inversé** (fuite de verrou). | func : succès→SUCCESS wallet inchangé ; échec→REFUNDED + recrédit ✅ |
 | **L1-D-doc** | Swagger `business.yaml` : `POST …/transfers` (tag `Business - Transferts`, schémas `PayoutRequest`/`PayoutResponse`, 202/400/403/422) | ✅ |
 
 ## Existant réutilisé (rien à réinventer)

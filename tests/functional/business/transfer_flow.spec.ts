@@ -19,11 +19,10 @@ import { appAbility, AppName } from '#core/identity/authentication/domain/enums/
 import { swapGuards, swapProviderGateway } from '#tests/functional/payments-flow/mocks/operations_fixtures'
 
 /**
- * L1-B3 — Présentation HTTP du **transfert unique** business (`POST …/transfers`). Fige le câblage
- * route + middlewares + controller + use case : un **membre** avec `payout:initiate` décaisse depuis
- * le **compte org** → `202` (mouvement PENDING, transaction `PAYOUT`, compte débité) ; sans la
- * permission → `403`. La garde argent (`PartyValidator`/limites) et le provider sont neutralisés
- * (le gate limites est testé ailleurs) — ici on caractérise l'**exposition HTTP**.
+ * Présentation HTTP du **transfert unique** business (`POST …/transfers`). Fige le câblage
+ * route + middlewares + controller + use case : un **membre** avec `transfer:initiate` décaisse
+ * depuis le **compte org** → `202` (mouvement PENDING, transaction `TRANSFERT`, compte débité) ; sans
+ * la permission → `403`. La garde argent (`PartyValidator`/limites) et le provider sont neutralisés.
  */
 
 async function makeUser(): Promise<User> {
@@ -43,7 +42,7 @@ async function createOrg(ownerUserId: string): Promise<string> {
   const org = await useCase.execute({
     ownerUserId,
     ownerKycStatus: UserKycStatus.VERIFIED,
-    // Marchand : L1-D6 — un marchand PEUT décaisser (pas de restriction par segment).
+    // Marchand : un marchand PEUT décaisser (pas de restriction par segment).
     name: 'Boutique Ali',
     accountType: OrganisationAccountType.MARCHAND,
   })
@@ -83,7 +82,7 @@ async function fundOrgWallet(organisationId: string, balance: number): Promise<v
   )
 }
 
-function payoutBody() {
+function transferBody() {
   return {
     amount: 5000,
     phone: '0700000008',
@@ -92,7 +91,7 @@ function payoutBody() {
   }
 }
 
-test.group('Payout | présentation HTTP (transfert unique business)', (group) => {
+test.group('Transfert business | présentation HTTP', (group) => {
   let restoreGuards: () => void
   let gateway: ReturnType<typeof swapProviderGateway>
 
@@ -111,34 +110,34 @@ test.group('Payout | présentation HTTP (transfert unique business)', (group) =>
     }
   })
 
-  test('membre avec payout:initiate → 202, transaction PAYOUT créée, compte org débité', async ({
+  test('membre avec transfer:initiate → 202, transaction TRANSFERT créée, compte org débité', async ({
     client,
     assert,
   }) => {
     const owner = await makeUser()
     const organisationId = await createOrg(owner.usersUid)
     await fundOrgWallet(organisationId, 100000)
-    const bearer = await memberBearer(organisationId, ['payout:initiate'])
+    const bearer = await memberBearer(organisationId, ['transfer:initiate'])
 
     const res = await client
       .post(`/api/business/organisations/${organisationId}/transfers`)
       .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${bearer}`)
-      .json(payoutBody())
+      .json(transferBody())
 
     res.assertStatus(202)
     assert.equal(res.body().data.status, TransactionStatus.PENDING)
     assert.exists(res.body().data.transactionReference)
 
     const tx = await Transaction.query().where('account_id', organisationId).firstOrFail()
-    assert.equal(tx.operationType, TransactionType.PAYOUT)
+    assert.equal(tx.operationType, TransactionType.TRANSFERT)
     assert.equal(tx.status, TransactionStatus.PENDING)
 
     const wallet = await Wallet.query().where('account_id', organisationId).firstOrFail()
     assert.isBelow(Number(wallet.balance), 100000) // débit à l'initiation
   })
 
-  test('membre sans payout:initiate → 403 (permission requise)', async ({ client }) => {
+  test('membre sans transfer:initiate → 403 (permission requise)', async ({ client }) => {
     const owner = await makeUser()
     const organisationId = await createOrg(owner.usersUid)
     await fundOrgWallet(organisationId, 100000)
@@ -148,7 +147,7 @@ test.group('Payout | présentation HTTP (transfert unique business)', (group) =>
       .post(`/api/business/organisations/${organisationId}/transfers`)
       .header('X-Client-Channel', 'web')
       .header('Authorization', `Bearer ${bearer}`)
-      .json(payoutBody())
+      .json(transferBody())
 
     res.assertStatus(403)
     res.assertBodyContains({ code: 'E_FORBIDDEN_ORG_PERMISSION' })

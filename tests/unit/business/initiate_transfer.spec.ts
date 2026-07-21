@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import InitiatePayoutUseCase from '#aiglebusiness/payout/application/use_cases/initiate_payout.use_case'
+import InitiateTransferUseCase from '#aiglebusiness/transfer/application/use_cases/initiate_transfer.use_case'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import type MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
 import type {
@@ -7,20 +7,20 @@ import type {
   MovementResult,
 } from '#core/money/money_movement/domain/types/money_movement_types'
 import type {
-  PayoutRequestDto,
-  PayoutActor,
-} from '#aiglebusiness/payout/application/dtos/payout.dto'
+  TransferRequestDto,
+  TransferActor,
+} from '#aiglebusiness/transfer/application/dtos/transfer.dto'
 
 /**
- * L1-B1 — Caractérise `InitiatePayoutUseCase` (Lot 1, transfert unique business). Routeur mince :
- * mappe un payload marchand vers un `ExternalOutCommand` **account-centric** puis délègue à
- * `engine.initiateExternalOut`. On stube l'engine (frontière) et on capture la commande émise.
+ * Caractérise `InitiateTransferUseCase` (transfert unique business). Routeur mince : mappe un payload
+ * marchand vers un `ExternalOutCommand` **account-centric** puis délègue à `engine.initiateExternalOut`.
+ * On stube l'engine (frontière) et on capture la commande émise.
  *
  * **Pas de gate d'éligibilité par segment** : marchand comme entreprise peuvent décaisser — le
  * plafonnement est assuré par les **limites de transactions** du compte, appliquées dans le core
- * (`PartyValidator` sur `external_out`), pas ici. Décisions vérifiées : `type = PAYOUT`, source =
- * **compte org** (`fromAccountId == organisationId`), frais via la **grille transfert** (L1-D4),
- * la business paie les frais (`includeFees = false`).
+ * (`PartyValidator` sur `external_out`), pas ici. Décisions vérifiées : `type = TRANSFERT`, source =
+ * **compte org** (`fromAccountId == organisationId`), frais via la **grille transfert**, la business
+ * paie les frais (`includeFees = false`).
  */
 
 function build() {
@@ -31,7 +31,7 @@ function build() {
       return {
         status: 'pending' as unknown as MovementResult['status'],
         movementId: '1',
-        reference: 'aigle_pay_1',
+        reference: 'aigle_trf_1',
         amount: cmd.amount,
         fees: 0,
         total: cmd.amount,
@@ -39,21 +39,21 @@ function build() {
     },
   } as unknown as MoneyMovementEngine
 
-  const useCase = new InitiatePayoutUseCase(engine)
+  const useCase = new InitiateTransferUseCase(engine)
   return { useCase, commands }
 }
 
-const actor: PayoutActor = { id: 7, usersUid: 'member-uid' }
+const actor: TransferActor = { id: 7, usersUid: 'member-uid' }
 
-const payload: PayoutRequestDto = {
+const payload: TransferRequestDto = {
   amount: 25000,
   phone: '+2250700000000',
   providerCode: 'wave',
   paymentMethodCode: 'mobile_money',
 }
 
-test.group('InitiatePayoutUseCase | Lot 1 transfert unique', () => {
-  test('mappe un ExternalOutCommand account-centric (type PAYOUT, source = compte org, grille transfert)', async ({
+test.group('InitiateTransferUseCase | transfert unique business', () => {
+  test('mappe un ExternalOutCommand account-centric (type TRANSFERT, source = compte org, grille transfert)', async ({
     assert,
   }) => {
     const { useCase, commands } = build()
@@ -62,7 +62,8 @@ test.group('InitiatePayoutUseCase | Lot 1 transfert unique', () => {
 
     assert.lengthOf(commands, 1)
     const cmd = commands[0]
-    assert.equal(cmd.type, TransactionType.PAYOUT)
+    // Taxonomie unifiée : un décaissement business est un TRANSFERT (pas de type `payout`).
+    assert.equal(cmd.type, TransactionType.TRANSFERT)
     assert.equal(cmd.fromAccountId, 'org-42')
     assert.equal(cmd.initiatedBy, 'member-uid')
     assert.equal(cmd.amount, 25000)
@@ -84,7 +85,7 @@ test.group('InitiatePayoutUseCase | Lot 1 transfert unique', () => {
 
     const res = await useCase.execute(payload, actor, 'org-42', 'idem-2')
 
-    assert.equal(res.data.transactionReference, 'aigle_pay_1')
+    assert.equal(res.data.transactionReference, 'aigle_trf_1')
     assert.equal(res.data.status, 'pending')
   })
 })
