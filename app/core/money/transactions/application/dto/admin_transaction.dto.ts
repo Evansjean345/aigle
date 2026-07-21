@@ -185,8 +185,10 @@ export class AdminTransactionResponseDTO {
     dto.securityContext = transaction.securityContext
       ? {
           ipAddress: transaction.securityContext.ipAddress,
-          deviceId: transaction.securityContext.device.id,
-          deviceUuid: transaction.securityContext.device.deviceUid,
+          // `device` peut être null : une transaction initiée sans appareil lié (ex. payout business
+          // en canal web, device vide) a un securityContext SANS Device → garde optionnelle.
+          deviceId: transaction.securityContext.device?.id ?? null,
+          deviceUuid: transaction.securityContext.device?.deviceUid ?? null,
           userAgent: transaction.securityContext.userAgent,
           osVersion: transaction.securityContext.osVersion,
           appVersion: transaction.securityContext.appVersion,
