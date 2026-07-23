@@ -18,7 +18,7 @@ export default class MembershipService {
   ) {}
 
   /**
-   * Seede le RBAC d'une organisation nouvellement créée : le rôle système OWNER
+   * Seed le RBAC d'une organisation nouvellement créée : le rôle système OWNER
    * (toutes les permissions du catalogue) et le membre OWNER (le créateur).
    * Identique marchand/entreprise. À appeler dans la transaction de création d'org.
    */
@@ -48,6 +48,16 @@ export default class MembershipService {
       },
       trx
     )
+  }
+
+  /**
+   * Vrai si l'utilisateur est l'**OWNER** (rôle système) de l'organisation. Sert au maker-checker :
+   * l'owner d'une org à une personne peut auto-approuver son lot (L2-D21).
+   */
+  async isOwner(organisationId: string, userId: string): Promise<boolean> {
+    const memberships = await this.memberRepository.listActiveByUser(userId)
+    const membership = memberships.find((m) => m.organisationId === organisationId)
+    return membership?.role?.slug === OWNER_ROLE_SLUG
   }
 
   /**

@@ -20,6 +20,11 @@ export default class OnTransfertSuccessNotification {
    * @return {Promise<void>} A promise that resolves when the notification has been successfully sent.
    */
   async handle(event: TransfertTransactionCompleted): Promise<void> {
+    // Guard (L2-D15) : pas de push consumer pour un décaissement d'org (compte sans user → `userId`
+    // null) — transfert unique business ou item de mass-transfer. Le lot enverra sa propre synthèse
+    // (aiglebusiness). Évite une notif « transfert réussi » par employé pour une paie.
+    if (!event.data.userId) return
+
     const notification = new Notification(
       event.data.userId,
       'Transfert effectué avec succès',

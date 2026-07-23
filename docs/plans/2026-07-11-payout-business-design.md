@@ -1,9 +1,9 @@
 ---
 type: design
-statut: approved (Lot 1 — transfert unique) ; Lot 2 (mass-payout) en attente
-derniere_maj: 2026-07-20
-session_courante: S7
-lot: 1 — transfert unique (interactif)
+statut: approved (Lot 1 livré ; Lot 2 mass-payout — brainstorm de reprise CLOS, prêt pour writing-plans)
+derniere_maj: 2026-07-21
+session_courante: S7 (Lot 2 : brainstorm de reprise clos B1→B10, décisions L2-D1→L2-D28)
+lot: 2 — paiement en masse (batch)
 ---
 
 # Paiement business — transfert unique + paiement en masse (payout)
@@ -67,6 +67,87 @@ est **reporté au Lot 2**.
   manuelle** prévue (l'OWNER bypasse la permission entre-temps). L'endpoint reste `POST …/transfers`.
   *(NB : le reste de ce document — Lot 2 « mass-payout » — garde « payout » comme nom historique du
   projet ; seul le Lot 1 est renommé en code.)*
+
+### Décisions Lot 2 (reprise implémentation)  *(validées 2026-07-21, brainstorm de reprise)*
+Registre des décisions prises en début d'implémentation Lot 2. Elles **priment** sur le corps du doc
+(sessions S1–S7) là où elles divergent.
+
+| # | Décision | Alternatives écartées | Raison | Date |
+|---|----------|----------------------|--------|------|
+| **L2-D1 — Nommage `transfer_*`** | Tables `transfer_batches`/`transfer_items`, contexte core **`core/money/transfer/`** (modèles `TransferBatch`/`TransferItem`, jobs `TransferRelayJob`/`ProcessTransferItemJob`), module produit `aiglebusiness/transfer/mass` (« transfert de masse »), permissions `transfer:initiate`/`transfer:approve`. | `payout_*` (nommage historique du doc). | Cohérence avec L1-D7 (tout mouvement externe = TRANSFERT) + rename Lot 1 (L1-D8). ⚠️ Slugs DB `organisation_role_permissions` restent `payout:*` — MAJ manuelle en attente (OWNER bypasse). | 2026-07-21 |
+| **L2-D2 — Réservation = option A (débit gardé du total, PAS de colonne `held`)** | **C** (« held/available » : colonne `held`, disponible = `balance − held` → réécrit toute lecture de solde de l'app). **Raccourci-C** (`balance` = disponible + colonne `held` = réservé, maintenue en parallèle — évite le refactor des lectures mais garde le coût du compteur). | Résultat financier **identique** aux 3 options. A ne change **aucun** schéma wallet ; `held` serait un compteur à maintenir atomiquement sur **chaque** transition (réservation/succès/échec/annulation/réconciliation/ambigu/dead-letter), **redondant** avec la table `items` (`SUM(items WHERE status in queued/sending/sent)`), et **rien ne le consomme** aujourd'hui (YAGNI). L'« en vol » se calcule à la demande depuis `items`. | 2026-07-21 |
+| **L2-D3 — B1 prefunded : saute débit ET ligne ledger de débit** | Garder une ligne ledger de débit par item (lecture littérale de S4/D-exec-2 « garde ledger »). | Le `Ledger` est un journal single-entry du **solde wallet** ; le débit réel a lieu **une fois** au hold (L2-D2). Une ligne par item re-stamperait le solde → **double-comptage** (solde reconstruit faux). L'item garde son **record transaction** (source comptable, S2-P3) mais **aucune** ligne de solde ; events `WALLET_DEBITED`/`LEDGER_ENTRY_CREATED` sautés en prefunded. | 2026-07-21 |
+| **L2-D4 — Le hold s'écrit directement au ledger, SANS transaction (`transaction_id = null`)** | **2a** — porter le hold par une transaction de réservation au niveau lot (moule « paiement » du codebase). | En comptabilité, une écriture n'exige pas un **paiement** pour cause, seulement une **cause traçable** ; la réservation **est** une cause légitime (hold/autorisation). Le FK `ledgers.transaction_id → transactions` est un choix *local* du codebase, déjà **nullable**. On écrit donc le hold en direct : `DEBIT`, `operationType='reservation'`, `transaction_id=null`, cause = `reservation_ref` → batch. Impacts : `Ledger.transactionId` → `number \| null` + belongsTo optionnel ; nouvelle méthode `LedgerService.recordHold(...)` (operationType/description en dur). Release inchangé (refund sur la transaction **de l'item**, bien réelle). ⚠️ Vigilance : un `INNER JOIN ledgers→transactions` en reporting **exclut** la ligne de hold (voulu). | 2026-07-21 |
+| **L2-D5 — B2 : clé primaire entière (`increments`)** | PK `uuid` (comme disait le design doc §6). | Convention du codebase : `ledgers`, `wallets`, `transactions` utilisent tous `table.increments('id')`. `reference` (string `transfer_xxx`) = identifiant métier public ; `account_id` (uuid) = compte source. Évite un mélange uuid/int incohérent. | 2026-07-21 |
+| **L2-D6 — B3 : ressource `.../mass-transfers`** | `.../transfers/mass` (sous-ressource). | Ressource propre pour le mass (L1-D3) : `POST .../mass-transfers`, puis `.../mass-transfers/upload` (B7), `.../mass-transfers/:id/approve` (B8), `GET .../mass-transfers/:id`. Miroir des middlewares Lot 1 + `orgPermission(transferInitiate)`, idempotence header `X-Idempotency-Key`. | 2026-07-21 |
+| **L2-D7 — B3 : frais différés à B10** | Câbler `FeeResolver` dès B3. | Le hold de B3 réserve `Σ montant` seul (frais = 0) ; B10 branche le calcul des frais et le hold devient `Σ(montant+frais)`. La mécanique de réservation ne change pas (juste le total). Garde les slices petites et vertes (TDD). | 2026-07-21 |
+| **L2-D8 — B3 : cap JSON = 50 (révisé)** | ~1 000 ; cap dur legacy (20). | MVP : entrée **JSON uniquement**, plafond **50 bénéficiaires**. Bulk-insert synchrone trivial. *(Révisé le 2026-07-21 : voir L2-D19 — le fichier XLSX est reporté.)* | 2026-07-21 |
+| **L2-D9 — B4 : gouverneur BATCH-only (A1), partagé différé en B4b** | A2 — gouverneur partagé complet devant l'adaptateur Hub2 dès B4 (touche consumer + single + mass). | Un token bucket Redis « voie batch » suffit à garder le mass sous la limite Hub2 (~7/s) **sans toucher** l'égress consumer existant → zéro risque de régression. La priorité fine interactif > batch (gouverneur partagé, D7) = slice de durcissement dédiée **B4b**. | 2026-07-21 |
+| **L2-D10 — B4 : relais auto-replanifié (pas de scheduler)** | Commande ace + cron OS ; repeatable job natif. | Aucun scheduler récurrent n'existe dans le codebase. `TransferRelayJob` se **re-dispatch** avec délai (~1-2 s) tant qu'il reste des items dus, s'arrête file vide. Zéro nouvelle dépendance. (Même approche pour la réconciliation B6.) | 2026-07-21 |
+| **L2-D11 — B4 : retry via l'item (`next_retry_at`), pas retry natif queue** | Retry natif de `@adonisjs/queue`. | Un retry doit **repasser par le relais** (donc par le token bucket) sinon il court-circuite le débit gouverné. Sur erreur retryable : pas de throw ; `attempts++` + `next_retry_at=backoff` + statut repris par le relais. Retry natif désactivé pour ce job. | 2026-07-21 |
+| **L2-D12 — B4 : politique de retry serrée (payout)** | Backoff aiglehub `(2^n−1)×60s` / MAX 10 (~34 h). | base **30 s**, backoff exponentiel, **MAX ~6** (dead letter ~2-4 h) → un payout ne reste pas coincé une journée ; la réconciliation (B6) prend le relais. Valeurs ajustables. | 2026-07-21 |
+| **L2-D13 — B5 : ajouter le dispatch d'échec au settlement** | Laisser `settle_transfert` échec sans event de flux (état actuel). | `settle_transfert.applyFailure` n'émet aujourd'hui **aucun** `TransfertTransactionFailed` (seulement audit + refund) → le suivi n'a pas de signal d'échec. On l'ajoute, symétrique du succès (`reference`, `accountId`). | 2026-07-21 |
+| **L2-D14 — B5 : suivi via events génériques + lookup `transaction_reference`** | Event de settlement dédié émis par le core `settle` (couplerait le core money au contexte transfer). | `TransferItemSettledListener` (contexte transfer) s'abonne à `TransfertTransactionCompleted`/`Failed` et rattache l'item par `SELECT transfer_item WHERE transaction_reference=ref` (pas trouvé → transfert consumer/unique → ignore). Le core `settle` reste **générique**. Compteurs batch en `FOR UPDATE` (atomique) → agrégation completed/partial/failed. Release = refund existant (inchangé). | 2026-07-21 |
+| **L2-D15 — B5 : couper la notif consumer par item** | Laisser `OnTransfertSuccessNotification` tirer par item. | Guard `userId == null` (compte org) → skip : pas de push aiglesend par employé. Le lot enverra **sa propre** notif de synthèse (aiglebusiness, S5-P5) **différée**. Corrige aussi le cas latent du transfert unique Lot 1 (userId null). | 2026-07-21 |
+| **L2-D16 — B6 : réconciliation GÉNÉRIQUE money-core (pas transfer-scoped)** | Job scannant `transfer_items` (spécifique mass, découpage initial). | Un item = une transaction `TRANSFERT` (L1-D7) → la réconciliation doit couvrir **toute transaction externe PENDING** (transfert consumer, unique, items mass, deposit/inter). Le job vit côté **settlement money-core**, scanne `transactions` (externe + PENDING + `provider_reference` + `updated_at < now-T`), poll → `engine.settle` (idempotent). Les items sont couverts **gratuitement** : le `TransferItemSettledListener` (B5) met à jour l'item + le lot au settle. Poll = op provider **générique routée par kind** (`pollStatus(operation, providerRef)`) ; transfert implémenté d'abord (n'existe pas encore). ⚠️ Blast radius élargi (réconcilie aussi le consumer) mais additif/faible risque. | 2026-07-21 |
+| **L2-D17 — B6 : cron self-rescheduling ~5-10 min, T≈20 min** | — | Réutilise le pattern self-rescheduling (L2-D10), pas de scheduler. Seuil T ≈ 20 min sans nouvelle. Configurables. | 2026-07-21 |
+| **L2-D18 — B6 : `needs_review` pour irrésolus/ambigus** | Release systématique. | Item/tx `sent` toujours pending après seuil dur, ou poll ambigu → `needs_review` (pas de release, anti double-crédit), revue manuelle. C'est là que vit l'état `needs_review` (laissé de côté en B5). | 2026-07-21 |
+| **L2-D19 — B7 (ingestion fichier XLSX) DIFFÉRÉ** | Livrer l'upload XLSX streaming (exceljs) dans le MVP. | MVP = **entrée JSON seule** (≤ 50, L2-D8). On **reporte** : endpoint `.../mass-transfers/upload`, `IngestTransferFileJob` streaming, lib `exceljs`, `appendItems`/`finalize`-from-file, états `ingesting`/`failed_ingestion`. Le pipeline d'exécution (réservation, relais, settlement, réconciliation, maker-checker) **reste** — seule la voie d'ingestion fichier est différée. **Conséquence enum** : `TransferBatchStatus` **omet** `ingesting`/`failed_ingestion` pour l'instant (rajoutés avec B7). Évolution future quand les gros lots seront nécessaires. | 2026-07-21 |
+| **L2-D20 — B8 : approbation TOUJOURS requise pour un mass-payout** | Seuil de montant (petits lots directs). | Un décaissement en masse → **toujours** `pending_approval` (contrôle systématique = cœur du maker-checker fintech). Le batch naît `pending_approval` (B3 ajustée), le relais l'ignore tant qu'il n'est pas `queued`. | 2026-07-21 |
+| **L2-D21 — B8 : séparation des tâches, exception OWNER** | Aucune contrainte ; ou séparation stricte sans exception. | Approbateur (`transfer:approve`) **≠** initiateur (sinon 403), **sauf** si l'approbateur est l'**OWNER** (org à une personne → sinon jamais approuvable). | 2026-07-21 |
+| **L2-D22 — B8 : `releaseHold` transaction-less (rejet/annulation)** | Réutiliser le refund-sur-transaction (utilisé pour un échec d'item). | Le hold est **sans transaction** (L2-D4) → le refund-sur-tx ne s'applique pas. Rejet/annulation libère **tout le hold** : crédit wallet du total + ligne ledger reversal **sans transaction** (`LedgerService.recordHoldRelease`, symétrique de `recordHold`). Distinct du release **par item** (échec → refund sur la tx de l'item). | 2026-07-21 |
+| **L2-D23 — B9 : GATE le mass est ENTERPRISE-only (marchand bloqué)** | Pas de gate segment (ce que disait L1-D6). | ⚠️ Précision : **L1-D6 (marchand peut décaisser) vaut pour le transfert UNIQUE** ; le **paiement en MASSE** est réservé aux comptes **ENTERPRISE**. Middleware `requireEnterpriseForMass` sur le groupe `.../mass-transfers` (après `orgPermission`) : `org.accountType === ENTERPRISE` sinon **403 `E_MASS_TRANSFER_ENTERPRISE_ONLY`**. Réutilise le check de type d'org existant (`OrganisationAccountType`, `assertOrganisationAllowsTeam`) avec une erreur propre au mass (le `RequireEnterpriseMiddleware` existant porte la sémantique « équipe »/`E_MERCHANT_NO_TEAM`, non réutilisé tel quel). KYB **hors gate** (enterprise L0 bloqué par ses limites). | 2026-07-21 |
+| **L2-D24 — B9 : lecture via `transactions:view`** | Nouvelle permission dédiée. | `GET .../mass-transfers` (liste, filtrable par statut — alimente la file d'approbation) + `/:id` (détail batch+items) gardés par `transactions:view` (existe). | 2026-07-21 |
+| **L2-D25 — B9 : notifications d'approbation différées** | Les livrer dans B9. | Notif « lot à approuver » (aux `transfer:approve`) + « lot approuvé/rejeté » (à l'initiateur) = notifications aiglebusiness, **différées** avec la synthèse de lot (S5-P5). B9 livre les endpoints ; les notifs suivent. | 2026-07-21 |
+| **L2-D26 — B9 : DTO minimal (pas de modèles Lucid bruts)** | Exposer les modèles. | Batch `{reference,label,status,total,fees,expectedCount,successfulCount,failedCount,initiatedBy,approvedBy,createdAt}` + items `{sequence,recipientName,recipientPhone,operator,amount,status,failureReason}`. | 2026-07-21 |
+| **L2-D27 — B10 : grille de frais `transfert` (pas de service type dédié)** | Service type catalogue `payout`/`mass-transfer` dédié (S6-P4). | `feeContext.serviceTypeCode = TRANSFERT`, comme le Lot 1 (L1-D4) : zéro seeder, cohérent L1-D7. Le service type dédié (retarification business) = évolution future. La business paie (`includeFees=false`, total = montant + frais). | 2026-07-21 |
+| **L2-D28 — B10 : fee figée passée au prefunded (pas de recalcul)** | Laisser `external_out` recalculer les frais par item. | Frais **pré-calculés à l'initiation**, figés sur `transfer_item`. `ExternalOutCommand` reçoit un champ optionnel `fees` ; en mode **prefunded**, `external_out` **saute `FeeResolver`** et utilise la fee figée (sinon un changement de grille entre initiation et drain ferait diverger la fee du hold). Mode normal (consumer/Lot 1) inchangé. | 2026-07-21 |
+
+**TODO fin de brainstorm (2026-07-21) — ✅ FAIT.** `docs/systeme-paiement-masse.md` **a été
+resynchronisé** le 2026-07-21 avec toutes les décisions L1/L2 (nommage `transfer_*`, éligibilité
+nuancée single/mass, type TRANSFERT, réservation option A + hold sans transaction, JSON≤50, gouverneur
+batch-only, réconciliation générique money-core, frais grille `transfert`, gate enterprise). Rappel de
+ce qui a été corrigé : **éligibilité**
+(dit « ENTREPRISE+L2, marchand receive-only » uniformément → doit être **nuancé** : transfert
+**unique** = marchand OK, plafonné par les limites (L1-D6) ; paiement en **masse** = **ENTERPRISE
+seulement**, marchand bloqué (L2-D23)) ; **type** (dit `TransactionType.PAYOUT` → doit être TRANSFERT, L1-D7) ; **nommage** (`payout_*`
+→ `transfer_*`, L2-D1) ; **ledger prefunded** (dit « + ledger » par item → option A sans ligne par
+item, L2-D3) ; **frais** (service type `payout` dédié → à trancher B10). Le reste du doc reste juste.
+
+**Cible future notée (inconnue tracée).** Le vrai double-entry avec compte de réserve — c.-à-d. le
+**raccourci-C** (`balance`=disponible + `held`=réservé) — est **l'évolution privilégiée** dès qu'une
+feature devra **afficher/utiliser** le montant réservé (« X dispo, Y en cours de paiement ») ou agir
+dessus. Migration **A → raccourci-C non-cassante** : le raccourci garde `balance -= total` à la
+réservation (identique à A), donc on **ajoute** seulement la colonne `held` sans toucher la sémantique
+de `balance` ni le code existant. À trancher au moment du besoin, pas avant.
+
+### Synthèse Lot 2 — périmètre MVP & carte des slices  *(brainstorm de reprise clos 2026-07-21)*
+
+**Nommage** `transfer_*` (L2-D1). **Réservation** = option A : débit gardé du total, **pas** de colonne
+`held` (L2-D2) ; le hold s'écrit **directement au ledger sans transaction** (L2-D4). **Entrée** = JSON
+≤ 50 (fichier XLSX différé, L2-D19). **Gate** = mass réservé aux **ENTERPRISE** (L2-D23 ; le marchand
+garde le transfert unique via L1-D6).
+
+| Slice | Contenu MVP | Décisions clés |
+|---|---|---|
+| **B1** | Engine `initiateExternalOut({prefunded})` : pas de débit, pas de ligne ledger de débit ; record tx + provider gardés | L2-D3 |
+| **B2** | Modèles `TransferBatch`/`TransferItem` (PK entière) + réservation (hold direct au ledger) + release | L2-D4, L2-D5 |
+| **B3** | Initiation JSON `.../mass-transfers` (≤ 50) : valide + réserve + bulk-insert + `pending_approval` + idempotence requête | L2-D6, L2-D8, (L2-D20) |
+| **B4** | Relais auto-replanifié (token bucket **batch-only**, SKIP LOCKED) + `ProcessTransferItemJob` (prefunded, retry via item) | L2-D9, L2-D10, L2-D11, L2-D12 |
+| **B5** | Settlement : ajout event d'échec + `TransferItemSettledListener` (lookup `transaction_reference`, compteurs, agrégation) ; coupe la notif consumer par item | L2-D13, L2-D14, L2-D15 |
+| **B6** | Réconciliation **générique money-core** (toute tx externe PENDING) + poll provider par kind ; `needs_review` | L2-D16, L2-D17, L2-D18 |
+| ~~**B7**~~ | ~~Ingestion fichier XLSX~~ — **DIFFÉRÉ** (JSON seul au MVP) | L2-D19 |
+| **B8** | Maker-checker : `pending_approval` → approve (`queued` + kick relais) / reject (`rejected` + `releaseHold`) ; séparation, self-approve owner | L2-D20, L2-D21, L2-D22 |
+| **B9** | Présentation : **gate enterprise-only**, endpoints de lecture (`transactions:view`), DTO minimal ; notifs différées | L2-D23, L2-D24, L2-D25, L2-D26 |
+| **B10** | Frais : pré-calcul par item (grille `transfert`), figés ; fee figée passée au prefunded | L2-D27, L2-D28 |
+
+**Différé / évolutions** : ingestion XLSX (B7), gouverneur d'égress **partagé** interactif/batch (B4b —
+MVP = batch-only), notifs d'approbation + synthèse de lot, colonne `held` (raccourci-C), service type
+de frais dédié.
+
+**États retenus au MVP.** `TransferBatchStatus` : `pending_approval, queued, processing, completed,
+partial, failed, rejected, cancelled` (**omet** `ingesting`/`failed_ingestion` → B7). `TransferItemStatus` :
+`queued, sending, sent, succeeded, failed, released, needs_review, cancelled`.
 
 ### Lot 1 — Design détaillé  *(validé 2026-07-20, type révisé 2026-07-21 → L1-D7)*
 

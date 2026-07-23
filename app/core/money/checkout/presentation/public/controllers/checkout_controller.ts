@@ -24,7 +24,7 @@ export default class CheckoutController {
     return response.ok(result)
   }
 
-  /** Initie un paiement vers le marchand du `code`. Async → PENDING. */
+  /** Initie un paiement vers le marchand du `code'. Async → PENDING. */
   async initiate({ params, request, response, geoLocation }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(initiateCheckoutValidator)
 

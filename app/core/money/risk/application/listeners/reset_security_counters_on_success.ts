@@ -29,7 +29,6 @@ export default class ResetSecurityCountersOnSuccess {
   ) {
     if (event instanceof WalletToWalletTransactionCompleted) {
       const { senderTransaction: sTx, receiverTransaction: rTx } = event
-      // Compteurs PAR USER : le bénéficiaire marchand (compte org sans user) n'en a pas.
       await Promise.all([
         this.reset(sTx.usersUid, sTx.createdAt),
         ...(rTx.usersUid ? [this.reset(rTx.usersUid, rTx.createdAt)] : []),

@@ -74,9 +74,6 @@ export default class PartyValidator {
         walletBalance: Number(wallet.balance),
       })
     } catch (error) {
-      // Côté **destinataire** (ex. marchand plafonné), on requalifie un dépassement de limite en
-      // `RecipientLimitExceededException` (code dédié) : le client sait que c'est le destinataire qui
-      // ne peut pas recevoir, pas le payeur. Les limites émetteur remontent inchangées.
       if (params.isRecipient && PartyValidator.isLimitException(error)) {
         throw new RecipientLimitExceededException()
       }

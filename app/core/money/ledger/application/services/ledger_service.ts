@@ -296,6 +296,71 @@ export default class LedgerService {
     )
   }
 
+  /**
+   * Écrit une ligne de **hold** de réservation (mass-transfer, L2-D4) : un débit du wallet **sans
+   * transaction** (`transaction_id = null`). Sa cause n'est pas un paiement mais le lot lui-même,
+   * référencé par `reservation_ref`. Écriture directe au repository (contourne `createEntry` qui
+   * exige une `Transaction`).
+   */
+  async recordHold(
+    params: {
+      walletId: number
+      amount: number
+      balanceBefore: number
+      balanceAfter: number
+      reference?: string
+    },
+    trx?: TransactionClientContract
+  ): Promise<Ledger> {
+    return this.ledgerRepository.create(
+      {
+        transactionId: null,
+        walletId: params.walletId,
+        direction: LedgerDirection.DEBIT,
+        operationType: LedgerOperationType.RESERVATION,
+        description: `Réservation de ${params.amount}${params.reference ? ` — ${params.reference}` : ''}`,
+        amountBrut: params.amount,
+        fees: 0,
+        totalAmount: params.amount,
+        balanceBefore: params.balanceBefore,
+        balanceAfter: params.balanceAfter,
+      },
+      trx
+    )
+  }
+
+  /**
+   * Écrit une ligne de **libération** d'un hold (rejet/annulation d'un lot) : un crédit du wallet
+   * **sans transaction**, symétrique de `recordHold`. Distinct du release **par item** (échec →
+   * refund sur la transaction de l'item).
+   */
+  async recordHoldRelease(
+    params: {
+      walletId: number
+      amount: number
+      balanceBefore: number
+      balanceAfter: number
+      reference?: string
+    },
+    trx?: TransactionClientContract
+  ): Promise<Ledger> {
+    return this.ledgerRepository.create(
+      {
+        transactionId: null,
+        walletId: params.walletId,
+        direction: LedgerDirection.CREDIT,
+        operationType: LedgerOperationType.RESERVATION_RELEASE,
+        description: `Libération de réservation de ${params.amount}${params.reference ? ` — ${params.reference}` : ''}`,
+        amountBrut: params.amount,
+        fees: 0,
+        totalAmount: params.amount,
+        balanceBefore: params.balanceBefore,
+        balanceAfter: params.balanceAfter,
+      },
+      trx
+    )
+  }
+
   async recordReversal(
     transaction: Transaction,
     walletId: number,

@@ -164,7 +164,14 @@ export type ScannedRoutes = {
     'invitation.accept': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'invitation.decline': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'business_transactions.list': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.quotas': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'business_transfer.create': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'mass_transfer.create': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'mass_transfer.approve': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'mass_transfer.reject': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'mass_transfer.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'mass_transfer.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'business_device.update_push_token': { paramsTuple?: []; params?: {} }
     'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
@@ -245,7 +252,10 @@ export type ScannedRoutes = {
     'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'business_transactions.list': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.quotas': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'mass_transfer.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'mass_transfer.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
@@ -324,7 +334,10 @@ export type ScannedRoutes = {
     'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'business_transactions.list': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.quotas': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'mass_transfer.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'mass_transfer.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
@@ -390,6 +403,10 @@ export type ScannedRoutes = {
     'member.resend': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
     'invitation.accept': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'invitation.decline': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
+    'business_transfer.create': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'mass_transfer.create': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'mass_transfer.approve': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'mass_transfer.reject': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'checkout.initiate': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
   }
   PUT: {

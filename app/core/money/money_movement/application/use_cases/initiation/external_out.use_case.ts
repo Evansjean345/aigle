@@ -52,10 +52,6 @@ export default class ExternalOutUseCase {
       transactionType: cmd.type,
     })
 
-    // Fonds insuffisants : géré par le débit gardé (`debitBalance` → UPDATE atomique WHERE
-    // balance >= amount), qui lève `InsufficientFundsException` (même classe/code/message que
-    // l'ancien pré-check) de façon race-safe. On ne réimporte pas l'exception d'une autre
-    // feature (indépendance des couches) : elle se propage via le service wallet appelé.
     const { paymentMethodCode, deviceInfo, geoIpLocation } = this.extractMeta(cmd)
     const rawPhone = cmd.destination.msisdn
     const balanceBefore = Number(wallet.balance)
@@ -67,7 +63,10 @@ export default class ExternalOutUseCase {
     let balanceAfter: number
 
     try {
-      const debited = await this.walletService.debitBalance(wallet.id, amount, trx)
+      const debited = cmd.prefunded
+        ? { balance: balanceBefore }
+        : await this.walletService.debitBalance(wallet.id, amount, trx)
+
       const transaction = await this.transactionService.createTransaction(
         {
           status: TransactionStatus.PENDING,
@@ -83,9 +82,6 @@ export default class ExternalOutUseCase {
         deviceInfo,
         geoIpLocation,
         trx,
-        // Rattache la transaction au **compte source** (account-centric). Pour un user
-        // `accountId == usersUid` (comportement inchangé) ; pour un **compte org** (payout, sans
-        // user) c'est l'org — sinon `account_id` tomberait à null (dérivé du user absent).
         wallet.accountId ?? cmd.fromAccountId
       )
       const payment = await this.paymentService.createPayment(
@@ -103,13 +99,16 @@ export default class ExternalOutUseCase {
         wallet.user,
         trx
       )
-      await this.ledgerService.recordTransfer(
-        transaction,
-        wallet.id,
-        balanceBefore,
-        debited.balance,
-        trx
-      )
+
+      if (!cmd.prefunded) {
+        await this.ledgerService.recordTransfer(
+          transaction,
+          wallet.id,
+          balanceBefore,
+          debited.balance,
+          trx
+        )
+      }
 
       await trx.commit()
 
@@ -118,12 +117,10 @@ export default class ExternalOutUseCase {
       paymentId = payment.id
       balanceAfter = debited.balance
     } catch (error) {
-      // Rollback SI la transaction n'est pas déjà terminée (commit/rollback). La condition inverse
-      // laissait la transaction **ouverte** sur erreur → verrou `FOR UPDATE` du wallet jamais
-      // relâché → `ER_LOCK_WAIT_TIMEOUT` sur les débits suivants. Aligné sur les settle_*.
       if (!trx.isCompleted) {
         await trx.rollback()
       }
+
       this.activity.failed(
         error instanceof Error ? error.message : 'Transfer creation failed (rollback)'
       )
@@ -145,6 +142,7 @@ export default class ExternalOutUseCase {
         paymentMethodCode,
         actorId: cmd.initiatedBy,
         ip: geoIpLocation?.ip,
+        prefunded: cmd.prefunded,
       }
     )
 
@@ -156,7 +154,11 @@ export default class ExternalOutUseCase {
         operator: cmd.destination.operator,
         paymentMethod: paymentMethodCode,
         logCode: 'TRANSFER_PAYOUT',
-        walletId: wallet.id,
+        // Prefunded (mass-transfer) : PAS d'auto-reversal par l'engine sur échec — le release est
+        // piloté par le flux mass (item terminal → release de la part ; retryable → on garde le hold
+        // et on retente). Fournir `walletId` déclencherait un refund automatique qui, sur une erreur
+        // retryable, libèrerait la part avant un retry → rupture d'invariant (L2-D3/B4).
+        walletId: cmd.prefunded ? undefined : wallet.id,
         failureEvent: 'TransfertTransactionFailed',
         failureEventData: { reference: transactionReference, amount },
       },
@@ -221,7 +223,13 @@ export default class ExternalOutUseCase {
       balanceBefore: number
       balanceAfter: number
     },
-    ctx: { operator: string; paymentMethodCode: string; actorId: string; ip?: string }
+    ctx: {
+      operator: string
+      paymentMethodCode: string
+      actorId: string
+      ip?: string
+      prefunded?: boolean
+    }
   ): void {
     this.activity.emit({
       event: 'VALIDATION_PASSED',
@@ -248,25 +256,28 @@ export default class ExternalOutUseCase {
       actorId: ctx.actorId,
       ipAddress: ctx.ip,
     })
-    this.activity.emit({
-      event: 'WALLET_DEBITED',
-      transactionId: tx.transactionReference,
-      walletId: String(tx.walletId),
-      amount: tx.amount,
-      balanceBefore: tx.balanceBefore,
-      balanceAfter: tx.balanceAfter,
-    })
-    this.activity.emit({
-      event: 'LEDGER_ENTRY_CREATED',
-      transactionId: tx.transactionReference,
-      walletId: String(tx.walletId),
-      direction: 'debit',
-      amountBrut: tx.amount,
-      fees: tx.fees,
-      totalAmount: tx.total,
-      balanceBefore: tx.balanceBefore,
-      balanceAfter: tx.balanceAfter,
-      operationType: TransactionType.TRANSFERT,
-    })
+
+    if (!ctx.prefunded) {
+      this.activity.emit({
+        event: 'WALLET_DEBITED',
+        transactionId: tx.transactionReference,
+        walletId: String(tx.walletId),
+        amount: tx.amount,
+        balanceBefore: tx.balanceBefore,
+        balanceAfter: tx.balanceAfter,
+      })
+      this.activity.emit({
+        event: 'LEDGER_ENTRY_CREATED',
+        transactionId: tx.transactionReference,
+        walletId: String(tx.walletId),
+        direction: 'debit',
+        amountBrut: tx.amount,
+        fees: tx.fees,
+        totalAmount: tx.total,
+        balanceBefore: tx.balanceBefore,
+        balanceAfter: tx.balanceAfter,
+        operationType: TransactionType.TRANSFERT,
+      })
+    }
   }
 }

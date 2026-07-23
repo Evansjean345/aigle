@@ -48,6 +48,8 @@ export const middleware = router.named({
     import('#aiglebusiness/membership/presentation/client/middleware/require_permission_middleware'),
   requireEnterprise: () =>
     import('#aiglebusiness/membership/presentation/client/middleware/require_enterprise_middleware'),
+  requireEnterpriseForMass: () =>
+    import('#aiglebusiness/transfer/mass/presentation/client/middleware/require_enterprise_for_mass_middleware'),
   permission: () => import('#core/team/presentation/middleware/permission_middleware'),
   geoip: () => import('#shared/middleware/geoip_middleware'),
   apiKey: () => import('../app/wrappers/aigle_business/mobile/middleware/api_key_middleware.js'),

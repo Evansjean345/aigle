@@ -67,6 +67,8 @@ const SyncAccountLevelOnKycUpdated = () =>
   import('#core/identity/account/application/listeners/sync_account_level_on_kyc_updated')
 const HandleTransactionFailure = () =>
   import('#core/money/risk/application/listeners/handle_transaction_failure')
+const TransferItemSettledListener = () =>
+  import('#core/money/transfer/application/listeners/transfer_item_settled_listener')
 
 import { type AuditRecordInput } from '#core/audit/domain/audit_record_input'
 import { type TransactionLogEventData } from '#core/money/transactions/application/types/transaction_log_event_data'
@@ -92,6 +94,7 @@ emitter.listen(TransfertTransactionCompleted, [
   OnTransfertSuccessNotification,
   PersistUserTransactionsVolumeListener,
   ResetSecurityCountersOnSuccessListener,
+  TransferItemSettledListener,
 ])
 emitter.listen(WalletToWalletTransactionCompleted, [
   PersistUserTransactionsVolumeListener,
@@ -118,7 +121,7 @@ emitter.listen(WalletStatusChanged, [OnWalletStatusChangedNotification])
 emitter.listen(AccountOpened, [CreateWalletOnAccountOpened])
 
 emitter.listen(DepositTransactionFailed, [HandleTransactionFailure])
-emitter.listen(TransfertTransactionFailed, [HandleTransactionFailure])
+emitter.listen(TransfertTransactionFailed, [HandleTransactionFailure, TransferItemSettledListener])
 emitter.listen(WalletToWalletTransactionFailed, [HandleTransactionFailure])
 emitter.listen(TransfertInterTransactionFailed, [HandleTransactionFailure])
 

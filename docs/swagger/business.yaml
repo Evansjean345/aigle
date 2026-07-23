@@ -1015,6 +1015,308 @@ paths:
         '422':
           description: Payload invalide (montant, téléphone, provider, moyen de paiement)
 
+  /api/business/organisations/{organisationId}/mass-transfers:
+    post:
+      operationId: initiateMassTransfer
+      summary: Initier un paiement en masse (liste de bénéficiaires)
+      description: |
+        Initie un **paiement en masse** (1 → N) depuis le **compte de l'organisation** vers une liste
+        de bénéficiaires **mobile money**. Account-centric : la **source** est le compte org ;
+        l'initiateur est le **membre** authentifié.
+
+        **Réservé aux comptes ENTERPRISE** — un compte marchand est bloqué (`403
+        E_MASS_TRANSFER_ENTERPRISE_ONLY`) ; le marchand garde le **transfert unique** (`/transfers`).
+
+        Voie **liste JSON** : jusqu'à **50 bénéficiaires** (au-delà → import fichier, à venir). À
+        l'initiation, les fonds du lot sont **réservés** (hold du total débité du compte) et le lot naît
+        **`pending_approval`** : il faut ensuite l'**approuver** (maker-checker) pour démarrer le
+        décaissement. Réponse `202` immédiate (aucun appel réseau) ; le drain vers l'opérateur est
+        asynchrone (relais gouverné), le règlement par **webhook** par bénéficiaire.
+
+        **Autorisation** : permission `transfer:initiate` (l'OWNER passe d'office). Les **frais** sont à
+        la charge de la business.
+      tags:
+        - Business - Paiement en masse
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+        - name: X-Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string }
+          description: Clé d'idempotence de requête (rejeu du POST → même lot, aucune double réservation).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MassTransferRequest'
+            example:
+              label: Salaires Juillet 2026
+              recipients:
+                - amount: 50000
+                  phone: '0700000001'
+                  providerCode: wave
+                  name: Awa Koné
+                - amount: 75000
+                  phone: '0700000002'
+                  providerCode: orange
+                  name: Bakary Traoré
+      responses:
+        '202':
+          description: Lot accepté — en attente d'approbation (maker-checker)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MassTransferResponse'
+              example:
+                message: lot de transfert initié
+                data:
+                  batchReference: transfer_9f3a2c7b1e5d4a80
+                  status: pending_approval
+                  expectedCount: 2
+        '400':
+          description: Solde insuffisant (réservation du total impossible) ou canal requis manquant
+          content:
+            application/json:
+              example:
+                code: E_INSUFFICIENT_FUNDS
+                message: Solde insuffisant pour effectuer cette opération.
+        '403':
+          description: >-
+            Permission `transfer:initiate` absente, **ou** compte marchand (le paiement en masse est
+            réservé aux entreprises).
+          content:
+            application/json:
+              examples:
+                permission:
+                  summary: Permission absente
+                  value:
+                    code: E_FORBIDDEN_ORG_PERMISSION
+                    message: Vous n'avez pas la permission requise pour cette action
+                enterpriseOnly:
+                  summary: Compte marchand bloqué
+                  value:
+                    code: E_MASS_TRANSFER_ENTERPRISE_ONLY
+                    message: Le paiement en masse est réservé aux comptes entreprise.
+        '422':
+          description: Payload invalide (liste vide, > 50 bénéficiaires, montant/téléphone/provider)
+          content:
+            application/json:
+              example:
+                errors:
+                  - field: recipients
+                    message: The recipients field must have less than 50 items
+
+    get:
+      operationId: listMassTransfers
+      summary: Lister les lots de paiement en masse
+      description: |
+        Liste les lots de paiement en masse du **compte de l'organisation**, plus récents d'abord.
+        Filtrable par `status` — notamment `pending_approval` pour alimenter la **file d'approbation**.
+        Réservé à `transactions:view` (comptes **ENTERPRISE** uniquement).
+      tags:
+        - Business - Paiement en masse
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending_approval, queued, processing, completed, partial, failed, rejected, cancelled]
+          description: Filtre par statut de lot.
+      responses:
+        '200':
+          description: Liste des lots (synthèses)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MassTransferBatchSummary'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
+        '403':
+          description: Permission `transactions:view` absente, ou compte marchand
+          content:
+            application/json:
+              example:
+                code: E_MASS_TRANSFER_ENTERPRISE_ONLY
+                message: Le paiement en masse est réservé aux comptes entreprise.
+
+  /api/business/organisations/{organisationId}/mass-transfers/{reference}:
+    get:
+      operationId: getMassTransfer
+      summary: Détail d'un lot de paiement en masse
+      description: |
+        Détail d'un lot (synthèse + **liste des bénéficiaires** avec leur statut). **Scopé au compte** :
+        une référence appartenant à une autre organisation renvoie `404` (on ne révèle pas son
+        existence). Réservé à `transactions:view` (comptes **ENTERPRISE**).
+      tags:
+        - Business - Paiement en masse
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/MassTransferReference'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: Détail du lot
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MassTransferBatchDetail'
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
+        '404':
+          description: Lot introuvable pour ce compte
+          content:
+            application/json:
+              example:
+                code: E_TRANSFER_BATCH_NOT_FOUND
+                message: Lot de paiement en masse introuvable.
+
+  /api/business/organisations/{organisationId}/mass-transfers/{reference}/approve:
+    post:
+      operationId: approveMassTransfer
+      summary: Approuver un lot (maker-checker)
+      description: |
+        Approuve un lot **`pending_approval`** : il passe `queued` et le **décaissement démarre**
+        (drain gouverné). **Séparation des tâches** : l'approbateur doit être **différent de
+        l'initiateur** — sauf s'il est l'**OWNER** de l'organisation (org à une personne). Réservé à
+        `transfer:approve` (comptes **ENTERPRISE**).
+      tags:
+        - Business - Paiement en masse
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/MassTransferReference'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: Lot approuvé — décaissement en cours
+          content:
+            application/json:
+              example:
+                message: lot approuvé
+                data:
+                  reference: transfer_9f3a2c7b1e5d4a80
+                  status: queued
+        '403':
+          description: >-
+            Permission `transfer:approve` absente, compte marchand, ou **auto-approbation** interdite
+            (l'initiateur non-owner ne peut pas approuver son propre lot).
+          content:
+            application/json:
+              examples:
+                selfApproval:
+                  summary: Auto-approbation interdite
+                  value:
+                    code: E_SELF_APPROVAL_NOT_ALLOWED
+                    message: L'initiateur ne peut pas approuver son propre lot (séparation des tâches).
+                enterpriseOnly:
+                  summary: Compte marchand
+                  value:
+                    code: E_MASS_TRANSFER_ENTERPRISE_ONLY
+                    message: Le paiement en masse est réservé aux comptes entreprise.
+        '404':
+          description: Lot introuvable pour ce compte
+          content:
+            application/json:
+              example:
+                code: E_TRANSFER_BATCH_NOT_FOUND
+                message: Lot de paiement en masse introuvable.
+        '409':
+          description: Le lot n'est plus en attente d'approbation (déjà approuvé, rejeté ou en cours)
+          content:
+            application/json:
+              example:
+                code: E_TRANSFER_BATCH_NOT_PENDING_APPROVAL
+                message: Ce lot n'est plus en attente d'approbation.
+
+  /api/business/organisations/{organisationId}/mass-transfers/{reference}/reject:
+    post:
+      operationId: rejectMassTransfer
+      summary: Rejeter un lot (maker-checker)
+      description: |
+        Rejette un lot **`pending_approval`** : il passe `rejected` et les fonds réservés sont
+        **intégralement libérés** (recrédit du compte). Mêmes règles de **séparation des tâches** que
+        l'approbation. Réservé à `transfer:approve` (comptes **ENTERPRISE**).
+      tags:
+        - Business - Paiement en masse
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/MassTransferReference'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Motif du rejet (optionnel).
+                  example: Montants à revérifier
+      responses:
+        '200':
+          description: Lot rejeté — hold libéré (compte recrédité)
+          content:
+            application/json:
+              example:
+                message: lot rejeté
+                data:
+                  reference: transfer_9f3a2c7b1e5d4a80
+                  status: rejected
+        '403':
+          description: Permission `transfer:approve` absente, compte marchand, ou séparation des tâches
+          content:
+            application/json:
+              example:
+                code: E_SELF_APPROVAL_NOT_ALLOWED
+                message: L'initiateur ne peut pas approuver son propre lot (séparation des tâches).
+        '404':
+          description: Lot introuvable pour ce compte
+          content:
+            application/json:
+              example:
+                code: E_TRANSFER_BATCH_NOT_FOUND
+                message: Lot de paiement en masse introuvable.
+        '409':
+          description: Le lot n'est plus en attente d'approbation
+          content:
+            application/json:
+              example:
+                code: E_TRANSFER_BATCH_NOT_PENDING_APPROVAL
+                message: Ce lot n'est plus en attente d'approbation.
+
   /api/business/organisations/{organisationId}/transactions:
     get:
       operationId: listOrganisationTransactions
@@ -1570,6 +1872,13 @@ components:
         type: string
         format: uuid
       description: Identifiant de l'organisation
+    MassTransferReference:
+      name: reference
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Référence publique du lot de paiement en masse (`transfer_xxx`).
     RoleId:
       name: roleId
       in: path
@@ -1723,6 +2032,104 @@ components:
             message: Ce token n'est pas autorisé pour cette application
 
   schemas:
+    MassTransferRequest:
+      type: object
+      required: [recipients]
+      properties:
+        label:
+          type: string
+          maxLength: 120
+          description: Libellé du lot (ex. « Salaires Juillet »).
+          example: Salaires Juillet 2026
+        description:
+          type: string
+          maxLength: 500
+        recipients:
+          type: array
+          minItems: 1
+          maxItems: 50
+          description: Bénéficiaires du lot (1 à 50).
+          items:
+            type: object
+            required: [amount, phone, providerCode]
+            properties:
+              amount:
+                type: integer
+                minimum: 1
+                description: Montant net au bénéficiaire (unité mineure, XOF).
+                example: 50000
+              phone:
+                type: string
+                description: Numéro mobile money du bénéficiaire.
+                example: '0700000001'
+              providerCode:
+                type: string
+                description: Code opérateur (wave, orange, moov, mtn).
+                example: wave
+              name:
+                type: string
+                description: Nom du bénéficiaire (traçabilité/affichage).
+                example: Awa Koné
+              country:
+                type: string
+                default: ci
+                example: ci
+
+    MassTransferResponse:
+      type: object
+      properties:
+        message: { type: string, example: lot de transfert initié }
+        data:
+          type: object
+          properties:
+            batchReference: { type: string, example: transfer_9f3a2c7b1e5d4a80 }
+            status: { type: string, example: pending_approval }
+            expectedCount: { type: integer, example: 2 }
+
+    MassTransferBatchSummary:
+      type: object
+      description: Synthèse d'un lot de paiement en masse.
+      properties:
+        reference: { type: string, example: transfer_9f3a2c7b1e5d4a80 }
+        label: { type: string, nullable: true, example: Salaires Juillet 2026 }
+        status:
+          type: string
+          enum: [pending_approval, queued, processing, completed, partial, failed, rejected, cancelled]
+          example: partial
+        totalAmount: { type: integer, example: 125000 }
+        fees: { type: integer, example: 0 }
+        expectedCount: { type: integer, example: 2 }
+        successfulCount: { type: integer, example: 1 }
+        failedCount: { type: integer, example: 1 }
+        initiatedBy: { type: string, description: uid du membre initiateur, example: 550e8400-e29b-41d4-a716-446655440000 }
+        approvedBy: { type: string, nullable: true, description: uid du membre approbateur }
+        createdAt: { type: string, format: date-time, nullable: true }
+
+    MassTransferItemView:
+      type: object
+      description: Un bénéficiaire du lot et son statut d'exécution.
+      properties:
+        sequence: { type: integer, example: 0 }
+        recipientName: { type: string, nullable: true, example: Awa Koné }
+        recipientPhone: { type: string, example: '0700000001' }
+        operator: { type: string, example: wave }
+        amount: { type: integer, example: 50000 }
+        status:
+          type: string
+          enum: [queued, sending, sent, succeeded, failed, released, needs_review, cancelled]
+          example: succeeded
+        failureReason: { type: string, nullable: true, example: null }
+
+    MassTransferBatchDetail:
+      allOf:
+        - $ref: '#/components/schemas/MassTransferBatchSummary'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MassTransferItemView'
+
     BusinessTransactionCounterparty:
       type: object
       description: >

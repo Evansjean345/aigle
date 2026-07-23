@@ -13,4 +13,8 @@ export enum LedgerOperationType {
   TRANSFERT_INTER_STEP = 'transfert_inter',
   REVERSAL = 'reversal',
   ADJUSTMENT = 'adjustment',
+  /** Hold d'un lot de transfert de masse (débit gardé du total, sans transaction — L2-D4). */
+  RESERVATION = 'reservation',
+  /** Libération d'un hold (rejet/annulation d'un lot) — recrédit du total, sans transaction. */
+  RESERVATION_RELEASE = 'reservation_release',
 }

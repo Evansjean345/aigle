@@ -107,6 +107,15 @@ export default class SettleTransfertUseCase {
       error: this.support.errorMessage(error),
     })
 
+    // Event de flux d'échec au **settlement** (L2-D13) : symétrique du succès. Dispatché **avant** le
+    // refund pour toujours partir (le refund peut sortir tôt sur une course « déjà remboursé »). Sert
+    // au suivi du mass-transfer (`TransferItemSettledListener`) + au compteur d'échecs risk.
+    await this.support.dispatchFlowEvent('TransfertTransactionFailed', transaction, {
+      amount: transaction.amount,
+      userId: transaction.usersUid,
+      beneficiaryPhone: this.paymentService.extractBeneficiaryPhone(payment),
+    })
+
     try {
       await this.refundService.webhookReversal(transaction, wallet, operatorResponse, trx)
 

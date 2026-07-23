@@ -5,10 +5,10 @@ import { PaymentMethod } from '#core/money/transactions/domain/enums/payment_met
 /**
  * Service de **présentation** des transactions (taxonomie 2026-07). Dérive une classification
  * **unique et non ambiguë** — `kind` / `scope` / `flow` / `counterparty` — depuis les données déjà
- * enregistrées (`operationType` + `direction` + `paymentDetails`), sans discriminant en base.
+ * enregistrées ('operationType` + `direction` + `paymentDetails'), sans discriminant en base.
  *
  * Consommé par le DTO mobile **et** le DTO admin → la règle de classification (source de l'ancienne
- * ambiguïté `wallet_transfert`) est écrite **une seule fois**. La composition du **libellé** humain
+ * ambiguïté `wallet_transfert') est écrite **une seule fois**. La composition du **libellé** humain
  * reste côté client (privacy : un numéro `user` est résolu en contact local ; jamais un nom serveur).
  *
  * Pur & sans I/O → `toDisplay` est statique et testable sans construire de modèle Lucid.

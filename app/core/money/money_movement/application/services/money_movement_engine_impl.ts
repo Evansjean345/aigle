@@ -86,7 +86,6 @@ export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
       case 'transfert_inter_second':
         return this.settleInterSecond.handle(cmd)
       default:
-        // Exhaustivité : un nouveau SettlementKind doit être traité explicitement ci-dessus.
         throw new MovementNotImplementedException(`settle(${cmd.kind satisfies never})`)
     }
   }

@@ -9,8 +9,10 @@ export default class Ledger extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
+  // Nullable (L2-D4) : une écriture de **hold** de réservation n'a pas de transaction pour cause —
+  // sa cause est le batch (`reservation_ref`). Le FK `transaction_id` est nullable en DB.
   @column()
-  declare transactionId: number
+  declare transactionId: number | null
 
   @column()
   declare walletId: number

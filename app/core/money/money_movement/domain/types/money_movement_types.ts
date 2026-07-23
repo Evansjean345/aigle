@@ -58,12 +58,13 @@ export interface InternalMoveCommand extends MoneyCommand {
   feeContext: FeeContextInput
 }
 
-/** Externe sortant : débit compte → opérateur (async). Ex. `transfert`, futur payout. */
+/** Externe sortant : débit compte → opérateur (async). Ex. `transfert`, item de mass-transfer. */
 export interface ExternalOutCommand extends MoneyCommand {
   fromAccountId: string
   destination: OperatorTarget
   type: TransactionType
   feeContext: FeeContextInput
+  prefunded?: boolean
 }
 
 /** Externe entrant : opérateur → crédit compte (async). Ex. `deposit`, futur collect. */

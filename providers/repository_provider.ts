@@ -74,6 +74,12 @@ import OrganisationRoleRepository from '#aiglebusiness/membership/domain/interfa
 import OrganisationRoleRepositoryImpl from '#aiglebusiness/membership/infrastructure/repositories/organisation_role_repository_impl'
 import OrganisationMemberRepository from '#aiglebusiness/membership/domain/interfaces/organisation_member_repository'
 import OrganisationMemberRepositoryImpl from '#aiglebusiness/membership/infrastructure/repositories/organisation_member_repository_impl'
+import TransferBatchRepository from '#core/money/transfer/domain/interfaces/transfer_batch_repository'
+import TransferBatchRepositoryImpl from '#core/money/transfer/infrastructure/repositories/transfer_batch_repository_impl'
+import TransferItemRepository from '#core/money/transfer/domain/interfaces/transfer_item_repository'
+import TransferItemRepositoryImpl from '#core/money/transfer/infrastructure/repositories/transfer_item_repository_impl'
+import TransferRateGovernor from '#core/money/transfer/domain/interfaces/transfer_rate_governor'
+import RedisTransferRateGovernor from '#core/money/transfer/infrastructure/redis_transfer_rate_governor'
 
 export default class RepositoryProvider {
   constructor(protected app: ApplicationService) {}
@@ -117,6 +123,9 @@ export default class RepositoryProvider {
       [PayableAliasRepository, PayableAliasRepositoryImpl],
       [OrganisationRoleRepository, OrganisationRoleRepositoryImpl],
       [OrganisationMemberRepository, OrganisationMemberRepositoryImpl],
+      [TransferBatchRepository, TransferBatchRepositoryImpl],
+      [TransferItemRepository, TransferItemRepositoryImpl],
+      [TransferRateGovernor, RedisTransferRateGovernor],
     ])
 
     for (const [contract, implementation] of providers) {
