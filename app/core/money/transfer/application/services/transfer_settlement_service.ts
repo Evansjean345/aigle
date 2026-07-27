@@ -3,8 +3,6 @@ import db from '@adonisjs/lucid/services/db'
 import TransferItemRepository from '#core/money/transfer/domain/interfaces/transfer_item_repository'
 import TransferBatchRepository from '#core/money/transfer/domain/interfaces/transfer_batch_repository'
 import { TransferItemStatus } from '#core/money/transfer/domain/enums/transfer_item_status'
-import { TransferBatchStatus } from '#core/money/transfer/domain/enums/transfer_batch_status'
-import type TransferBatch from '#core/money/transfer/domain/models/transfer_batch'
 
 /**
  * Suivi du settlement d'un lot (B5, L2-D14). Le **core `settle`** fait l'argent (transaction
@@ -37,11 +35,9 @@ export default class TransferSettlementService {
       const failureReason = outcome === 'failure' ? 'settlement failed' : null
 
       const settled = await this.itemRepo.markSettled(item.id, status, failureReason, trx)
+      // `incrementSettlementCounter` incrémente le compteur ET dérive/agrège le statut du lot (centralisé).
       if (settled) {
-        const batch = await this.batchRepo.incrementSettlementCounter(item.batchId, outcome, trx)
-        if (batch.successfulCount + batch.failedCount >= batch.expectedCount) {
-          await this.batchRepo.update(batch.id, { status: this.aggregate(batch) }, trx)
-        }
+        await this.batchRepo.incrementSettlementCounter(item.batchId, outcome, trx)
       }
 
       await trx.commit()
@@ -49,12 +45,5 @@ export default class TransferSettlementService {
       if (!trx.isCompleted) await trx.rollback()
       throw error
     }
-  }
-
-  /** Statut dérivé des compteurs quand tous les items sont terminés. */
-  private aggregate(batch: TransferBatch): TransferBatchStatus {
-    if (batch.failedCount === 0) return TransferBatchStatus.COMPLETED
-    if (batch.successfulCount === 0) return TransferBatchStatus.FAILED
-    return TransferBatchStatus.PARTIAL
   }
 }

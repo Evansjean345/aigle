@@ -111,7 +111,7 @@ test.group('Transfer | exécution item (B4)', (group) => {
   test('erreur définitive : item → failed + release (wallet recrédité de la part)', async ({
     assert,
   }) => {
-    const { wallet, item } = await makeQueuedItem(80000, 20000)
+    const { wallet, item, batch } = await makeQueuedItem(80000, 20000)
     gateway.resolver.setResponse(
       ProviderResponse.failure({
         errorCode: 'HARD',
@@ -129,6 +129,11 @@ test.group('Transfer | exécution item (B4)', (group) => {
     assert.equal(item.attempts, 1)
     // Release : la part de l'item est recréditée (le hold est libéré pour cet item).
     assert.equal(await reloadBalance(wallet.id), 100000)
+
+    // Un échec à l'envoi fait monter le compteur d'échec du lot et agrège (1/1 item → failed).
+    await batch.refresh()
+    assert.equal(batch.failedCount, 1)
+    assert.equal(batch.status, TransferBatchStatus.FAILED)
 
     const release = await Ledger.query()
       .where('wallet_id', wallet.id)

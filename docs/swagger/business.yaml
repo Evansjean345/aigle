@@ -1056,16 +1056,48 @@ paths:
             schema:
               $ref: '#/components/schemas/MassTransferRequest'
             example:
-              label: Salaires Juillet 2026
+              label: Test multi-opérateurs
               recipients:
-                - amount: 50000
-                  phone: '0700000001'
-                  providerCode: wave
-                  name: Awa Koné
-                - amount: 75000
-                  phone: '0700000002'
+                - amount: 1000
+                  phone: '00000001'
                   providerCode: orange
-                  name: Bakary Traoré
+                  name: Bénéficiaire 1
+                - amount: 1000
+                  phone: '00000001'
+                  providerCode: moov
+                  name: Bénéficiaire 2
+                - amount: 1000
+                  phone: '00000001'
+                  providerCode: wave
+                  name: Bénéficiaire 3
+                - amount: 1000
+                  phone: '00000001'
+                  providerCode: mtn
+                  name: Bénéficiaire 4
+                - amount: 1000
+                  phone: '00000001'
+                  providerCode: orange
+                  name: Bénéficiaire 5
+                - amount: 1000
+                  phone: '00000001'
+                  providerCode: moov
+                  name: Bénéficiaire 6
+                - amount: 1000
+                  phone: '00000001'
+                  providerCode: wave
+                  name: Bénéficiaire 7
+                - amount: 1000
+                  phone: '00000001'
+                  providerCode: mtn
+                  name: Bénéficiaire 8
+                - amount: 1000
+                  phone: '00000001'
+                  providerCode: orange
+                  name: Bénéficiaire 9
+                - amount: 1000
+                  phone: '00000001'
+                  providerCode: moov
+                  name: Bénéficiaire 10
       responses:
         '202':
           description: Lot accepté — en attente d'approbation (maker-checker)
@@ -1078,7 +1110,7 @@ paths:
                 data:
                   batchReference: transfer_9f3a2c7b1e5d4a80
                   status: pending_approval
-                  expectedCount: 2
+                  expectedCount: 10
         '400':
           description: Solde insuffisant (réservation du total impossible) ou canal requis manquant
           content:

@@ -84,7 +84,6 @@ export default class SettleProviderWebhookUseCase {
       case TransactionType.TRANSFERT:
         return 'transfert'
       case TransactionType.TRANSFERT_INTER:
-        // `operationType` = opération PROVIDER (checkout = cash-in jambe o1; payout = cash-out jambe 2).
         return operationType === 'payout' ? 'transfert_inter_second' : 'transfert_inter_first'
       default:
         throw new Exception(

@@ -1,8 +1,8 @@
 ---
 status: approved
-etape: 5
+etape: 6
 lot: -
-derniere_maj: 2026-07-24
+derniere_maj: 2026-07-25
 ---
 
 # Checkout aiglepay via deep link dans l'app aiglesend
@@ -44,6 +44,8 @@ existant — le `code` (alias) arrive par le lien plutôt que par un scan → pa
 
 | D4 | **NE PAS toucher la prod** `aigle-send.expo.app` (domaine des redirections post-paiement existantes). Dev/test sur un **déploiement EAS Hosting de dev** + build **APP_VARIANT=development** (bundle ID distinct) revendiquant un **domaine dev**. Prod inchangée jusqu'à la release. | Développer directement sur le domaine prod | Risque de casser les redirections post-paiement en prod. | 2026-07-24 |
 | D5 | **Pas de tests automatisés** (unit/intégration) pour ce lot. Vérification **manuelle** sur déploiement dev. | Tests unitaires du store / e2e | Choix produit « pour l'instant ». | 2026-07-24 |
+| D6 | **Domaine dev** = alias EAS Hosting **`aigle-send--dev.expo.app`** (double tiret), **partagé dev+preview**. `app.config.ts` : `APPLINK_HOST` selon `APP_VARIANT` (prod inchangé). `.well-known` custom **injectés** dans `dist/client` post-export via `scripts/inject-dev-applinks.mjs` (assetlinks `com.aigle.aiglesend.dev` + keystore dev `B7:95:DB…` ; AASA appID dev) — **l'injection écrase l'auto-gen EAS** (vérifié). Prod = auto-gen intacte (jamais injectée). | Domaine dédié séparé ; toucher l'auto-gen prod ; `public/.well-known` commité (fuiterait en prod) | Prod 100 % isolée ; un seul domaine non-prod à maintenir. | 2026-07-25 |
+| D7 | **Aiguilleur — cas verrouillé (sécurité)** : quand `isLocked`, on ne fait **jamais** `router.replace('/')` (bypasse le verrou car `AppBootConfig.hasNavigatedToLock` est armé → ne re-pousse pas le lock). On mémorise le code puis `dismissAll()` + `push('/lock-screen')` → **UN SEUL** lock-screen au-dessus du dashboard (sinon 2 lock-screens empilés → déverrouillages en cascade qui clobberent la reprise). Reprise (B4) gatée sur `wallet !== null` (dashboard chargé) ; navigation via `navigate` (garde le dashboard comme ancre). Retour post-paiement = `dismissAll()` + `replace('/(dashboard)')` (comme transfert), sinon `replace` seul reste piégé dans le groupe `(pay-merchant)`. | `replace('/')` (bypass verrou) ; `replace('/lock-screen')` (2 lock-screens) ; `push` reprise (dashboard dupliqué) ; `replace` seul post-paiement (piégé dans le groupe) | Verrou jamais contournable ; un seul déverrouillage ; retour dashboard fiable. | 2026-07-25 |
 
 **Contexte routing (Expo Router)** : les groupes `(dashboard)`, `(pay-merchant)`… sont **transparents** dans l'URL. Précédent : `/confirm-by-provider` → `app/(dashboard)/(action-operation)/confirm-by-provider.tsx`. Le pay-merchant est sous `app/(dashboard)/(pay-merchant)/index.tsx` (param `code`). → il faudra une **route dédiée** que l'universal link cible (ex. `/checkout/[code]`) menant au flux pay-merchant.
 
@@ -125,7 +127,7 @@ Cold start : le lien = URL initiale → même aiguillage (AsyncStorage couvre un
 - **Warm start** : listener Linking d'Expo Router → même logique que cold start.
 - **Autre user aiglesend connecté** : il paie — aucun cas spécial.
 
-**Inconnue à lever (spike)** : autoVerify de l'universal link **dev** (AASA `apple-app-site-association` / `assetlinks.json` servis par EAS Hosting sur le domaine dev) doit ouvrir le **build dev**, pas le navigateur.
+**Inconnue levée (spike B2, 2026-07-25)** : sur `aigle-send--dev.expo.app`, EAS Hosting sert bien les `.well-known` **injectés** (AASA appID `…com.aigle.aiglesend.dev` + assetlinks package `.dev` / keystore `B7:95:DB…`) — l'injection écrase l'auto-gen. Côté serveur validé. Reste le **tap réel sur appareil** (build dev installé → le lien ouvre l'app dev, pas le navigateur) — vérif manuelle finale.
 
 ### 4. Vérification & découpage  *(validé 2026-07-24)*
 **Vérification MANUELLE uniquement** (D5 — pas de tests auto) :
@@ -135,11 +137,11 @@ Cold start : le lien = URL initiale → même aiguillage (AsyncStorage couvre un
 **Découpage (slices)** :
 | # | Slice |
 |---|---|
-| **B1** | `stores/pendingCheckoutStore.ts` (Zustand `persist` + TTL + `consume`/last-write-wins) |
-| **B2** | **Spike universal-link DEV** : `app.config.ts` variant + domaine dev + déploiement EAS Hosting dev → le lien ouvre le build dev (**de-risk tôt**) |
-| **B3** | Aiguilleur `app/checkout/[code].tsx` (lit `code`, aiguille selon auth/lock) |
-| **B4** | Hook `hooks/usePendingCheckoutResume.ts` + montage `app/_layout.tsx` |
-| **B5** | E2E manuel : tous les états + cas limites (code invalide, pending périmé, last-write-wins) |
+| **B1** | ✅ `stores/pendingCheckoutStore.ts` (Zustand `persist` + TTL 10 min + `consume`/last-write-wins) |
+| **B2** | ✅ **Spike universal-link DEV** (côté serveur validé 2026-07-25 ; tap appareil = dernière vérif manuelle) : `app.config.ts` variant + `scripts/inject-dev-applinks.mjs` + `deploy --alias dev` |
+| **B3** | ✅ Aiguilleur `app/checkout/[code].tsx` (route racine, lit `code`, aiguille selon auth/lock) + enregistré dans `app/_layout.tsx` |
+| **B4** | ✅ Hook `hooks/usePendingCheckoutResume.ts` + monté dans `RootLayoutNav` (`app/_layout.tsx`) |
+| **B5** | ✅ E2E manuel (appareil) : warm/déconnecté/verrouillé-PIN/verrouillé-biométrie → pay-merchant ; post-paiement → dashboard ; QR introuvable (no-retry). Verrou non-bypassable (D7). |
 
 **Ordre** : B1 → **B2 (priorité, lève l'inconnue autoVerify)** → B3 → B4 → B5.
 

@@ -18,26 +18,22 @@ export default class TransferBatchRepositoryImpl implements TransferBatchReposit
     key: string,
     trx?: TransactionClientContract
   ): Promise<TransferBatch | null> {
-    const query = TransferBatch.query()
-    if (trx) query.useTransaction(trx)
-    return query.where('idempotency_key', key).first()
+    return TransferBatch.query(trx ? { client: trx } : undefined)
+      .where('idempotency_key', key)
+      .first()
   }
 
   async findById(batchId: number, trx?: TransactionClientContract): Promise<TransferBatch | null> {
-    const query = TransferBatch.query()
-    if (trx) query.useTransaction(trx)
-    return query.where('id', batchId).first()
+    return TransferBatch.query(trx ? { client: trx } : undefined)
+      .where('id', batchId)
+      .first()
   }
 
   async findByReferenceForUpdate(
     reference: string,
     trx: TransactionClientContract
   ): Promise<TransferBatch | null> {
-    return TransferBatch.query()
-      .useTransaction(trx)
-      .where('reference', reference)
-      .forUpdate()
-      .first()
+    return TransferBatch.query({ client: trx }).where('reference', reference).forUpdate().first()
   }
 
   async findByReference(reference: string): Promise<TransferBatch | null> {
@@ -55,8 +51,10 @@ export default class TransferBatchRepositoryImpl implements TransferBatchReposit
     patch: Partial<TransferBatch>,
     trx?: TransactionClientContract
   ): Promise<void> {
-    const batch = await TransferBatch.findOrFail(batchId)
-    if (trx) batch.useTransaction(trx)
+    const batch = await TransferBatch.query(trx ? { client: trx } : undefined)
+      .where('id', batchId)
+      .firstOrFail()
+
     batch.merge(patch)
     await batch.save()
   }
@@ -66,18 +64,29 @@ export default class TransferBatchRepositoryImpl implements TransferBatchReposit
     outcome: 'success' | 'failure',
     trx: TransactionClientContract
   ): Promise<TransferBatch> {
-    const batch = await TransferBatch.query()
-      .useTransaction(trx)
-      .where('id', batchId)
-      .forUpdate()
-      .firstOrFail()
+    const column = outcome === 'success' ? 'successful_count' : 'failed_count'
+    await TransferBatch.query({ client: trx }).where('id', batchId).increment(column, 1)
 
-    if (outcome === 'success') batch.successfulCount += 1
-    else batch.failedCount += 1
+    const batch = await TransferBatch.query({ client: trx }).where('id', batchId).firstOrFail()
+    const nextStatus = this.deriveStatus(batch)
 
-    if (batch.status === TransferBatchStatus.QUEUED) batch.status = TransferBatchStatus.PROCESSING
+    if (nextStatus !== batch.status) {
+      await TransferBatch.query({ client: trx }).where('id', batchId).update({ status: nextStatus })
+      batch.status = nextStatus
+    }
 
-    await batch.save()
     return batch
+  }
+
+  private deriveStatus(batch: TransferBatch): TransferBatchStatus {
+    if (batch.successfulCount + batch.failedCount >= batch.expectedCount) {
+      if (batch.failedCount === 0) return TransferBatchStatus.COMPLETED
+      if (batch.successfulCount === 0) return TransferBatchStatus.FAILED
+      return TransferBatchStatus.PARTIAL
+    }
+
+    return batch.status === TransferBatchStatus.QUEUED
+      ? TransferBatchStatus.PROCESSING
+      : batch.status
   }
 }

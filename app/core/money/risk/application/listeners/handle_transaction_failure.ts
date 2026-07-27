@@ -26,8 +26,6 @@ export default class HandleTransactionFailure {
       | WalletToWalletTransactionFailed
       | TransfertInterTransactionFailed
   ) {
-    // Compteur d'échecs PAR USER : un checkout marchand échoué n'a pas de user (external-in,
-    // aucun refund) → ignoré.
     if (event instanceof DepositTransactionFailed && event.data.type === 'checkout') return
 
     const userId = event.data.userId!

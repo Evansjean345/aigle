@@ -1,5 +1,6 @@
 import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
+import db from '@adonisjs/lucid/services/db'
 import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
 import TransferReservationService from '#core/money/transfer/application/services/transfer_reservation_service'
 import TransferBatchRepository from '#core/money/transfer/domain/interfaces/transfer_batch_repository'
@@ -10,8 +11,13 @@ import type TransferBatch from '#core/money/transfer/domain/models/transfer_batc
 import type TransferItem from '#core/money/transfer/domain/models/transfer_item'
 import type { ExternalOutCommand } from '#core/money/money_movement/domain/types/money_movement_types'
 
-/** Politique de retry serrée (payout) — L2-D12 : base 30 s, backoff exponentiel, MAX ~6. */
-const RETRY_BASE_SECONDS = 30
+/**
+ * Politique de retry (payout) : backoff exponentiel **jitteré** et **plafonné**. Base courte — le
+ * gouverneur d'égress rate-limite déjà Hub2, le backoff n'a pas à réguler le débit — et le **jitter
+ * désynchronise** les retries d'un lot (anti *thundering herd* quand N items échouent au même tick).
+ */
+const RETRY_BASE_SECONDS = 2
+const RETRY_MAX_DELAY_SECONDS = 300 // plafond du délai (5 min)
 const MAX_ATTEMPTS = 6
 
 /**
@@ -35,12 +41,12 @@ export default class TransferItemProcessor {
   ) {}
 
   async process(itemId: number): Promise<void> {
-    // Verrou idempotent : seul un item `queued` est pris ; sinon (terminal / déjà pris) → skip.
     const locked = await this.itemRepo.lockForSending(itemId)
     if (!locked) return
 
     const item = await this.itemRepo.findById(itemId)
     if (!item) return
+
     const batch = await this.batchRepo.findById(item.batchId)
     if (!batch) return
 
@@ -82,26 +88,49 @@ export default class TransferItemProcessor {
     const retryable = (error as { retryable?: boolean })?.retryable === true
 
     if (retryable && attempts < MAX_ATTEMPTS) {
-      // Retryable : on garde le hold, on replanifie (repris par le relais). PAS de release.
       await this.itemRepo.update(item.id, {
         status: TransferItemStatus.QUEUED,
         attempts,
-        nextRetryAt: DateTime.now().plus({ seconds: RETRY_BASE_SECONDS * 2 ** (attempts - 1) }),
+        nextRetryAt: DateTime.now().plus({ seconds: this.nextRetryDelay(attempts) }),
       })
       return
     }
 
-    // Définitif (ou dead letter après MAX) : item `failed` + release de la part (recrédit du hold).
-    await this.itemRepo.update(item.id, {
-      status: TransferItemStatus.FAILED,
-      attempts,
-      failureReason: error instanceof Error ? error.message : 'send failed',
-    })
+    const trx = await db.transaction()
 
-    await this.reservation.releaseHold(
-      batch.accountId,
-      Number(item.amount) + Number(item.fees),
-      item.idempotencyKey
-    )
+    try {
+      await this.itemRepo.update(
+        item.id,
+        {
+          status: TransferItemStatus.FAILED,
+          attempts,
+          failureReason: error instanceof Error ? error.message : 'send failed',
+        },
+        trx
+      )
+      await this.batchRepo.incrementSettlementCounter(item.batchId, 'failure', trx)
+      await this.reservation.releaseHold(
+        batch.accountId,
+        Number(item.amount) + Number(item.fees),
+        item.idempotencyKey,
+        trx
+      )
+      await trx.commit()
+    } catch (e) {
+      if (!trx.isCompleted) await trx.rollback()
+      throw e
+    }
+  }
+
+  /**
+   * Délai (s) avant le prochain essai : **full jitter** = `random(0, min(base·2^(n-1), plafond))`,
+   * avec un **plancher à 1 s** (pas de retry immédiat). Dispersion maximale → désynchronise au mieux
+   * les retries d'un même lot (anti *thundering herd*) ; le gouverneur d'égress lisse de toute façon
+   * le débit même si plusieurs items tirent un délai court. Exemples (base 2 s) : t1 ∈ [1,2] ·
+   * t2 ∈ [1,4] · t3 ∈ [1,8] · t4 ∈ [1,16] · t5 ∈ [1,32].
+   */
+  private nextRetryDelay(attempts: number): number {
+    const exp = Math.min(RETRY_BASE_SECONDS * 2 ** (attempts - 1), RETRY_MAX_DELAY_SECONDS)
+    return Math.max(1, Math.round(exp * Math.random()))
   }
 }
