@@ -12,6 +12,8 @@ import TransferItem from '#core/money/transfer/domain/models/transfer_item'
 import { TransferBatchStatus } from '#core/money/transfer/domain/enums/transfer_batch_status'
 import { TransferItemStatus } from '#core/money/transfer/domain/enums/transfer_item_status'
 import TransferItemProcessor from '#core/money/transfer/application/services/transfer_item_processor'
+import Transaction from '#core/money/transactions/domain/models/transaction'
+import FeeResolver from '#core/money/money_movement/application/services/fee_resolver'
 import { ProviderResponse } from '#core/money/provider_gateway/domain/value_objects/provider_response'
 import { ErrorSeverity } from '#core/money/provider_gateway/domain/enums/error_severity'
 import {
@@ -161,5 +163,50 @@ test.group('Transfer | exécution item (B4)', (group) => {
     assert.equal(item.attempts, 1)
     // Retryable → on garde le hold : aucun recrédit.
     assert.equal(await reloadBalance(wallet.id), 80000)
+  })
+
+  /**
+   * B10 / L2-D28 — le scénario que le figeage existe pour empêcher.
+   *
+   * Entre l'initiation (où les frais sont calculés et **réservés**) et l'envoi, la grille tarifaire
+   * peut changer. Si le drain recalculait, la transaction porterait une fee différente de celle
+   * couverte par le hold → rupture d'invariant de fonds. On simule une grille qui a doublé et on
+   * vérifie que la transaction porte toujours la fee **gravée sur l'item**.
+   */
+  test('drain : la transaction porte la fee FIGÉE, même si la grille a changé depuis', async ({
+    assert,
+  }) => {
+    const FROZEN_FEE = 250
+    const { item } = await makeQueuedItem(80000, 20000)
+
+    item.fees = FROZEN_FEE
+    await item.save()
+
+    // La grille a bougé depuis l'initiation : elle facturerait désormais bien plus cher.
+    app.container.swap(FeeResolver, () => ({
+      resolve: async (_ctx: unknown, amount: number) => ({
+        amount,
+        fees: 9999,
+        total: amount + 9999,
+      }),
+    }) as any)
+
+    try {
+      const processor = await app.container.make(TransferItemProcessor)
+      await processor.process(item.id)
+    } finally {
+      app.container.restore(FeeResolver)
+    }
+
+    await item.refresh()
+    assert.equal(item.status, TransferItemStatus.SENT)
+
+    const tx = await Transaction.query()
+      .where('reference', item.transactionReference!)
+      .firstOrFail()
+
+    // La fee réservée, pas la nouvelle grille.
+    assert.equal(Number(tx.fees), FROZEN_FEE)
+    assert.equal(Number(tx.totalAmount), 20000 + FROZEN_FEE)
   })
 })

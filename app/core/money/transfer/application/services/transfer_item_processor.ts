@@ -79,6 +79,7 @@ export default class TransferItemProcessor {
         includeFees: false,
       },
       prefunded: true,
+      fees: Number(item.fees),
       metadata: { paymentMethodCode: 'mobile-money' },
     }
   }
@@ -110,11 +111,13 @@ export default class TransferItemProcessor {
       )
 
       await this.batchRepo.incrementSettlementCounter(item.batchId, 'failure', trx)
+      // Échec d'item → sa part revient au client, frais compris (L2-D31), ventilée (L2-D36).
       await this.reservation.releaseHold(
         batch.accountId,
-        Number(item.amount) + Number(item.fees),
+        Number(item.amount),
         item.idempotencyKey,
-        trx
+        trx,
+        Number(item.fees)
       )
       await trx.commit()
     } catch (e) {

@@ -124,7 +124,7 @@ export class Hub2Adapter implements PaymentProviderPort {
   private mapTransferStatus(result: Record<string, any>): ProviderPollResult {
     const status = String(result.status ?? '').toLowerCase()
 
-    // Hub2 nomme le statut de la **ressource** `successful`, alors que ses **events** webhook disent
+    // Hub2 nomme le statut de la **ressource** `successful', alors que ses **events** webhook disent
     // `transfer.succeeded` — on accepte les deux vocabulaires plutôt que de parier sur l'un.
     if (status === 'successful' || status === 'succeeded' || status === 'success') {
       return { outcome: 'succeeded', rawData: result }

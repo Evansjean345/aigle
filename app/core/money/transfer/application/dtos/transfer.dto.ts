@@ -72,3 +72,24 @@ export interface MassTransferItemView {
 export interface MassTransferBatchDetail extends MassTransferBatchSummary {
   items: MassTransferItemView[]
 }
+
+/**
+ * Devis d'un lot avant initiation (B11, L2-D34) : ce que ça coûte **et** ce qu'il manque.
+ *
+ * `shortfall` est la réponse à « combien dois-je approvisionner » — 0 si le solde suffit, jamais
+ * négatif. ⚠️ Photo **instantanée** : le solde peut bouger d'ici l'initiation (autre décaissement,
+ * encaissement). Aide à la décision, **pas** une réservation — l'initiation reste seule juge.
+ */
+export interface MassTransferSimulation {
+  expectedCount: number
+  currency: string
+  /** Σ des montants envoyés aux bénéficiaires. */
+  totalAmount: number
+  /** Σ des frais, tarifés **par bénéficiaire** (L2-D30). */
+  fees: number
+  /** Ce qui sera réservé : `totalAmount + fees`. */
+  total: number
+  balance: number
+  /** `max(0, total − balance)`. */
+  shortfall: number
+}

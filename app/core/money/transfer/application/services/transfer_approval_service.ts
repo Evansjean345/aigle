@@ -74,9 +74,10 @@ export default class TransferApprovalService {
 
       await this.reservation.releaseHold(
         batch.accountId,
-        Number(batch.totalAmount) + Number(batch.fees),
+        Number(batch.totalAmount),
         batch.reference,
-        trx
+        trx,
+        Number(batch.fees)
       )
       await trx.commit()
     } catch (error) {

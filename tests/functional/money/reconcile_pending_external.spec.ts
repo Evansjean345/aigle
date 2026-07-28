@@ -31,6 +31,7 @@ const AGGREGATOR = 'faketest'
 /** Provider doublé : `pollStatus` renvoie ce qu'on lui dicte. */
 class FakePollProvider {
   readonly providerName = AGGREGATOR
+
   polled: string[] = []
   next: ProviderPollResult = { outcome: 'pending' }
 
@@ -52,6 +53,7 @@ class FakeEngine {
 
   async settle(cmd: SettleCommand) {
     this.settled.push(cmd)
+
     return {
       reference: cmd.reference,
       movementId: '1',
@@ -63,9 +65,11 @@ class FakeEngine {
 
 /**
  * Monte un mouvement externe orphelin : transaction PENDING + paiement interrogeable, dont
- * l'horloge (`updated_at`) est **reculée** pour le rendre candidat (le seuil est de 20 min).
+ * l'horloge ('updated_at') est **reculée** pour le rendre candidat (le seuil est de 20 min).
  */
-async function makeOrphanMovement(stalledMinutes: number): Promise<{ tx: Transaction; payment: Payment }> {
+async function makeOrphanMovement(
+  stalledMinutes: number
+): Promise<{ tx: Transaction; payment: Payment }> {
   const tx = new Transaction()
   tx.transactionsUid = randomUUID()
   tx.accountId = randomUUID()
@@ -111,6 +115,7 @@ test.group('Money | réconciliation des mouvements externes orphelins — B6', (
 
     const registry = await app.container.make(ProviderRegistry)
     registry.register(provider as any)
+
     app.container.swap(MoneyMovementEngine, () => engine as any)
 
     return async () => {

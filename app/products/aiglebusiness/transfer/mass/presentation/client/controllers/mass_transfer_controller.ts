@@ -5,6 +5,7 @@ import ApproveMassTransferUseCase from '#aiglebusiness/transfer/mass/application
 import RejectMassTransferUseCase from '#aiglebusiness/transfer/mass/application/use_cases/reject_mass_transfer.use_case'
 import ListMassTransfersUseCase from '#aiglebusiness/transfer/mass/application/use_cases/list_mass_transfers.use_case'
 import GetMassTransferUseCase from '#aiglebusiness/transfer/mass/application/use_cases/get_mass_transfer.use_case'
+import SimulateMassTransferUseCase from '#aiglebusiness/transfer/mass/application/use_cases/simulate_mass_transfer.use_case'
 import { massTransferValidator } from '#aiglebusiness/transfer/mass/presentation/client/validators/mass_transfer_validators'
 import type {
   MassTransferActor,
@@ -26,8 +27,34 @@ export default class MassTransferController {
     private readonly approveMassTransfer: ApproveMassTransferUseCase,
     private readonly rejectMassTransfer: RejectMassTransferUseCase,
     private readonly listMassTransfers: ListMassTransfersUseCase,
-    private readonly getMassTransfer: GetMassTransferUseCase
+    private readonly getMassTransfer: GetMassTransferUseCase,
+    private readonly simulateMassTransfer: SimulateMassTransferUseCase
   ) {}
+
+  /**
+   * `simulate` (200) — devis d'un lot **avant** initiation : coût total et **manque à approvisionner**.
+   * Lecture pure : ni lot, ni hold. Même validateur que `create`, donc on ne simule que ce qu'on
+   * pourrait réellement envoyer.
+   */
+  async simulate({ request, response, params }: HttpContext): Promise<void> {
+    const payload = await request.validateUsing(massTransferValidator)
+    const organisationId = params.organisationId as string
+
+    const dto: MassTransferRequestDto = {
+      label: payload.label,
+      description: payload.description,
+      recipients: payload.recipients.map((r) => ({
+        amount: r.amount,
+        phone: r.phone,
+        providerCode: r.providerCode,
+        name: r.name,
+        country: r.country,
+      })),
+    }
+
+    const data = await this.simulateMassTransfer.execute(dto, organisationId)
+    return response.ok({ data })
+  }
 
   async index({ request, response, params }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string

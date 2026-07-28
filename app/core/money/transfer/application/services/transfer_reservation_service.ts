@@ -33,17 +33,21 @@ export default class TransferReservationService {
     accountId: string,
     amount: number,
     reference?: string,
-    trx?: TransactionClientContract
+    trx?: TransactionClientContract,
+    fees: number = 0
   ): Promise<{ reservationRef: string }> {
     const wallet = await this.walletService.getByAccountId(accountId, trx)
     const balanceBefore = Number(wallet.balance)
 
-    const debited = await this.walletService.debitBalance(wallet.id, amount, trx)
+    // `amount` = principal, `fees` = frais : on immobilise la somme, mais la ligne ledger les
+    // **ventile** (L2-D36) — en prefunded, c'est le seul endroit où ces frais figurent au journal.
+    const debited = await this.walletService.debitBalance(wallet.id, amount + fees, trx)
 
     const entry = await this.ledgerService.recordHold(
       {
         walletId: wallet.id,
         amount,
+        fees,
         balanceBefore,
         balanceAfter: debited.balance,
         reference,
@@ -62,19 +66,22 @@ export default class TransferReservationService {
     accountId: string,
     amount: number,
     reference?: string,
-    trx?: TransactionClientContract
+    trx?: TransactionClientContract,
+    fees: number = 0
   ): Promise<void> {
     const wallet = await this.walletService.getByAccountId(accountId, trx)
     const balanceBefore = Number(wallet.balance)
 
-    const credited = await this.walletService.creditBalance(wallet.id, amount, trx)
+    const total = amount + fees
+    const credited = await this.walletService.creditBalance(wallet.id, total, trx)
 
     await this.ledgerService.recordHoldRelease(
       {
         walletId: wallet.id,
         amount,
+        fees,
         balanceBefore,
-        balanceAfter: credited?.balance ?? balanceBefore + amount,
+        balanceAfter: credited?.balance ?? balanceBefore + total,
         reference,
       },
       trx

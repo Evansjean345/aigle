@@ -10,6 +10,7 @@ import TransactionService from '#core/money/transactions/application/services/tr
 import PaymentService from '#core/money/transactions/application/services/payment_service'
 import LedgerService from '#core/money/ledger/application/services/ledger_service'
 import FeeResolver from '#core/money/money_movement/application/services/fee_resolver'
+import type { FeeCalculationResult } from '#core/money/fees/application/services/fee_calculator_service'
 import PartyValidator from '#core/money/money_movement/application/services/party_validator'
 import MoneyActivityEmitter from '#core/money/money_movement/application/services/money_activity_emitter'
 import ExternalInitiationRunner from '#core/money/money_movement/application/services/external_initiation_runner'
@@ -44,7 +45,8 @@ export default class ExternalOutUseCase {
 
   async handle(cmd: ExternalOutCommand): Promise<MovementResult> {
     const wallet = await this.resolveWalletWithUser(cmd.fromAccountId)
-    const { amount, fees, total } = await this.feeResolver.resolve(cmd.feeContext, cmd.amount)
+
+    const { amount, fees, total } = await this.resolveFees(cmd)
 
     await this.partyValidator.validate({
       accountId: wallet.accountId ?? cmd.fromAccountId,
@@ -154,10 +156,6 @@ export default class ExternalOutUseCase {
         operator: cmd.destination.operator,
         paymentMethod: paymentMethodCode,
         logCode: 'TRANSFER_PAYOUT',
-        // Prefunded (mass-transfer) : PAS d'auto-reversal par l'engine sur échec — le release est
-        // piloté par le flux mass (item terminal → release de la part ; retryable → on garde le hold
-        // et on retente). Fournir `walletId` déclencherait un refund automatique qui, sur une erreur
-        // retryable, libèrerait la part avant un retry → rupture d'invariant (L2-D3/B4).
         walletId: cmd.prefunded ? undefined : wallet.id,
         failureEvent: 'TransfertTransactionFailed',
         failureEventData: { reference: transactionReference, amount },
@@ -188,6 +186,29 @@ export default class ExternalOutUseCase {
       providerReference: initiation.providerReference,
       providerData: initiation.providerData,
     }
+  }
+
+  /**
+   * Frais du mouvement.
+   *
+   * Cas normal (consumer / transfert unique) : résolus par la grille tarifaire courante.
+   *
+   * Cas **prefunded avec fee figée** (paiement en masse, L2-D28) : on **saute** `FeeResolver` et on
+   * honore la fee transmise. Elle a été calculée ET réservée à l'initiation du lot ; la recalculer
+   * ici ferait diverger la fee de la transaction du montant réellement tenu si la grille a évolué
+   * entre l'approbation et l'envoi — soit une rupture de l'invariant de fonds.
+   *
+   * Les deux conditions sont exigées : un `fees` fourni hors prefunded est ignoré, pour qu'aucun
+   * appelant ne puisse court-circuiter la tarification d'un transfert ordinaire.
+   */
+  private async resolveFees(cmd: ExternalOutCommand): Promise<FeeCalculationResult> {
+    const usesFrozenFees = cmd.prefunded === true && cmd.fees !== undefined
+
+    if (usesFrozenFees) {
+      return { amount: cmd.amount, fees: cmd.fees!, total: cmd.amount + cmd.fees! }
+    }
+
+    return this.feeResolver.resolve(cmd.feeContext, cmd.amount)
   }
 
   private async resolveWalletWithUser(accountId: string): Promise<Wallet> {

@@ -18,6 +18,8 @@ import paymentLog from '#shared/infrastructure/logging/payment_log'
  */
 export default class ReconcilePendingExternalJob extends Job<Record<string, never>> {
   async execute(): Promise<void> {
+    console.log('starting reconcile pending...')
+
     try {
       const useCase = await app.container.make(ReconcilePendingExternalUseCase)
       const result = await useCase.handle()

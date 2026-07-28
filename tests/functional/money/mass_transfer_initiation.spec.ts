@@ -9,6 +9,7 @@ import TransferItem from '#core/money/transfer/domain/models/transfer_item'
 import { TransferBatchStatus } from '#core/money/transfer/domain/enums/transfer_batch_status'
 import { TransferItemStatus } from '#core/money/transfer/domain/enums/transfer_item_status'
 import TransferBatchService from '#core/money/transfer/application/services/transfer_batch_service'
+import FeeResolver from '#core/money/money_movement/application/services/fee_resolver'
 import { reloadBalance } from '#tests/functional/payments-flow/mocks/operations_fixtures'
 import type { InitiateMassTransferCommand } from '#core/money/transfer/application/dtos/transfer.dto'
 
@@ -51,7 +52,16 @@ test.group('Transfer | initiation mass (service core) — B3', (group) => {
   group.each.setup(async () => {
     await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
     await db.beginGlobalTransaction()
+
+    // B3 teste l'idempotence, la réserve et le bulk-insert — PAS la tarification (couverte en B10).
+    // Grille neutralisée à 0 pour que les soldes attendus restent déterministes et indépendants du
+    // catalogue seedé.
+    app.container.swap(FeeResolver, () => ({
+      resolve: async (_ctx: unknown, amount: number) => ({ amount, fees: 0, total: amount }),
+    }) as any)
+
     return async () => {
+      app.container.restore(FeeResolver)
       await db.rollbackGlobalTransaction()
       await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
     }

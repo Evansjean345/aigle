@@ -65,6 +65,13 @@ export interface ExternalOutCommand extends MoneyCommand {
   type: TransactionType
   feeContext: FeeContextInput
   prefunded?: boolean
+  /**
+   * Frais **figés** en amont (paiement en masse : calculés et réservés à l'initiation, L2-D28).
+   * Honoré **uniquement en mode `prefunded`** : l'engine saute alors `FeeResolver` et utilise cette
+   * valeur. Sans ce figeage, une évolution de la grille entre l'approbation du lot et l'envoi ferait
+   * diverger la fee de la transaction du montant réellement réservé.
+   */
+  fees?: number
 }
 
 /** Externe entrant : opérateur → crédit compte (async). Ex. `deposit`, futur collect. */

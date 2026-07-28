@@ -248,16 +248,6 @@ export default class LedgerService {
   }
 
   /**
-   * Creates a reversal ledger entry for a failed transaction, recording the refund details.
-   *
-   * @param {Transaction} transaction - The transaction object corresponding to the failed transaction.
-   * @param {number} walletId - The ID of the wallet where the reversal is being recorded.
-   * @param {number} balanceBefore - The wallet balance before the reversal.
-   * @param {number} balanceAfter - The wallet balance after the reversal.
-   * @param {TransactionClientContract} [trx] - Optional transaction client contract to use for the database operation.
-   * @return {Promise<Ledger>} A promise that resolves with the created ledger entry for the reversal.
-   */
-  /**
    * Records a wallet adjustment in the ledger.
    *
    * @param {Transaction} transaction - The linked transaction (can be a dummy for autonomous adjustments).
@@ -305,23 +295,29 @@ export default class LedgerService {
   async recordHold(
     params: {
       walletId: number
+      /** Principal réservé (Σ des montants versés aux bénéficiaires), **hors** frais. */
       amount: number
+      /** Frais réservés (Σ), ventilés à part — L2-D36. */
+      fees?: number
       balanceBefore: number
       balanceAfter: number
       reference?: string
     },
     trx?: TransactionClientContract
   ): Promise<Ledger> {
+    const fees = params.fees ?? 0
+    const total = params.amount + fees
+
     return this.ledgerRepository.create(
       {
         transactionId: null,
         walletId: params.walletId,
         direction: LedgerDirection.DEBIT,
         operationType: LedgerOperationType.RESERVATION,
-        description: `Réservation de ${params.amount}${params.reference ? ` — ${params.reference}` : ''}`,
+        description: `Réservation de ${total}${params.reference ? ` — ${params.reference}` : ''}`,
         amountBrut: params.amount,
-        fees: 0,
-        totalAmount: params.amount,
+        fees,
+        totalAmount: total,
         balanceBefore: params.balanceBefore,
         balanceAfter: params.balanceAfter,
       },
@@ -331,29 +327,35 @@ export default class LedgerService {
 
   /**
    * Écrit une ligne de **libération** d'un hold (rejet/annulation d'un lot) : un crédit du wallet
-   * **sans transaction**, symétrique de `recordHold`. Distinct du release **par item** (échec →
+   * **sans transaction**, symétrique de `recordHold'. Distinct du release **par item** (échec →
    * refund sur la transaction de l'item).
    */
   async recordHoldRelease(
     params: {
       walletId: number
+      /** Principal libéré, **hors** frais. */
       amount: number
+      /** Frais libérés — ventilation symétrique du hold (L2-D36). */
+      fees?: number
       balanceBefore: number
       balanceAfter: number
       reference?: string
     },
     trx?: TransactionClientContract
   ): Promise<Ledger> {
+    const fees = params.fees ?? 0
+    const total = params.amount + fees
+
     return this.ledgerRepository.create(
       {
         transactionId: null,
         walletId: params.walletId,
         direction: LedgerDirection.CREDIT,
         operationType: LedgerOperationType.RESERVATION_RELEASE,
-        description: `Libération de réservation de ${params.amount}${params.reference ? ` — ${params.reference}` : ''}`,
+        description: `Libération de réservation de ${total}${params.reference ? ` — ${params.reference}` : ''}`,
         amountBrut: params.amount,
-        fees: 0,
-        totalAmount: params.amount,
+        fees,
+        totalAmount: total,
         balanceBefore: params.balanceBefore,
         balanceAfter: params.balanceAfter,
       },

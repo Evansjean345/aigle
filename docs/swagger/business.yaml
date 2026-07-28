@@ -1015,6 +1015,65 @@ paths:
         '422':
           description: Payload invalide (montant, téléphone, provider, moyen de paiement)
 
+  /api/business/organisations/{organisationId}/mass-transfers/simulate:
+    post:
+      operationId: simulateMassTransfer
+      summary: Simuler un paiement en masse (devis avant approvisionnement)
+      description: |
+        Calcule le **coût réel** d'un lot **avant** de l'initier, et indique **combien approvisionner**.
+
+        Répond à la question : « pour verser 300 000 XOF de salaires, combien dois-je avoir sur mon
+        compte ? ». Les frais étant tarifés **par bénéficiaire**, ils dépendent du montant *et* de
+        l'opérateur de chaque ligne — d'où l'envoi de la **liste complète** (même corps que
+        l'initiation), et non d'un simple total.
+
+        **Exactitude garantie** : la simulation emprunte la même tarification que l'initiation, le
+        devis ne peut donc pas diverger du débit réel.
+
+        **Lecture pure** : aucun lot n'est créé, **aucun fonds n'est réservé**. Rejouable à volonté
+        pour comparer des scénarios.
+
+        ⚠️ `balance` et `shortfall` sont une **photo instantanée**. Le solde peut évoluer d'ici
+        l'initiation (autre décaissement, encaissement) : c'est une aide à la décision, **pas** une
+        réservation.
+
+        Gate **ENTERPRISE** + permission `transfer:initiate`. Limité à **30 appels/minute** par
+        organisation.
+      tags:
+        - Business - Paiement en masse
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MassTransferRequest'
+      responses:
+        '200':
+          description: Devis calculé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MassTransferSimulation'
+        '403':
+          description: Compte non ENTERPRISE (`E_MASS_TRANSFER_ENTERPRISE_ONLY`) ou permission manquante
+        '422':
+          description: |
+            Payload invalide (plus de 50 bénéficiaires, montant/opérateur invalide) **ou** bénéficiaire
+            non tarifable — la simulation détecte alors un trou de configuration tarifaire avant
+            l'initiation.
+        '429':
+          description: Trop de simulations (30/minute par organisation)
+
   /api/business/organisations/{organisationId}/mass-transfers:
     post:
       operationId: initiateMassTransfer
@@ -2106,6 +2165,40 @@ components:
                 type: string
                 default: ci
                 example: ci
+
+    MassTransferSimulation:
+      type: object
+      description: |
+        Devis d'un lot. `total` est ce qui sera **réservé** à l'initiation ; `shortfall` est le
+        **manque à approvisionner** (0 si le solde suffit, jamais négatif).
+      properties:
+        expectedCount:
+          type: integer
+          description: Nombre de bénéficiaires simulés.
+          example: 3
+        currency:
+          type: string
+          example: XOF
+        totalAmount:
+          type: integer
+          description: Somme des montants versés aux bénéficiaires (hors frais).
+          example: 300000
+        fees:
+          type: integer
+          description: Somme des frais, tarifés **par bénéficiaire**.
+          example: 300
+        total:
+          type: integer
+          description: Montant qui sera réservé — `totalAmount + fees`.
+          example: 300300
+        balance:
+          type: integer
+          description: Solde actuel du compte de l'organisation (instantané).
+          example: 280000
+        shortfall:
+          type: integer
+          description: Montant à approvisionner — `max(0, total - balance)`.
+          example: 20300
 
     MassTransferResponse:
       type: object
