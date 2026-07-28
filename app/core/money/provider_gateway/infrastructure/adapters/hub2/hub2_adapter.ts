@@ -1,6 +1,8 @@
 import type { PaymentProviderPort } from '#core/money/provider_gateway/domain/interfaces/payment_provider_port'
 import type { ProviderRequest } from '#core/money/provider_gateway/domain/value_objects/provider_request'
 import { ProviderResponse } from '#core/money/provider_gateway/domain/value_objects/provider_response'
+import type { ProviderOperation } from '#core/money/provider_gateway/domain/types/provider_capabilities'
+import type { ProviderPollResult } from '#core/money/provider_gateway/domain/types/provider_poll'
 import { ProviderCallError } from '#core/money/provider_gateway/infrastructure/exceptions/provider_call_error'
 import { ErrorSeverity } from '#core/money/provider_gateway/domain/enums/error_severity'
 import ErrorClassifier from '#core/money/provider_gateway/infrastructure/error_classifier'
@@ -71,6 +73,81 @@ export class Hub2Adapter implements PaymentProviderPort {
       })
     } catch (error) {
       return this.handleError(error, 'payout')
+    }
+  }
+
+  /**
+   * Statut d'un mouvement déjà initié (B6). Seul le **payout** (`/transfers/:id`) est couvert : c'est
+   * la voie sortante, celle qui immobilise des fonds quand un webhook se perd. Un checkout orphelin
+   * n'a rien réservé côté client → pas d'urgence, et l'endpoint diffère (payment-intents).
+   *
+   * **Ne devine jamais** : toute réponse non explicitement terminale devient `pending` ou `unknown`,
+   * jamais `failed` (un `failed` déclencherait un release/refund à tort).
+   */
+  async pollStatus(
+    operation: ProviderOperation,
+    providerReference: string
+  ): Promise<ProviderPollResult> {
+    if (operation !== 'payout') {
+      return { outcome: 'unknown', errorMessage: `Poll non supporté pour l'opération ${operation}` }
+    }
+
+    try {
+      // Hub2 expose un endpoint **dédié** au statut : `/transfers/:id/status` (et non la ressource).
+      const response = await this.fetchWithHeaders(
+        `${this.apiUrl}/transfers/${encodeURIComponent(providerReference)}/status`,
+        { method: 'GET' }
+      )
+
+      // 404 → la référence n'existe pas chez l'opérateur : ambigu (jamais un échec présumé).
+      if (response.status === 404) {
+        return { outcome: 'unknown', errorCode: 'NOT_FOUND', errorMessage: 'Transfert introuvable' }
+      }
+
+      await this.validateResponse(response)
+      const result = (await response.json()) as Record<string, any>
+
+      return this.mapTransferStatus(result)
+    } catch (error) {
+      // Réseau/5xx : on ne conclut rien, le prochain tick réessaiera.
+      return {
+        outcome: 'unknown',
+        errorMessage: error instanceof Error ? error.message : 'Poll échoué',
+      }
+    }
+  }
+
+  /**
+   * Mappe le statut Hub2 d'un transfert. Aligné sur les events webhook ('transfer.succeeded` /
+   * `transfer.failed') — même vocabulaire, donc même verdict qu'un webhook arrivé normalement.
+   */
+  private mapTransferStatus(result: Record<string, any>): ProviderPollResult {
+    const status = String(result.status ?? '').toLowerCase()
+
+    // Hub2 nomme le statut de la **ressource** `successful`, alors que ses **events** webhook disent
+    // `transfer.succeeded` — on accepte les deux vocabulaires plutôt que de parier sur l'un.
+    if (status === 'successful' || status === 'succeeded' || status === 'success') {
+      return { outcome: 'succeeded', rawData: result }
+    }
+
+    if (status === 'failed' || status === 'canceled' || status === 'cancelled') {
+      return {
+        outcome: 'failed',
+        errorCode: result.errorCode ?? result.failureCode ?? null,
+        errorMessage: result.errorMessage ?? result.failureReason ?? null,
+        rawData: result,
+      }
+    }
+
+    if (status === 'pending' || status === 'processing' || status === 'created') {
+      return { outcome: 'pending', rawData: result }
+    }
+
+    // Statut inconnu → revue manuelle plutôt qu'un règlement deviné.
+    return {
+      outcome: 'unknown',
+      errorMessage: `Statut Hub2 non reconnu : ${status}`,
+      rawData: result,
     }
   }
 
@@ -146,6 +223,7 @@ export class Hub2Adapter implements PaymentProviderPort {
     if (mobileMoneyProvider === 'wave') {
       if (request.metadata.success_url)
         data.mobileMoney.onSuccessRedirectionUrl = request.metadata.success_url
+
       if (request.metadata.error_url)
         data.mobileMoney.onFailedRedirectionUrl = request.metadata.error_url
     }
@@ -264,6 +342,7 @@ export class Hub2Adapter implements PaymentProviderPort {
     }
 
     const message = error instanceof Error ? error.message : String(error)
+
     paymentLog.error(
       'HUB2_UNEXPECTED_ERROR',
       { operation, message },

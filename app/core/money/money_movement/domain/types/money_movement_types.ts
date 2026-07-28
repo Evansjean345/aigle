@@ -207,18 +207,19 @@ export interface ExternalToExternalInitiation extends ExternalInitiationBase {
 
 /**
  * Initiation de la jambe 2 d'un inter-réseau (cash-out → bénéficiaire), déclenchée après le
- * règlement de la jambe 1. `paymentId` = 2e paiement ; `totalAmount` = montant envoyé à
- * l'opérateur bénéficiaire ; `operator`/`phone` = destinataire.
+ * règlement de la jambe 1. 'paymentId` = 2e paiement ; `totalAmount` = montant envoyé à
+ * l'opérateur bénéficiaire ; `operator'/'phone` = destinataire.
  */
 export type ExternalSecondLegInitiation = ExternalInitiationBase
 
 /**
  * Résultat d'une initiation externe.
- * `PENDING` (async / attente webhook) ; `providerData` porte les éléments d'interaction
+ * 'PENDING` (async / attente webhook) ; `providerData` porte les éléments d'interaction
  * synchrones (redirect URL, type) le cas échéant.
  */
 export interface ExternalInitiationResult {
   status: TransactionStatus
   providerReference?: string
+  aggregator?: string
   providerData?: Record<string, unknown>
 }

@@ -78,10 +78,11 @@ test.group('Transfer | initiation mass (service core) — B3', (group) => {
     const items = await TransferItem.query().where('batch_id', batch.id)
     assert.lengthOf(items, 3)
     assert.isTrue(items.every((i) => i.status === TransferItemStatus.QUEUED))
-    assert.deepEqual(
-      items.map((i) => i.idempotencyKey).sort(),
-      [`${batch.id}:0`, `${batch.id}:1`, `${batch.id}:2`]
-    )
+    assert.deepEqual(items.map((i) => i.idempotencyKey).sort(), [
+      `${batch.id}:0`,
+      `${batch.id}:1`,
+      `${batch.id}:2`,
+    ])
   })
 
   test('idempotence requête : rejeu même clé → même lot, pas de double réserve', async ({
@@ -109,7 +110,7 @@ test.group('Transfer | initiation mass (service core) — B3', (group) => {
     await assert.rejects(() => svc.initiate(command(orgId, 'idem-3')))
 
     assert.equal(await reloadBalance(wallet.id), 1000)
-    const batches = await TransferBatch.query()
+    const batches = await TransferBatch.query().where('account_id', orgId)
     assert.lengthOf(batches, 0)
   })
 })

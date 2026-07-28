@@ -23,6 +23,12 @@ export default class Payment extends BaseModel {
   @column()
   declare operationType: string
 
+  @column()
+  declare providerReference: string | null
+
+  @column()
+  declare aggregator: string | null
+
   @column({ consume: (value: string | null) => (value ? JSON.parse(value) : null) })
   declare paymentDetails: string
 

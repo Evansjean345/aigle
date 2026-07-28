@@ -13,7 +13,7 @@ import type { ExternalOutCommand } from '#core/money/money_movement/domain/types
 
 /**
  * Politique de retry (payout) : backoff exponentiel **jitteré** et **plafonné**. Base courte — le
- * gouverneur d'égress rate-limite déjà Hub2, le backoff n'a pas à réguler le débit — et le **jitter
+ * gouverneur digress rate-limite déjà Hub2, le backoff n'a pas à réguler le débit — et le **jitter
  * désynchronise** les retries d'un lot (anti *thundering herd* quand N items échouent au même tick).
  */
 const RETRY_BASE_SECONDS = 2
@@ -27,7 +27,7 @@ const MAX_ATTEMPTS = 6
  * - erreur **retryable** (< MAX) → `queued` + `next_retry_at` (repris par le relais, **sans** release) ;
  * - erreur **définitive** ou MAX atteint → `failed` + **release** de la part (recrédit du hold).
  *
- * Le release au send-time est piloté **ici** (l'engine ne fait pas d'auto-reversal en prefunded) ;
+ * Le release au send-time est piloté **ici** (engine ne fait pas d'auto-reversal en prefunded) ;
  * le release au **webhook** (item déjà `sent`) passe par le settlement (B5). Toute la persistance
  * passe par les **repositories** (aucun accès model direct depuis le service).
  */
@@ -108,6 +108,7 @@ export default class TransferItemProcessor {
         },
         trx
       )
+
       await this.batchRepo.incrementSettlementCounter(item.batchId, 'failure', trx)
       await this.reservation.releaseHold(
         batch.accountId,
@@ -123,10 +124,10 @@ export default class TransferItemProcessor {
   }
 
   /**
-   * Délai (s) avant le prochain essai : **full jitter** = `random(0, min(base·2^(n-1), plafond))`,
+   * Délai (s) avant le prochain essai : **full jitter** = `random(0, min (base·2^(n-1), plafond))',
    * avec un **plancher à 1 s** (pas de retry immédiat). Dispersion maximale → désynchronise au mieux
-   * les retries d'un même lot (anti *thundering herd*) ; le gouverneur d'égress lisse de toute façon
-   * le débit même si plusieurs items tirent un délai court. Exemples (base 2 s) : t1 ∈ [1,2] ·
+   * les retries d'un même lot (anti *thundering herd*) ; le gouverneur digress lisse de toute façon
+   * le débit même si plusieurs items tirent un court délai. Exemples (base 2 s) : t1 ∈ [1,2] ·
    * t2 ∈ [1,4] · t3 ∈ [1,8] · t4 ∈ [1,16] · t5 ∈ [1,32].
    */
   private nextRetryDelay(attempts: number): number {

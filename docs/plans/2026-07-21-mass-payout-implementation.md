@@ -268,7 +268,35 @@ numériquement dans le test.
 
 ---
 
-## B6 — Réconciliation générique (money-core)
+## B6 — Réconciliation générique (money-core) — ✅ FAIT (2026-07-28)
+
+> **Précision majeure — L2-D29** : la réf provider + l'agrégateur vivent sur **`payments`**, pas sur
+> `transactions` (une tx a **plusieurs** paiements : l'inter-réseau = 2 jambes = 2 réfs distinctes,
+> la 2ᵉ écraserait la 1ʳᵉ). **M4** (lancée) ajoute `payments.provider_reference` + `payments.aggregator`
+> (nullables, indexées). L'`aggregator` (= `providerName` : `hub2`, `wave`) rend le poll **routable** —
+> besoin déjà réel, 2 adapters coexistent.
+>
+> Livré : type `ProviderPollResult` (`succeeded|failed|pending|unknown` — `pending` ne doit **jamais**
+> être confondu avec un échec) ; `PaymentProviderPort.pollStatus?` (**optionnel** : un provider sans
+> endpoint de statut n'est simplement pas réconciliable) ; Hub2 `GET /transfers/:id` + mapping aligné
+> sur le vocabulaire des webhooks ; persistance de la trace provider dans **`ExternalInitiationRunner`**
+> (point de passage **unique** des 4 initiations, best-effort — ne fait jamais échouer une initiation
+> déjà acceptée) ; `resolveSettlementKind` **extrait** en source unique (webhook **et** réconciliation
+> le partagent : deux mappings monétaires divergents = classe de bug inacceptable) ;
+> `PaymentRepository.findStaleForReconciliation` (join tx PENDING + réf présente + `updated_at < now−20min`) ;
+> `ReconcilePendingExternalUseCase` (poll → `engine.settle` idempotent ; isolation des échecs ;
+> `unknown`/`pending` → **aucun** règlement deviné ; alerte revue manuelle au-delà de 24 h) ;
+> `ReconcilePendingExternalJob` + `start/scheduler.ts` (`every 5m`).
+> Tests `reconcile_pending_external.spec.ts` (5 vert). Suite : **279 vert** (seul rouge = baseline
+> `DeviceService`, hors périmètre).
+>
+> ⚠️ **Écart assumé à L2-D17** : job **planifié** (scheduler) et non auto-replanifié. Une chaîne
+> auto-replanifiée qui meurt (redémarrage/deploy/crash) ne repart jamais → la surveillance s'éteindrait
+> **en silence**, pire défaut possible pour un filet de sécurité.
+>
+> **Reste** (hors MVP B6) : `TransactionStatus` n'a **pas** de `needs_review` (seul `TransferItemStatus`
+> en a) → l'irrésolu au-delà du seuil dur est **journalisé en alerte** plutôt que persisté dans un état
+> dédié. Ajouter ce statut toucherait tous les `switch` sur statut de transaction — à trancher à part.
 
 **Objectif (L2-D16/D17/D18).** Cron générique : toute transaction externe PENDING orpheline → poll
 provider → `settle`. Op provider **poll statut** (n'existe pas → à ajouter).

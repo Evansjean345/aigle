@@ -32,4 +32,15 @@ export default abstract class PaymentRepository {
     transactionIdOrUid: number | string,
     trx?: TransactionClientContract
   ): Promise<Payment[]>
+
+  /**
+   * Paiements **orphelins** candidats à la réconciliation (B6) : leur transaction est toujours
+   * `PENDING` alors que le mouvement a été accepté par l'opérateur il y a plus de `staleMinutes` —
+   * signe que le webhook ne viendra probablement jamais.
+   *
+   * Ne retourne que les paiements **interrogeables** ('provider_reference` + `aggregator` présents,
+   * cf. L2-D29) : sans ces données, aucun poll n'est possible. La transaction est préchargée
+   * (le règlement a besoin de sa `reference` et de son `operationType').
+   */
+  abstract findStaleForReconciliation(staleMinutes: number, limit: number): Promise<Payment[]>
 }

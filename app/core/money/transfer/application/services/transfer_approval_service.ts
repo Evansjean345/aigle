@@ -10,7 +10,7 @@ import SelfApprovalNotAllowedException from '#core/money/transfer/domain/excepti
 import type TransferBatch from '#core/money/transfer/domain/models/transfer_batch'
 
 /**
- * Maker-checker d'un lot de mass-transfer (B8, L2-D20/D21/D22). Un lot naît `pending_approval` (B3) ;
+ * Maker-checker d'un lot de mass-transfer;
  * un **second** membre l'approuve ou le rejette.
  *
  * - **approve** : garde d'état + séparation → `queued` + **kick du relais** (démarre le drain).
@@ -31,6 +31,7 @@ export default class TransferApprovalService {
 
   async approve(reference: string, approverUid: string, approverIsOwner: boolean): Promise<void> {
     const trx = await db.transaction()
+
     try {
       const batch = await this.batchRepo.findByReferenceForUpdate(reference, trx)
       this.assertApprovable(batch, approverUid, approverIsOwner)
@@ -46,7 +47,6 @@ export default class TransferApprovalService {
       throw error
     }
 
-    // Réveille le relais pour démarrer le drain (L2-D10) — après commit.
     await TransferRelayJob.dispatch({})
   }
 
@@ -57,6 +57,7 @@ export default class TransferApprovalService {
     reason?: string
   ): Promise<void> {
     const trx = await db.transaction()
+
     try {
       const batch = await this.batchRepo.findByReferenceForUpdate(reference, trx)
       this.assertApprovable(batch, approverUid, approverIsOwner)
@@ -70,7 +71,7 @@ export default class TransferApprovalService {
         },
         trx
       )
-      // Libère TOUT le hold (recrédit du total + frais) — L2-D22.
+
       await this.reservation.releaseHold(
         batch.accountId,
         Number(batch.totalAmount) + Number(batch.fees),
@@ -90,9 +91,11 @@ export default class TransferApprovalService {
     approverIsOwner: boolean
   ): asserts batch is TransferBatch {
     if (!batch) throw new TransferBatchNotFoundException()
+
     if (batch.status !== TransferBatchStatus.PENDING_APPROVAL) {
       throw new TransferBatchNotPendingApprovalException()
     }
+
     if (approverUid === batch.initiatedBy && !approverIsOwner) {
       throw new SelfApprovalNotAllowedException()
     }

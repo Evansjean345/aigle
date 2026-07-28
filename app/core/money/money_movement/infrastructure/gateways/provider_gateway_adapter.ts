@@ -69,16 +69,12 @@ export default class ProviderGatewayAdapter implements ExternalMovementGateway {
 
     const request = ProviderRequest.create({
       transactionId: ctx.transactionReference,
-      // Référence client stable exigée par les providers (Hub2 rejette un customerReference
-      // non-string) — l'identifiant utilisateur interne joue ce rôle.
       customerReference: ctx.userId,
       amount,
       currency: 'XOF',
       provider: adapter.providerName,
       phoneNumber: ctx.phone.replaceAll(' ', ''),
       country: ProviderGatewayAdapter.DEFAULT_COUNTRY,
-      // `provider` (routage) + params opaques du provider (payment_mode/otp/urls…) déballés
-      // par l'adaptateur cible (ex. Hub2 → resolveOrangeFlow).
       metadata: { provider: ctx.operator, ...(ctx.providerParams ?? {}) },
     })
 
@@ -102,7 +98,7 @@ export default class ProviderGatewayAdapter implements ExternalMovementGateway {
     }
 
     this.logResponse(ctx, adapter.providerName, operation, response.isSuccess, response.rawData)
-    return this.mapResponse(response)
+    return this.mapResponse(response, adapter.providerName)
   }
 
   /** Journalise l'appel sortant vers le provider (transaction_logs). Best-effort, non bloquant. */
@@ -149,11 +145,13 @@ export default class ProviderGatewayAdapter implements ExternalMovementGateway {
    * Succès → PENDING (+ providerReference, + redirect dans providerData le cas échéant).
    * Échec → `ProviderInitiationError` (la severity porte retryable/definitive/review).
    */
-  private mapResponse(response: ProviderResponse): ExternalInitiationResult {
+  private mapResponse(response: ProviderResponse, aggregator: string): ExternalInitiationResult {
     if (response.isSuccess) {
       return {
         status: TransactionStatus.PENDING,
         providerReference: response.providerReference ?? undefined,
+        // Qui a réellement traité le mouvement → persisté sur le paiement pour router le poll (B6).
+        aggregator,
         providerData: response.redirectUrl ? { redirectUrl: response.redirectUrl } : undefined,
       }
     }

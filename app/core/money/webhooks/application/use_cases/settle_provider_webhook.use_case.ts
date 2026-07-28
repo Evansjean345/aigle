@@ -1,10 +1,9 @@
 import { inject } from '@adonisjs/core'
-import { Exception } from '@adonisjs/core/exceptions'
 import emitter from '@adonisjs/core/services/emitter'
 import type Transaction from '#core/money/transactions/domain/models/transaction'
 import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
 import { redactSensitive } from '#shared/infrastructure/logging/redact_sensitive'
-import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
+import { resolveSettlementKind } from '#core/money/money_movement/domain/services/settlement_kind_resolver'
 import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
 import TransactionNotFoundException from '#core/money/transactions/domain/exceptions/transaction_not_found_exception'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
@@ -76,20 +75,6 @@ export default class SettleProviderWebhookUseCase {
     transaction: Transaction,
     operationType: 'checkout' | 'payout'
   ): SettlementKind {
-    switch (transaction.operationType) {
-      case TransactionType.DEPOSIT:
-        return 'deposit'
-      case TransactionType.CHECKOUT:
-        return 'deposit'
-      case TransactionType.TRANSFERT:
-        return 'transfert'
-      case TransactionType.TRANSFERT_INTER:
-        return operationType === 'payout' ? 'transfert_inter_second' : 'transfert_inter_first'
-      default:
-        throw new Exception(
-          `Type d'opération non réglable par webhook : ${transaction.operationType}`,
-          { status: 500, code: 'E_UNSUPPORTED_SETTLEMENT_KIND' }
-        )
-    }
+    return resolveSettlementKind(transaction.operationType, operationType)
   }
 }

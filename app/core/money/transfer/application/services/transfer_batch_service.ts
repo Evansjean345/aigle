@@ -45,6 +45,7 @@ export default class TransferBatchService {
     const reference = this.generateReference()
 
     const trx = await db.transaction()
+
     try {
       // 2. RÉSERVE : débit gardé du total (lève InsufficientFunds → rollback, aucun lot créé).
       const { reservationRef } = await this.reservation.hold(
