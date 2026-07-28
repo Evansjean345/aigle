@@ -1811,6 +1811,55 @@ paths:
               example:
                 code: MERCHANT_QR_NOT_FOUND
 
+  /api/business/organisations/{organisationId}/collection-accounts:
+    get:
+      operationId: listCollectionAccounts
+      summary: Comptes de collecte disponibles (où verser)
+      description: |
+        Liste les **comptes de collecte d'Aigle** sur lesquels l'organisation peut verser pour
+        réapprovisionner son wallet : numéro mobile money d'entreprise, compte bancaire…
+
+        Le versement s'effectue **hors plateforme** — le marchand consulte cette liste, envoie
+        l'argent directement sur le compte choisi, puis déclare son versement avec un justificatif.
+        Cet endpoint ne déclenche donc **aucun mouvement d'argent**.
+
+        Seuls les comptes **actifs** sont retournés : un compte fermé disparaît de la liste, mais
+        reste attaché aux demandes qui le référencent.
+
+        Permission `provision:request` — celui qui peut demander un approvisionnement est celui qui
+        doit savoir où verser.
+      tags:
+        - Business - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: Comptes de collecte actifs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CollectionAccountView'
+              example:
+                data:
+                  - reference: collect_9f3c1a7b2e04
+                    label: Wave Entreprise
+                    type: mobile_money
+                    accountIdentifier: '0700112233'
+                    accountHolder: AIGLE SA
+                    instructions: Mentionnez la référence de votre demande dans le motif.
+        '403':
+          description: Permission `provision:request` manquante
+
   /api/checkout/payment-options:
     get:
       operationId: checkoutPaymentOptions
@@ -2123,6 +2172,36 @@ components:
             message: Ce token n'est pas autorisé pour cette application
 
   schemas:
+    CollectionAccountView:
+      type: object
+      description: |
+        Compte de collecte tel que vu par le marchand — strictement ce qu'il faut pour effectuer le
+        versement. L'état d'activation n'est pas exposé : seuls les comptes actifs sont retournés.
+      properties:
+        reference:
+          type: string
+          description: Référence stable, à citer dans la demande de réapprovisionnement.
+          example: collect_9f3c1a7b2e04
+        label:
+          type: string
+          example: Wave Entreprise
+        type:
+          type: string
+          enum: [mobile_money, bank]
+          description: Nature du compte — détermine le format de `accountIdentifier`.
+        accountIdentifier:
+          type: string
+          description: Numéro mobile money ou IBAN **sur lequel verser**.
+          example: '0700112233'
+        accountHolder:
+          type: string
+          description: Titulaire, à retrouver sur le reçu de versement.
+          example: AIGLE SA
+        instructions:
+          type: string
+          nullable: true
+          description: Consignes de versement (ex. mention à porter dans le motif).
+
     MassTransferRequest:
       type: object
       required: [recipients]

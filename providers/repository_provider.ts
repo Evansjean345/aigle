@@ -74,6 +74,8 @@ import OrganisationRoleRepository from '#aiglebusiness/membership/domain/interfa
 import OrganisationRoleRepositoryImpl from '#aiglebusiness/membership/infrastructure/repositories/organisation_role_repository_impl'
 import OrganisationMemberRepository from '#aiglebusiness/membership/domain/interfaces/organisation_member_repository'
 import OrganisationMemberRepositoryImpl from '#aiglebusiness/membership/infrastructure/repositories/organisation_member_repository_impl'
+import CollectionAccountRepository from '#aiglebusiness/funding/domain/interfaces/collection_account_repository'
+import CollectionAccountRepositoryImpl from '#aiglebusiness/funding/infrastructure/repositories/collection_account_repository_impl'
 import TransferBatchRepository from '#core/money/transfer/domain/interfaces/transfer_batch_repository'
 import TransferBatchRepositoryImpl from '#core/money/transfer/infrastructure/repositories/transfer_batch_repository_impl'
 import TransferItemRepository from '#core/money/transfer/domain/interfaces/transfer_item_repository'
@@ -123,6 +125,7 @@ export default class RepositoryProvider {
       [PayableAliasRepository, PayableAliasRepositoryImpl],
       [OrganisationRoleRepository, OrganisationRoleRepositoryImpl],
       [OrganisationMemberRepository, OrganisationMemberRepositoryImpl],
+      [CollectionAccountRepository, CollectionAccountRepositoryImpl],
       [TransferBatchRepository, TransferBatchRepositoryImpl],
       [TransferItemRepository, TransferItemRepositoryImpl],
       [TransferRateGovernor, RedisTransferRateGovernor],

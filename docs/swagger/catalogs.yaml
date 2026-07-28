@@ -671,6 +671,140 @@ paths:
         '404':
           description: Non trouvé
 
+  /api/admin/collection-accounts:
+    get:
+      operationId: adminListCollectionAccounts
+      summary: Catalogue des comptes de collecte (admin)
+      description: Catalogue complet — comptes **actifs et inactifs**, ordonnés.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Catalogue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CollectionAccountAdminView'
+    post:
+      operationId: adminCreateCollectionAccount
+      summary: Créer un compte de collecte
+      description: |
+        Déclare un compte sur lequel les marchands pourront verser.
+
+        ⚠️ **L'identifiant bancaire est immuable après création** : le modifier détournerait tous les
+        versements suivants. Changer de compte = **désactiver** l'ancien + en créer un nouveau. Le
+        format est donc validé strictement à la création (MSISDN pour `mobile_money`, IBAN pour
+        `bank`) — c'est le dernier contrôle automatique avant qu'un marchand verse sur un mauvais
+        numéro.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label, type, accountIdentifier, accountHolder]
+              properties:
+                label: { type: string, example: Wave Entreprise }
+                type: { type: string, enum: [mobile_money, bank] }
+                accountIdentifier: { type: string, example: '0700112233' }
+                accountHolder: { type: string, example: AIGLE SA }
+                instructions: { type: string, nullable: true }
+                displayOrder: { type: integer, default: 0 }
+      responses:
+        '201':
+          description: Compte créé
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CollectionAccountAdminView'
+        '422':
+          description: |
+            `E_COLLECTION_ACCOUNT_DUPLICATE` (identifiant déjà présent) ou
+            `E_COLLECTION_ACCOUNT_IDENTIFIER_MISMATCH` (format incompatible avec le type).
+
+  /api/admin/collection-accounts/{reference}:
+    patch:
+      operationId: adminUpdateCollectionAccount
+      summary: Modifier un compte de collecte
+      description: |
+        Met à jour les champs **éditables** uniquement.
+
+        ⚠️ `accountIdentifier` et `type` **ne sont pas modifiables** — ils ne figurent ni dans ce
+        contrat ni dans aucun autre. Il n'existe aucun chemin pour changer le numéro d'un compte
+        existant.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label: { type: string }
+                accountHolder: { type: string }
+                instructions: { type: string, nullable: true }
+                displayOrder: { type: integer }
+      responses:
+        '200':
+          description: Compte mis à jour
+        '404':
+          description: '`E_COLLECTION_ACCOUNT_NOT_FOUND`'
+
+  /api/admin/collection-accounts/{reference}/toggle:
+    patch:
+      operationId: adminToggleCollectionAccount
+      summary: Activer / désactiver un compte de collecte
+      description: |
+        **Remplace la suppression** : un compte désactivé disparaît de la liste marchand mais reste
+        en base — les demandes de réapprovisionnement le référencent, le supprimer rendrait
+        l'historique illisible. Aucune route `DELETE` n'existe.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isActive]
+              properties:
+                isActive: { type: boolean }
+      responses:
+        '200':
+          description: État mis à jour
+        '404':
+          description: '`E_COLLECTION_ACCOUNT_NOT_FOUND`'
+
+
 components:
   parameters:
     PageParam:
@@ -705,6 +839,20 @@ components:
         type: integer
 
   schemas:
+    CollectionAccountAdminView:
+      type: object
+      description: Compte de collecte vu par l'admin — vue marchand + état d'administration.
+      properties:
+        reference: { type: string, example: collect_9f3c1a7b2e04 }
+        label: { type: string, example: Wave Entreprise }
+        type: { type: string, enum: [mobile_money, bank] }
+        accountIdentifier: { type: string, example: '0700112233' }
+        accountHolder: { type: string, example: AIGLE SA }
+        instructions: { type: string, nullable: true }
+        isActive: { type: boolean }
+        displayOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     PaymentOption:
       type: object
       properties:

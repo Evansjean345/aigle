@@ -67,6 +67,10 @@ export type ScannedRoutes = {
     'users.activate': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_all_ledgers': { paramsTuple?: []; params?: {} }
     'ledgers.get_ledgers_stats': { paramsTuple?: []; params?: {} }
+    'collection_accounts.index': { paramsTuple?: []; params?: {} }
+    'collection_accounts.store': { paramsTuple?: []; params?: {} }
+    'collection_accounts.update': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
+    'collection_accounts.toggle': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'kyc_level.index': { paramsTuple?: []; params?: {} }
     'kyc_level.store': { paramsTuple?: []; params?: {} }
     'kyc_level.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -173,6 +177,7 @@ export type ScannedRoutes = {
     'mass_transfer.reject': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'mass_transfer.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'mass_transfer.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'client_collection_accounts.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_device.update_push_token': { paramsTuple?: []; params?: {} }
     'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
@@ -215,6 +220,7 @@ export type ScannedRoutes = {
     'kyc.get_user_kyc': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_all_ledgers': { paramsTuple?: []; params?: {} }
     'ledgers.get_ledgers_stats': { paramsTuple?: []; params?: {} }
+    'collection_accounts.index': { paramsTuple?: []; params?: {} }
     'kyc_level.index': { paramsTuple?: []; params?: {} }
     'kyc.index': { paramsTuple?: []; params?: {} }
     'kyc.stats': { paramsTuple?: []; params?: {} }
@@ -257,6 +263,7 @@ export type ScannedRoutes = {
     'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'mass_transfer.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'mass_transfer.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'client_collection_accounts.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
@@ -297,6 +304,7 @@ export type ScannedRoutes = {
     'kyc.get_user_kyc': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_all_ledgers': { paramsTuple?: []; params?: {} }
     'ledgers.get_ledgers_stats': { paramsTuple?: []; params?: {} }
+    'collection_accounts.index': { paramsTuple?: []; params?: {} }
     'kyc_level.index': { paramsTuple?: []; params?: {} }
     'kyc.index': { paramsTuple?: []; params?: {} }
     'kyc.stats': { paramsTuple?: []; params?: {} }
@@ -339,6 +347,7 @@ export type ScannedRoutes = {
     'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'mass_transfer.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'mass_transfer.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'client_collection_accounts.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
@@ -359,6 +368,7 @@ export type ScannedRoutes = {
     'providers.store': { paramsTuple?: []; params?: {} }
     'service_provider_methods.store': { paramsTuple?: []; params?: {} }
     'admin_refund.execute': { paramsTuple?: []; params?: {} }
+    'collection_accounts.store': { paramsTuple?: []; params?: {} }
     'kyc_level.store': { paramsTuple?: []; params?: {} }
     'kyc.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_app_version.store': { paramsTuple?: []; params?: {} }
@@ -448,6 +458,8 @@ export type ScannedRoutes = {
     'member.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
   }
   PATCH: {
+    'collection_accounts.update': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
+    'collection_accounts.toggle': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'role.update': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'roleId': ParamValue} }
     'member.update_role': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
   }

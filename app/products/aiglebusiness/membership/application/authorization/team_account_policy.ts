@@ -6,11 +6,11 @@ import MerchantNoTeamException from '#aiglebusiness/membership/domain/exceptions
 /**
  * Garde d'accès aux fonctions d'équipe (rôles/membres) : réservées aux organisations
  * de type **entreprise**. Un compte **marchand** (mono-utilisateur) ne gère pas d'équipe
- * → `403 E_MERCHANT_NO_TEAM`.
+ * → `403 E_MERCHANT_NO_TEAM'.
  *
  * Charge l'organisation et la **renvoie** pour réutilisation par l'appelant (évite un
  * second chargement). L'existence de l'org est garantie en amont (le membre est validé
- * par le middleware d'autorisation, org-scopé).
+ * par le middleware d'autorisation, org scopé).
  */
 export async function assertOrganisationAllowsTeam(
   organisationRepository: OrganisationRepository,

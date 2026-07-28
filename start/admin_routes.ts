@@ -3,6 +3,7 @@ import adminServicesManagementRoutes from '#core/catalog/catalogs/presentation/a
 import adminTransactionRoutes from '#core/money/transactions/presentation/admin/routes/transaction_routes'
 import adminUsersRoute from '#core/identity/user/presentation/admin/routes/users_route'
 import adminLedgerRoutes from '#core/money/ledger/presentation/admin/routes/ledger_routes'
+import adminCollectionAccountRoutes from '#aiglebusiness/funding/presentation/admin/routes/collection_account_routes'
 import adminKycRoutes from '#core/identity/kyc/presentation/admin/routes/kyc_routes'
 import adminAppVersionRoutes from '#core/identity/device/presentation/admin/routes/app_version_routes'
 import adminDeviceRoutes from '#core/identity/device/presentation/admin/routes/admin_device_routes'
@@ -19,6 +20,7 @@ router
     router.group(adminTransactionRoutes)
     router.group(adminUsersRoute)
     router.group(adminLedgerRoutes)
+    router.group(adminCollectionAccountRoutes)
     router.group(adminKycRoutes)
     router.group(adminDeviceRoutes)
     router.group(adminAppVersionRoutes)
