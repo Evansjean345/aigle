@@ -23,6 +23,7 @@ export default function businessTransferRoutes() {
       middleware.auth(),
       middleware.requireApp({ app: AppName.AIGLEBUSINESS }),
       middleware.businessDevice(),
+      middleware.activeOrganisation(),
       middleware.orgPermission({ permission: BUSINESS_PERMISSION.transferInitiate }),
     ])
 }

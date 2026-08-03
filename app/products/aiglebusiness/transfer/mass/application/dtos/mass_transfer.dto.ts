@@ -1,39 +1,38 @@
 /**
- * DTOs du **paiement en masse** business (produit `aiglebusiness/transfer/mass`). Frontière HTTP +
- * mapping vers le service core. Le produit ne connaît que le service core + ses DTOs (règle
- * `produit-consomme-core-par-service`).
+ * Contrats d'entrée et de sortie du paiement en masse.
  */
 
 /**
- * Initiateur d'un lot : le **membre** (user) qui déclenche pour le compte de l'organisation.
- * `usersUid` = traçabilité ; la **source** du mouvement reste le compte org.
+ * Membre qui déclenche un lot pour le compte de son organisation.
+ *
+ * Sert à la traçabilité : la source du mouvement reste le compte de l'organisation.
  */
 export interface MassTransferActor {
   id: number | string
   usersUid: string
 }
 
-/** Un bénéficiaire saisi côté client (liste JSON, ≤ 50 — L2-D8). */
+/** Bénéficiaire saisi par le client. Un lot en accepte au plus 50. */
 export interface MassTransferRecipientInput {
   amount: number | string
   /** MSISDN du bénéficiaire (mobile money). */
   phone: string
   /** Code opérateur/provider (ex. `wave`, `orange`, `moov`). */
   providerCode: string
-  /** Nom du bénéficiaire (traçabilité/affichage). */
+  /** Nom du bénéficiaire, pour la traçabilité et l'affichage. */
   name?: string
-  /** Pays (ex. `ci`) — défaut `ci`. */
+  /** Code pays, `ci` par défaut. */
   country?: string
 }
 
-/** Payload d'initiation d'un lot. Le type/mécanique argent est fixé côté serveur. */
+/** Corps de la demande d'initiation d'un lot. */
 export interface MassTransferRequestDto {
   label?: string
   description?: string
   recipients: MassTransferRecipientInput[]
 }
 
-/** Réponse d'initiation : le lot naît `pending_approval` (maker-checker). */
+/** Réponse d'initiation. Le lot est créé au statut `pending_approval`. */
 export interface MassTransferResponseDTO {
   message: string
   data: {

@@ -2,6 +2,7 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import { BUSINESS_PERMISSION } from '#aiglebusiness/membership/domain/permissions.config'
+import MerchantNoTeamException from '#aiglebusiness/membership/domain/exceptions/merchant_no_team_exception'
 import {
   invitationOtpThrottle,
   invitationResendThrottle,
@@ -45,7 +46,7 @@ export default function membershipClientRoutes() {
             // (le contrôle d'appartenance passe d'abord → pas de fuite du type d'org).
             .use([
               middleware.orgPermission({ permission: BUSINESS_PERMISSION.rolesManage }),
-              middleware.requireEnterprise(),
+              middleware.requireEnterprise({ onDenied: () => new MerchantNoTeamException() }),
             ])
 
           router
@@ -60,7 +61,7 @@ export default function membershipClientRoutes() {
             })
             .use([
               middleware.orgPermission({ permission: BUSINESS_PERMISSION.membersManage }),
-              middleware.requireEnterprise(),
+              middleware.requireEnterprise({ onDenied: () => new MerchantNoTeamException() }),
             ])
         })
         .prefix('organisations/:organisationId')
@@ -68,6 +69,7 @@ export default function membershipClientRoutes() {
           middleware.auth(),
           middleware.requireApp({ app: AppName.AIGLEBUSINESS }),
           middleware.businessDevice(),
+          middleware.activeOrganisation(),
         ])
 
       router.get('invitations/:token', [InvitationController, 'show']).use(invitationOtpThrottle)

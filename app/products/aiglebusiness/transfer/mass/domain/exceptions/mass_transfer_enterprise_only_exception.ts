@@ -1,9 +1,9 @@
 import { Exception } from '@adonisjs/core/exceptions'
 
 /**
- * Gate d'éligibilité du **paiement en masse** (L2-D23) : réservé aux comptes **ENTERPRISE**. Un
- * compte **marchand** est bloqué (il garde le transfert unique, L1-D6). Distinct de la sémantique
- * « équipe » (`E_MERCHANT_NO_TEAM`).
+ * Le paiement en masse est réservé aux organisations de type entreprise.
+ *
+ * Un compte marchand conserve le transfert unique.
  */
 export default class MassTransferEnterpriseOnlyException extends Exception {
   static status = 403

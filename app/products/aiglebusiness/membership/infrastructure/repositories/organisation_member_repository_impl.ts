@@ -3,6 +3,8 @@ import OrganisationMember from '#aiglebusiness/membership/domain/models/organisa
 import type OrganisationMemberRepository from '#aiglebusiness/membership/domain/interfaces/organisation_member_repository'
 import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
 import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import type { ListOrganisationMembersQuery } from '#aiglebusiness/membership/domain/types/organisation_member_repository_types'
 
 /**
  * Implémentation Lucid du port OrganisationMemberRepository.
@@ -95,7 +97,6 @@ export default class OrganisationMemberRepositoryImpl implements OrganisationMem
         role_id: roleId,
         status: MemberStatus.PENDING,
         invitation_token: token,
-        // Sans offset : la colonne timestamp MySQL rejette le suffixe '+00:00'.
         invitation_expires_at: expiresAt.toSQL({ includeOffset: false }),
       })
   }
@@ -111,5 +112,67 @@ export default class OrganisationMemberRepositoryImpl implements OrganisationMem
       .count('* as total')
       .first()
     return Number(result?.$extras.total ?? 0)
+  }
+
+  async countActiveByOrganisationIds(organisationIds: string[]): Promise<Map<string, number>> {
+    if (organisationIds.length === 0) return new Map()
+
+    const rows = await OrganisationMember.query()
+      .whereIn('organisation_id', organisationIds)
+      .where('status', MemberStatus.ACTIVE)
+      .groupBy('organisation_id')
+      .select('organisation_id')
+      .count('* as total')
+
+    return new Map(rows.map((row) => [row.organisationId, Number(row.$extras.total)]))
+  }
+
+  async countActiveByRoleIds(roleIds: number[]): Promise<Map<number, number>> {
+    if (roleIds.length === 0) return new Map()
+
+    const rows = await OrganisationMember.query()
+      .whereIn('role_id', roleIds)
+      .where('status', MemberStatus.ACTIVE)
+      .groupBy('role_id')
+      .select('role_id')
+      .count('* as total')
+
+    return new Map(rows.map((row) => [row.roleId, Number(row.$extras.total)]))
+  }
+
+  async listPaginatedByOrganisation(
+    organisationId: string,
+    query: ListOrganisationMembersQuery
+  ): Promise<ModelPaginatorContract<OrganisationMember>> {
+    const builder = OrganisationMember.query()
+      .where('organisation_id', organisationId)
+      .preload('role')
+
+    if (query.status) builder.where('status', query.status)
+
+    // Un tableau vide est un filtre, pas une absence de filtre : il signifie « aucune
+    // correspondance » et doit rendre une page vide.
+    if (query.userIds !== undefined) builder.whereIn('user_id', query.userIds)
+
+    return builder.orderBy('created_at', 'asc').paginate(query.page, query.perPage)
+  }
+
+  async listUserIdsByOrganisation(organisationId: string): Promise<string[]> {
+    const rows = await OrganisationMember.query()
+      .where('organisation_id', organisationId)
+      .distinct('user_id')
+      .select('user_id')
+
+    return rows.map((row) => row.userId)
+  }
+
+  async countByStatus(organisationId: string): Promise<Map<MemberStatus, number>> {
+    const rows = await OrganisationMember.query()
+      .where('organisation_id', organisationId)
+      .groupBy('status')
+      .select('status')
+      .count('* as total')
+
+    return new Map(rows.map((row) => [row.status, Number(row.$extras.total)]))
   }
 }

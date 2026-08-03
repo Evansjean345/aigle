@@ -1,6 +1,12 @@
 import type Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 import { type OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
+import { type OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
+import type {
+  ListOrganisationsQuery,
+  OrganisationStatsCounts,
+} from '#aiglebusiness/organisation/domain/types/organisation_repository_types'
 import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
+import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 
 /**
  * Port de persistance des organisations business.
@@ -34,4 +40,45 @@ export default abstract class OrganisationRepository {
    * Retrouve une organisation par son identifiant public (uuid).
    */
   abstract findByOrganisationId(organisationId: string): Promise<Organisation | null>
+
+  /**
+   * Liste paginée de **toutes** les organisations, les plus récentes d'abord.
+   *
+   * @param {ListOrganisationsQuery} query - Filtres et pagination, déjà normalisés.
+   * @returns {Promise<ModelPaginatorContract<Organisation>>} La page demandée et son compteur total.
+   */
+  abstract listPaginated(
+    query: ListOrganisationsQuery
+  ): Promise<ModelPaginatorContract<Organisation>>
+
+  /**
+   * Recherche une organisation par nom ou code payable, pour un champ d'autocomplétion.
+   *
+   * @param {string} term - Fragment recherché.
+   * @param {number} limit - Nombre maximal de résultats.
+   * @returns {Promise<Organisation[]>} Les correspondances, `[]` si le terme est vide.
+   */
+  abstract searchByTerm(term: string, limit: number): Promise<Organisation[]>
+
+  /**
+   * Fixe le statut de cycle de vie d'une organisation.
+   *
+   * @param {string} organisationId - Identifiant public de l'organisation.
+   * @param {OrganisationStatus} status - Nouveau statut.
+   * @param {TransactionClientContract} [trx] - Transaction englobante.
+   * @returns {Promise<Organisation>} L'organisation dans son nouvel état.
+   */
+  abstract updateStatus(
+    organisationId: string,
+    status: OrganisationStatus,
+    trx?: TransactionClientContract
+  ): Promise<Organisation>
+
+  /**
+   * Compte les organisations par statut, par type et sur la journée, pour le bandeau admin.
+   *
+   *
+   * @returns {Promise<OrganisationStatsCounts>} Les six compteurs, à zéro sur une base vide.
+   */
+  abstract countStats(): Promise<OrganisationStatsCounts>
 }

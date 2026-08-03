@@ -34,6 +34,7 @@ export default function businessTransactionsRoutes() {
       middleware.auth(),
       middleware.requireApp({ app: AppName.AIGLEBUSINESS }),
       middleware.businessDevice(),
+      middleware.activeOrganisation(),
       middleware.orgPermission({ permission: BUSINESS_PERMISSION.transactionsView }),
     ])
 }

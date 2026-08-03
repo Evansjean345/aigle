@@ -1,8 +1,7 @@
 import vine from '@vinejs/vine'
 
 /**
- * Payload d'un **paiement en masse** business : une liste de bénéficiaires mobile money. Cap **50**
- * (L2-D8) — au-delà, la voie fichier XLSX (différée, B7). Le type/mécanique argent est fixé serveur.
+ * Valide la demande d'initiation d'un lot : une liste de bénéficiaires mobile money, plafonnée à 50.
  */
 export const massTransferValidator = vine.compile(
   vine.object({

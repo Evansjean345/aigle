@@ -24,6 +24,18 @@ export default abstract class TransferBatchRepository {
   /** Liste les lots d'un compte (org), filtrable par statut, plus récents d'abord (lecture). */
   abstract listByAccount(accountId: string, status?: string): Promise<TransferBatch[]>
 
+  /**
+   * Liste les lots de **tous** les comptes, pour l'espace admin.
+   *
+   * ⚠️ Sans cloisonnement par compte, contrairement à `listByAccount` : à réserver aux contrôleurs
+   * admin. Un usage depuis un contrôleur client serait une fuite inter-organisations.
+   *
+   * @param {string} [status] - Filtre optionnel sur le statut du lot.
+   * @param {string} [accountId] - Restreint à un compte, pour la vue par organisation.
+   * @returns {Promise<TransferBatch[]>} Les lots correspondants, les plus récents d'abord.
+   */
+  abstract listForAdmin(status?: string, accountId?: string): Promise<TransferBatch[]>
+
   /** Retrouve un lot par sa clé d'idempotence de requête (rejeu du POST → même lot). */
   abstract findByIdempotencyKey(
     key: string,

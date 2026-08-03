@@ -63,7 +63,9 @@ test.group('Transfer | réservation (hold) — B2', (group) => {
     assert.equal(String(entry.id), reservationRef)
   })
 
-  test('hold : solde insuffisant → InsufficientFunds, aucun débit ni ledger', async ({ assert }) => {
+  test('hold : solde insuffisant → InsufficientFunds, aucun débit ni ledger', async ({
+    assert,
+  }) => {
     const { orgId, wallet } = await makeOrgWallet(1000)
 
     const svc = await app.container.make(TransferReservationService)

@@ -4,7 +4,7 @@ import type { TransactionStatus } from '#core/money/transactions/domain/enums/tr
 
 /**
  * Initiateur d'un transfert business : le **membre** (user) qui déclenche pour le compte de
- * l'organisation. `usersUid` = traçabilité (qui a initié) ; la **source** du mouvement reste le
+ * l'organisation. 'usersUid` = traçabilité (qui a initié) ; la **source** du mouvement reste le
  * compte org.
  */
 export interface TransferActor {
@@ -14,7 +14,7 @@ export interface TransferActor {
 
 /**
  * Payload d'un **transfert unique** business. Destination mobile money (externe). Le type
- * (`TransactionType.TRANSFERT`) est fixé côté serveur — le client ne le fournit pas.
+ * ('TransactionType.TRANSFERT') est fixé côté serveur — le client ne le fournit pas.
  */
 export interface TransferRequestDto {
   amount: number | string

@@ -1,18 +1,24 @@
 import { inject } from '@adonisjs/core'
 import TransferBatchRepository from '#core/money/transfer/domain/interfaces/transfer_batch_repository'
 import TransferItemRepository from '#core/money/transfer/domain/interfaces/transfer_item_repository'
-import type TransferBatch from '#core/money/transfer/domain/models/transfer_batch'
-import type TransferItem from '#core/money/transfer/domain/models/transfer_item'
-import type {
-  MassTransferBatchSummary,
-  MassTransferBatchDetail,
-  MassTransferItemView,
+import {
+  MassTransferBatchDetailResult,
+  MassTransferBatchResult,
 } from '#core/money/transfer/application/dtos/transfer.dto'
+import {
+  MassTransferAdminBatchResult,
+  MassTransferAdminBatchDetailResult,
+} from '#core/money/transfer/application/dtos/admin/admin_transfer.dto'
 
 /**
- * Lecture des lots de mass-transfer (B9). Retourne des **DTO plats** (aucun modèle Lucid exposé au
- * produit). **Isolation par org** : le détail par référence n'est renvoyé que si le lot appartient au
- * compte (`accountId`) — un membre ne peut pas lire le lot d'une autre org en devinant la référence.
+ * Lecture des lots de mass-transfer. Retourne des DTO plats, aucun modèle Lucid n'étant exposé au
+ * produit.
+ *
+ * Isolation par organisation : le détail par référence n'est renvoyé que si le lot appartient au
+ * compte, sauf sur les lectures admin, qui traverse volontairement les organisations.
+ *
+ * Les lectures client renvoient les vues de `transfer.dto.ts`, les lectures admin celles de
+ * `admin/admin_transfer.dto.ts`. Le mapping appartient aux DTOs.
  */
 @inject()
 export default class TransferQueryService {
@@ -21,47 +27,54 @@ export default class TransferQueryService {
     private readonly itemRepo: TransferItemRepository
   ) {}
 
-  async listBatches(accountId: string, status?: string): Promise<MassTransferBatchSummary[]> {
+  async listBatches(accountId: string, status?: string): Promise<MassTransferBatchResult[]> {
     const batches = await this.batchRepo.listByAccount(accountId, status)
-    return batches.map((batch) => this.toSummary(batch))
+    return batches.map((batch) => MassTransferBatchResult.fromBatch(batch))
   }
 
   async getBatchDetail(
     accountId: string,
     reference: string
-  ): Promise<MassTransferBatchDetail | null> {
+  ): Promise<MassTransferBatchDetailResult | null> {
     const batch = await this.batchRepo.findByReference(reference)
     if (!batch || batch.accountId !== accountId) return null // isolation par org
 
     const items = await this.itemRepo.listByBatch(batch.id)
-    return { ...this.toSummary(batch), items: items.map((item) => this.toItemView(item)) }
+    return MassTransferBatchDetailResult.fromBatchWithItems(batch, items)
   }
 
-  private toSummary(batch: TransferBatch): MassTransferBatchSummary {
-    return {
-      reference: batch.reference,
-      label: batch.label,
-      status: batch.status,
-      totalAmount: Number(batch.totalAmount),
-      fees: Number(batch.fees),
-      expectedCount: batch.expectedCount,
-      successfulCount: batch.successfulCount,
-      failedCount: batch.failedCount,
-      initiatedBy: batch.initiatedBy,
-      approvedBy: batch.approvedBy,
-      createdAt: batch.createdAt ? batch.createdAt.toISO() : null,
-    }
+  /**
+   * Liste les lots pour l'espace admin, tous comptes confondus.
+   *
+   * ⚠️ **Aucun cloisonnement par compte**, contrairement à `listBatches` : à réserver aux
+   * contrôleurs admin.
+   *
+   * @param {string} [status] - Filtre optionnel sur le statut du lot.
+   * @param {string} [accountId] - Restreint à un compte, pour la vue par organisation.
+   * @returns {Promise<MassTransferAdminBatchResult[]>} Les lots correspondants.
+   */
+  async listForAdmin(status?: string, accountId?: string): Promise<MassTransferAdminBatchResult[]> {
+    const batches = await this.batchRepo.listForAdmin(status, accountId)
+    return batches.map((batch) => MassTransferAdminBatchResult.fromBatch(batch))
   }
 
-  private toItemView(item: TransferItem): MassTransferItemView {
-    return {
-      sequence: item.sequence,
-      recipientName: item.recipientName,
-      recipientPhone: item.recipientPhone,
-      operator: item.operator,
-      amount: Number(item.amount),
-      status: item.status,
-      failureReason: item.failureReason,
-    }
+  /**
+   * Détail d'un lot pour l'espace admin, sans vérifier le compte propriétaire.
+   *
+   * ⚠️ À réserver aux contrôleurs admin : un membre passant par ici lirait le lot d'une autre
+   * organisation.
+   *
+   * @param {string} reference - Référence du lot.
+   * @returns {Promise<MassTransferAdminBatchDetailResult | null>} Le lot et ses bénéficiaires, ou
+   * `null` si la référence est inconnue.
+   */
+  async getBatchDetailForAdmin(
+    reference: string
+  ): Promise<MassTransferAdminBatchDetailResult | null> {
+    const batch = await this.batchRepo.findByReference(reference)
+    if (!batch) return null
+
+    const items = await this.itemRepo.listByBatch(batch.id)
+    return MassTransferAdminBatchDetailResult.fromBatchWithItems(batch, items)
   }
 }

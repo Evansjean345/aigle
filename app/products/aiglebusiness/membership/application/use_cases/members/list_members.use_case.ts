@@ -16,8 +16,6 @@ export default class ListMembersUseCase {
 
   async execute(organisationId: string): Promise<MemberResponseDTO[]> {
     const members = await this.memberRepository.listByOrganisation(organisationId)
-
-    // Résolution des identités en UNE requête (évite le N+1), indexées par id.
     const usersById = await this.userDirectory.mapByIds(members.map((member) => member.userId))
 
     return members.map((member) =>

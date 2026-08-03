@@ -80,7 +80,9 @@ test.group('Transfer | frais du paiement en masse — B10', (group) => {
     }
   })
 
-  test('initiation : hold = Σ(montant + frais), frais figés sur chaque item', async ({ assert }) => {
+  test('initiation : hold = Σ(montant + frais), frais figés sur chaque item', async ({
+    assert,
+  }) => {
     const { orgId, wallet } = await makeOrgWallet(100000)
 
     const svc = await app.container.make(TransferBatchService)

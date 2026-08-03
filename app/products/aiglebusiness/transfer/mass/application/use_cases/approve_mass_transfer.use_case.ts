@@ -4,9 +4,10 @@ import MembershipService from '#aiglebusiness/membership/application/services/me
 import type { MassTransferActor } from '#aiglebusiness/transfer/mass/application/dtos/mass_transfer.dto'
 
 /**
- * Approbation d'un lot de mass-transfer (maker-checker, B8). Le produit résout le rôle **OWNER** de
- * l'acteur (pour l'exception self-approve) puis délègue au service core. L'auth membre +
- * `transfer:approve` est assurée par les middlewares.
+ * Approuve un lot de décaissements en attente.
+ *
+ * Résout si l'approbateur est propriétaire de l'organisation, ce dont dépend l'autorisation
+ * d'approuver un lot qu'il a lui-même initié, puis délègue au service d'approbation du core.
  */
 @inject()
 export default class ApproveMassTransferUseCase {
@@ -15,6 +16,14 @@ export default class ApproveMassTransferUseCase {
     private readonly membershipService: MembershipService
   ) {}
 
+  /**
+   * Approuve le lot au nom de l'acteur.
+   *
+   * @param {string} reference - Référence du lot à approuver.
+   * @param {MassTransferActor} actor - Membre qui approuve.
+   * @param {string} organisationId - Organisation propriétaire du lot.
+   * @returns {Promise<void>} Rien.
+   */
   async execute(
     reference: string,
     actor: MassTransferActor,

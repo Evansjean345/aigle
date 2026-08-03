@@ -113,7 +113,10 @@ test.group('Paiement marchand | use case (routage)', (group) => {
     // Contrepartie marchand (privacy-first) : le **nom commercial** est écrit dans le payment du
     // leg payeur (le marchand n'a pas de user → pas de numéro à résoudre en contact).
     const senderPayment = await Payment.query().where('transactions_id', senderTx.id).firstOrFail()
-    assert.equal((senderPayment.paymentDetails as unknown as { name?: string }).name, 'Boutique Ali')
+    assert.equal(
+      (senderPayment.paymentDetails as unknown as { name?: string }).name,
+      'Boutique Ali'
+    )
 
     // Le ledger reste comptablement `wallet_transfert` (mécanisme wallet-to-wallet), indépendant du
     // label métier `checkout` de la transaction.

@@ -1,0 +1,822 @@
+paths:
+  /api/admin/organisations:
+    get:
+      operationId: adminListOrganisations
+      summary: Lister les organisations
+      description: >
+        Liste paginée de **toutes** les organisations, les plus récentes d'abord. Le propriétaire, le
+        portefeuille et le nombre de membres actifs sont résolus pour la page entière — trois requêtes
+        au total, quel que soit le nombre de lignes.
+
+
+        La recherche porte sur le nom, le code payable et l'identifiant de l'organisation.
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: perPage
+          in: query
+          required: false
+          description: Plafonné à 100 côté serveur.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+        - name: search
+          in: query
+          required: false
+          description: Fragment de nom, de code payable ou d'identifiant.
+          schema: { type: string }
+        - name: accountType
+          in: query
+          required: false
+          schema: { type: string, enum: [marchand, enterprise] }
+        - name: level
+          in: query
+          required: false
+          schema: { type: string }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+        - name: startDate
+          in: query
+          required: false
+          description: Borne basse de création, incluse.
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          required: false
+          description: Borne haute de création, incluse — la journée entière.
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: La page demandée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrganisationsResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.list` absente.
+
+  /api/admin/organisations/search:
+    get:
+      operationId: adminSearchOrganisations
+      summary: Rechercher une organisation
+      description: >
+        Autocomplétion par nom ou code payable. Résultats allégés et plafonnés à 20 : cette route
+        sert un champ de saisie, pas un export.
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Fragment recherché. Obligatoire — un terme vide rendrait toute la table.
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: Les correspondances.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrganisationSearchItemResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.list` absente.
+        '422':
+          description: Terme de recherche absent ou vide.
+
+  /api/admin/organisations/stats:
+    get:
+      operationId: adminGetOrganisationStats
+      summary: Compteurs d'en-tête des organisations
+      description: >
+        Bandeau de la liste. Les compteurs portent sur le parc entier et ne suivent pas les filtres
+        affichés : ils servent de repère stable pendant qu'on filtre.
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Les six compteurs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrganisationStatsResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.list` absente.
+
+  /api/admin/organisations/{id}:
+    get:
+      operationId: adminGetOrganisation
+      summary: Fiche d'une organisation
+      description: >
+        Renvoie l'organisation, son propriétaire, son portefeuille et son nombre de membres actifs.
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifiant public de l'organisation.
+          schema: { type: string }
+      responses:
+        '200':
+          description: La fiche.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrganisationAdminResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.read` absente.
+        '404':
+          description: Identifiant inconnu.
+
+  /api/admin/organisations/{id}/members:
+    get:
+      operationId: adminListOrganisationMembers
+      summary: Membres d'une organisation
+      description: >
+        Liste paginée des membres, leur identité et leur rôle résolus. Les invitations en attente y
+        figurent avec leur statut — seul le compteur `memberCount` de la fiche se limite aux membres
+        actifs.
+
+
+        `meta.statusCounts` porte l'effectif par statut de l'**organisation entière**, indépendant de
+        la page et des filtres : c'est ce qui permet aux pastilles de filtre d'annoncer un effectif
+        réel plutôt que le contenu de la page courante.
+
+
+        La recherche porte sur le nom et le téléphone. Elle est résolue **parmi les membres de
+        l'organisation**, jamais dans l'annuaire entier : chercher « a » globalement ramènerait des
+        milliers de comptes dont la quasi-totalité n'appartient pas à cette organisation. Une
+        recherche sans correspondance rend une page vide, jamais tous les membres.
+
+
+        Lecture seule : la gestion des membres appartient à l'organisation.
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: perPage
+          in: query
+          required: false
+          description: Plafonné à 100 côté serveur.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: status
+          in: query
+          required: false
+          description: Filtre sur le statut d'appartenance.
+          schema: { type: string }
+        - name: search
+          in: query
+          required: false
+          description: Fragment de nom ou de téléphone.
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: La page demandée.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrganisationMembersResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.members.list` absente.
+        '404':
+          description: Identifiant inconnu.
+
+  /api/admin/organisations/{id}/roles:
+    get:
+      operationId: adminListOrganisationRoles
+      summary: Rôles d'une organisation
+      description: >
+        Liste les rôles de l'organisation, leurs permissions résolues et le nombre de membres actifs
+        qui les portent.
+
+
+        Les rôles sont **propres à chaque organisation** : deux d'entre elles peuvent avoir un
+        « Caissier » sans rapport. Un seul est semé à la création — `owner`, portant l'intégralité du
+        catalogue ; les autres sont créés par l'organisation, donc `isSystem: false`.
+
+
+        Les rôles **sans aucun membre** figurent dans la réponse avec `memberCount: 0` : ils
+        conservent leurs permissions, et c'est ce qu'un audit cherche à repérer.
+
+
+        Lecture seule : les rôles sont un contrôle interne à l'organisation.
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Les rôles.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrganisationRoleAdminResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.roles.list` absente.
+        '404':
+          description: Identifiant inconnu.
+
+  /api/admin/organisations/{id}/wallet-stats:
+    get:
+      operationId: adminGetOrganisationWalletStats
+      summary: Portefeuille et activité d'une organisation
+      description: >
+        Solde du portefeuille et agrégats du **grand livre** — entrées, sorties, frais, nombre
+        d'écritures, et volume brassé sur trente jours. L'agrégation part du grand livre et non des
+        transactions : une somme calculée sur les transactions compterait aussi celles qui n'ont
+        jamais abouti.
+
+
+        Une organisation sans portefeuille rend des compteurs à zéro, pas une erreur.
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Le portefeuille et son activité.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrganisationWalletStatsResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.wallets.read` absente.
+        '404':
+          description: Identifiant inconnu.
+
+  /api/admin/organisations/{id}/payable:
+    patch:
+      operationId: adminSetOrganisationPayableStatus
+      summary: Ouvrir ou suspendre l'encaissement
+      description: >
+        Bascule l'acceptation des paiements présentant le QR marchand de l'organisation.
+
+
+        ⚠️ **Effet monétaire.** Le drapeau est relu à **chaque** encaissement, sur les deux chemins
+        de paiement : suspendre fait immédiatement refuser tout paiement présentant ce code
+        (`E_MERCHANT_INACTIVE`). Ce n'est pas un masquage d'affichage — le marchand cesse d'encaisser.
+
+
+        Réversible et sans effet rétroactif : les paiements déjà encaissés ne sont pas touchés.
+
+
+        Le motif est obligatoire et la décision auditée (`ENABLE_PAYABLE` / `DISABLE_PAYABLE`) :
+        couper les revenus d'un marchand doit pouvoir s'expliquer des mois plus tard.
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active, reason]
+              properties:
+                active:
+                  type: boolean
+                  description: "`true` rouvre l'encaissement, `false` le suspend."
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                  description: Motif de la décision, conservé dans la piste d'audit.
+      responses:
+        '200':
+          description: L'encaissement dans son nouvel état.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PayableStatusResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.payable` absente.
+        '404':
+          description: >
+            Organisation inconnue, ou organisation sans QR d'encaissement
+            (`E_PAYABLE_ALIAS_NOT_FOUND`) — elle n'encaisse pas du tout, il n'y a rien à basculer.
+        '422':
+          description: Motif absent ou trop court.
+
+  /api/admin/organisations/{id}/status:
+    patch:
+      operationId: adminChangeOrganisationStatus
+      summary: Bloquer ou débloquer une organisation
+      description: >
+        Bloquer coupe l'accès de **tous les membres** dès la requête suivante — le statut est relu à
+        chaque appel des routes scopées `organisations/:organisationId`, qui répondent alors
+        `E_ORGANISATION_BLOCKED` — et révoque leurs sessions business. Les sessions aiglesend des
+        mêmes personnes restent intactes : les jetons sont stampés par app.
+
+
+        Bloquer **gèle aussi le portefeuille** : sans cela, les encaissements continueraient de
+        créditer et les lots approuvés de se vider, alors que plus personne dans l'organisation ne
+        peut intervenir.
+
+
+        Débloquer rend l'accès, **jamais le portefeuille** : le dégel passe par
+        `PATCH /organisations/{id}/wallet/unfreeze`, sous la permission
+        `organisations.wallets.unfreeze`. Rendre l'accès est sans conséquence, rendre l'argent ne
+        l'est pas.
+
+
+        Le motif est obligatoire et la décision auditée (`BLOCK_ORGANISATION` /
+        `UNBLOCK_ORGANISATION`).
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [blocked, reason]
+              properties:
+                blocked:
+                  type: boolean
+                  description: "`true` bloque l'organisation, `false` la débloque."
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                  description: Motif de la décision, conservé dans la piste d'audit.
+      responses:
+        '200':
+          description: L'organisation dans son nouvel état.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrganisationStateResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.block` absente.
+        '404':
+          description: Organisation inconnue.
+        '422':
+          description: Motif absent ou trop court.
+
+  /api/admin/organisations/{id}/wallet/freeze:
+    patch:
+      operationId: adminFreezeOrganisationWallet
+      summary: Geler le portefeuille d'une organisation
+      description: >
+        Un portefeuille gelé fait refuser tout encaissement et tout décaissement : la garde est
+        appliquée sur chaque partie prenante d'un mouvement. Les lots de paiement déjà approuvés
+        sont concernés — leurs lignes restantes repassent en attente sans être versées ni rendues,
+        et le lot reprend de lui-même au dégel.
+
+
+        Un portefeuille se **gèle**, une organisation se **bloque** : les deux droits sont
+        distincts. Le même vocabulaire vaut pour les utilisateurs (`/wallets/{userId}/freeze`).
+
+
+        Bloquer une organisation gèle son portefeuille au passage — cette route sert au gel exercé
+        seul.
+
+
+        Le motif est obligatoire et la décision auditée (`FREEZE_WALLET`).
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                  description: Motif de la décision, conservé dans la piste d'audit.
+      responses:
+        '200':
+          description: Le portefeuille dans son nouvel état.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrganisationWalletStateResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.wallets.freeze` absente.
+        '404':
+          description: Organisation inconnue, ou organisation sans portefeuille.
+        '422':
+          description: Motif absent ou trop court.
+
+  /api/admin/organisations/{id}/wallet/unfreeze:
+    patch:
+      operationId: adminUnfreezeOrganisationWallet
+      summary: Dégeler le portefeuille d'une organisation
+      description: >
+        Rétablit les encaissements et les décaissements. Les lots de paiement suspendus reprennent
+        d'eux-mêmes.
+
+
+        Débloquer une organisation ne dégèle pas son portefeuille : c'est cette route, sous la
+        permission `organisations.wallets.unfreeze`, qui rend l'argent.
+
+
+        Le dégel exige une organisation **active** : rendre l'argent à une organisation bloquée
+        remettrait les mouvements en marche alors que plus personne n'y a accès. L'ordre est donc
+        imposé — débloquer, puis dégeler.
+
+
+        Le motif est obligatoire et la décision auditée (`UNFREEZE_WALLET`).
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                  description: Motif de la décision, conservé dans la piste d'audit.
+      responses:
+        '200':
+          description: Le portefeuille dans son nouvel état.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrganisationWalletStateResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.wallets.unfreeze` absente.
+        '404':
+          description: Organisation inconnue, ou organisation sans portefeuille.
+        '409':
+          description: >
+            Dégel demandé sur une organisation bloquée
+            (`E_UNFREEZE_ON_BLOCKED_ORGANISATION`) — débloquez-la d'abord.
+        '422':
+          description: Motif absent ou trop court.
+
+components:
+  schemas:
+    PayableStatusResponseDTO:
+      type: object
+      description: État de l'encaissement après bascule.
+      properties:
+        code: { type: string }
+        displayName:
+          type: string
+          description: Nom montré au payeur au moment du scan.
+        active: { type: boolean }
+
+    PaginatedOrganisationMembersResponseDTO:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganisationMemberAdminResponseDTO'
+        meta:
+          type: object
+          properties:
+            total: { type: integer }
+            currentPage: { type: integer }
+            firstPage: { type: integer }
+            lastPage: { type: integer }
+            perPage: { type: integer }
+            statusCounts:
+              type: object
+              additionalProperties: { type: integer }
+              description: >
+                Effectif par statut sur l'organisation entière, indépendant de la page et des
+                filtres. Un statut sans membre est absent de l'objet.
+              example: { active: 12, pending: 3 }
+
+    OrganisationPermissionRef:
+      type: object
+      description: >
+        Permission du catalogue business. Le libellé et le caractère sensible viennent du catalogue
+        serveur, pas de la base : seuls les slugs y sont stockés.
+      properties:
+        slug: { type: string, example: 'transfer:approve' }
+        name: { type: string }
+        sensitive:
+          type: boolean
+          description: Permission à fort impact — argent, accès, données confidentielles.
+
+    OrganisationRoleAdminResponseDTO:
+      type: object
+      properties:
+        id: { type: integer }
+        slug: { type: string, example: owner }
+        name: { type: string }
+        isSystem:
+          type: boolean
+          description: >
+            Rôle du socle : ni renommable, ni supprimable, ni attribuable par invitation.
+        memberCount:
+          type: integer
+          description: Membres actifs portant ce rôle. Zéro est une information, pas une anomalie.
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganisationPermissionRef'
+        createdAt: { type: string, format: date-time, nullable: true }
+
+    OrganisationMemberAdminResponseDTO:
+      type: object
+      description: >
+        Membre d'une organisation. `roleSlug` et `roleName` valent `null` si le rôle a été supprimé ;
+        `roleId` reste la trace subsistante.
+      properties:
+        id: { type: integer }
+        userId: { type: string }
+        firstname: { type: string, nullable: true }
+        lastname: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        roleId: { type: integer }
+        roleSlug: { type: string, nullable: true }
+        roleName: { type: string, nullable: true }
+        status: { type: string }
+        createdAt: { type: string, format: date-time, nullable: true }
+
+    OrganisationWalletStatsResponseDTO:
+      type: object
+      properties:
+        wallet:
+          type: object
+          properties:
+            balance: { type: integer }
+            currency: { type: string, example: XOF }
+            status:
+              type: string
+              nullable: true
+              description: Nul quand l'organisation n'a pas encore de portefeuille.
+        activity:
+          type: object
+          description: Agrégats du grand livre pour le compte.
+          properties:
+            totalIn: { type: integer, description: Somme des crédits. }
+            totalOut: { type: integer, description: Somme des débits. }
+            totalFees: { type: integer, description: Somme des frais prélevés. }
+            transactionCount:
+              type: integer
+              description: >
+                Nombre total d'écritures, entrées et sorties confondues. Ce n'est pas un nombre de
+                transactions : une transaction produit plusieurs lignes au grand livre.
+            inCount:
+              type: integer
+              description: Nombre d'écritures au crédit — les encaissements.
+            outCount:
+              type: integer
+              description: Nombre d'écritures au débit — les décaissements.
+            monthlyVolume:
+              type: integer
+              description: Mouvements des trente derniers jours, entrées et sorties confondues.
+
+    OrganisationOwnerRef:
+      type: object
+      description: >
+        Propriétaire de l'organisation. Les noms et le téléphone valent `null` si le compte n'existe
+        plus ; `userId` reste renseigné, seule trace subsistante.
+      properties:
+        userId: { type: string }
+        firstname: { type: string, nullable: true }
+        lastname: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+
+    OrganisationWalletRef:
+      type: object
+      description: Portefeuille de l'organisation, réduit à ce qu'affiche la fiche.
+      properties:
+        balance: { type: integer }
+        currency: { type: string, example: XOF }
+        status:
+          type: string
+          enum: [active, inactive]
+          description: "`inactive` fait refuser tout encaissement et tout décaissement."
+
+    OrganisationAdminResponseDTO:
+      type: object
+      description: Organisation telle que la voit l'espace admin.
+      properties:
+        organisationId: { type: string }
+        name: { type: string }
+        accountType: { type: string, enum: [marchand, enterprise] }
+        level: { type: string }
+        status: { type: string }
+        payableCode: { type: string, nullable: true }
+        payableQr:
+          type: string
+          nullable: true
+          description: Lien encodé dans le QR marchand. Nul en l'absence de code payable.
+        payableActive:
+          type: boolean
+          nullable: true
+          description: >
+            Encaissement ouvert ou suspendu. **Nul** quand l'organisation n'a pas d'alias payable —
+            elle n'encaisse pas du tout, ce qui n'est pas la même chose qu'un encaissement fermé.
+        payableDisplayName:
+          type: string
+          nullable: true
+          description: Nom montré au payeur au moment du scan.
+        owner:
+          $ref: '#/components/schemas/OrganisationOwnerRef'
+        wallet:
+          allOf:
+            - $ref: '#/components/schemas/OrganisationWalletRef'
+          nullable: true
+          description: Nul tant qu'aucun portefeuille n'a été créé pour l'organisation.
+        memberCount:
+          type: integer
+          description: Membres au statut actif. Les invitations en attente ne sont pas comptées.
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+
+    OrganisationWalletStateResponseDTO:
+      type: object
+      description: État du portefeuille d'une organisation après gel ou dégel.
+      required: [organisationId, walletStatus]
+      properties:
+        organisationId: { type: string }
+        walletStatus: { type: string, enum: [active, inactive] }
+
+    OrganisationStateResponseDTO:
+      type: object
+      description: >
+        État d'une organisation après bascule du blocage. `revokedSessions` dit ce que l'action a
+        réellement coupé — sans lui, on ignore si les membres ont été déconnectés ou l'étaient déjà.
+      required: [organisationId, status, revokedSessions]
+      properties:
+        organisationId: { type: string }
+        status: { type: string, enum: [active, inactive] }
+        revokedSessions:
+          type: integer
+          description: Sessions business révoquées. Toujours `0` sur un déblocage.
+
+    OrganisationStatsResponseDTO:
+      type: object
+      description: >
+        Compteurs du bandeau. `merchants` et `enterprises` partitionnent le total, `active` et
+        `inactive` aussi : deux lectures du même ensemble, pas des sous-ensembles à additionner.
+      required:
+        [
+          totalOrganisations,
+          activeOrganisations,
+          inactiveOrganisations,
+          merchants,
+          enterprises,
+          createdToday,
+        ]
+      properties:
+        totalOrganisations: { type: integer }
+        activeOrganisations: { type: integer }
+        inactiveOrganisations: { type: integer }
+        merchants: { type: integer }
+        enterprises: { type: integer }
+        createdToday:
+          type: integer
+          description: Créées depuis minuit, dans le fuseau du serveur.
+
+    OrganisationSearchItemResponseDTO:
+      type: object
+      description: Résultat d'autocomplétion, réduit à de quoi identifier et choisir.
+      properties:
+        organisationId: { type: string }
+        name: { type: string }
+        accountType: { type: string, enum: [marchand, enterprise] }
+        payableCode: { type: string, nullable: true }
+
+    PaginatedOrganisationsResponseDTO:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrganisationAdminResponseDTO'
+        meta:
+          type: object
+          properties:
+            total: { type: integer }
+            currentPage: { type: integer }
+            firstPage: { type: integer }
+            lastPage: { type: integer }
+            perPage: { type: integer }

@@ -30,7 +30,7 @@ async function makeSentBatch(refs: string[]): Promise<TransferBatch> {
   batch.status = TransferBatchStatus.QUEUED
   await batch.save()
 
-  for (let i = 0; i < refs.length; i++) {
+  for (const [i, ref] of refs.entries()) {
     const item = new TransferItem()
     item.batchId = batch.id
     item.idempotencyKey = `${batch.id}:${i}`
@@ -42,7 +42,7 @@ async function makeSentBatch(refs: string[]): Promise<TransferBatch> {
     item.operator = 'orange'
     item.country = 'ci'
     item.status = TransferItemStatus.SENT // accepté par Hub2, en attente webhook
-    item.transactionReference = refs[i]
+    item.transactionReference = ref
     item.attempts = 1
     await item.save()
   }

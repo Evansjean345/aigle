@@ -3,6 +3,10 @@ import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import { QueueManager } from '@adonisjs/queue'
+import Account from '#core/identity/account/domain/models/account'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
+import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
 import Wallet from '#core/money/wallet/domain/models/wallet'
 import Ledger from '#core/money/ledger/domain/models/ledger'
 import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
@@ -16,7 +20,9 @@ import Transaction from '#core/money/transactions/domain/models/transaction'
 import FeeResolver from '#core/money/money_movement/application/services/fee_resolver'
 import { ProviderResponse } from '#core/money/provider_gateway/domain/value_objects/provider_response'
 import { ErrorSeverity } from '#core/money/provider_gateway/domain/enums/error_severity'
+import PartyValidator from '#core/money/money_movement/application/services/party_validator'
 import {
+  PermissivePartyValidator,
   reloadBalance,
   swapGuards,
   swapProviderGateway,
@@ -36,6 +42,17 @@ async function makeQueuedItem(
   amount: number
 ): Promise<{ orgId: string; wallet: Wallet; batch: TransferBatch; item: TransferItem }> {
   const orgId = randomUUID()
+
+  // Le compte porteur : l'envoi vérifie qu'il est toujours actif avant de verser.
+  const account = new Account()
+  account.accountId = orgId
+  account.ownerType = AccountOwnerType.ORGANISATION
+  account.ownerRef = orgId
+  account.segment = AccountSegment.ENTERPRISE
+  account.level = 1
+  account.status = AccountStatus.ACTIVE
+  await account.save()
+
   const wallet = new Wallet()
   wallet.accountId = orgId
   wallet.userId = null as unknown as string
@@ -183,13 +200,17 @@ test.group('Transfer | exécution item (B4)', (group) => {
     await item.save()
 
     // La grille a bougé depuis l'initiation : elle facturerait désormais bien plus cher.
-    app.container.swap(FeeResolver, () => ({
-      resolve: async (_ctx: unknown, amount: number) => ({
-        amount,
-        fees: 9999,
-        total: amount + 9999,
-      }),
-    }) as any)
+    app.container.swap(
+      FeeResolver,
+      () =>
+        ({
+          resolve: async (_ctx: unknown, amount: number) => ({
+            amount,
+            fees: 9999,
+            total: amount + 9999,
+          }),
+        }) as any
+    )
 
     try {
       const processor = await app.container.make(TransferItemProcessor)
@@ -208,5 +229,32 @@ test.group('Transfer | exécution item (B4)', (group) => {
     // La fee réservée, pas la nouvelle grille.
     assert.equal(Number(tx.fees), FROZEN_FEE)
     assert.equal(Number(tx.totalAmount), 20000 + FROZEN_FEE)
+  })
+
+  test('portefeuille gelé après approbation : item suspendu, ni versé ni rendu', async ({
+    assert,
+  }) => {
+    const { wallet, item } = await makeQueuedItem(80000, 20000)
+
+    wallet.status = WalletStatus.Inactive
+    await wallet.save()
+
+    // La garde réelle, que `swapGuards` neutralise par défaut.
+    app.container.restore(PartyValidator)
+
+    try {
+      const processor = await app.container.make(TransferItemProcessor)
+      await processor.process(item.id)
+    } finally {
+      app.container.swap(PartyValidator, () => new PermissivePartyValidator() as any)
+    }
+
+    await item.refresh()
+
+    assert.equal(item.status, TransferItemStatus.QUEUED)
+    assert.isNotNull(item.nextRetryAt)
+    assert.equal(item.attempts, 0, 'le gel ne consomme pas de tentative')
+    assert.isNull(item.transactionReference, "aucun versement n'a été tenté")
+    assert.equal(await reloadBalance(wallet.id), 80000, 'le hold est conservé')
   })
 })

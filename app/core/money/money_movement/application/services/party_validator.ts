@@ -15,15 +15,14 @@ import type { TransactionType } from '#core/money/transactions/domain/enums/tran
 import type { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
 
 /**
- * Brique partagée de l'engine : valide une partie prenante d'un mouvement — **account-centric**
- * (refactor 2026-07). Orchestrateur money par `accountId` : lit le **standing** du compte (identity,
- * `getStanding` — source unique en lecture), puis contrôle dans l'ordre :
- *  1. **statut party** actif (le compte n'est pas bloqué) ;
- *  2. **gel argent** : le wallet du compte est actif (`WalletStatus`) ;
- *  3. **limites** (unitaire / volume / solde) selon le niveau du compte.
+ * Valide une partie prenante d'un mouvement, par `accountId`.
  *
- * Ne dépend plus du modèle `User` ni de `wallet.user` : le compte est la source de la validation.
- * Utilisée par toutes les primitives (moveInternal en valide deux, les primitives externes une).
+ * Lit le standing du compte, puis contrôle dans l'ordre :
+ *  1. le compte n'est pas bloqué ;
+ *  2. son portefeuille n'est pas gelé ;
+ *  3. les limites — unitaire, volume, solde — de son niveau.
+ *
+ * Utilisée par toutes les primitives : `moveInternal` en valide deux, les primitives externes une.
  */
 @inject()
 export default class PartyValidator {
@@ -78,6 +77,30 @@ export default class PartyValidator {
         throw new RecipientLimitExceededException()
       }
       throw error
+    }
+  }
+
+  /**
+   * Vérifie que le compte et son portefeuille autorisent un mouvement, sans contrôler les limites.
+   *
+   * Destinée aux mouvements déjà réservés, dont le montant a été validé à l'engagement et qui
+   * n'ont plus à repasser par les plafonds.
+   *
+   * @param {string} accountId - Compte de la partie prenante.
+   * @throws {AccountBlockedException} Le compte n'est pas actif.
+   * @throws {WalletInactiveException} Le portefeuille du compte est gelé.
+   */
+  async assertOperational(accountId: string): Promise<void> {
+    const status = await this.accountStandingService.getStatus(accountId)
+
+    if (status !== AccountStatus.ACTIVE) {
+      throw new AccountBlockedException()
+    }
+
+    const wallet = await this.walletService.getByAccountId(accountId)
+
+    if (wallet.status !== WalletStatus.Active) {
+      throw new WalletInactiveException()
     }
   }
 

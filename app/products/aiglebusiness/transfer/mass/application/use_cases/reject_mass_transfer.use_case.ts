@@ -4,8 +4,10 @@ import MembershipService from '#aiglebusiness/membership/application/services/me
 import type { MassTransferActor } from '#aiglebusiness/transfer/mass/application/dtos/mass_transfer.dto'
 
 /**
- * Rejet d'un lot de mass-transfer (maker-checker, B8) → `rejected` + libération du hold (côté core).
- * Même résolution OWNER + séparation des tâches que l'approbation.
+ * Rejette un lot de décaissements en attente.
+ *
+ * Le core passe le lot en `rejected` et libère les fonds réservés. Même résolution du rôle
+ * propriétaire que l'approbation.
  */
 @inject()
 export default class RejectMassTransferUseCase {
@@ -14,6 +16,15 @@ export default class RejectMassTransferUseCase {
     private readonly membershipService: MembershipService
   ) {}
 
+  /**
+   * Rejette le lot au nom de l'acteur.
+   *
+   * @param {string} reference - Référence du lot à rejeter.
+   * @param {MassTransferActor} actor - Membre qui rejette.
+   * @param {string} organisationId - Organisation propriétaire du lot.
+   * @param {string} [reason] - Motif du rejet.
+   * @returns {Promise<void>} Rien.
+   */
   async execute(
     reference: string,
     actor: MassTransferActor,

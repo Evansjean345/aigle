@@ -8,23 +8,27 @@ import type {
 } from '#aiglebusiness/transfer/mass/application/dtos/mass_transfer.dto'
 
 /**
- * Use case **paiement en masse** business — routeur mince (produit → core par service).
+ * Initie un lot de décaissements depuis le compte d'une organisation.
  *
- * Un **membre** (permission `transfer:initiate`) initie un lot de décaissements **depuis le compte de
- * l'organisation**. Le produit ne fait que **traduire** : il résout la **source** (account-centric :
- * `accountId == organisationId'), réduit le membre à un acteur d'audit, mappe les bénéficiaires
- * (`providerCode → operator`), puis délègue au **service core** `TransferBatchService'. Toute la
- * mécanique argent (idempotence, réservation hold, bulk-insert, statuts) vit dans le core ; le produit
- * n'y touche que par le service + ses DTOs (règle `produit-consomme-core-par-service`).
+ * Se limite à traduire la requête vers le contrat du core, puis à déléguer : l'idempotence, la
+ * réservation des fonds et les statuts du lot sont portés par le service de lots.
  *
- * Ce qui est **spécifique au produit** (hors de ce use case) : l'auth membre + `transfer:initiate` et
- * le **gate ENTERPRISE** (middlewares), le maker-checker (B8). Ici, uniquement le mapping + la
- * délégation.
+ * La source est le compte de l'organisation ; l'initiateur n'est que l'acteur d'audit.
  */
 @inject()
 export default class InitiateMassTransferUseCase {
   constructor(private readonly transferBatchService: TransferBatchService) {}
 
+  /**
+   * Construit la commande de lot et la transmet au service du core.
+   *
+   * @param {MassTransferRequestDto} payload - Libellé, description et liste des bénéficiaires.
+   * @param {MassTransferActor} actor - Membre à l'origine de la demande, conservé pour l'audit.
+   * @param {string} organisationId - Organisation débitée, qui sert de compte source.
+   * @param {string} [idempotencyKey] - Clé d'idempotence de la requête.
+   * @returns {Promise<MassTransferResponseDTO>} Référence, statut et nombre de bénéficiaires du lot,
+   * avec un message distinct si le lot existait déjà.
+   */
   async execute(
     payload: MassTransferRequestDto,
     actor: MassTransferActor,

@@ -9,27 +9,28 @@ import type {
 } from '#aiglebusiness/transfer/application/dtos/transfer.dto'
 
 /**
- * Use case **transfert unique** business — routeur mince (produit → core par service).
+ * Initie un transfert unique depuis le compte d'une organisation vers un compte mobile money.
  *
- * Un **membre** (permission `transfer:initiate`) initie un décaissement **depuis le compte de
- * l'organisation** vers un mobile money. Account-centric : la **source** est le compte org
- * (`fromAccountId == organisationId`), l'initiateur n'est que l'acteur d'audit. Toute la mécanique
- * argent (débit gardé, records PENDING, ledger, initiation Hub2, settlement webhook) vit dans le
- * core — ici on **mappe** vers `ExternalOutCommand` puis on délègue à `engine.initiateExternalOut`.
+ * Se limite à construire la commande et à déléguer au moteur de mouvement de fonds du core, qui
+ * porte le débit, les enregistrements, le ledger et le règlement.
  *
- * **Pas de restriction par segment** : marchand comme entreprise peuvent décaisser. Le **gate,
- * ce sont les limites de transactions** du compte (résolues via `(segment, level)` → grille
- * `kyc_level`), appliquées par le `PartyValidator` dans `external_out`.
- *
- * **Taxonomie unifiée** : tout mouvement de fonds vers un compte **externe** (business OU aiglesend)
- * est un **`transfert`** — pas de type `payout` distinct. La transaction est `TransactionType.
- * TRANSFERT`, réglée/remboursée/affichée par le chemin transfert existant. La business paie les frais
- * (`includeFees = false` → total = montant + frais).
+ * La source est le compte de l'organisation : l'initiateur n'est que l'acteur d'audit. Les limites
+ * de transaction du compte sont appliquées en aval, il n'y a pas de restriction par type
+ * d'organisation. Les frais sont à la charge de l'organisation.
  */
 @inject()
 export default class InitiateTransferUseCase {
   constructor(private readonly engine: MoneyMovementEngine) {}
 
+  /**
+   * Construit la commande de décaissement et la transmet au moteur.
+   *
+   * @param {TransferRequestDto} payload - Montant, destinataire, opérateur et méthode de paiement.
+   * @param {TransferActor} actor - Membre à l'origine de la demande, conservé pour l'audit.
+   * @param {string} organisationId - Organisation débitée, qui sert de compte source.
+   * @param {string} [idempotencyKey] - Clé d'idempotence de la requête.
+   * @returns {Promise<TransferResponseDTO>} La référence et le statut de la transaction créée.
+   */
   async execute(
     payload: TransferRequestDto,
     actor: TransferActor,
@@ -41,7 +42,6 @@ export default class InitiateTransferUseCase {
       amount: Number(payload.amount),
       currency: 'XOF',
       initiatedBy: actor.usersUid,
-      // Mouvement vers un compte externe = transfert (taxonomie unifiée).
       type: TransactionType.TRANSFERT,
       fromAccountId: organisationId,
       destination: { operator: payload.providerCode, msisdn: payload.phone, country: 'ci' },

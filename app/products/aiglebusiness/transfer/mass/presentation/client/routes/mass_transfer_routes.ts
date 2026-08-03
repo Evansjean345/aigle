@@ -2,6 +2,7 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import { BUSINESS_PERMISSION } from '#aiglebusiness/membership/domain/permissions.config'
+import MassTransferEnterpriseOnlyException from '#aiglebusiness/transfer/mass/domain/exceptions/mass_transfer_enterprise_only_exception'
 import {
   massTransferSimulateThrottle,
   massTransferInitiateThrottle,
@@ -10,23 +11,27 @@ import {
 const MassTransferController = () =>
   import('#aiglebusiness/transfer/mass/presentation/client/controllers/mass_transfer_controller')
 
-/** Middlewares communs du canal client business (avant l'`orgPermission` spécifique). */
+/** Middlewares communs du canal client business, posés avant la permission d'organisation. */
 const businessChannel = () => [
   middleware.geoip(),
   middleware.businessChannel(),
   middleware.auth(),
   middleware.requireApp({ app: AppName.AIGLEBUSINESS }),
   middleware.businessDevice(),
+  middleware.activeOrganisation(),
 ]
 
 /**
- * Paiement en masse d'une organisation (canal client), scopé `organisations/:organisationId`.
- * **Gate ENTERPRISE** (L2-D23) sur **tous** les groupes (`requireEnterpriseForMass`, après
- * `orgPermission` pour ne pas révéler le type d'org à un non-membre). Permissions par usage :
- * initiation `transfer:initiate` · maker-checker `transfer:approve` · lecture `transactions:view`.
+ * Routes du paiement en masse d'une organisation.
+ *
+ * Toutes réservées aux organisations de type entreprise, le contrôle étant posé après celui de la
+ * permission d'organisation pour ne pas révéler le type d'une organisation à un non-membre.
+ *
+ * Une permission par usage : `transfer:initiate` pour simuler et initier, `transfer:approve` pour
+ * approuver ou rejeter, `transactions:view` pour consulter.
  */
 export default function massTransferRoutes() {
-  // Simulation — transfer:initiate (devis avant engagement, lecture pure)
+  // Simulation : devis avant engagement, lecture pure.
   router
     .group(() => {
       router
@@ -40,10 +45,10 @@ export default function massTransferRoutes() {
     .use([
       ...businessChannel(),
       middleware.orgPermission({ permission: BUSINESS_PERMISSION.transferInitiate }),
-      middleware.requireEnterpriseForMass(),
+      middleware.requireEnterprise({ onDenied: () => new MassTransferEnterpriseOnlyException() }),
     ])
 
-  // Initiation — transfer:initiate
+  // Initiation d'un lot.
   router
     .group(() => {
       router
@@ -54,10 +59,10 @@ export default function massTransferRoutes() {
     .use([
       ...businessChannel(),
       middleware.orgPermission({ permission: BUSINESS_PERMISSION.transferInitiate }),
-      middleware.requireEnterpriseForMass(),
+      middleware.requireEnterprise({ onDenied: () => new MassTransferEnterpriseOnlyException() }),
     ])
 
-  // Maker-checker — transfer:approve
+  // Approbation et rejet, par un membre distinct de l'initiateur.
   router
     .group(() => {
       router.post('organisations/:organisationId/mass-transfers/:reference/approve', [
@@ -73,10 +78,10 @@ export default function massTransferRoutes() {
     .use([
       ...businessChannel(),
       middleware.orgPermission({ permission: BUSINESS_PERMISSION.transferApprove }),
-      middleware.requireEnterpriseForMass(),
+      middleware.requireEnterprise({ onDenied: () => new MassTransferEnterpriseOnlyException() }),
     ])
 
-  // Lecture — transactions:view
+  // Consultation.
   router
     .group(() => {
       router.get('organisations/:organisationId/mass-transfers', [MassTransferController, 'index'])
@@ -89,6 +94,6 @@ export default function massTransferRoutes() {
     .use([
       ...businessChannel(),
       middleware.orgPermission({ permission: BUSINESS_PERMISSION.transactionsView }),
-      middleware.requireEnterpriseForMass(),
+      middleware.requireEnterprise({ onDenied: () => new MassTransferEnterpriseOnlyException() }),
     ])
 }

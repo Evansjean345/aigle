@@ -13,12 +13,10 @@ import type {
 } from '#aiglebusiness/transfer/mass/application/dtos/mass_transfer.dto'
 
 /**
- * Controller du **paiement en masse** business. Routeur mince : valide, réduit le membre à l'acteur
- * d'audit, résout la **source** (`organisationId` = compte org) et délègue aux use cases.
- * - `create` (202) : initie un lot (`pending_approval`).
- * - `approve`/`reject` (200) : maker-checker (permission `transfer:approve`).
+ * Points d'entrée HTTP du paiement en masse : simulation, initiation, consultation et approbation.
  *
- * Autorisation en amont par les middlewares (auth membre + `orgPermission` + gate ENTERPRISE en B9).
+ * Valide la requête, réduit le membre authentifié à un acteur d'audit, puis délègue aux use cases.
+ * L'autorisation est assurée en amont par les middlewares.
  */
 @inject()
 export default class MassTransferController {
@@ -32,9 +30,10 @@ export default class MassTransferController {
   ) {}
 
   /**
-   * `simulate` (200) — devis d'un lot **avant** initiation : coût total et **manque à approvisionner**.
-   * Lecture pure : ni lot, ni hold. Même validateur que `create`, donc on ne simule que ce qu'on
-   * pourrait réellement envoyer.
+   * Chiffre un lot avant de l'engager : coût total et montant restant à approvisionner.
+   *
+   * Lecture pure, et même validateur que l'initiation : on ne simule que ce qui pourrait réellement
+   * être envoyé.
    */
   async simulate({ request, response, params }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(massTransferValidator)
@@ -56,6 +55,7 @@ export default class MassTransferController {
     return response.ok({ data })
   }
 
+  /** Liste les lots de l'organisation, filtrables par statut via le paramètre `status`. */
   async index({ request, response, params }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
     const status = request.input('status') as string | undefined
@@ -63,6 +63,7 @@ export default class MassTransferController {
     return response.ok({ data })
   }
 
+  /** Renvoie le détail d'un lot et de ses bénéficiaires. */
   async show({ response, params }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
     const reference = params.reference as string
@@ -70,6 +71,7 @@ export default class MassTransferController {
     return response.ok({ data })
   }
 
+  /** Initie un lot. Répond `202` : le lot est créé en attente d'approbation. */
   async create({ request, response, auth, params }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(massTransferValidator)
 
@@ -100,6 +102,7 @@ export default class MassTransferController {
     return response.accepted(result)
   }
 
+  /** Approuve un lot en attente, ce qui le met en file d'exécution. */
   async approve({ response, auth, params }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
     const reference = params.reference as string
@@ -109,6 +112,7 @@ export default class MassTransferController {
     return response.ok({ message: 'lot approuvé', data: { reference, status: 'queued' } })
   }
 
+  /** Rejette un lot en attente et libère les fonds réservés. */
   async reject({ request, response, auth, params }: HttpContext): Promise<void> {
     const organisationId = params.organisationId as string
     const reference = params.reference as string
@@ -119,6 +123,12 @@ export default class MassTransferController {
     return response.ok({ message: 'lot rejeté', data: { reference, status: 'rejected' } })
   }
 
+  /**
+   * Réduit le membre authentifié à l'acteur d'audit attendu par les use cases.
+   *
+   * @param {HttpContext['auth']} auth - Contexte d'authentification de la requête.
+   * @returns {MassTransferActor} L'acteur à tracer.
+   */
   private actor(auth: HttpContext['auth']): MassTransferActor {
     const member = auth.user! as { id: number; usersUid: string }
     return { id: member.id, usersUid: member.usersUid }

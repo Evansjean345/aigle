@@ -56,9 +56,13 @@ test.group('Transfer | initiation mass (service core) — B3', (group) => {
     // B3 teste l'idempotence, la réserve et le bulk-insert — PAS la tarification (couverte en B10).
     // Grille neutralisée à 0 pour que les soldes attendus restent déterministes et indépendants du
     // catalogue seedé.
-    app.container.swap(FeeResolver, () => ({
-      resolve: async (_ctx: unknown, amount: number) => ({ amount, fees: 0, total: amount }),
-    }) as any)
+    app.container.swap(
+      FeeResolver,
+      () =>
+        ({
+          resolve: async (_ctx: unknown, amount: number) => ({ amount, fees: 0, total: amount }),
+        }) as any
+    )
 
     return async () => {
       app.container.restore(FeeResolver)

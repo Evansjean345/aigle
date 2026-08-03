@@ -2,23 +2,28 @@ import limiter from '@adonisjs/limiter/services/main'
 import type { HttpContext } from '@adonisjs/core/http'
 
 /**
- * Rate-limiters du paiement en masse (L2-D35).
+ * Limiteurs de débit du paiement en masse.
  *
- * **Clés par ORGANISATION, pas par IP** — à la différence des throttles checkout, dont le payeur est
- * anonyme. Ici l'appelant est authentifié : une clé IP pénaliserait les collègues d'un même bureau
- * derrière un NAT partagé, *et* se contournerait en changeant d'IP. La clé org suit l'identité réelle.
+ * Les clés sont établies par organisation et non par IP : l'appelant est authentifié, et une clé IP
+ * pénaliserait les collègues d'un même réseau tout en se contournant par changement d'adresse.
  */
 
-/** Repli si l'organisation n'est pas résolue (route mal formée) — on ne laisse jamais passer sans clé. */
+/**
+ * Construit la clé de limitation d'une requête.
+ *
+ * Retombe sur l'adresse IP si l'organisation n'est pas résolue, pour ne jamais laisser passer une
+ * requête sans clé.
+ *
+ * @param {HttpContext} ctx - Contexte de la requête.
+ * @returns {string} Identifiant de l'organisation, ou adresse IP à défaut.
+ */
 const orgKey = (ctx: HttpContext): string => String(ctx.params?.organisationId ?? ctx.request.ip())
 
 /**
- * Simulation (`POST .../mass-transfers/simulate'). Endpoint peu coûteux à appeler, mais **cher à
- * servir** (N résolutions de grille par appel) et qui **expose la tarification**.
+ * Limiteur de la simulation : 15 requêtes par minute, blocage d'une minute.
  *
- * 30/min : un marchand qui ajuste sa liste de paie simule 5 à 20 fois.
- * Blocage 1 min seulement : c'est un outil de préparation, une rafale
- * accidentelle (double-clic, retry front) ne doit pas punir un usage légitime.
+ * L'appel est peu coûteux à émettre mais cher à servir, et il expose la grille tarifaire. Le blocage
+ * reste court car il s'agit d'un outil de préparation, où une rafale accidentelle est banale.
  */
 export const massTransferSimulateThrottle = limiter.define('mass_transfer_simulate', (ctx) => {
   return limiter
@@ -32,12 +37,10 @@ export const massTransferSimulateThrottle = limiter.define('mass_transfer_simula
 })
 
 /**
- * Initiation ('POST .../mass-transfers') : chaque appel **pose un hold** qui
- * immobilise des fonds réels et crée un lot à approuver.
+ * Limiteur de l'initiation : 10 requêtes par tranche de deux minutes, blocage de cinq minutes.
  *
- * L'idempotence ne protège **que** du rejeu d'une même clé — rien n'empêche N lots *distincts*
- * d'affilée. Limite volontairement basse : initier plus de 10 lots par minute ne correspond à aucun
- * usage humain de paie, et le blocage de 5 min borne les dégâts d'un client en boucle.
+ * Chaque appel immobilise des fonds réels et crée un lot à approuver. L'idempotence ne protège que
+ * du rejeu d'une même clé, pas de l'enchaînement de lots distincts.
  */
 export const massTransferInitiateThrottle = limiter.define('mass_transfer_initiate', (ctx) => {
   return limiter

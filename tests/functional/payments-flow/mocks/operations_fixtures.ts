@@ -104,8 +104,9 @@ class PermissiveLimitValidation {
  * compte (identity) + le wallet — hors chemin argent caractérisé. On le remplace par un no-op (les
  * fixtures créent user+wallet mais pas de compte/standing seedé).
  */
-class PermissivePartyValidator {
+export class PermissivePartyValidator {
   async validate(): Promise<void> {}
+  async assertOperational(): Promise<void> {}
 }
 
 /** Garde debit_phone (dépôt/inter) neutralisée. */

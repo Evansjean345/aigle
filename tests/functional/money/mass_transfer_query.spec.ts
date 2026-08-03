@@ -7,15 +7,30 @@ import TransferItem from '#core/money/transfer/domain/models/transfer_item'
 import { TransferBatchStatus } from '#core/money/transfer/domain/enums/transfer_batch_status'
 import { TransferItemStatus } from '#core/money/transfer/domain/enums/transfer_item_status'
 import TransferQueryService from '#core/money/transfer/application/services/transfer_query_service'
-import { assertOrganisationCanMassTransfer } from '#aiglebusiness/transfer/mass/application/authorization/mass_transfer_policy'
+import {
+  assertOrganisationIsEnterprise,
+  type OrganisationTypeLookup,
+} from '#aiglebusiness/shared/authorization/enterprise_policy'
+import MassTransferEnterpriseOnlyException from '#aiglebusiness/transfer/mass/domain/exceptions/mass_transfer_enterprise_only_exception'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
-import type OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 
-/** Repo org mocké : renvoie un type de compte donné (ou null = introuvable). */
-function fakeOrgRepo(accountType: OrganisationAccountType | null): OrganisationRepository {
+/** Le gate est désormais mutualisé ; le mass transfer lui fournit son propre code d'erreur. */
+const denyMass = () => new MassTransferEnterpriseOnlyException()
+
+/**
+ * Lecture de type d'organisation mockée (ou `null` = introuvable).
+ *
+ * Aucune assertion de type : le gate ne réclame qu'une lecture, pas le port complet, donc ce
+ * bouchon est vérifié par le compilateur. La version précédente passait par
+ * `as unknown as OrganisationRepository`, qui aurait continué de compiler même si la signature
+ * réellement appelée avait changé.
+ */
+function fakeOrgRepo(accountType: OrganisationAccountType | null): OrganisationTypeLookup {
   return {
-    findByOrganisationId: async () => (accountType ? ({ accountType } as never) : null),
-  } as unknown as OrganisationRepository
+    async findByOrganisationId() {
+      return accountType ? { accountType } : null
+    },
+  }
 }
 
 async function makeBatch(
@@ -58,17 +73,25 @@ async function makeBatch(
 // ── Gate ENTERPRISE (L2-D23) ─────────────────────────────────────────────────
 test.group('Transfer | gate enterprise (B9)', () => {
   test('enterprise → autorisé', async () => {
-    await assertOrganisationCanMassTransfer(fakeOrgRepo(OrganisationAccountType.ENTERPRISE), 'org-1')
+    await assertOrganisationIsEnterprise(
+      fakeOrgRepo(OrganisationAccountType.ENTERPRISE),
+      'org-1',
+      denyMass
+    )
   })
 
   test('marchand → 403', async ({ assert }) => {
     await assert.rejects(() =>
-      assertOrganisationCanMassTransfer(fakeOrgRepo(OrganisationAccountType.MARCHAND), 'org-1')
+      assertOrganisationIsEnterprise(
+        fakeOrgRepo(OrganisationAccountType.MARCHAND),
+        'org-1',
+        denyMass
+      )
     )
   })
 
   test('org introuvable → 403', async ({ assert }) => {
-    await assert.rejects(() => assertOrganisationCanMassTransfer(fakeOrgRepo(null), 'org-1'))
+    await assert.rejects(() => assertOrganisationIsEnterprise(fakeOrgRepo(null), 'org-1', denyMass))
   })
 })
 

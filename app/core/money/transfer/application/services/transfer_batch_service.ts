@@ -14,7 +14,7 @@ import type TransferItem from '#core/money/transfer/domain/models/transfer_item'
 import type {
   InitiateMassTransferCommand,
   MassTransferResult,
-  MassTransferSimulation,
+  MassTransferSimulationResult,
 } from '#core/money/transfer/application/dtos/transfer.dto'
 
 /**
@@ -79,7 +79,7 @@ export default class TransferBatchService {
    * **Lecture pure** : aucun lot, aucun item, aucun hold, aucune transaction DB — un marchand doit
    * pouvoir comparer des scénarios sans jamais immobiliser ses fonds.
    */
-  async simulate(command: InitiateMassTransferCommand): Promise<MassTransferSimulation> {
+  async simulate(command: InitiateMassTransferCommand): Promise<MassTransferSimulationResult> {
     const { recipients } = command
     const itemFees = await this.resolveItemFees(recipients)
 

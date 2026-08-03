@@ -46,6 +46,22 @@ export default class TransferBatchRepositoryImpl implements TransferBatchReposit
     return query.orderBy('created_at', 'desc')
   }
 
+  /**
+   * Liste les lots de tous les comptes, ou d'un seul si `accountId` est fourni.
+   *
+   * @param {string} [status] - Filtre optionnel sur le statut.
+   * @param {string} [accountId] - Restreint à un compte.
+   * @returns {Promise<TransferBatch[]>} Les lots, les plus récents d'abord.
+   */
+  async listForAdmin(status?: string, accountId?: string): Promise<TransferBatch[]> {
+    const query = TransferBatch.query()
+
+    if (status) query.where('status', status)
+    if (accountId) query.where('account_id', accountId)
+
+    return query.orderBy('created_at', 'desc')
+  }
+
   async update(
     batchId: number,
     patch: Partial<TransferBatch>,

@@ -2,21 +2,19 @@ import { inject } from '@adonisjs/core'
 import AccountRepository from '#core/identity/account/domain/interfaces/account_repository'
 import KycLevelDirectoryService from '#core/identity/kyc/application/services/kyc_level_directory_service'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { type AccountStatus } from '#core/identity/account/domain/enums/account_status'
 import { type AccountStandingResult } from '#core/identity/account/application/dtos/account.dto'
 import AccountNotFoundException from '#core/identity/account/domain/exceptions/account_not_found_exception'
 import AccountLimitsNotConfiguredException from '#core/identity/account/domain/exceptions/account_limits_not_configured_exception'
 
 /**
- * Port de LECTURE du **standing** d'un compte (identity), consommé par la validation money.
+ * Lecture du standing d'un compte, consommée par la validation money.
  *
- * Le compte est la **source unique en lecture** (refactor account-centric β) : `getStanding` lit le
- * compte (segment, niveau, statut — tous synchronisés par push depuis le propriétaire) puis résout
- * ses **limites** via le catalogue de niveaux — consommé par le **service** `kyc`
- * (`KycLevelDirectoryService`), jamais son repository (frontière feature→feature par service).
- * **Aucune** branche par ownerType : la synchro a déjà rapatrié l'état sur le compte.
+ * Le compte est la source unique en lecture : segment, niveau et statut y sont synchronisés depuis
+ * le propriétaire, et aucune branche par `ownerType` n'est nécessaire. Les limites sont résolues
+ * via le service `kyc`, jamais son repository.
  *
- * Renvoie un **Result minimal** (`AccountStandingResult`) : jamais le modèle `Account`, ni
- * `User`/`Organisation`.
+ * Renvoie un Result minimal : jamais le modèle `Account`, ni `User` / `Organisation`.
  */
 @inject()
 export default class AccountStandingService {
@@ -26,13 +24,35 @@ export default class AccountStandingService {
   ) {}
 
   /**
-   * Résout le standing d'un compte : `{ segment, level, status, limits }`. Les plafonds `null`
-   * signifient **illimité**.
+   * Lit le seul statut d'un compte, sans résoudre ses limites.
    *
-   * @param accountId Compte cible.
-   * @throws {AccountNotFoundException} 404 si le compte est introuvable.
-   * @throws {AccountLimitsNotConfiguredException} 500 si la grille `(segment, level)` est absente
-   *   (mauvaise configuration du catalogue de niveaux).
+   * Destinée aux gardes qui n'ont pas à connaître les plafonds : elles restent ainsi insensibles à
+   * la configuration du catalogue de niveaux.
+   *
+   * @param {string} accountId - Compte cible.
+   * @returns {Promise<AccountStatus>} Le statut du compte.
+   * @throws {AccountNotFoundException} Compte introuvable.
+   */
+  async getStatus(accountId: string): Promise<AccountStatus> {
+    const account = await this.accountRepository.findByAccountId(accountId)
+
+    if (!account) {
+      throw new AccountNotFoundException()
+    }
+
+    return account.status
+  }
+
+  /**
+   * Résout le standing d'un compte : segment, niveau, statut et limites.
+   *
+   * Un plafond `null` signifie illimité.
+   *
+   * @param {string} accountId - Compte cible.
+   * @returns {Promise<AccountStandingResult>} Le standing résolu.
+   * @throws {AccountNotFoundException} Compte introuvable.
+   * @throws {AccountLimitsNotConfiguredException} La grille `(segment, level)` est absente du
+   *   catalogue de niveaux.
    */
   async getStanding(accountId: string): Promise<AccountStandingResult> {
     const account = await this.accountRepository.findByAccountId(accountId)
