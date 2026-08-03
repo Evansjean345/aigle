@@ -1,7 +1,7 @@
 # Symétrie produit — remonter l'administration aiglesend dans son produit
 
 **Date** : 2026-08-03
-**Statut** : approuvé — S1 et S2 livrés
+**Statut** : livré — S1, S2 et S3
 **Portée** : `app/core/` → `app/products/aiglesend/`
 
 ---
@@ -154,6 +154,34 @@ qui compte par `UserRepository.countByKycLevel` — méthode ajoutée au port.
 **Un test a suivi la logique.** `process_kyc_document.spec.ts` testait le use case en lui injectant
 un faux repository ; il teste maintenant le service, où la logique a migré. Ses deux échecs
 préexistants demeurent — ils viennent du listener de l'événement, pas du refactor.
+
+### Ce que S3 a conclu
+
+**L'écart annoncé s'est résolu autrement que prévu.** Le document annonçait qu'il faudrait créer un
+contrat de service pour combler les six champs de `UserLookupResult` face aux cinquante-quatre de la
+fiche admin. En pratique, les trois DTO admin étaient déjà des projections pures — aucune
+transformation au-delà du mapping depuis le modèle. Ils **sont devenus** les `Result`, et les use
+cases les rendent tels quels : aucun DTO produit intermédiaire, puisqu'il n'aurait rien transformé.
+
+`UserAdminService` porte les cinq opérations — liste, recherche, fiche, compteurs, changement
+d'état — plus les statistiques de portefeuille. Il est distinct de `UserDirectoryService`, qui
+continue de servir l'identité minimale aux produits.
+
+**Deux méthodes ajoutées au port.** `findWithAdminDetails` — un use case faisait `User.query()` avec
+ses preloads en direct — et `countByKycLevel`, ajoutée en S2.
+
+**Les trois catalogues de permissions ont pu suivre.** Ils étaient restés au core parce que
+`users_route.ts` les consommait ; une fois cette route au produit, plus aucun fichier du core n'y
+touche. Ils vivent désormais avec leur feature. La règle posée en S1 — « chaque catalogue migre avec
+la dernière route qui le consomme » — s'est vérifiée telle quelle.
+
+**Quatre erreurs de la ligne de base ont disparu.** `AdminUserWalletStatsDto` déclarait les plafonds
+KYC `number` alors que le modèle les porte `number | null` — un `null` signifiant illimité. Le
+`Result` porte le type juste. La ligne de base TypeScript passe de 61 à 57.
+
+**État final** : `core/identity/user`, `core/identity/kyc` et `core/money/wallet` n'ont plus de
+dossier `presentation/admin`. Le core ne contient plus d'écran d'administration d'un objet
+appartenant à aiglesend.
 
 ---
 

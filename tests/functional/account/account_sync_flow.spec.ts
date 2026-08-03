@@ -10,7 +10,7 @@ import { AccountSegment } from '#core/identity/account/domain/enums/account_segm
 import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
 import { KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
 import AccountService from '#core/identity/account/application/services/account_service'
-import ChangeUserStateUseCase from '#core/identity/user/application/use_cases/admin/change_user_state_use_case'
+import ChangeUserStateUseCase from '#aiglesend/user/application/use_cases/admin/change_user_state_use_case'
 import UpdateUserKycStatus from '#core/identity/user/application/use_cases/update_user_kyc_status'
 
 /**

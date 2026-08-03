@@ -59,7 +59,6 @@ export type ScannedRoutes = {
     'admin_transaction.get_user_transaction_stats': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_user_ledgers': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_user_ledger_stats': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'kyc.get_user_kyc': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.block': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'users.activate': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_all_ledgers': { paramsTuple?: []; params?: {} }
@@ -96,6 +95,7 @@ export type ScannedRoutes = {
     'kyc.stats': { paramsTuple?: []; params?: {} }
     'kyc.kyc_details': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyc.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'kyc.get_user_kyc': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_device.get_devices': { paramsTuple?: []; params?: {} }
     'admin_device.get_user_devices': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'admin_device.revoke_device': { paramsTuple: [ParamValue,ParamValue]; params: {'userId': ParamValue,'deviceId': ParamValue} }
@@ -238,7 +238,6 @@ export type ScannedRoutes = {
     'admin_transaction.get_user_transaction_stats': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_user_ledgers': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_user_ledger_stats': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'kyc.get_user_kyc': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_all_ledgers': { paramsTuple?: []; params?: {} }
     'ledgers.get_ledgers_stats': { paramsTuple?: []; params?: {} }
     'collection_accounts.index': { paramsTuple?: []; params?: {} }
@@ -258,6 +257,7 @@ export type ScannedRoutes = {
     'kyc.index': { paramsTuple?: []; params?: {} }
     'kyc.stats': { paramsTuple?: []; params?: {} }
     'kyc.kyc_details': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'kyc.get_user_kyc': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_device.get_devices': { paramsTuple?: []; params?: {} }
     'admin_device.get_user_devices': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'admin_device.get_device_details': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
@@ -336,7 +336,6 @@ export type ScannedRoutes = {
     'admin_transaction.get_user_transaction_stats': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_user_ledgers': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_user_ledger_stats': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'kyc.get_user_kyc': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'ledgers.get_all_ledgers': { paramsTuple?: []; params?: {} }
     'ledgers.get_ledgers_stats': { paramsTuple?: []; params?: {} }
     'collection_accounts.index': { paramsTuple?: []; params?: {} }
@@ -356,6 +355,7 @@ export type ScannedRoutes = {
     'kyc.index': { paramsTuple?: []; params?: {} }
     'kyc.stats': { paramsTuple?: []; params?: {} }
     'kyc.kyc_details': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'kyc.get_user_kyc': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_device.get_devices': { paramsTuple?: []; params?: {} }
     'admin_device.get_user_devices': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'admin_device.get_device_details': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }

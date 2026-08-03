@@ -3,7 +3,7 @@ import type { PermissionDefinition } from '#core/team/domain/value_objects/permi
 import Role from '#core/team/domain/models/role'
 import Permission from '#core/team/domain/models/permission'
 import { ADMIN_PERMISSION_CATALOG } from '#start/permissions'
-import { WALLET_ADJUSTMENT_PERMISSIONS } from '#core/money/wallet/presentation/admin/permissions.config'
+import { WALLET_ADJUSTMENT_PERMISSIONS } from '#aiglesend/wallet/presentation/admin/permissions.config'
 import { REFUND_PERMISSIONS } from '#core/money/transactions/presentation/admin/permissions.config'
 
 /**

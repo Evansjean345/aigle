@@ -1,7 +1,7 @@
 import transmit from '@adonisjs/transmit/services/main'
 import { middleware } from '#start/kernel'
 import { adminHasPermission } from '#core/team/application/authorization/permission_helpers'
-import { KYC_PERMISSIONS } from '#core/identity/kyc/presentation/admin/permissions.config'
+import { KYC_PERMISSIONS } from '#aiglesend/kyc/presentation/admin/permissions.config'
 import type Admin from '#core/team/domain/models/admin'
 
 /**

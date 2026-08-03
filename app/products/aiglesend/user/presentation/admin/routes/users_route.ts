@@ -2,11 +2,11 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import { USER_TRANSACTION_PERMISSIONS } from '#core/money/transactions/presentation/admin/permissions.config'
 import { USER_LEDGER_PERMISSIONS } from '#core/money/ledger/presentation/admin/permissions.config'
-import { USER_PERMISSIONS } from '#core/identity/user/presentation/admin/permissions.config'
-import { USER_WALLET_PERMISSIONS } from '#core/money/wallet/presentation/admin/permissions.config'
+import { USER_PERMISSIONS } from '#aiglesend/user/presentation/admin/permissions.config'
+import { USER_WALLET_PERMISSIONS } from '#aiglesend/wallet/presentation/admin/permissions.config'
 
 const UsersController = () =>
-  import('#core/identity/user/presentation/admin/controllers/users_controller')
+  import('#aiglesend/user/presentation/admin/controllers/users_controller')
 
 const AdminTransactionController = () =>
   import('#core/money/transactions/presentation/admin/controllers/transactions_controller')

@@ -11,8 +11,8 @@ import {
 import {
   KYC_PERMISSIONS,
   KYC_LEVEL_PERMISSIONS,
-} from '#core/identity/kyc/presentation/admin/permissions.config'
-import { USER_PERMISSIONS } from '#core/identity/user/presentation/admin/permissions.config'
+} from '#aiglesend/kyc/presentation/admin/permissions.config'
+import { USER_PERMISSIONS } from '#aiglesend/user/presentation/admin/permissions.config'
 import {
   DEVICE_PERMISSIONS,
   APP_VERSION_PERMISSIONS,
@@ -29,7 +29,7 @@ import {
 import {
   USER_WALLET_PERMISSIONS,
   WALLET_ADJUSTMENT_PERMISSIONS,
-} from '#core/money/wallet/presentation/admin/permissions.config'
+} from '#aiglesend/wallet/presentation/admin/permissions.config'
 import { ADMIN_PERMISSIONS, ROLE_PERMISSIONS } from '#core/team/presentation/permissions.config'
 import {
   FUNDING_REQUEST_PERMISSIONS,

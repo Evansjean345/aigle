@@ -1,7 +1,7 @@
 import { HttpContext } from '@adonisjs/core/http'
 import type Admin from '#core/team/domain/models/admin'
 import { adminHasPermission } from '#core/team/application/authorization/permission_helpers'
-import { KYC_PERMISSIONS } from '#core/identity/kyc/presentation/admin/permissions.config'
+import { KYC_PERMISSIONS } from '#aiglesend/kyc/presentation/admin/permissions.config'
 import { inject } from '@adonisjs/core'
 import GetAllKycDocumentsUseCase from '#aiglesend/kyc/application/usecases/admin/get_all_kyc_documents.usecase'
 import GetKycStatsUseCase from '#aiglesend/kyc/application/usecases/admin/get_kyc_stats.usecase'

@@ -100,4 +100,13 @@ export default abstract class UserRepository {
    * @returns {Promise<number>} Le nombre de comptes concernés.
    */
   abstract countByKycLevel(level: number): Promise<number>
+
+  /**
+   * Charge un utilisateur avec tout ce qu'affiche sa fiche d'administration : pays, numéros de
+   * débit et leur opérateur, appareils encore liés et leur matériel, niveau KYC.
+   *
+   * @param {string} userId - Identifiant public de l'utilisateur.
+   * @returns {Promise<User | null>} L'utilisateur et ses relations, ou `null` s'il n'existe pas.
+   */
+  abstract findWithAdminDetails(userId: string): Promise<User | null>
 }

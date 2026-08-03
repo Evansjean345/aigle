@@ -3,7 +3,7 @@ import { middleware } from '#start/kernel'
 import {
   USER_WALLET_PERMISSIONS,
   WALLET_ADJUSTMENT_PERMISSIONS,
-} from '#core/money/wallet/presentation/admin/permissions.config'
+} from '#aiglesend/wallet/presentation/admin/permissions.config'
 
 const AdminWalletController = () =>
   import('#aiglesend/wallet/presentation/admin/controllers/admin_wallet_controller')

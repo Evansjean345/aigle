@@ -6,7 +6,7 @@ import { middleware } from '#start/kernel'
 import {
   KYC_PERMISSIONS,
   KYC_LEVEL_PERMISSIONS,
-} from '#core/identity/kyc/presentation/admin/permissions.config'
+} from '#aiglesend/kyc/presentation/admin/permissions.config'
 
 const adminKycRoutes = () => {
   router

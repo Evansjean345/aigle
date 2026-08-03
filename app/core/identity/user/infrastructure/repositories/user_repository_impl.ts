@@ -193,4 +193,18 @@ export default class UserRepositoryIml implements UserRepository {
 
     return Number(result[0].$extras.total)
   }
+
+  async findWithAdminDetails(userId: string): Promise<User | null> {
+    return User.query()
+      .where('usersUid', userId)
+      .preload('country')
+      .preload('debitPhones', (query) => {
+        query.preload('provider')
+      })
+      .preload('userDevices', (query) => {
+        query.whereNull('unlinkedAt').preload('device')
+      })
+      .preload('keyLevel')
+      .first()
+  }
 }
