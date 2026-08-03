@@ -1,11 +1,11 @@
 import { test } from '@japa/runner'
-import ProcessKycDocumentUseCase from '#core/identity/kyc/application/usecases/admin/process_kyc_document.usecase'
+import KycDocumentAdminService from '#core/identity/kyc/application/services/kyc_document_admin_service'
 import type KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import KycDocumentNotFoundException from '#core/identity/kyc/domain/exceptions/kyc_document_not_found_exception'
 
-test.group('Kyc | Process Use Case', () => {
+test.group('Kyc | revue des documents', () => {
   test("devrait lever une exception si le document n'existe pas", async ({ assert }) => {
     const mockRepo = {
       findById: async () => null,
@@ -17,10 +17,10 @@ test.group('Kyc | Process Use Case', () => {
       saveAttempt: async () => {},
     } as unknown as KycDocumentRepository
 
-    const usecase = new ProcessKycDocumentUseCase(mockRepo)
+    const service = new KycDocumentAdminService(mockRepo)
 
     await assert.rejects(
-      () => usecase.execute(1, KycDocumentStatus.APPROVED, undefined, 1),
+      () => service.process({ documentId: 1, status: KycDocumentStatus.APPROVED, agentId: 1 }),
       KycDocumentNotFoundException
     )
   })
@@ -50,9 +50,9 @@ test.group('Kyc | Process Use Case', () => {
       },
     } as unknown as KycDocumentRepository
 
-    const usecase = new ProcessKycDocumentUseCase(mockRepo)
+    const service = new KycDocumentAdminService(mockRepo)
 
-    await usecase.execute(1, KycDocumentStatus.APPROVED, 'Bon document', 1)
+    await service.process({ documentId: 1, status: KycDocumentStatus.APPROVED, comment: 'Bon document', agentId: 1 })
 
     assert.equal(savedDoc?.status, KycDocumentStatus.APPROVED)
     assert.equal(savedDoc?.comment, 'Bon document')
@@ -85,9 +85,9 @@ test.group('Kyc | Process Use Case', () => {
       },
     } as unknown as KycDocumentRepository
 
-    const usecase = new ProcessKycDocumentUseCase(mockRepo)
+    const service = new KycDocumentAdminService(mockRepo)
 
-    await usecase.execute(1, KycDocumentStatus.REJECTED, 'Photo floue', 1)
+    await service.process({ documentId: 1, status: KycDocumentStatus.REJECTED, comment: 'Photo floue', agentId: 1 })
 
     assert.equal(savedDoc?.status, KycDocumentStatus.REJECTED)
     assert.equal(savedAttempt?.status, KycDocumentStatus.REJECTED)

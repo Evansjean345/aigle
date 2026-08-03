@@ -1,7 +1,7 @@
 # Symétrie produit — remonter l'administration aiglesend dans son produit
 
 **Date** : 2026-08-03
-**Statut** : approuvé — S1 livré
+**Statut** : approuvé — S1 et S2 livrés
 **Portée** : `app/core/` → `app/products/aiglesend/`
 
 ---
@@ -128,6 +128,32 @@ côté du service qui les produit ; seuls les `RequestDto` et `ResponseDTO` sont
 
 **Aucun test à déplacer.** Cette zone n'avait pas de test d'administration — la décision « les tests
 suivent leur zone » n'a pas trouvé à s'appliquer, et reste à vérifier sur S2.
+
+### Ce que S2 a ajouté
+
+**Une route a dû changer de fichier.** `users_route.ts` déclarait `GET /users/:id/kyc` en pointant
+le contrôleur KYC. Une fois celui-ci au produit, le core l'aurait importé. La route est déclarée
+dans le fichier de routes KYC, avec son préfixe `users` — elle administre un dossier KYC, pas un
+utilisateur. Le chemin servi est inchangé.
+
+C'est la même leçon qu'en S1, appliquée cette fois à un contrôleur et non à un catalogue : les
+zones se tiennent par les routes transverses, et chacune se règle en rattachant la route à ce
+qu'elle administre.
+
+**Deux services créés, pas un.** `KycLevelService` porte les niveaux et leurs plafonds,
+`KycDocumentAdminService` la revue des documents — distinct de `KycLevelDirectoryService`, qui sert
+les plafonds au chemin client.
+
+`update` rend `{ before, after }` : la piste d'audit doit dire ce qui a changé, et le use case n'a
+plus accès au niveau une fois modifié. `delete` rend le niveau supprimé, pour la même raison.
+
+**Une règle métier remontée d'un use case.** `delete_kyc_level` interrogeait `User.query()`
+directement pour refuser la suppression d'un niveau utilisé. La règle vit désormais dans le service,
+qui compte par `UserRepository.countByKycLevel` — méthode ajoutée au port.
+
+**Un test a suivi la logique.** `process_kyc_document.spec.ts` testait le use case en lui injectant
+un faux repository ; il teste maintenant le service, où la logique a migré. Ses deux échecs
+préexistants demeurent — ils viennent du listener de l'événement, pas du refactor.
 
 ---
 

@@ -1,14 +1,14 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import GetAllKycLevelsUseCase from '#core/identity/kyc/application/usecases/admin/get_all_kyc_levels.usecase'
-import CreateKycLevelUseCase from '#core/identity/kyc/application/usecases/admin/create_kyc_level.usecase'
-import UpdateKycLevelUseCase from '#core/identity/kyc/application/usecases/admin/update_kyc_level.usecase'
-import DeleteKycLevelUseCase from '#core/identity/kyc/application/usecases/admin/delete_kyc_level.usecase'
+import GetAllKycLevelsUseCase from '#aiglesend/kyc/application/usecases/admin/get_all_kyc_levels.usecase'
+import CreateKycLevelUseCase from '#aiglesend/kyc/application/usecases/admin/create_kyc_level.usecase'
+import UpdateKycLevelUseCase from '#aiglesend/kyc/application/usecases/admin/update_kyc_level.usecase'
+import DeleteKycLevelUseCase from '#aiglesend/kyc/application/usecases/admin/delete_kyc_level.usecase'
 import {
   createKycLevelValidator,
   updateKycLevelValidator,
   kycLevelErrorMessages,
-} from '#core/identity/kyc/presentation/admin/validators/kyc_level_validator'
+} from '#aiglesend/kyc/presentation/admin/validators/kyc_level_validator'
 import { SimpleMessagesProvider } from '@vinejs/vine'
 
 @inject()

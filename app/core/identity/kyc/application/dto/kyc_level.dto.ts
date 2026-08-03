@@ -1,5 +1,5 @@
 import { type KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
-import type KycLevel from '#core/identity/kyc/domain/models/kyc_level'
+import type { KycLevelResult } from '#core/identity/kyc/application/dtos/kyc_level_admin.dto'
 
 export class CreateKycLevelDto {
   declare level: KycLevelState
@@ -33,18 +33,24 @@ export class KycLevelResponseDto {
   declare createdAt: string
   declare updatedAt: string
 
-  static fromKycLevel(kycLevel: KycLevel): KycLevelResponseDto {
+  /**
+   * Construit la réponse depuis le niveau projeté par le service.
+   *
+   * @param {KycLevelResult} level - Niveau projeté.
+   * @returns {KycLevelResponseDto} La réponse destinée au back-office.
+   */
+  static fromResult(level: KycLevelResult): KycLevelResponseDto {
     const dto = new KycLevelResponseDto()
-    dto.id = kycLevel.id
-    dto.level = kycLevel.level
-    dto.singleLimit = kycLevel.singleLimit
-    dto.dailyLimit = kycLevel.dailyLimit
-    dto.monthlyLimit = kycLevel.monthlyLimit
-    dto.balanceLimit = kycLevel.balanceLimit
-    dto.isActive = kycLevel.isActive
-    dto.isArchived = kycLevel.isArchived
-    dto.createdAt = kycLevel.createdAt?.toISO() || ''
-    dto.updatedAt = kycLevel.updatedAt?.toISO() || ''
+    dto.id = level.id
+    dto.level = level.level
+    dto.singleLimit = level.singleLimit
+    dto.dailyLimit = level.dailyLimit
+    dto.monthlyLimit = level.monthlyLimit
+    dto.balanceLimit = level.balanceLimit
+    dto.isActive = level.isActive
+    dto.isArchived = level.isArchived
+    dto.createdAt = level.createdAt
+    dto.updatedAt = level.updatedAt
     return dto
   }
 }

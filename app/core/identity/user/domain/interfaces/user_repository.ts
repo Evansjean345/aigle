@@ -92,4 +92,12 @@ export default abstract class UserRepository {
    * @return {Promise<Record<string, number>>} A promise that resolves to a record of user statistics.
    */
   abstract getStats(startDate?: string, endDate?: string): Promise<Record<string, number>>
+
+  /**
+   * Compte les utilisateurs rattachés à un niveau KYC.
+   *
+   * @param {number} level - Niveau KYC.
+   * @returns {Promise<number>} Le nombre de comptes concernés.
+   */
+  abstract countByKycLevel(level: number): Promise<number>
 }

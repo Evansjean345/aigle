@@ -1,5 +1,5 @@
 import { type KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
-import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
+import type { KycDocumentResult } from '#core/identity/kyc/application/dtos/kyc_document_admin.dto'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 export interface KycDocumentRequestDto {
@@ -45,7 +45,13 @@ export class AdminKycListDto {
     phone: string
   }
 
-  static fromKycDocument(kyc: KycDocument): AdminKycListDto {
+  /**
+   * Construit la vue admin depuis le document projeté par le service.
+   *
+   * @param {KycDocumentResult} kyc - Document projeté.
+   * @returns {AdminKycListDto} La vue destinée au back-office.
+   */
+  static fromResult(kyc: KycDocumentResult): AdminKycListDto {
     const dto = new AdminKycListDto()
     dto.id = kyc.id
     dto.userId = kyc.userId
@@ -55,38 +61,11 @@ export class AdminKycListDto {
     dto.selfieUrl = kyc.selfieUrl
     dto.status = kyc.status
     dto.comment = kyc.comment
-    dto.validUntil = kyc.validUntil?.toISODate() ?? undefined
-    dto.createdAt = kyc.createdAt?.toISO() || kyc.createdAt?.toString() || ''
+    dto.validUntil = kyc.validUntil
+    dto.createdAt = kyc.createdAt
     dto.agent = kyc.agent
-      ? {
-          id: kyc.agent.id,
-          firstname: kyc.agent.firstname,
-          lastname: kyc.agent.lastname,
-          email: kyc.agent.email,
-        }
-      : undefined
-    dto.attempts = kyc.attempts?.map((attempt) => ({
-      ...attempt.toJSON(),
-      agent: attempt.agent
-        ? {
-            id: attempt.agent.id,
-            firstname: attempt.agent.firstname,
-            lastname: attempt.agent.lastname,
-            email: attempt.agent.email,
-          }
-        : undefined,
-    }))
+    dto.attempts = kyc.attempts
     dto.user = kyc.user
-      ? {
-          firstname: kyc.user.firstname,
-          lastname: kyc.user.lastname,
-          usersUid: kyc.user.usersUid,
-          kycLevel: kyc.user.kycLevel,
-          kycStatus: kyc.user.kycStatus,
-          phone: kyc.user.phone,
-          status: kyc.user.status,
-        }
-      : undefined
     return dto
   }
 }

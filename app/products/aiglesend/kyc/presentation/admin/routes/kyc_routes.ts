@@ -1,7 +1,6 @@
-const KycController = () =>
-  import('#core/identity/kyc/presentation/admin/controllers/kyc_controller')
+const KycController = () => import('#aiglesend/kyc/presentation/admin/controllers/kyc_controller')
 const KycLevelController = () =>
-  import('#core/identity/kyc/presentation/admin/controllers/kyc_level_controller')
+  import('#aiglesend/kyc/presentation/admin/controllers/kyc_level_controller')
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import {
@@ -47,6 +46,16 @@ const adminKycRoutes = () => {
     })
     .prefix('/kyc')
     .use([middleware.auth({ guards: ['admin'] }), middleware.geoip()])
+
+  // Le dossier KYC vu depuis la fiche d'un utilisateur. Déclaré ici, avec le contrôleur qui le sert.
+  router
+    .group(() => {
+      router
+        .get('/:id/kyc', [KycController, 'getUserKyc'])
+        .use(middleware.permission([KYC_PERMISSIONS.read]))
+    })
+    .prefix('users')
+    .use(middleware.auth({ guards: ['admin'] }))
 }
 
 export default adminKycRoutes

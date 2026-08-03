@@ -1,13 +1,11 @@
-import KycLevelRepository from '#core/identity/kyc/domain/interfaces/kyc_level_repository'
 import { inject } from '@adonisjs/core'
+import emitter from '@adonisjs/core/services/emitter'
+import KycLevelService from '#core/identity/kyc/application/services/kyc_level_service'
+import { AuditResult } from '#core/audit/domain/enums'
 import {
   CreateKycLevelDto,
   KycLevelResponseDto,
 } from '#core/identity/kyc/application/dto/kyc_level.dto'
-import KycLevel from '#core/identity/kyc/domain/models/kyc_level'
-import KycLevelAlreadyExistsException from '#core/identity/kyc/domain/exceptions/kyc_level_already_exists_exception'
-import emitter from '@adonisjs/core/services/emitter'
-import { AuditResult } from '#core/audit/domain/enums'
 
 export interface AdminAuditContext {
   actorId: string
@@ -17,34 +15,26 @@ export interface AdminAuditContext {
   requestId?: string | null
 }
 
+/**
+ * Crée un niveau KYC depuis le back-office.
+ */
 @inject()
 export default class CreateKycLevelUseCase {
-  constructor(private readonly kycLevelRepository: KycLevelRepository) {}
+  constructor(private readonly kycLevelService: KycLevelService) {}
 
+  /**
+   * Exécute la création.
+   *
+   * @param {CreateKycLevelDto} data - Niveau et plafonds.
+   * @param {AdminAuditContext} [auditContext] - Auteur et contexte de la requête.
+   * @returns {Promise<KycLevelResponseDto>} Le niveau créé.
+   * @throws {KycLevelAlreadyExistsException} Un niveau porte déjà ce rang.
+   */
   async execute(
     data: CreateKycLevelDto,
     auditContext?: AdminAuditContext
   ): Promise<KycLevelResponseDto> {
-    const existingLevel = await this.kycLevelRepository.findByLevel(data.level)
-    if (existingLevel) {
-      throw new KycLevelAlreadyExistsException(data.level)
-    }
-
-    const kycLevel = new KycLevel()
-    kycLevel.level = data.level
-    kycLevel.singleLimit = data.singleLimit
-    kycLevel.dailyLimit = data.dailyLimit
-    kycLevel.monthlyLimit = data.monthlyLimit
-    kycLevel.balanceLimit = data.balanceLimit
-
-    if (data.isActive !== undefined) {
-      kycLevel.isActive = data.isActive
-    }
-    if (data.isArchived !== undefined) {
-      kycLevel.isArchived = data.isArchived
-    }
-
-    await this.kycLevelRepository.save(kycLevel)
+    const kycLevel = await this.kycLevelService.create(data)
 
     if (auditContext) {
       emitter
@@ -68,9 +58,9 @@ export default class CreateKycLevelUseCase {
             isActive: kycLevel.isActive,
           },
         })
-        .catch((_) => {})
+        .catch(() => {})
     }
 
-    return KycLevelResponseDto.fromKycLevel(kycLevel)
+    return KycLevelResponseDto.fromResult(kycLevel)
   }
 }

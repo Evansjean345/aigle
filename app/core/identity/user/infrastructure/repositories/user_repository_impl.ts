@@ -187,4 +187,10 @@ export default class UserRepositoryIml implements UserRepository {
       registeredInRange: Number(totalInRange || 0),
     }
   }
+
+  async countByKycLevel(level: number): Promise<number> {
+    const result = await User.query().where('kyc_level', level).count('* as total')
+
+    return Number(result[0].$extras.total)
+  }
 }
