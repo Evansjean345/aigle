@@ -1,4 +1,5 @@
 import { inject } from '@adonisjs/core'
+import db from '@adonisjs/lucid/services/db'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
 import WalletService from '#core/money/wallet/application/services/wallet_service'
@@ -30,7 +31,35 @@ export default class WalletAdjustmentService {
     private transactionRepository: TransactionRepository
   ) {}
 
+  /**
+   * Exécute un ajustement de portefeuille.
+   *
+   * @param {WalletAdjustmentCommand} params - Portefeuille, sens, montant, motif et auteur.
+   * @param {TransactionClientContract} [trx] - Transaction englobante. Absente, le service ouvre la sienne.
+   * @returns {Promise<WalletAdjustmentResult>} L'ajustement exécuté.
+   * @throws {TransactionNotFoundException} Référence de transaction inconnue.
+   * @throws {AdjustmentFailedException} Le mouvement de solde a échoué.
+   */
   async adjust(
+    params: WalletAdjustmentCommand,
+    trx?: TransactionClientContract
+  ): Promise<WalletAdjustmentResult> {
+    if (trx) return this.#adjust(params, trx)
+
+    const owned = await db.transaction()
+
+    try {
+      const result = await this.#adjust(params, owned)
+      await owned.commit()
+
+      return result
+    } catch (error) {
+      if (!owned.isCompleted) await owned.rollback()
+      throw error
+    }
+  }
+
+  async #adjust(
     params: WalletAdjustmentCommand,
     trx: TransactionClientContract
   ): Promise<WalletAdjustmentResult> {

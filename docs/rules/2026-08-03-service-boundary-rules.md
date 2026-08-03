@@ -154,7 +154,7 @@ app/
 Chaque feature porte ses quatre couches : `domain/`, `application/`, `infrastructure/`,
 `presentation/`.
 
-## Les onze règles
+## Les douze règles
 
 ### Les trois invariants — [ERROR], zéro violation
 
@@ -210,6 +210,27 @@ reste interdite.
 Les 23 violations de `presentation-sans-modeles-ni-infra` sont le premier gisement du dépôt : ce
 sont des contrôleurs qui manipulent un modèle au lieu d'un DTO. Elles relèvent du même principe que
 les règles 2 à 4 de ce document, appliqué à la frontière HTTP.
+
+### L'atomicité — [WARN]
+
+| Règle                               | Violations | Ce qu'elle interdit                                                     |
+| ----------------------------------- | ---------- | ----------------------------------------------------------------------- |
+| `transaction-portee-par-le-service` | **14**     | un use case ou une présentation important `@adonisjs/lucid/services/db` |
+
+L'atomicité appartient au service qui écrit, ou au repository. Ouvrir une transaction depuis
+l'appelant grave une décision de persistance dans une couche qui ne devrait connaître que des
+contrats — et le jour où le service passe derrière une API, la transaction ne traverse pas le
+réseau.
+
+Cette règle comble un angle mort : `produit-consomme-core-par-service` ne filtre que les imports
+`#core/…`, alors que `db` vient du package Lucid. Un use case produit pouvait donc piloter une
+transaction sans qu'aucun invariant ne le voie.
+
+**Un cas assumé parmi les quatorze** : les use cases d'initiation et de règlement de
+`money_movement` coordonnent plusieurs services — débiter, créditer, écrire au grand livre — et
+l'atomicité ne peut pas descendre dans l'un d'eux sans que les autres en sortent. Ils resteront
+probablement en violation, et c'est la raison pour laquelle cette règle ne peut pas viser ERROR
+sans qu'on ait d'abord tranché leur sort.
 
 ### Les garde-fous généraux — [WARN], zéro violation
 

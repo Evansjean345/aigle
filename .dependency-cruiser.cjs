@@ -139,6 +139,20 @@ module.exports = {
     },
 
     {
+      name: 'transaction-portee-par-le-service',
+      comment:
+        "Un use case ou une présentation n'ouvre pas de transaction de base : l'atomicité " +
+        "appartient au service qui écrit, ou au repository. Ouvrir une transaction depuis " +
+        "l'appelant grave une décision de persistance dans une couche qui ne devrait connaître " +
+        "que des contrats — et le jour où le service passe derrière une API, la transaction ne " +
+        'traverse pas le réseau. Invariant non couvert par `produit-consomme-core-par-service`, ' +
+        'qui ne filtre que les imports `#core/…` : `db` vient du package Lucid.',
+      severity: 'warn',
+      from: { path: `${FEATURE_ROOT}/(application/use_?cases|presentation)/` },
+      to: { path: '^@adonisjs/lucid/services/db$' },
+    },
+
+    {
       name: 'shared-sans-couches',
       comment: "shared ne dépend d'aucune feature (core ou produit).",
       severity: 'warn',
