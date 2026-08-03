@@ -7,10 +7,10 @@ import type {
 } from '#core/money/money_movement/domain/types/money_movement_types'
 
 /**
- * Use case core : initiation de la JAMBE 2 d'un inter-réseau (cash-out → bénéficiaire).
+ * Initiation de la seconde jambe d'un inter-réseau : cash-out vers le bénéficiaire.
  *
  * Continuation de la saga déclenchée par le règlement de la jambe 1. Passe par le port
- * `ExternalMovementGateway` (local depuis le Lot 3b). Sur échec provider, le runner marque le
+ * `ExternalMovementGateway`. Sur échec provider, le runner marque le
  * mouvement FAILED + classe/reporte/notifie (aucun wallet à re-créditer — Aigle en pont).
  */
 @inject()

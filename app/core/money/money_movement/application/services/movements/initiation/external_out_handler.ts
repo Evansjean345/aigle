@@ -24,7 +24,7 @@ import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 /**
- * Use case de la primitive `initiateExternalOut` (débit compte → opérateur, async → PENDING).
+ * Primitive `initiateExternalOut` : débit du compte → opérateur, asynchrone.
  * Flux transfert : validations compte/limites + frais + fonds, puis SA trx courte { débit wallet
  * immédiat (réservation), records PENDING, écriture ledger }, puis initiation externe déléguée à
  * le gateway. Le settlement (COMPLETED ou FAILED + re-crédit) arrive au webhook.
@@ -193,7 +193,7 @@ export default class ExternalOutHandler {
    *
    * Cas normal (consumer / transfert unique) : résolus par la grille tarifaire courante.
    *
-   * Cas **prefunded avec fee figée** (paiement en masse, L2-D28) : on **saute** `FeeResolver` et on
+   * Cas prefunded à frais figés, pour le paiement en masse : `FeeResolver` est sauté et on
    * honore la fee transmise. Elle a été calculée ET réservée à l'initiation du lot ; la recalculer
    * ici ferait diverger la fee de la transaction du montant réellement tenu si la grille a évolué
    * entre l'approbation et l'envoi — soit une rupture de l'invariant de fonds.

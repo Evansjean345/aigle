@@ -18,12 +18,12 @@ import type {
 } from '#core/money/money_movement/domain/types/money_movement_types'
 
 /**
- * Use case core : règlement d'un TRANSFERT (externe sortant) suite au callback opérateur (Lot 3).
+ * Règlement d'un transfert, sur callback opérateur.
  *
- * Symétrie de `external_out` (initiation) : l'opération vit dans le use case. Succès : marquage
- * SUCCESS (le débit a eu lieu à l'initiation, aucun mouvement wallet ici). Échec : marquage FAILED
- * + refund du `totalAmount` (course avec le failure handler d'initiation gérée via
- * TransactionAlreadyRefundedException). Plomberie générique dans `SettlementSupport`.
+ * Symétrie de l'initiation `external_out`. Au succès, simple marquage : le débit a eu lieu à
+ * l'initiation, aucun mouvement de portefeuille ici. À l'échec, marquage FAILED et remboursement du
+ * montant total — la course avec le traitement d'échec de l'initiation est résolue par
+ * `TransactionAlreadyRefundedException`. La plomberie commune vit dans `SettlementSupport`.
  */
 @inject()
 export default class SettleTransfertHandler {

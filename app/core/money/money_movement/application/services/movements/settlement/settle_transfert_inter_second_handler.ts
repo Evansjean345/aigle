@@ -17,7 +17,7 @@ import type {
 } from '#core/money/money_movement/domain/types/money_movement_types'
 
 /**
- * Use case core : règlement de la JAMBE 2 d'un transfert inter-réseau (payout → bénéficiaire).
+ * Règlement de la seconde jambe d'un transfert inter-réseau : payout vers le bénéficiaire.
  *
  * Succès : marque le 2e paiement + la transaction réussis + écriture ledger EXTERNAL (aucun
  * mouvement de solde — Aigle en pont). Échec : marque le 2e paiement + la transaction échoués +

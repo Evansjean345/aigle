@@ -18,12 +18,11 @@ import type {
 } from '#core/money/money_movement/domain/types/money_movement_types'
 
 /**
- * Use case core : règlement d'un DÉPÔT (externe entrant) suite au callback opérateur (Lot 3).
+ * Règlement d'un dépôt, sur callback opérateur.
  *
- * Symétrie de `external_in` (initiation) : l'opération vit dans le use case. Squelette
- * transactionnel (L2-D5) + idempotence, puis mutation argent — succès : crédit du wallet du
- * montant net + ledger ; échec : marquage FAILED. La plomberie générique est dans
- * `SettlementSupport`.
+ * Symétrie de l'initiation `external_in`. Transaction et idempotence d'abord, mouvement d'argent
+ * ensuite : au succès, crédit du montant net et écriture au grand livre ; à l'échec, marquage
+ * FAILED. La plomberie commune vit dans `SettlementSupport`.
  */
 @inject()
 export default class SettleDepositHandler {

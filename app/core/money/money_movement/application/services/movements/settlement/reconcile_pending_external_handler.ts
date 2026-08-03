@@ -112,7 +112,7 @@ export default class ReconcilePendingExternalHandler {
   /**
    * Cas irrésolu : on ne règle rien. Tant que le seuil dur n'est pas franchi, on se contente de
    * repasser au tick suivant (l'opérateur peut encore trancher). Au-delà, on alerte pour revue
-   * manuelle (L2-D18) — le mouvement est anormalement long, mais deviner reste pire.
+   * manuelle — le mouvement est anormalement long, mais deviner reste pire.
    */
   private flagForReview(payment: Payment, reason: string, result: ReconcileResult): void {
     const stalledMinutes = Math.round(Math.abs(payment.updatedAt.diffNow('minutes').minutes))

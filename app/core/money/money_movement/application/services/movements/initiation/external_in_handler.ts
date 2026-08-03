@@ -24,10 +24,10 @@ import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 /**
- * Use case de la primitive `initiateExternalIn` (opérateur → crédit compte, async → PENDING).
+ * Primitive `initiateExternalIn` : opérateur → crédit du compte, asynchrone.
  * Flux deposit : validations compte/limites + frais, puis SA trx courte { records PENDING, AUCUN
  * mouvement wallet }, puis initiation externe déléguée au gateway (routage in-process via provider_gateway),
- * ou job async). Le crédit du wallet interviendra au settlement (webhook), inchangé au Lot 2.
+ * ou job async). Le crédit du portefeuille intervient au règlement, sur webhook.
  */
 @inject()
 export default class ExternalInHandler {

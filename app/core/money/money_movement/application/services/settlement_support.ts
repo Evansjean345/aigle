@@ -29,11 +29,11 @@ const TERMINAL_STATE_CODES = new Set([
 ])
 
 /**
- * Plomberie de settlement partagée par le use case `settle` (money-core).
+ * Plomberie de règlement, partagée par les handlers de `settle`.
  *
  * Concentre l'infra générique — verrou + chargement, idempotence, transitions d'état
  * « terminal-state-safe » (une transition déjà appliquée est avalée), classification d'erreur
- * provider (CF10) et audit — pour que le use case ne garde que l'orchestration et la logique
+ * provider et audit — pour que le handler ne garde que l'orchestration et la logique
  * argent propre à chaque flux. Repris de l'ex-`BaseWebhookHandler`, désormais côté money-core.
  */
 @inject()
@@ -101,7 +101,7 @@ export default class SettlementSupport {
     return this.safeTerminal(() => this.transactionService.markFailed(transactionId, trx))
   }
 
-  /** Marque le paiement échoué + alerte admin selon la classification provider (CF10). */
+  /** Marque le paiement échoué et alerte l'administration selon la classification du provider. */
   markPaymentFailed(
     paymentId: number,
     operatorResponse: any,

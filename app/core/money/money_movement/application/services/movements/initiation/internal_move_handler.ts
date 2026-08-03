@@ -29,13 +29,10 @@ import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 /**
- * Use case de la primitive `moveInternal` (compte → compte, atomique, synchrone → COMPLETED).
+ * Primitive `moveInternal` : compte → compte, atomique et synchrone.
  *
- * Use case du bounded context money_movement (le core), invoqué par la façade `MoneyMovementEngine`
- * (l'adaptateur du contrat), elle-même appelée par le use case produit (operations). Possède SA
- * `db.transaction` (L2-D5) : débit source / crédit destination, records transaction+payment miroir,
- * écritures ledger, statut COMPLETED — tout-ou-rien. Port fidèle du chemin wallet_to_wallet
- * historique (équivalence prouvée par la caractérisation).
+ * Porte sa propre transaction — débit source, crédit destination, écritures miroir de transaction
+ * et de paiement, lignes du grand livre, statut final. Tout ou rien.
  */
 @inject()
 export default class InternalMoveHandler {

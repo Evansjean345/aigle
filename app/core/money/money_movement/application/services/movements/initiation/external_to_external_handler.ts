@@ -22,13 +22,13 @@ import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 /**
- * Use case de la primitive `initiateExternalToExternal` (opérateur → opérateur, saga 2 jambes,
+ * Primitive `initiateExternalToExternal` : opérateur → opérateur, en deux jambes,
  * async → PENDING). Flux transfert_inter, jambe 1 (cash-in débiteur).
  *
  * Validations + frais, puis SA trx courte { transaction PENDING EXTERNAL sur le wallet de
  * l'initiateur (AUCUN mouvement de solde) + 2 payments : dépôt PENDING + transfert DRAFT }, puis
  * initiation de la jambe 1 déléguée au gateway. La jambe 2 (cash-out bénéficiaire) est
- * déclenchée au webhook — hors périmètre Lot 2.
+ * déclenchée au webhook.
  */
 @inject()
 export default class ExternalToExternalHandler {

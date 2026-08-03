@@ -16,7 +16,7 @@ import type {
 } from '#core/money/money_movement/domain/types/money_movement_types'
 
 /**
- * Use case core : règlement de la JAMBE 1 d'un transfert inter-réseau (cash-in débiteur → Aigle).
+ * Règlement de la première jambe d'un transfert inter-réseau : cash-in du débiteur vers Aigle.
  *
  * Succès : marque le 1er paiement réussi puis enqueue l'initiation de la jambe 2 (payout) — la
  * transaction reste PENDING (pas encore réglée). Échec : marque la transaction + les 2 paiements

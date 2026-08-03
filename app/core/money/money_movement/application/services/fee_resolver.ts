@@ -9,7 +9,7 @@ import type { FeeContextInput } from '#core/money/money_movement/domain/types/mo
  * Brique partagée de l'engine : résout les frais d'un mouvement à partir du `feeContext`
  * (codes métier, ADR-0013). Résout d'abord les codes en IDs catalogue via le `CatalogResolver`
  * (money-core → catalogs-core, porte unique), puis délègue le calcul au service core `fees`.
- * Centralise l'unique point de tarification du core argent (L2-D6) — chaque use case l'appelle
+ * Centralise l'unique point de tarification du core argent — chaque handler l'appelle
  * plutôt que de reproduire la résolution + le calcul.
  */
 @inject()

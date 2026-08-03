@@ -30,7 +30,7 @@ export interface InitiationRunContext {
 }
 
 /**
- * Enveloppe l'initiation externe (stratégie locale) avec le traitement d'échec (Lot 3b).
+ * Enveloppe l'initiation externe avec le traitement d'échec.
  *
  * Depuis la bascule locale, la stratégie appelle le provider EN SYNCHRONE et lève
  * `ProviderInitiationError` sur échec — au lieu du job async d'antan. Ce runner rétablit la chaîne
@@ -65,7 +65,7 @@ export default class ExternalInitiationRunner {
 
   /**
    * Rend le mouvement **interrogeable** : persiste sur le paiement la référence provider et
-   * l'agrégateur retenu par le routage (L2-D29). Sans ces deux données, la réconciliation (B6) ne
+   * l'agrégateur retenu par le routage. Sans ces deux données, la réconciliation ne
    * peut ni identifier le mouvement chez l'opérateur, ni savoir *qui* interroger.
    *
    * Point de passage **unique** des 4 initiations (out / in / inter jambes 1-2) → une seule écriture
