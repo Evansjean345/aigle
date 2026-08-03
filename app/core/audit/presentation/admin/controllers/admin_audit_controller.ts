@@ -2,7 +2,6 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import ListAuditLogsUseCase from '#core/audit/application/use_cases/admin/list_audit_logs_use_case'
 import GetAuditLogDetailsUseCase from '#core/audit/application/use_cases/admin/get_audit_log_details_use_case'
-import AuditPolicy from '#core/audit/presentation/admin/policies/audit_policy'
 import { adminAuditListValidator } from '#core/audit/presentation/admin/validators/admin_audit_validator'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
@@ -24,9 +23,7 @@ export default class AdminAuditController {
    * @param {HttpContext} ctx - The HTTP context.
    * @return {Promise<void>}
    */
-  async list({ request, response, bouncer, auth }: HttpContext): Promise<void> {
-    await bouncer.with(AuditPolicy).authorize('viewAuditLogs')
-
+  async list({ request, response, auth }: HttpContext): Promise<void> {
     const query = await adminAuditListValidator.validate(request.qs())
 
     const result = await this.listAuditLogsUseCase.execute({
@@ -86,9 +83,7 @@ export default class AdminAuditController {
    * @param {HttpContext} ctx - The HTTP context.
    * @return {Promise<void>}
    */
-  async show({ params, request, response, bouncer, auth }: HttpContext): Promise<void> {
-    await bouncer.with(AuditPolicy).authorize('viewAuditLog')
-
+  async show({ params, request, response, auth }: HttpContext): Promise<void> {
     const log = await this.getAuditLogDetailsUseCase.execute(params.id)
     if (!log) {
       return response.notFound({ message: 'Audit log not found' })

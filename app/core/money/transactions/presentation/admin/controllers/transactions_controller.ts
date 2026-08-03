@@ -1,10 +1,12 @@
 import { HttpContext } from '@adonisjs/core/http'
+import type Admin from '#core/team/domain/models/admin'
+import { adminHasPermission } from '#core/team/application/authorization/permission_helpers'
+import { TRANSACTION_PERMISSIONS } from '#core/money/transactions/presentation/admin/permissions.config'
 import { inject } from '@adonisjs/core'
 import GetAllTransactionsUseCase from '#core/money/transactions/application/use_cases/admin/get_all_transactions'
 import GetTransactionDetailsUseCase from '#core/money/transactions/application/use_cases/admin/get_transaction_details'
 import GetUserTransactionsStatsUseCase from '#core/money/transactions/application/use_cases/admin/get_user_transactions_stats'
 import GetGlobalTransactionsStatsUseCase from '#core/money/transactions/application/use_cases/admin/get_global_transactions_stats'
-import TransactionPolicy from '#core/money/transactions/presentation/admin/policies/transaction_policy'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
 
@@ -36,9 +38,7 @@ export default class TransactionsController {
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async getAllTransactions({ request, response, bouncer, auth }: HttpContext): Promise<void> {
-    await bouncer.with(TransactionPolicy).authorize('viewTransactions' as never)
-
+  async getAllTransactions({ request, response, auth }: HttpContext): Promise<void> {
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 16)
     const type = request.input('type')
@@ -47,6 +47,8 @@ export default class TransactionsController {
     const startDate = request.input('startDate')
     const endDate = request.input('endDate')
     const userId = request.input('userId', request.input('user_id'))
+    // Sert l'onglet transactions d'une organisation : `account_id == organisationId`.
+    const accountId = request.input('accountId', request.input('account_id'))
 
     const transactions = await this.getAllTransactionsUseCase.execute(page, perPage, {
       type,
@@ -55,6 +57,7 @@ export default class TransactionsController {
       startDate,
       endDate,
       userId,
+      accountId,
     })
 
     emitter
@@ -83,12 +86,13 @@ export default class TransactionsController {
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async findTransaction({ params, response, bouncer, auth, request }: HttpContext): Promise<void> {
+  async findTransaction({ params, response, auth, request }: HttpContext): Promise<void> {
     try {
-      await bouncer.with(TransactionPolicy).authorize('viewTransaction' as never)
-
       const { reference } = params
-      const loadLedger = await bouncer.with(TransactionPolicy).allows('viewLedger' as never)
+      const loadLedger = await adminHasPermission(
+        auth.user as Admin,
+        TRANSACTION_PERMISSIONS.ledger
+      )
 
       const transaction = await this.getTransactionDetailsUseCase.execute(reference, { loadLedger })
 
@@ -143,15 +147,7 @@ export default class TransactionsController {
    * @param {Object} HttpContext.response - The HTTP response instance, used to send responses back to the client.
    * @return {Promise<void>} Resolves when the user's transactions are successfully retrieved and sent in the response.
    */
-  async getUserTransactions({
-    params,
-    request,
-    response,
-    bouncer,
-    auth,
-  }: HttpContext): Promise<void> {
-    await bouncer.with(TransactionPolicy).authorize('viewUserTransactions' as never)
-
+  async getUserTransactions({ params, request, response, auth }: HttpContext): Promise<void> {
     const { id } = params
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 16)
@@ -193,12 +189,16 @@ export default class TransactionsController {
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async getTransactionsStats({ request, response, bouncer, auth }: HttpContext): Promise<void> {
-    await bouncer.with(TransactionPolicy).authorize('viewTransactionsReport' as never)
-
+  async getTransactionsStats({ request, response, auth }: HttpContext): Promise<void> {
     const startDate = request.input('startDate')
     const endDate = request.input('endDate')
-    const stats = await this.getGlobalTransactionsStatsUseCase.execute(startDate, endDate)
+    // Sert le bandeau de l'onglet transactions d'une organisation.
+    const accountId = request.input('accountId', request.input('account_id'))
+    const stats = await this.getGlobalTransactionsStatsUseCase.execute(
+      startDate,
+      endDate,
+      accountId
+    )
 
     emitter.emit('activity:audit', {
       eventCategory: 'TRANSACTION',
@@ -224,15 +224,7 @@ export default class TransactionsController {
    * @param {object} context.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async getUserTransactionStats({
-    params,
-    request,
-    response,
-    bouncer,
-    auth,
-  }: HttpContext): Promise<void> {
-    await bouncer.with(TransactionPolicy).authorize('viewUserTansactionsReport' as never)
-
+  async getUserTransactionStats({ params, request, response, auth }: HttpContext): Promise<void> {
     const { id } = params
     const startDate = request.input('startDate')
     const endDate = request.input('endDate')

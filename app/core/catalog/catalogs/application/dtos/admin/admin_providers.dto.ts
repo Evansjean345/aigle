@@ -1,8 +1,14 @@
 import type { DateTime } from 'luxon'
 import type Provider from '#core/catalog/catalogs/domain/models/provider'
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
-import type { ProviderType, ProviderStatus } from '#core/catalog/catalogs/domain/enums/provider_enums'
-export type { ProviderType, ProviderStatus } from '#core/catalog/catalogs/domain/enums/provider_enums'
+import type {
+  ProviderType,
+  ProviderStatus,
+} from '#core/catalog/catalogs/domain/enums/provider_enums'
+export type {
+  ProviderType,
+  ProviderStatus,
+} from '#core/catalog/catalogs/domain/enums/provider_enums'
 export type {
   ListProvidersQuery,
   CreateProviderCommand,

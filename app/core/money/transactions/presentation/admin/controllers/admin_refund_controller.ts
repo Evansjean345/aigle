@@ -2,7 +2,6 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import emitter from '@adonisjs/core/services/emitter'
 import ExecuteAdminRefundUseCase from '#core/money/transactions/application/use_cases/admin/execute_admin_refund_use_case'
-import TransactionPolicy from '#core/money/transactions/presentation/admin/policies/transaction_policy'
 import {
   adminRefundValidator,
   transactionsRefundListValidator,
@@ -32,12 +31,10 @@ export default class AdminRefundController {
    * @param {HttpContext} ctx - The HTTP context.
    * @param {Request} ctx.request - The HTTP request object used for query string validation.
    * @param {Response} ctx.response - The HTTP response object used to send the result.
-   * @param {Bouncer} ctx.bouncer - The authorization bouncer used to verify viewRefunds permission.
    * @param {Auth} ctx.auth - The authentication context.
    * @return {Promise<void>}
    */
-  async list({ request, response, bouncer, auth }: HttpContext): Promise<void> {
-    await bouncer.with(TransactionPolicy).authorize('viewRefunds')
+  async list({ request, response }: HttpContext): Promise<void> {
     const query = await transactionsRefundListValidator.validate(request.qs())
 
     const result = await this.getRefundsUseCase.execute({
@@ -65,14 +62,11 @@ export default class AdminRefundController {
    * @param {Object} context The HTTP context for the execution.
    * @param {Request} context.request The HTTP request object containing the payload and headers.
    * @param {Response} context.response The HTTP response object used to return the result.
-   * @param {Bouncer} context.bouncer The authorization service used to validate permissions.
    * @param {Auth} context.auth The authentication service used to retrieve the admin user.
    *
    * @return {Promise<void>} Resolves when the refund operation is completed successfully or throws an error on failure.
    */
-  async execute({ request, response, bouncer, auth }: HttpContext): Promise<void> {
-    await bouncer.with(TransactionPolicy).authorize('executeRefund' as never)
-
+  async execute({ request, response, auth }: HttpContext): Promise<void> {
     const admin = auth.getUserOrFail()
     const payload = await request.validateUsing(adminRefundValidator)
 

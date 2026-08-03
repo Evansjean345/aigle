@@ -1,4 +1,7 @@
-import type { ProviderType, ProviderStatus } from '#core/catalog/catalogs/domain/enums/provider_enums'
+import type {
+  ProviderType,
+  ProviderStatus,
+} from '#core/catalog/catalogs/domain/enums/provider_enums'
 
 /**
  * Contrat d'entrée du port `ProviderRepository` (domaine). Ces types définissent le vocabulaire du

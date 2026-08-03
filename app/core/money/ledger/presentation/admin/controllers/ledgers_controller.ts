@@ -6,7 +6,6 @@ import GetUserLedgerStatsUseCase from '#core/money/ledger/application/use_cases/
 import { LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
-import LedgerPolicy from '#core/money/ledger/presentation/admin/policies/ledger_policy'
 
 @inject()
 export default class LedgersController {
@@ -29,9 +28,7 @@ export default class LedgersController {
    * @param {HttpContext} context - The context object containing the HTTP request and response.
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
-  async getAllLedgers({ request, response, auth, bouncer }: HttpContext): Promise<void> {
-    await bouncer.with(LedgerPolicy).authorize('viewLedgers' as never)
-
+  async getAllLedgers({ request, response, auth }: HttpContext): Promise<void> {
     const page = request.input('page', 1)
     const perPage = request.input('limit', request.input('perPage', 20))
     const walletId = request.input('wallet_id')
@@ -43,6 +40,8 @@ export default class LedgersController {
     const endDate = request.input('endDate', request.input('end_date'))
     const search = request.input('search')
     const userId = request.input('userId', request.input('user_id'))
+    // Sert l'onglet grand livre d'une organisation : son portefeuille est rattaché par compte.
+    const accountId = request.input('accountId', request.input('account_id'))
 
     const ledgers = await this.getAllLedgersUseCase.execute(page, perPage, {
       walletId,
@@ -52,6 +51,7 @@ export default class LedgersController {
       endDate,
       search,
       userId,
+      accountId,
     })
 
     emitter.emit('activity:audit', {
@@ -88,15 +88,22 @@ export default class LedgersController {
    * @param {object} HttpContext.response - The HTTP response object.
    * @return {Promise<void>} A promise that resolves when the response is sent.
    */
-  async getLedgersStats({ request, response, auth, bouncer }: HttpContext): Promise<void> {
-    await bouncer.with(LedgerPolicy).authorize('viewLedgersReport' as never)
-
+  async getLedgersStats({ request, response, auth }: HttpContext): Promise<void> {
     const walletId = request.input('wallet_id')
+    // Sert les compteurs du grand livre d'une organisation, dont le portefeuille est rattaché par
+    // compte et non par utilisateur.
+    const accountId = request.input('accountId', request.input('account_id'))
     const period = request.input('period', '30d')
     const startDate = request.input('startDate', request.input('start_date'))
     const endDate = request.input('endDate', request.input('end_date'))
 
-    const stats = await this.getLedgerStatsUseCase.execute({ walletId, period, startDate, endDate })
+    const stats = await this.getLedgerStatsUseCase.execute({
+      walletId,
+      accountId,
+      period,
+      startDate,
+      endDate,
+    })
 
     emitter.emit('activity:audit', {
       eventCategory: 'LEDGERS',
@@ -162,9 +169,7 @@ export default class LedgersController {
    *
    * @return {Promise<void>} Resolves when the ledger records have been retrieved and the response is sent.
    */
-  async getUserLedgers({ params, request, response, auth, bouncer }: HttpContext): Promise<void> {
-    await bouncer.with(LedgerPolicy).authorize('viewUserLedgers' as never)
-
+  async getUserLedgers({ params, request, response, auth }: HttpContext): Promise<void> {
     const { id } = params // userId
     const page = request.input('page', 1)
     const perPage = request.input('perPage', 20)
@@ -212,15 +217,7 @@ export default class LedgersController {
    * @param {Object} context.response - The HTTP response object, used to send responses back to the client.
    * @return {Promise<void>} A promise that resolves when the ledger statistics have been retrieved and a response has been sent.
    */
-  async getUserLedgerStats({
-    params,
-    request,
-    response,
-    auth,
-    bouncer,
-  }: HttpContext): Promise<void> {
-    await bouncer.with(LedgerPolicy).authorize('viewUserLedgersReport' as never)
-
+  async getUserLedgerStats({ params, request, response, auth }: HttpContext): Promise<void> {
     const { id } = params // userId
     const period = request.input('period', '30d')
     const startDate = request.input('startDate', request.input('start_date'))

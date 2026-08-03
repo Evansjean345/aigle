@@ -1,5 +1,4 @@
 import router from '@adonisjs/core/services/router'
-import { middleware } from '#start/kernel'
 
 const ServicesController = () =>
   import('#core/catalog/catalogs/presentation/mobile/controllers/services_controller')
