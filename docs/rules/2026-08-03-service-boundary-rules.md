@@ -226,11 +226,20 @@ Cette règle comble un angle mort : `produit-consomme-core-par-service` ne filtr
 `#core/…`, alors que `db` vient du package Lucid. Un use case produit pouvait donc piloter une
 transaction sans qu'aucun invariant ne le voie.
 
-**Un cas assumé parmi les quatorze** : les use cases d'initiation et de règlement de
-`money_movement` coordonnent plusieurs services — débiter, créditer, écrire au grand livre — et
-l'atomicité ne peut pas descendre dans l'un d'eux sans que les autres en sortent. Ils resteront
-probablement en violation, et c'est la raison pour laquelle cette règle ne peut pas viser ERROR
-sans qu'on ait d'abord tranché leur sort.
+**Huit des quatorze relèvent du placement, non de l'atomicité.** Les fichiers d'initiation et de
+règlement de `money_movement` sont injectés et appelés par `MoneyMovementEngineImpl`, et par lui
+seul : aucune présentation ne les atteint. Ce sont les composants internes du service, rangés dans
+`use_cases/`. Ils portent donc la transaction à bon droit — en tant que service, pas en tant
+qu'appelant. Leur place serait `application/services/`.
+
+Le chemin produit, lui, est déjà conforme : `initiate_transfer.use_case.ts` d'`aiglebusiness`
+délègue à la façade et n'ouvre aucune transaction. C'est le modèle à suivre pour les six autres
+violations — `create_organisation`, `create_role`, `update_role`, `execute_admin_refund`,
+`get_device_transaction_summary` et `register` — où l'atomicité peut descendre dans le service qui
+écrit.
+
+Cette règle peut donc viser ERROR : il faut reclasser les huit composants du moteur et corriger les
+six appelants. Aucun cas n'est irréductible.
 
 ### Les garde-fous généraux — [WARN], zéro violation
 
