@@ -42,6 +42,19 @@ export default class AdminRepositoryImpl implements AdminRepository {
   }
 
   /**
+   * Retrouve plusieurs administrateurs en une requête.
+   *
+   * Le rôle n'est pas préchargé : cette lecture sert à afficher des noms, pas à autoriser.
+   *
+   * @param {number[]} ids - Identifiants recherchés.
+   * @returns {Promise<Admin[]>} Les administrateurs trouvés.
+   */
+  async findByIds(ids: number[]): Promise<Admin[]> {
+    if (ids.length === 0) return []
+    return Admin.query().whereIn('id', ids)
+  }
+
+  /**
    * Finds an admin by their email address.
    *
    * @param {string} email - The email address to search for.
@@ -80,5 +93,16 @@ export default class AdminRepositoryImpl implements AdminRepository {
    */
   async delete(admin: Admin): Promise<void> {
     await admin.delete()
+  }
+
+  /**
+   * Counts the admins that are still active.
+   *
+   * @return {Promise<number>} A promise that resolves to the number of active admins.
+   */
+  async countActive(): Promise<number> {
+    const [row] = await Admin.query().where('isActive', true).count('* as total')
+
+    return Number(row.$extras.total)
   }
 }

@@ -26,7 +26,6 @@ const TIERS: Array<{ at: number; blockSeconds: number }> = [
 const ALERT_AT = 7
 const PERMANENT_BLOCK_AT = 9
 const COUNTER_WINDOW_SECONDS = 86400
-const SUPER_ADMIN_SLUG = 'root'
 
 /**
  * Brute-force protection for the admin OTP step (post-credentials 2FA and
@@ -42,10 +41,11 @@ const SUPER_ADMIN_SLUG = 'root'
  *     generating a fresh OTP every minute would otherwise reset the
  *     per-OTP counter — only an email-scoped sliding window catches that
  *
- * Policy difference for `super_admin`:
+ * Policy difference for the last active admin (operational safety):
  *   - tier-based temporary blocks still apply
  *   - the permanent block (`isActive = false`) is **not** applied — instead a
- *     CRITICAL escalation alert is emitted so other super_admins can intervene
+ *     CRITICAL escalation alert is emitted. Deactivating the last account would
+ *     leave the back-office with no way in, recoverable only from the database.
  *
  * Degrades gracefully on Redis failures: logs and lets the calling flow
  * proceed rather than locking admins out on infra issues.
@@ -151,7 +151,7 @@ export default class AdminOtpAttemptGuard {
       return
     }
 
-    const isSuperAdmin = admin.role?.slug === SUPER_ADMIN_SLUG
+    const isLastActiveAdmin = admin.isActive && (await this.adminRepository.countActive()) <= 1
 
     try {
       await this.block.set(this.blockKey(email), TIERS[0].blockSeconds)
@@ -163,17 +163,17 @@ export default class AdminOtpAttemptGuard {
       )
     }
 
-    if (isSuperAdmin) {
+    if (isLastActiveAdmin) {
       securityLog.warn(
-        'ADMIN_SUPER_ADMIN_OTP_BRUTE_FORCE',
+        'ADMIN_LAST_ACTIVE_OTP_BRUTE_FORCE',
         { adminId: admin.id, attempts: count, ipAddress },
-        'super_admin reached permanent-block threshold on OTP — temporary block applied, manual review required'
+        'last active admin reached permanent-block threshold on OTP — temporary block applied, manual review required'
       )
 
       emitter
         .emit('activity:audit', {
           eventCategory: 'AUTH',
-          eventAction: 'ADMIN_SUPER_ADMIN_OTP_LOCK_ATTEMPT',
+          eventAction: 'ADMIN_LAST_ACTIVE_OTP_LOCK_ATTEMPT',
           actorId: String(admin.id),
           actorType: 'Admin',
           actorRole: admin.role?.name ?? null,
@@ -181,8 +181,9 @@ export default class AdminOtpAttemptGuard {
           targetId: String(admin.id),
           result: AuditResult.FAILURE,
           ipAddress,
-          errorCode: 'SUPER_ADMIN_NOT_AUTO_BLOCKED',
-          errorMessage: 'Permanent OTP block skipped for super_admin — manual review required',
+          errorCode: 'LAST_ACTIVE_ADMIN_NOT_AUTO_BLOCKED',
+          errorMessage:
+            'Permanent OTP block skipped for the last active admin — manual review required',
           metadata: { attempts: count, authMethod: 'OTP' },
         })
         .catch(() => {})

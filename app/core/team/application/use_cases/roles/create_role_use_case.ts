@@ -3,6 +3,8 @@ import Role from '#core/team/domain/models/role'
 import Admin from '#core/team/domain/models/admin'
 import { CreateRoleRequestDto, RoleResponseDto } from '#core/team/application/dtos/role.dto'
 import RoleRepository from '#core/team/domain/interfaces/role_repository'
+import RolePermissionGuard from '#core/team/application/services/role_permission_guard'
+import type { PermissionDefinition } from '#core/team/domain/value_objects/permission_catalog'
 import RoleSlugAlreadyExistsException from '#core/team/domain/exceptions/role_slug_already_exists_exception'
 import string from '@adonisjs/core/helpers/string'
 import emitter from '@adonisjs/core/services/emitter'
@@ -15,17 +17,29 @@ export default class CreateRoleUseCase {
    *
    * @param {RoleRepository} roleRepository - The repository instance to manage role data.
    */
-  constructor(private roleRepository: RoleRepository) {}
+  constructor(
+    private roleRepository: RoleRepository,
+    private rolePermissionGuard: RolePermissionGuard
+  ) {}
 
   /**
    * Executes the creation of a new role based on the provided data.
    *
    * @param {CreateRoleRequestDto} data - The data required to create a new role.
    * @param {Admin} auth - The authenticated admin user performing the operation.
+   * @param {readonly PermissionDefinition[]} catalog - Les permissions déclarées par les features.
    * @return {Promise<RoleResponseDto>} A promise that resolves with the newly created role's details.
    * @throws {RoleSlugAlreadyExistsException}
+   * @throws {EmptyRolePermissionsException} Aucune permission n'est soumise.
+   * @throws {UnknownRolePermissionException} Une permission n'est pas déclarée en code.
    */
-  async execute(data: CreateRoleRequestDto, auth: Admin): Promise<RoleResponseDto> {
+  async execute(
+    data: CreateRoleRequestDto,
+    auth: Admin,
+    catalog: readonly PermissionDefinition[]
+  ): Promise<RoleResponseDto> {
+    await this.rolePermissionGuard.assertBelongsToCatalog(data.permissionIds ?? [], catalog)
+
     try {
       const slug = string.slug(data.name, { lower: true, replacement: '_' })
 

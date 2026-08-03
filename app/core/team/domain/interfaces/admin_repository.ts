@@ -20,6 +20,14 @@ export default abstract class AdminRepository {
   abstract findById(id: number): Promise<Admin | null>
 
   /**
+   * Retrouve plusieurs administrateurs en une requête.
+   *
+   * @param {number[]} ids - Identifiants recherchés.
+   * @returns {Promise<Admin[]>} Les administrateurs trouvés, dans un ordre non garanti.
+   */
+  abstract findByIds(ids: number[]): Promise<Admin[]>
+
+  /**
    * Trouve un administrateur par son email.
    */
   abstract findByEmail(email: string): Promise<Admin | null>
@@ -38,4 +46,12 @@ export default abstract class AdminRepository {
    * Supprime un administrateur.
    */
   abstract delete(admin: Admin): Promise<void>
+
+  /**
+   * Compte les administrateurs encore actifs.
+   *
+   * Sert à ne jamais désactiver le dernier d'entre eux : le back-office resterait sans porte
+   * d'entrée, et seule une intervention en base permettrait de le rouvrir.
+   */
+  abstract countActive(): Promise<number>
 }

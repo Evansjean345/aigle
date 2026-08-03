@@ -1,4 +1,5 @@
 import { HttpContext } from '@adonisjs/core/http'
+import { ADMIN_PERMISSION_CATALOG } from '#start/permissions'
 import { inject } from '@adonisjs/core'
 import ListRolesUseCase from '#core/team/application/use_cases/roles/list_roles_use_case'
 import CreateRoleUseCase from '#core/team/application/use_cases/roles/create_role_use_case'
@@ -70,7 +71,7 @@ export default class RoleManagementController {
   async store({ request, response, auth }: HttpContext): Promise<void> {
     const data = await request.validateUsing(createRoleValidator)
     const authUser = auth.user as Admin
-    const role = await this.createRoleUseCase.execute(data, authUser)
+    const role = await this.createRoleUseCase.execute(data, authUser, ADMIN_PERMISSION_CATALOG)
     return response.created(role)
   }
 
@@ -86,7 +87,12 @@ export default class RoleManagementController {
   async update({ params, request, response, auth }: HttpContext): Promise<void> {
     const data = await request.validateUsing(updateRoleValidator)
     const authUser = auth.user as Admin
-    const role = await this.updateRoleUseCase.execute(params.id, data, authUser)
+    const role = await this.updateRoleUseCase.execute(
+      params.id,
+      data,
+      authUser,
+      ADMIN_PERMISSION_CATALOG
+    )
     return response.ok(role)
   }
 

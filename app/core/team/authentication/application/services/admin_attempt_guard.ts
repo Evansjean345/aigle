@@ -25,7 +25,6 @@ const TIERS: Array<{ at: number; blockSeconds: number }> = [
 const ALERT_AT = 7
 const PERMANENT_BLOCK_AT = 9
 const COUNTER_WINDOW_SECONDS = 86400
-const SUPER_ADMIN_SLUG = 'super_admin'
 
 /**
  * Brute-force protection for admin password login. Same paliers as the mobile
@@ -35,10 +34,11 @@ const SUPER_ADMIN_SLUG = 'super_admin'
  * Unlike the mobile guard, this tracks attempts by **email** because the admin
  * is unknown until credentials verify. The email is lowercased before keying.
  *
- * Policy difference for `super_admin` (operational safety):
+ * Policy difference for the last active admin (operational safety):
  *   - tier-based temporary blocks still apply
  *   - the permanent block (`isActive = false`) is **not** applied — instead a
- *     CRITICAL escalation alert is emitted so other super_admins can intervene
+ *     CRITICAL escalation alert is emitted. Deactivating the last account would
+ *     leave the back-office with no way in, recoverable only from the database.
  *
  * Degrades gracefully on Redis failures: logs and lets the calling flow proceed.
  */
@@ -176,7 +176,7 @@ export default class AdminAttemptGuard {
       return
     }
 
-    const isSuperAdmin = admin.role?.slug === SUPER_ADMIN_SLUG
+    const isLastActiveAdmin = admin.isActive && (await this.adminRepository.countActive()) <= 1
 
     try {
       await this.block.set(this.blockKey(email), TIERS[0].blockSeconds)
@@ -188,17 +188,17 @@ export default class AdminAttemptGuard {
       )
     }
 
-    if (isSuperAdmin) {
+    if (isLastActiveAdmin) {
       securityLog.warn(
-        'ADMIN_SUPER_ADMIN_BRUTE_FORCE',
+        'ADMIN_LAST_ACTIVE_BRUTE_FORCE',
         { adminId: admin.id, attempts: count, ipAddress },
-        'super_admin reached permanent-block threshold — temporary block applied, manual review required'
+        'last active admin reached permanent-block threshold — temporary block applied, manual review required'
       )
 
       emitter
         .emit('activity:audit', {
           eventCategory: 'AUTH',
-          eventAction: 'ADMIN_SUPER_ADMIN_LOCK_ATTEMPT',
+          eventAction: 'ADMIN_LAST_ACTIVE_LOCK_ATTEMPT',
           actorId: String(admin.id),
           actorType: 'Admin',
           actorRole: admin.role?.name ?? null,
@@ -206,8 +206,9 @@ export default class AdminAttemptGuard {
           targetId: String(admin.id),
           result: AuditResult.FAILURE,
           ipAddress,
-          errorCode: 'SUPER_ADMIN_NOT_AUTO_BLOCKED',
-          errorMessage: 'Permanent block skipped for super_admin — manual review required',
+          errorCode: 'LAST_ACTIVE_ADMIN_NOT_AUTO_BLOCKED',
+          errorMessage:
+            'Permanent block skipped for the last active admin — manual review required',
           metadata: { attempts: count, authMethod: 'PASSWORD' },
         })
         .catch(() => {})

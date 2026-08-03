@@ -1,6 +1,8 @@
 import { inject } from '@adonisjs/core'
 import { UpdateRoleRequestDto, RoleResponseDto } from '#core/team/application/dtos/role.dto'
 import RoleRepository from '#core/team/domain/interfaces/role_repository'
+import RolePermissionGuard from '#core/team/application/services/role_permission_guard'
+import type { PermissionDefinition } from '#core/team/domain/value_objects/permission_catalog'
 import RoleNotFoundException from '#core/team/domain/exceptions/role_not_found_exception'
 import RoleSlugAlreadyExistsException from '#core/team/domain/exceptions/role_slug_already_exists_exception'
 import string from '@adonisjs/core/helpers/string'
@@ -15,7 +17,10 @@ export default class UpdateRoleUseCase {
    *
    * @param {RoleRepository} roleRepository - The repository instance to manage role data.
    */
-  constructor(private roleRepository: RoleRepository) {}
+  constructor(
+    private roleRepository: RoleRepository,
+    private rolePermissionGuard: RolePermissionGuard
+  ) {}
 
   /**
    * Executes the update of an existing role based on the provided data.
@@ -23,11 +28,24 @@ export default class UpdateRoleUseCase {
    * @param {number} id - The ID of the role to update.
    * @param {UpdateRoleRequestDto} data - The data to update the role with.
    * @param {Admin} auth - The authenticated admin user performing the operation.
+   * @param {readonly PermissionDefinition[]} catalog - Les permissions déclarées par les features.
    * @return {Promise<RoleResponseDto>} A promise that resolves with the updated role's details.
    * @throws {RoleNotFoundException}
    * @throws {RoleSlugAlreadyExistsException}
+   * @throws {EmptyRolePermissionsException} La liste soumise est vide.
+   * @throws {UnknownRolePermissionException} Une permission n'est pas déclarée en code.
    */
-  async execute(id: number, data: UpdateRoleRequestDto, auth: Admin): Promise<RoleResponseDto> {
+  async execute(
+    id: number,
+    data: UpdateRoleRequestDto,
+    auth: Admin,
+    catalog: readonly PermissionDefinition[]
+  ): Promise<RoleResponseDto> {
+    // `undefined` laisse les permissions inchangées ; une liste fournie doit être valide.
+    if (data.permissionIds !== undefined) {
+      await this.rolePermissionGuard.assertBelongsToCatalog(data.permissionIds, catalog)
+    }
+
     try {
       const role = await this.roleRepository.findById(id)
       if (!role) throw new RoleNotFoundException()
