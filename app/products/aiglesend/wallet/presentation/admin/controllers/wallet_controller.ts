@@ -12,7 +12,7 @@ import { AuditResult } from '#core/audit/domain/enums'
  * Le sens vit dans la route et non dans le corps : chaque bascule porte ainsi son propre droit.
  */
 @inject()
-export default class AdminWalletController {
+export default class WalletController {
   constructor(private readonly updateWalletStatusUseCase: UpdateWalletStatusUseCase) {}
 
   /**

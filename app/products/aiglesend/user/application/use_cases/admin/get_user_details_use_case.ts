@@ -6,7 +6,7 @@ import type { UserDetailsResult } from '#core/identity/user/application/dtos/use
  * Fiche complète d'un utilisateur pour l'espace admin.
  */
 @inject()
-export default class GetAdminUserDetailsUseCase {
+export default class GetUserDetailsUseCase {
   constructor(private readonly userAdminService: UserAdminService) {}
 
   /**

@@ -5,26 +5,26 @@ import {
   WALLET_ADJUSTMENT_PERMISSIONS,
 } from '#aiglesend/wallet/presentation/admin/permissions.config'
 
-const AdminWalletController = () =>
-  import('#aiglesend/wallet/presentation/admin/controllers/admin_wallet_controller')
-const AdminWalletAdjustmentController = () =>
-  import('#aiglesend/wallet/presentation/admin/controllers/admin_wallet_adjustment_controller')
+const WalletController = () =>
+  import('#aiglesend/wallet/presentation/admin/controllers/wallet_controller')
+const WalletAdjustmentController = () =>
+  import('#aiglesend/wallet/presentation/admin/controllers/wallet_adjustment_controller')
 
 export default function adminWalletRoutes() {
   return router
     .group(() => {
       // Le sens est dans l'URL, non dans le corps : chaque route porte ainsi son propre droit.
       router
-        .patch('/:userId/freeze', [AdminWalletController, 'freeze'])
+        .patch('/:userId/freeze', [WalletController, 'freeze'])
         .use(middleware.permission([USER_WALLET_PERMISSIONS.freeze]))
       router
-        .patch('/:userId/unfreeze', [AdminWalletController, 'unfreeze'])
+        .patch('/:userId/unfreeze', [WalletController, 'unfreeze'])
         .use(middleware.permission([USER_WALLET_PERMISSIONS.unfreeze]))
       router
-        .get('/adjustments', [AdminWalletAdjustmentController, 'list'])
+        .get('/adjustments', [WalletAdjustmentController, 'list'])
         .use(middleware.permission([WALLET_ADJUSTMENT_PERMISSIONS.list]))
       router
-        .post('/adjustments', [AdminWalletAdjustmentController, 'execute'])
+        .post('/adjustments', [WalletAdjustmentController, 'execute'])
         .use(middleware.permission([WALLET_ADJUSTMENT_PERMISSIONS.execute]))
     })
     .prefix('wallets')

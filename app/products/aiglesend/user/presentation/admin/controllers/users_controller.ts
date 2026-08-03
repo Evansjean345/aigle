@@ -2,7 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import GetAllUsersUseCase from '#aiglesend/user/application/use_cases/admin/get_all_users_use_case'
 import GetUserWalletStatsUseCase from '#aiglesend/user/application/use_cases/admin/get_user_wallet_stats_use_case'
-import GetAdminUserDetailsUseCase from '#aiglesend/user/application/use_cases/admin/get_admin_user_details_use_case'
+import GetUserDetailsUseCase from '#aiglesend/user/application/use_cases/admin/get_user_details_use_case'
 import ChangeUserStateUseCase from '#aiglesend/user/application/use_cases/admin/change_user_state_use_case'
 import GetUserStatsUseCase from '#aiglesend/user/application/use_cases/admin/get_user_stats_use_case'
 import SearchUserUseCase from '#aiglesend/user/application/use_cases/admin/search_user_use_case'
@@ -19,7 +19,7 @@ export default class UsersController {
    *
    * @param {GetAllUsersUseCase} getAllUsersUseCase - An instance of GetAllUsersUseCase used to retrieve all users.
    * @param {GetUserWalletStatsUseCase} getUserWalletStatsUseCase
-   * @param {GetAdminUserDetailsUseCase} getAdminUserDetailsUseCase
+   * @param {GetUserDetailsUseCase} getUserDetailsUseCase
    * @param {ChangeUserStateUseCase} changeUserStateUseCase
    * @param {GetUserStatsUseCase} getUserStatsUseCase
    * @param {SearchUserUseCase} searchUserUseCase - An instance of SearchUserUseCase used to search for users by name.
@@ -27,7 +27,7 @@ export default class UsersController {
   constructor(
     private readonly getAllUsersUseCase: GetAllUsersUseCase,
     private readonly getUserWalletStatsUseCase: GetUserWalletStatsUseCase,
-    private readonly getAdminUserDetailsUseCase: GetAdminUserDetailsUseCase,
+    private readonly getUserDetailsUseCase: GetUserDetailsUseCase,
     private readonly changeUserStateUseCase: ChangeUserStateUseCase,
     private readonly getUserStatsUseCase: GetUserStatsUseCase,
     private readonly searchUserUseCase: SearchUserUseCase
@@ -49,18 +49,20 @@ export default class UsersController {
     const endDate = request.input('endDate')
     const users = await this.getAllUsersUseCase.execute(page, perPage, search, startDate, endDate)
 
-    emitter.emit('activity:audit', {
-      eventCategory: 'USERS',
-      eventAction: 'READ_USERS',
-      actorId: auth.user?.id ?? null,
-      actorType: 'admin',
-      actorRole: (auth.user as any)?.role?.slug ?? null,
-      requestId: request.header('x-request-id') ?? null,
-      ipAddress: request.ip(),
-      userAgent: request.header('user-agent') ?? null,
-      metadata: { page, perPage, search, startDate, endDate },
-      result: AuditResult.SUCCESS,
-    })
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'USERS',
+        eventAction: 'READ_USERS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        metadata: { page, perPage, search, startDate, endDate },
+        result: AuditResult.SUCCESS,
+      })
+      .catch(() => {})
 
     return response.ok(users)
   }
@@ -76,18 +78,20 @@ export default class UsersController {
     const endDate = request.input('endDate')
     const stats = await this.getUserStatsUseCase.execute(startDate, endDate)
 
-    emitter.emit('activity:audit', {
-      eventCategory: 'USERS',
-      eventAction: 'READ_USERS_STATS',
-      actorId: auth.user?.id ?? null,
-      actorType: 'admin',
-      actorRole: (auth.user as Admin)?.role?.slug ?? null,
-      requestId: request.header('x-request-id') ?? null,
-      ipAddress: request.ip(),
-      userAgent: request.header('user-agent') ?? null,
-      metadata: { startDate, endDate },
-      result: AuditResult.SUCCESS,
-    })
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'USERS',
+        eventAction: 'READ_USERS_STATS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as Admin)?.role?.slug ?? null,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        metadata: { startDate, endDate },
+        result: AuditResult.SUCCESS,
+      })
+      .catch(() => {})
 
     return response.ok(stats)
   }
@@ -104,19 +108,21 @@ export default class UsersController {
   async walletStats({ params, response, request, auth }: HttpContext): Promise<void> {
     const stats = await this.getUserWalletStatsUseCase.execute(params.id)
 
-    emitter.emit('activity:audit', {
-      eventCategory: 'USERS',
-      eventAction: 'READ_USER_WALLET_STATS',
-      actorId: auth.user?.id ?? null,
-      actorType: 'admin',
-      actorRole: (auth.user as Admin)?.role?.slug ?? null,
-      targetType: 'user',
-      targetId: params.id,
-      requestId: request.header('x-request-id') ?? null,
-      ipAddress: request.ip(),
-      userAgent: request.header('user-agent') ?? null,
-      result: AuditResult.SUCCESS,
-    })
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'USERS',
+        eventAction: 'READ_USER_WALLET_STATS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as Admin)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: params.id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        result: AuditResult.SUCCESS,
+      })
+      .catch(() => {})
 
     return response.ok(stats)
   }
@@ -132,42 +138,47 @@ export default class UsersController {
    */
   async show({ params, response, request, auth }: HttpContext): Promise<void> {
     try {
-      const user = await this.getAdminUserDetailsUseCase.execute(params.id)
+      const user = await this.getUserDetailsUseCase.execute(params.id)
 
       if (!user) {
         return response.notFound({ message: 'User not found' })
       }
 
-      emitter.emit('activity:audit', {
-        eventCategory: 'USERS',
-        eventAction: 'VIEW_USER_DETAILS',
-        actorId: auth.user?.id ?? null,
-        actorType: 'admin',
-        actorRole: (auth.user as Admin)?.role?.slug ?? null,
-        targetType: 'user',
-        targetId: params.id,
-        requestId: request.header('x-request-id') ?? null,
-        ipAddress: request.ip(),
-        userAgent: request.header('user-agent') ?? null,
-        result: AuditResult.SUCCESS,
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'USERS',
+          eventAction: 'VIEW_USER_DETAILS',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as Admin)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: params.id,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.SUCCESS,
+        })
+        .catch(() => {})
 
       return response.ok(user)
     } catch (error) {
-      emitter.emit('activity:audit', {
-        eventCategory: 'USERS',
-        eventAction: 'VIEW_USER_DETAILS',
-        actorId: auth.user?.id ?? null,
-        actorType: 'admin',
-        actorRole: (auth.user as any)?.role?.slug ?? null,
-        targetType: 'user',
-        targetId: params.id,
-        requestId: request.header('x-request-id') ?? null,
-        ipAddress: request.ip(),
-        userAgent: request.header('user-agent') ?? null,
-        result: AuditResult.FAILURE,
-        errorMessage: (error as Error)?.message ?? 'User not found',
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'USERS',
+          eventAction: 'VIEW_USER_DETAILS',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: params.id,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.FAILURE,
+          errorMessage: (error as Error)?.message ?? 'User not found',
+        })
+        .catch(() => {})
+
       return response.notFound({ message: 'User not found' })
     }
   }
@@ -185,37 +196,41 @@ export default class UsersController {
     try {
       await this.changeUserStateUseCase.execute(params.id, UserStatus.BLOCKED)
 
-      emitter.emit('activity:audit', {
-        eventCategory: 'USERS',
-        eventAction: 'BLOCK_USER',
-        actorId: auth.user?.id ?? null,
-        actorType: 'admin',
-        actorRole: (auth.user as any)?.role?.slug ?? null,
-        targetType: 'user',
-        targetId: params.id,
-        requestId: request.header('x-request-id') ?? null,
-        ipAddress: request.ip(),
-        userAgent: request.header('user-agent') ?? null,
-        newValues: { status: UserStatus.BLOCKED },
-        result: AuditResult.SUCCESS,
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'USERS',
+          eventAction: 'BLOCK_USER',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: params.id,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          newValues: { status: UserStatus.BLOCKED },
+          result: AuditResult.SUCCESS,
+        })
+        .catch(() => {})
 
       return response.ok({ message: 'User blocked successfully' })
     } catch (error) {
-      emitter.emit('activity:audit', {
-        eventCategory: 'USERS',
-        eventAction: 'BLOCK_USER',
-        actorId: auth.user?.id ?? null,
-        actorType: 'admin',
-        actorRole: (auth.user as Admin)?.role?.slug ?? null,
-        targetType: 'user',
-        targetId: params.id,
-        requestId: request.header('x-request-id') ?? null,
-        ipAddress: request.ip(),
-        userAgent: request.header('user-agent') ?? null,
-        result: AuditResult.FAILURE,
-        errorMessage: (error as Error)?.message,
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'USERS',
+          eventAction: 'BLOCK_USER',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as Admin)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: params.id,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.FAILURE,
+          errorMessage: (error as Error)?.message,
+        })
+        .catch(() => {})
       throw error
     }
   }
@@ -233,37 +248,42 @@ export default class UsersController {
     try {
       await this.changeUserStateUseCase.execute(params.id, UserStatus.ACTIVE)
 
-      emitter.emit('activity:audit', {
-        eventCategory: 'USERS',
-        eventAction: 'ACTIVATE_USER',
-        actorId: auth.user?.id ?? null,
-        actorType: 'admin',
-        actorRole: (auth.user as any)?.role?.slug ?? null,
-        targetType: 'user',
-        targetId: params.id,
-        requestId: request.header('x-request-id') ?? null,
-        ipAddress: request.ip(),
-        userAgent: request.header('user-agent') ?? null,
-        newValues: { status: UserStatus.ACTIVE },
-        result: AuditResult.SUCCESS,
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'USERS',
+          eventAction: 'ACTIVATE_USER',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: params.id,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          newValues: { status: UserStatus.ACTIVE },
+          result: AuditResult.SUCCESS,
+        })
+        .catch(() => {})
 
       return response.ok({ message: 'User activated successfully' })
     } catch (error) {
-      emitter.emit('activity:audit', {
-        eventCategory: 'USERS',
-        eventAction: 'ACTIVATE_USER',
-        actorId: auth.user?.id ?? null,
-        actorType: 'admin',
-        actorRole: (auth.user as Admin)?.role?.slug ?? null,
-        targetType: 'user',
-        targetId: params.id,
-        requestId: request.header('x-request-id') ?? null,
-        ipAddress: request.ip(),
-        userAgent: request.header('user-agent') ?? null,
-        result: AuditResult.FAILURE,
-        errorMessage: (error as Error)?.message,
-      })
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'USERS',
+          eventAction: 'ACTIVATE_USER',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as Admin)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: params.id,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          result: AuditResult.FAILURE,
+          errorMessage: (error as Error)?.message,
+        })
+        .catch(() => {})
+
       throw error
     }
   }
@@ -286,18 +306,20 @@ export default class UsersController {
 
     const result = await this.searchUserUseCase.execute(search)
 
-    emitter.emit('activity:audit', {
-      eventCategory: 'USERS',
-      eventAction: 'SEARCH_USERS',
-      actorId: auth.user?.id ?? null,
-      actorType: 'admin',
-      actorRole: (auth.user as Admin)?.role?.slug ?? null,
-      requestId: request.header('x-request-id') ?? null,
-      ipAddress: request.ip(),
-      userAgent: request.header('user-agent') ?? null,
-      metadata: { query: search },
-      result: AuditResult.SUCCESS,
-    })
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'USERS',
+        eventAction: 'SEARCH_USERS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as Admin)?.role?.slug ?? null,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        metadata: { query: search },
+        result: AuditResult.SUCCESS,
+      })
+      .catch(() => {})
 
     return response.ok(result)
   }

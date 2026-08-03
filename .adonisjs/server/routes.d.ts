@@ -108,10 +108,10 @@ export type ScannedRoutes = {
     'admin_app_version.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_app_version.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_app_version.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'admin_wallet.freeze': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
-    'admin_wallet.unfreeze': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
-    'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
-    'admin_wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
+    'wallet.freeze': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'wallet.unfreeze': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'wallet_adjustment.list': { paramsTuple?: []; params?: {} }
+    'wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'event_stream': { paramsTuple?: []; params?: {} }
@@ -266,7 +266,7 @@ export type ScannedRoutes = {
     'admin_device.get_device_transactions': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
     'admin_app_version.index': { paramsTuple?: []; params?: {} }
     'admin_app_version.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
+    'wallet_adjustment.list': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'event_stream': { paramsTuple?: []; params?: {} }
@@ -364,7 +364,7 @@ export type ScannedRoutes = {
     'admin_device.get_device_transactions': { paramsTuple: [ParamValue]; params: {'deviceId': ParamValue} }
     'admin_app_version.index': { paramsTuple?: []; params?: {} }
     'admin_app_version.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'admin_wallet_adjustment.list': { paramsTuple?: []; params?: {} }
+    'wallet_adjustment.list': { paramsTuple?: []; params?: {} }
     'admin_audit.list': { paramsTuple?: []; params?: {} }
     'admin_audit.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'event_stream': { paramsTuple?: []; params?: {} }
@@ -423,7 +423,7 @@ export type ScannedRoutes = {
     'kyc_level.store': { paramsTuple?: []; params?: {} }
     'kyc.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_app_version.store': { paramsTuple?: []; params?: {} }
-    'admin_wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
+    'wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
     'subscribe': { paramsTuple?: []; params?: {} }
     'unsubscribe': { paramsTuple?: []; params?: {} }
     'auth.check_phone': { paramsTuple?: []; params?: {} }
@@ -514,8 +514,8 @@ export type ScannedRoutes = {
     'admin_organisations.change_status': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.freeze_wallet': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.unfreeze_wallet': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'admin_wallet.freeze': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
-    'admin_wallet.unfreeze': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'wallet.freeze': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
+    'wallet.unfreeze': { paramsTuple: [ParamValue]; params: {'userId': ParamValue} }
     'role.update': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'roleId': ParamValue} }
     'member.update_role': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
   }

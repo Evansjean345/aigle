@@ -11,7 +11,7 @@ import { AdjustmentType, AdjustmentReason } from '#core/money/wallet/domain/enum
 import { AuditResult } from '#core/audit/domain/enums'
 
 @inject()
-export default class AdminWalletAdjustmentController {
+export default class WalletAdjustmentController {
   /**
    * Constructs a new instance with the required wallet adjustment use cases.
    * @param {ExecuteWalletAdjustmentUseCase} executeWalletAdjustmentUseCase - The use case for executing wallet adjustments.
