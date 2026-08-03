@@ -45,6 +45,22 @@ export const toWalletBalanceResult = (wallet: Wallet): WalletBalanceResult => ({
   status: wallet.status,
 })
 
+/**
+ * État d'un portefeuille après changement de statut, exposé hors du contexte money.
+ *
+ * N'expose ni le solde ni le porteur : un appelant qui gèle ou dégèle n'a besoin que de savoir sur
+ * quel portefeuille il a agi, et dans quel état il se trouve.
+ */
+export interface WalletStatusResult {
+  walletsUid: string
+  status: WalletStatus
+}
+
+export const toWalletStatusResult = (wallet: Wallet): WalletStatusResult => ({
+  walletsUid: wallet.walletsUid,
+  status: wallet.status,
+})
+
 export const toWalletOverviewResult = (
   wallet: Wallet,
   transactions: Transaction[]

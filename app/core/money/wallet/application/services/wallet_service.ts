@@ -5,9 +5,11 @@ import {
   WalletCreatedResult,
   toRecipientAccountResult,
   toWalletBalanceResult,
+  toWalletStatusResult,
   type RecipientAccountResult,
   type ResolveRecipientQuery,
   type WalletBalanceResult,
+  type WalletStatusResult,
 } from '#core/money/wallet/application/dtos/wallet.dto'
 import Wallet from '#core/money/wallet/domain/models/wallet'
 import { Exception } from '@adonisjs/core/exceptions'
@@ -253,13 +255,13 @@ export default class WalletService {
   }
 
   /**
-   * Updates the status of a user's wallet.
+   * Fixe le statut du portefeuille d'un utilisateur.
    *
-   * @param {string} userId - The unique identifier of the user whose wallet status is to be updated.
-   * @param {WalletStatus} status - The new status to be assigned to the user's wallet.
-   * @param {TransactionClientContract} [trx] - Optional transaction client for database operations.
-   * @return {Promise<Wallet>} A promise that resolves to the updated wallet instance.
-   * @throws {Exception} If no wallet is found for the given user ID, an exception is thrown with status 404 and code 'WALLET_NOT_FOUND'.
+   * @param {string} userId - Identifiant public de l'utilisateur.
+   * @param {WalletStatus} status - Nouveau statut.
+   * @param {TransactionClientContract} [trx] - Transaction englobante.
+   * @returns {Promise<Wallet>} Le portefeuille mis à jour.
+   * @throws {Exception} Aucun portefeuille pour cet utilisateur, ou mise à jour refusée.
    */
   async updateWalletStatus(
     userId: string,
@@ -278,5 +280,36 @@ export default class WalletService {
 
     await WalletStatusChanged.dispatch(userId, status)
     return updated
+  }
+
+  /**
+   * Fixe le statut du portefeuille d'un compte.
+   *
+   * Voie d'accès des comptes sans porteur personnel, tels ceux des organisations. Aucun événement
+   * `WalletStatusChanged` n'est émis : il porte un `userId`, que ces portefeuilles n'ont pas.
+   *
+   * @param {string} accountId - Identifiant du compte porteur.
+   * @param {WalletStatus} status - Nouveau statut.
+   * @param {TransactionClientContract} [trx] - Transaction englobante.
+   * @returns {Promise<WalletStatusResult>} Le portefeuille et son nouveau statut.
+   * @throws {WalletNotFoundException} Aucun portefeuille pour ce compte.
+   * @throws {Exception} Mise à jour refusée.
+   */
+  async updateWalletStatusByAccountId(
+    accountId: string,
+    status: WalletStatus,
+    trx?: TransactionClientContract
+  ): Promise<WalletStatusResult> {
+    const wallet = await this.getByAccountId(accountId, trx)
+    const updated = await this.walletRepository.updateStatus(wallet.id, status, trx)
+
+    if (!updated) {
+      throw new Exception('La mise à jour du portefeuille a échoué', {
+        status: 500,
+        code: 'E_WALLET_UPDATE_FAILED',
+      })
+    }
+
+    return toWalletStatusResult(updated)
   }
 }

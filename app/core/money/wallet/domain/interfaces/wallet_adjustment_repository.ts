@@ -1,7 +1,10 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import type WalletAdjustment from '#core/money/wallet/domain/models/wallet_adjustment'
-import type { AdjustmentType, AdjustmentReason } from '#core/money/wallet/domain/enums/wallet_adjustment'
+import type {
+  AdjustmentType,
+  AdjustmentReason,
+} from '#core/money/wallet/domain/enums/wallet_adjustment'
 
 export interface ListWalletAdjustmentsFilter {
   walletId?: number

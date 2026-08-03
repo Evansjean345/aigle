@@ -46,40 +46,20 @@ paths:
         '401':
           description: Non autorisé
 
-  /api/admin/wallets/{userId}/activate:
-    put:
-      operationId: activateUserWallet
-      summary: Activer le portefeuille d'un utilisateur
-      description: Active le portefeuille d'un utilisateur désactivé.
-      tags:
-        - Admin - Wallets
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          description: Identifiant de l'utilisateur
-          schema:
-            type: integer
-          example: 42
-      responses:
-        '200':
-          description: Portefeuille activé
-          content:
-            application/json:
-              example:
-                message: "Portefeuille activé avec succès"
-        '401':
-          description: Non autorisé
-        '404':
-          description: Utilisateur non trouvé
+  /api/admin/wallets/{userId}/freeze:
+    patch:
+      operationId: freezeUserWallet
+      summary: Geler le portefeuille d'un utilisateur
+      description: >
+        Suspend le portefeuille : plus aucun mouvement n'y est accepté, ni entrant ni sortant.
 
-  /api/admin/wallets/{userId}/deactivate:
-    put:
-      operationId: deactivateUserWallet
-      summary: Désactiver le portefeuille d'un utilisateur
-      description: Désactive le portefeuille d'un utilisateur, bloquant toute opération financière.
+
+        Un portefeuille se **gèle**, un compte se **bloque** : les deux droits sont distincts et se
+        composent séparément. Le même vocabulaire vaut pour les organisations
+        (`/organisations/{id}/wallet/freeze`).
+
+
+        Le motif est obligatoire et la décision auditée (`FREEZE_WALLET`).
       tags:
         - Admin - Wallets
       security:
@@ -88,21 +68,84 @@ paths:
         - name: userId
           in: path
           required: true
-          description: Identifiant de l'utilisateur
-          schema:
-            type: integer
-          example: 42
+          description: Identifiant public de l'utilisateur.
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                  description: Motif de la décision, conservé dans la piste d'audit.
       responses:
         '200':
-          description: Portefeuille désactivé
+          description: Portefeuille gelé.
           content:
             application/json:
               example:
-                message: "Portefeuille désactivé avec succès"
+                message: "Portefeuille gelé"
         '401':
-          description: Non autorisé
+          description: Non autorisé.
+        '403':
+          description: Permission `users.wallets.freeze` absente.
         '404':
-          description: Utilisateur non trouvé
+          description: Utilisateur ou portefeuille introuvable.
+        '422':
+          description: Motif absent ou trop court.
+
+  /api/admin/wallets/{userId}/unfreeze:
+    patch:
+      operationId: unfreezeUserWallet
+      summary: Dégeler le portefeuille d'un utilisateur
+      description: >
+        Rétablit les mouvements sur un portefeuille précédemment gelé.
+
+
+        Le motif est obligatoire et la décision auditée (`UNFREEZE_WALLET`).
+      tags:
+        - Admin - Wallets
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: Identifiant public de l'utilisateur.
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                  description: Motif de la décision, conservé dans la piste d'audit.
+      responses:
+        '200':
+          description: Portefeuille dégelé.
+          content:
+            application/json:
+              example:
+                message: "Portefeuille dégelé"
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `users.wallets.unfreeze` absente.
+        '404':
+          description: Utilisateur ou portefeuille introuvable.
+        '422':
+          description: Motif absent ou trop court.
 
 components:
   schemas:

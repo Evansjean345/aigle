@@ -3,7 +3,6 @@ import { inject } from '@adonisjs/core'
 import emitter from '@adonisjs/core/services/emitter'
 import ExecuteWalletAdjustmentUseCase from '#core/money/wallet/application/use_cases/admin/execute_wallet_adjustment_use_case'
 import ListWalletAdjustmentsUseCase from '#core/money/wallet/application/use_cases/admin/list_wallet_adjustments_use_case'
-import WalletPolicy from '#core/money/wallet/presentation/admin/policies/wallet_policy'
 import {
   walletAdjustmentValidator,
   walletAdjustmentListValidator,
@@ -28,12 +27,9 @@ export default class AdminWalletAdjustmentController {
    * Authorizes the request using the WalletPolicy and validates the query string
    * before delegating to the listWalletAdjustmentsUseCase.
    *
-   * @param {HttpContext} context - The HTTP context containing request, response, bouncer, and auth.
    * @return {Promise<void>}
    */
-  async list({ request, response, bouncer, auth }: HttpContext): Promise<void> {
-    await bouncer.with(WalletPolicy).authorize('viewAdjustments' as never)
-
+  async list({ request, response }: HttpContext): Promise<void> {
     const query = await walletAdjustmentListValidator.validate(request.qs())
 
     const result = await this.listWalletAdjustmentsUseCase.execute({
@@ -61,13 +57,10 @@ export default class AdminWalletAdjustmentController {
    * @param {Object} HttpContext - The HTTP context object containing various request and utility properties.
    * @param {Object} HttpContext.request - The HTTP request object containing the payload to be processed.
    * @param {Object} HttpContext.response - The HTTP response object used to send the resulting output.
-   * @param {Object} HttpContext.bouncer - The authorization layer for enforcing access policies.
    * @param {Object} HttpContext.auth - The authentication object for retrieving the authenticated admin user.
    * @return {Promise<void>} Resolves when the wallet adjustment operation completes successfully or throws an error.
    */
-  async execute({ request, response, bouncer, auth }: HttpContext): Promise<void> {
-    await bouncer.with(WalletPolicy).authorize('executeAdjustment' as never)
-
+  async execute({ request, response, auth }: HttpContext): Promise<void> {
     const admin = auth.getUserOrFail()
     const payload = await request.validateUsing(walletAdjustmentValidator)
 
