@@ -4,26 +4,38 @@ import { DateTime } from 'luxon'
 import WalletService from '#core/money/wallet/application/services/wallet_service'
 import LedgerService from '#core/money/ledger/application/services/ledger_service'
 import WalletAdjustmentRepository from '#core/money/wallet/domain/interfaces/wallet_adjustment_repository'
+import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
 import { AdjustmentType, AdjustmentStatus } from '#core/money/wallet/domain/enums/wallet_adjustment'
 import { LedgerDirection } from '#core/money/ledger/domain/ledger_enums'
 import AdjustmentFailedException from '#core/money/wallet/domain/exceptions/adjustment_failed_exception'
+import TransactionNotFoundException from '#core/money/transactions/domain/exceptions/transaction_not_found_exception'
+import {
+  toWalletAdjustmentResult,
+  toWalletAdjustmentListItemResult,
+} from '#core/money/wallet/application/dtos/wallet_adjustment.dto'
+import type Transaction from '#core/money/transactions/domain/models/transaction'
 import type {
   WalletAdjustmentCommand,
   WalletAdjustmentResult,
-} from '#core/money/wallet/application/dtos/admin/admin_wallet_adjustment.dto'
+  ListWalletAdjustmentsFilters,
+  PaginatedWalletAdjustmentsResult,
+} from '#core/money/wallet/application/dtos/wallet_adjustment.dto'
 
 @inject()
 export default class WalletAdjustmentService {
   constructor(
     private walletService: WalletService,
     private ledgerService: LedgerService,
-    private walletAdjustmentRepository: WalletAdjustmentRepository
+    private walletAdjustmentRepository: WalletAdjustmentRepository,
+    private transactionRepository: TransactionRepository
   ) {}
 
   async adjust(
     params: WalletAdjustmentCommand,
     trx: TransactionClientContract
   ): Promise<WalletAdjustmentResult> {
+    const transaction = await this.#resolveTransaction(params.transactionReference)
+
     const wallet = await this.walletService.getWalletById(params.walletId, trx)
     const balanceBefore = Number(wallet.balance)
     const balanceAfter = await this.#applyBalanceChange(params, trx)
@@ -34,7 +46,7 @@ export default class WalletAdjustmentService {
     const walletAdjustment = await this.walletAdjustmentRepository.create(
       {
         walletId: params.walletId,
-        transactionId: params.transaction?.id ?? null,
+        transactionId: transaction?.id ?? null,
         type: params.type,
         reason: params.reason,
         status: AdjustmentStatus.EXECUTED,
@@ -48,9 +60,9 @@ export default class WalletAdjustmentService {
       trx
     )
 
-    if (params.transaction) {
+    if (transaction) {
       await this.ledgerService.recordAdjustment(
-        params.transaction,
+        transaction,
         params.walletId,
         ledgerDirection,
         params.amount,
@@ -61,7 +73,53 @@ export default class WalletAdjustmentService {
       )
     }
 
-    return { walletAdjustment, balanceBefore, balanceAfter }
+    return toWalletAdjustmentResult(walletAdjustment)
+  }
+
+  /**
+   * Liste les ajustements, paginés et filtrés.
+   *
+   * @param {number} page - Page demandée.
+   * @param {number} perPage - Taille de page.
+   * @param {ListWalletAdjustmentsFilters} filters - Filtres déjà normalisés.
+   * @returns {Promise<PaginatedWalletAdjustmentsResult>} La page et ses métadonnées.
+   */
+  async list(
+    page: number,
+    perPage: number,
+    filters: ListWalletAdjustmentsFilters
+  ): Promise<PaginatedWalletAdjustmentsResult> {
+    const paginator = await this.walletAdjustmentRepository.list(page, perPage, filters)
+
+    return {
+      data: paginator.all().map(toWalletAdjustmentListItemResult),
+      meta: {
+        total: paginator.total,
+        currentPage: paginator.currentPage,
+        firstPage: paginator.firstPage,
+        lastPage: paginator.lastPage,
+        perPage: paginator.perPage,
+      },
+    }
+  }
+
+  /**
+   * Résout la transaction rattachée à un ajustement.
+   *
+   * @param {string} [reference] - Référence de transaction. Absente, l'ajustement n'en porte pas.
+   * @returns {Promise<Transaction | null>} La transaction, ou `null` sans référence.
+   * @throws {TransactionNotFoundException} Référence inconnue.
+   */
+  async #resolveTransaction(reference?: string): Promise<Transaction | null> {
+    if (!reference) return null
+
+    const transaction = await this.transactionRepository.findByReference(reference)
+
+    if (!transaction) {
+      throw new TransactionNotFoundException()
+    }
+
+    return transaction
   }
 
   /**

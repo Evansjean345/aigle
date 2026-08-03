@@ -6,9 +6,9 @@ import {
 } from '#core/money/wallet/presentation/admin/permissions.config'
 
 const AdminWalletController = () =>
-  import('#core/money/wallet/presentation/admin/controllers/admin_wallet_controller')
+  import('#aiglesend/wallet/presentation/admin/controllers/admin_wallet_controller')
 const AdminWalletAdjustmentController = () =>
-  import('#core/money/wallet/presentation/admin/controllers/admin_wallet_adjustment_controller')
+  import('#aiglesend/wallet/presentation/admin/controllers/admin_wallet_adjustment_controller')
 
 export default function adminWalletRoutes() {
   return router

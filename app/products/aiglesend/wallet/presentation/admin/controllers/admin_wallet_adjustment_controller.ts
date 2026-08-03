@@ -1,12 +1,12 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import emitter from '@adonisjs/core/services/emitter'
-import ExecuteWalletAdjustmentUseCase from '#core/money/wallet/application/use_cases/admin/execute_wallet_adjustment_use_case'
-import ListWalletAdjustmentsUseCase from '#core/money/wallet/application/use_cases/admin/list_wallet_adjustments_use_case'
+import ExecuteWalletAdjustmentUseCase from '#aiglesend/wallet/application/use_cases/admin/execute_wallet_adjustment_use_case'
+import ListWalletAdjustmentsUseCase from '#aiglesend/wallet/application/use_cases/admin/list_wallet_adjustments_use_case'
 import {
   walletAdjustmentValidator,
   walletAdjustmentListValidator,
-} from '#core/money/wallet/presentation/admin/validators/wallet_adjustment_validator'
+} from '#aiglesend/wallet/presentation/admin/validators/wallet_adjustment_validator'
 import { AdjustmentType, AdjustmentReason } from '#core/money/wallet/domain/enums/wallet_adjustment'
 import { AuditResult } from '#core/audit/domain/enums'
 

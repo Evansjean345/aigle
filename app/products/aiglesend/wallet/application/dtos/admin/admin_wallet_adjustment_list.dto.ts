@@ -1,10 +1,13 @@
 import type { DateTime } from 'luxon'
-import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
-import type WalletAdjustment from '#core/money/wallet/domain/models/wallet_adjustment'
 import type {
   AdjustmentType,
   AdjustmentReason,
 } from '#core/money/wallet/domain/enums/wallet_adjustment'
+import type {
+  WalletAdjustmentListItemResult,
+  WalletAdjustmentsPaginationMeta,
+  PaginatedWalletAdjustmentsResult,
+} from '#core/money/wallet/application/dtos/wallet_adjustment.dto'
 
 // ── RequestDto (input use case) ─────────────────────────────────────
 
@@ -59,7 +62,15 @@ export class WalletAdjustmentListItemResponseDTO {
     email: string
   } | null
 
-  static fromAdjustment(adjustment: WalletAdjustment): WalletAdjustmentListItemResponseDTO {
+  /**
+   * Construit une ligne depuis l'ajustement projeté par le service.
+   *
+   * @param {WalletAdjustmentListItemResult} adjustment - Ajustement projeté.
+   * @returns {WalletAdjustmentListItemResponseDTO} La ligne destinée au back-office.
+   */
+  static fromResult(
+    adjustment: WalletAdjustmentListItemResult
+  ): WalletAdjustmentListItemResponseDTO {
     const dto = new WalletAdjustmentListItemResponseDTO()
     dto.id = adjustment.id
     dto.adjustmentUid = adjustment.adjustmentUid
@@ -67,70 +78,33 @@ export class WalletAdjustmentListItemResponseDTO {
     dto.type = adjustment.type
     dto.reason = adjustment.reason
     dto.status = adjustment.status
-    dto.amount = Number(adjustment.amount)
-    dto.balanceBefore = Number(adjustment.balanceBefore)
-    dto.balanceAfter = Number(adjustment.balanceAfter)
+    dto.amount = adjustment.amount
+    dto.balanceBefore = adjustment.balanceBefore
+    dto.balanceAfter = adjustment.balanceAfter
     dto.comment = adjustment.comment
     dto.executedAt = adjustment.executedAt
     dto.createdAt = adjustment.createdAt
-
     dto.transaction = adjustment.transaction
-      ? {
-          id: adjustment.transaction.id,
-          reference: adjustment.transaction.reference,
-        }
-      : null
-
     dto.wallet = adjustment.wallet
-      ? {
-          id: adjustment.wallet.id,
-          walletsUid: adjustment.wallet.walletsUid,
-          currencySymbol: adjustment.wallet.currencySymbol,
-          user: adjustment.wallet.user
-            ? {
-                usersUid: adjustment.wallet.user.usersUid,
-                firstname: adjustment.wallet.user.firstname,
-                lastname: adjustment.wallet.user.lastname,
-              }
-            : null,
-        }
-      : null
-
-    const admin = (adjustment as any).admin
-    dto.admin = admin
-      ? {
-          id: admin.id,
-          firstname: admin.firstname,
-          lastname: admin.lastname,
-          email: admin.email,
-        }
-      : null
+    dto.admin = adjustment.admin
 
     return dto
   }
 
-  static fromPaginator(
-    paginator: ModelPaginatorContract<WalletAdjustment>
+  /**
+   * Construit une page de résultats depuis la page projetée par le service.
+   *
+   * @param {PaginatedWalletAdjustmentsResult} page - Page projetée.
+   * @returns {PaginatedWalletAdjustmentsResponseDTO} La page destinée au back-office.
+   */
+  static fromResultPage(
+    page: PaginatedWalletAdjustmentsResult
   ): PaginatedWalletAdjustmentsResponseDTO {
     return {
-      data: paginator.all().map(WalletAdjustmentListItemResponseDTO.fromAdjustment),
-      meta: {
-        total: paginator.total,
-        currentPage: paginator.currentPage,
-        firstPage: paginator.firstPage,
-        lastPage: paginator.lastPage,
-        perPage: paginator.perPage,
-      },
+      data: page.data.map(WalletAdjustmentListItemResponseDTO.fromResult),
+      meta: page.meta,
     }
   }
-}
-
-export interface WalletAdjustmentsPaginationMeta {
-  total: number
-  currentPage: number
-  firstPage: number
-  lastPage: number
-  perPage: number
 }
 
 export interface PaginatedWalletAdjustmentsResponseDTO {

@@ -1,9 +1,9 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import emitter from '@adonisjs/core/services/emitter'
-import UpdateWalletStatusUseCase from '#core/money/wallet/application/use_cases/admin/update_wallet_status_use_case'
+import UpdateWalletStatusUseCase from '#aiglesend/wallet/application/use_cases/admin/update_wallet_status_use_case'
 import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
-import { walletFreezeValidator } from '#core/money/wallet/presentation/admin/validators/admin_wallet_validators'
+import { walletFreezeValidator } from '#aiglesend/wallet/presentation/admin/validators/admin_wallet_validators'
 import { AuditResult } from '#core/audit/domain/enums'
 
 /**

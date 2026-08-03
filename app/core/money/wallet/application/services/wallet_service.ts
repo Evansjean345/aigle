@@ -260,14 +260,14 @@ export default class WalletService {
    * @param {string} userId - Identifiant public de l'utilisateur.
    * @param {WalletStatus} status - Nouveau statut.
    * @param {TransactionClientContract} [trx] - Transaction englobante.
-   * @returns {Promise<Wallet>} Le portefeuille mis à jour.
+   * @returns {Promise<WalletStatusResult>} Le portefeuille et son nouveau statut.
    * @throws {Exception} Aucun portefeuille pour cet utilisateur, ou mise à jour refusée.
    */
   async updateWalletStatus(
     userId: string,
     status: WalletStatus,
     trx?: TransactionClientContract
-  ): Promise<Wallet> {
+  ): Promise<WalletStatusResult> {
     const wallet = await this.getByUserId(userId)
     const updated = await this.walletRepository.updateStatus(wallet.id, status, trx)
 
@@ -279,7 +279,8 @@ export default class WalletService {
     }
 
     await WalletStatusChanged.dispatch(userId, status)
-    return updated
+
+    return toWalletStatusResult(updated)
   }
 
   /**
