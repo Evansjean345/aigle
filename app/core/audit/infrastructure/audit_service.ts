@@ -1,7 +1,7 @@
 import AuditLog from '#core/audit/domain/models/audit_log'
 import { randomUUID } from 'node:crypto'
 import { type AuditRecordInput } from '#core/audit/domain/audit_record_input'
-import AuditRecorder from '#core/audit/domain/interfaces/audit_recorder'
+import type AuditRecorder from '#core/audit/domain/interfaces/audit_recorder'
 
 /**
  * A service for handling audit logging within the application.

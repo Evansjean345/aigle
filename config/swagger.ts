@@ -87,11 +87,17 @@ const adminOptions: swaggerJsdoc.Options = {
       { name: 'Admin - KYC', description: 'Gestion KYC admin' },
       { name: 'Admin - Niveaux KYC', description: 'Gestion des niveaux KYC' },
       { name: 'Admin - Grand livre', description: 'Gestion du grand livre' },
+      { name: 'Admin - Réapprovisionnement', description: 'Revue des demandes de réapprovisionnement' },
+      {
+        name: 'Admin - Paiement en masse',
+        description: 'Supervision des lots de paiement en masse (lecture seule)',
+      },
       { name: 'Admin - Appareils', description: 'Gestion des appareils admin' },
       { name: 'Admin - Versions application', description: "Gestion des versions d'application" },
       { name: 'Admin - Équipe', description: "Gestion de l'équipe admin" },
       { name: 'Admin - Rôles', description: 'Gestion des rôles' },
       { name: 'Admin - Permissions', description: 'Gestion des permissions' },
+      { name: 'Admin - Organisations', description: 'Consultation des organisations business' },
     ],
   },
   apis: [
@@ -104,6 +110,9 @@ const adminOptions: swaggerJsdoc.Options = {
     path.join(docsDir, 'devices.yaml'),
     path.join(docsDir, 'app-versions.yaml'),
     path.join(docsDir, 'team.yaml'),
+    path.join(docsDir, 'funding.yaml'),
+    path.join(docsDir, 'mass-transfers.yaml'),
+    path.join(docsDir, 'organisations.yaml'),
   ],
 }
 

@@ -1,4 +1,4 @@
-import SmsNotificationChannel from '#core/notifications/domain/interfaces/sms_notification_channel'
+import type SmsNotificationChannel from '#core/notifications/domain/interfaces/sms_notification_channel'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import { type Notification } from '#core/notifications/domain/notification'
 import env from '#start/env'

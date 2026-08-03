@@ -18,6 +18,7 @@ export default class GetLedgerStatsUseCase {
    */
   async execute(filters: {
     walletId?: number
+    accountId?: string
     period?: string
     startDate?: string
     endDate?: string

@@ -4,7 +4,11 @@ import { v4 as uuidv4 } from 'uuid'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import Transaction from '#core/money/transactions/domain/models/transaction'
 import Admin from '#core/team/domain/models/admin'
-import { RefundReason, RefundStatus, RefundType } from '#core/money/transactions/domain/enums/refund'
+import {
+  RefundReason,
+  RefundStatus,
+  RefundType,
+} from '#core/money/transactions/domain/enums/refund'
 
 export default class Refund extends BaseModel {
   @column({ isPrimary: true })

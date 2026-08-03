@@ -1,6 +1,9 @@
 import KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import { inject } from '@adonisjs/core'
-import { KycDocumentRequestDto, KycDocumentResponseDto } from '#core/identity/kyc/application/dto/kyc.dto'
+import {
+  KycDocumentRequestDto,
+  KycDocumentResponseDto,
+} from '#core/identity/kyc/application/dto/kyc.dto'
 import FileStorageService from '#shared/infrastructure/services/file_storage_service'
 import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'

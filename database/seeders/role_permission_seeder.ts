@@ -1,99 +1,60 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
+import type { PermissionDefinition } from '#core/team/domain/value_objects/permission_catalog'
 import Role from '#core/team/domain/models/role'
 import Permission from '#core/team/domain/models/permission'
+import { ADMIN_PERMISSION_CATALOG } from '#start/permissions'
+import { WALLET_ADJUSTMENT_PERMISSIONS } from '#core/money/wallet/presentation/admin/permissions.config'
+import { REFUND_PERMISSIONS } from '#core/money/transactions/presentation/admin/permissions.config'
 
+/**
+ * Rôles du back-office et leurs permissions.
+ *
+ * Les permissions elles-mêmes ne sont pas créées ici : elles sont déclarées en code et écrites en
+ * base par `node ace permissions:sync`, à lancer avant ce seeder.
+ *
+ * Les attachements se font sans détacher : un droit accordé à la main en production survit au
+ * passage du seeder.
+ */
 export default class extends BaseSeeder {
   async run() {
-    const permissions = await Permission.updateOrCreateMany('slug', [
-      {
-        slug: 'team.manage',
-        name: "Gérer l'équipe",
-        description: 'Créer, modifier et supprimer des administrateurs',
-      },
-      {
-        slug: 'kyc.manage',
-        name: 'Gérer le KYC',
-        description: 'Approuver ou rejeter les documents KYC',
-      },
-      {
-        slug: 'finance.view',
-        name: 'Voir les finances',
-        description: 'Consulter les ledgers et statistiques financières',
-      },
-      {
-        slug: 'users.manage',
-        name: 'Gérer les utilisateurs',
-        description: 'Bloquer/Activer les utilisateurs et voir leurs profils',
-      },
-      {
-        slug: 'support.access',
-        name: 'Accès Support',
-        description: 'Accès aux outils de support client',
-      },
-      {
-        slug: 'wallet_adjustment.execute',
-        name: 'Exécuter ajustements wallet',
-        description: 'Créditer/débiter un portefeuille pour rapprochement comptable',
-      },
-      {
-        slug: 'wallet_adjustment.read',
-        name: 'Voir ajustements wallet',
-        description: "Consulter l'historique des ajustements de portefeuille",
-      },
-      {
-        slug: 'transaction_refund.execute',
-        name: 'Exécuter remboursements',
-        description: 'Rembourser une transaction manuellement',
-      },
-      {
-        slug: 'transactions_refunds.read',
-        name: 'Voir remboursements',
-        description: "Consulter l'historique des remboursements (auto, webhook, manuel)",
-      },
-      {
-        slug: 'audit.read',
-        name: "Voir le journal d'audit",
-        description: "Consulter les logs d'activité administrative et système",
-      },
-    ])
+    const persisted = await Permission.all()
+    const idBySlug = new Map(persisted.map((permission) => [permission.slug, permission.id]))
 
-    const pMap = Object.fromEntries(permissions.map((p) => [p.slug, p.id]))
+    /**
+     * Traduit des permissions du catalogue en identifiants persistés.
+     *
+     * @param {readonly PermissionDefinition[]} definitions - Les permissions à attacher.
+     * @returns {number[]} Leurs identifiants en base.
+     * @throws {Error} Une permission du catalogue est absente de la base.
+     */
+    const idsOf = (definitions: readonly PermissionDefinition[]): number[] =>
+      definitions.map((definition) => {
+        const id = idBySlug.get(definition.slug)
 
-    // 2. Créer les rôles et attacher les permissions
+        if (id === undefined) {
+          throw new Error(
+            `Permission absente de la base : ${definition.slug}. Lancez « node ace permissions:sync » avant ce seeder.`
+          )
+        }
 
-    // Super Admin
+        return id
+      })
+
     const superAdmin = await Role.updateOrCreate(
       { slug: 'super_admin' },
-      {
-        name: 'Super Administrateur',
-        description: 'Accès total au système',
-      }
+      { name: 'Super Administrateur', description: 'Accès total au système' }
     )
-    await superAdmin.related('permissions').sync(Object.values(pMap))
+    await superAdmin.related('permissions').sync(idsOf(ADMIN_PERMISSION_CATALOG), false)
 
-    // Admin
-    const admin = await Role.updateOrCreate(
+    await Role.updateOrCreate(
       { slug: 'admin' },
-      {
-        name: 'Administrateur',
-        description: 'Gestionnaire opérationnel avec droits étendus',
-      }
+      { name: 'Administrateur', description: 'Gestionnaire opérationnel avec droits étendus' }
     )
-    await admin
-      .related('permissions')
-      .sync([
-        pMap['kyc.manage'],
-        pMap['finance.view'],
-        pMap['users.manage'],
-        pMap['support.access'],
-      ])
 
-    // KYC Agent
-    const kycAgent = await Role.updateOrCreate(
+    await Role.updateOrCreate(
       { slug: 'kyc_agent' },
       { name: 'Agent KYC', description: 'Spécialiste de la conformité et validation des documents' }
     )
-    await kycAgent.related('permissions').sync([pMap['kyc.manage']])
 
     const financeAdmin = await Role.updateOrCreate(
       { slug: 'finance_admin' },
@@ -101,19 +62,19 @@ export default class extends BaseSeeder {
     )
     await financeAdmin
       .related('permissions')
-      .sync([
-        pMap['finance.view'],
-        pMap['wallet_adjustment.execute'],
-        pMap['wallet_adjustment.read'],
-        pMap['transaction_refund.execute'],
-        pMap['transactions_refunds.read'],
-      ])
+      .sync(
+        idsOf([
+          WALLET_ADJUSTMENT_PERMISSIONS.execute,
+          WALLET_ADJUSTMENT_PERMISSIONS.list,
+          REFUND_PERMISSIONS.execute,
+          REFUND_PERMISSIONS.list,
+        ]),
+        false
+      )
 
-    const supportAgent = await Role.updateOrCreate(
+    await Role.updateOrCreate(
       { slug: 'support_agent' },
       { name: 'Agent Support', description: 'Support client de premier niveau' }
     )
-
-    await supportAgent.related('permissions').sync([pMap['users.manage'], pMap['support.access']])
   }
 }

@@ -1,6 +1,9 @@
 import { type UserKycStatus, type UserStatus } from '#core/identity/user/domain/enum'
 import { type DateTime } from 'luxon'
-import { type KycDocumentStatus, type KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
+import {
+  type KycDocumentStatus,
+  type KycDocumentType,
+} from '#core/identity/kyc/domain/enum/kyc_enum'
 import { type ProviderType } from '#core/catalog/catalogs/domain/enums/provider_enums'
 import type User from '#core/identity/user/domain/models/user'
 

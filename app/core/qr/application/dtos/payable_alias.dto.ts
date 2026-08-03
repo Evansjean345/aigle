@@ -9,3 +9,12 @@ export interface ResolveAliasResult {
   displayName: string
   active: boolean
 }
+
+/** Alias payable d'un compte, tel que le voit l'espace admin. */
+export interface PayableAliasResult {
+  code: string
+  /** Nom montré au payeur au moment du scan. */
+  displayName: string
+  /** `false` fait refuser tout paiement présentant ce code. */
+  active: boolean
+}

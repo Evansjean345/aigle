@@ -38,14 +38,13 @@ export default class GetAllTransactionsUseCase {
       startDate?: string
       endDate?: string
       userId?: string
+      accountId?: string
     }
   ): Promise<PaginatedAdminTransactionsResponseDTO> {
     const transactions = await this.transactionsRepository.all(page, perPage, filters)
 
     // Partie prenante résolue par account_id (user OU marchand) — plus de relation `user` préchargée.
-    const holders = await this.holderResolver.resolve(
-      transactions.all().map((t) => t.accountId)
-    )
+    const holders = await this.holderResolver.resolve(transactions.all().map((t) => t.accountId))
 
     return AdminTransactionResponseDTO.fromPaginator(transactions, holders)
   }

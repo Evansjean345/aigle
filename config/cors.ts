@@ -9,7 +9,10 @@ import { defineConfig } from '@adonisjs/cors'
 const corsConfig = defineConfig({
   enabled: true,
   origin: '*',
-  methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
+  // `PATCH` a été ajouté avec les premières routes PATCH du projet (catalogue des comptes de
+  // collecte, F1). Sans lui, le préflight échoue et le navigateur bloque la requête — le GET passait
+  // pendant que la modification et la désactivation étaient silencieusement impossibles.
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   headers: true,
   exposeHeaders: [],
   credentials: true,

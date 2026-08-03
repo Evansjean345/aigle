@@ -48,6 +48,8 @@ export default abstract class LedgerRepository {
       endDate?: string
       search?: string
       userId?: string
+      /** Compte titulaire du portefeuille. Pour une organisation, son `organisationId`. */
+      accountId?: string
     }
   ): Promise<ModelPaginatorContract<Ledger>>
 
@@ -59,6 +61,8 @@ export default abstract class LedgerRepository {
    */
   abstract getStats(filters: {
     walletId?: number
+    /** Compte titulaire du portefeuille. Pour une organisation, son `organisationId`. */
+    accountId?: string
     period?: string
     startDate?: string
     endDate?: string

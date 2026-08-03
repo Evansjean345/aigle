@@ -35,4 +35,22 @@ export default class PayableAliasRepositoryImpl implements PayableAliasRepositor
 
     return await alias.save()
   }
+
+  async setActive(
+    accountId: string,
+    active: boolean,
+    trx?: TransactionClientContract
+  ): Promise<PayableAlias | null> {
+    const alias = await this.findByAccountId(accountId, trx)
+
+    if (!alias) return null
+
+    alias.active = active
+
+    if (trx) {
+      return await alias.useTransaction(trx).save()
+    }
+
+    return await alias.save()
+  }
 }

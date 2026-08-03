@@ -229,6 +229,8 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       startDate?: string
       endDate?: string
       userId?: string
+      /** Compte titulaire. Pour une organisation, l'`organisationId`. */
+      accountId?: string
     }
   ): Promise<ModelPaginatorContract<Transaction>> {
     // Account-centric : la partie prenante est résolue par `account_id` (AccountHolderResolver),
@@ -236,6 +238,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
     const query = Transaction.query().preload('payment')
     query
       .if(filters?.userId, (q) => q.where('usersUid', filters!.userId!))
+      .if(filters?.accountId, (q) => q.where('account_id', filters!.accountId!))
       .if(filters?.type, (q) => q.withScopes((scope) => scope.filterByType(filters!.type!)))
       .if(filters?.status, (q) => q.withScopes((scope) => scope.filterByStatus(filters!.status!)))
       .if(filters?.search, (q) => q.withScopes((scope) => scope.search(filters!.search!)))
@@ -295,7 +298,13 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    * - `failedCount`: The count of failed transactions.
    * - `pendingCount`: The count of pending transactions.
    */
-  async getStats(options?: { userId?: string; startDate?: string; endDate?: string }): Promise<{
+  async getStats(options?: {
+    userId?: string
+    /** Compte titulaire. Pour une organisation, son `organisationId`. */
+    accountId?: string
+    startDate?: string
+    endDate?: string
+  }): Promise<{
     totalIn: number
     totalOut: number
     transferVolume: number
@@ -311,6 +320,10 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
 
     if (options?.userId) {
       query.where('usersUid', options.userId)
+    }
+
+    if (options?.accountId) {
+      query.where('account_id', options.accountId)
     }
 
     if (options?.startDate || options?.endDate) {

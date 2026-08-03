@@ -40,6 +40,8 @@ export default class GetAllLedgersUseCase {
       endDate?: string
       search?: string
       userId?: string
+      /** Compte titulaire du portefeuille. Pour une organisation, son `organisationId`. */
+      accountId?: string
     }
   ): Promise<{ meta: any; data: LedgerDto[] }> {
     const paginatedLedgers = await this.ledgerRepository.findAll(page, perPage, filters)

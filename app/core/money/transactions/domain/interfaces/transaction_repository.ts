@@ -148,6 +148,8 @@ export default abstract class TransactionRepository {
       startDate?: string
       endDate?: string
       userId?: string
+      /** Compte titulaire. Pour une organisation, l'`organisationId`. */
+      accountId?: string
     }
   ): Promise<ModelPaginatorContract<Transaction>>
 
@@ -188,7 +190,13 @@ export default abstract class TransactionRepository {
    *   pendingCount: number
    * }>}
    */
-  abstract getStats(options?: { userId?: string; startDate?: string; endDate?: string }): Promise<{
+  abstract getStats(options?: {
+    userId?: string
+    /** Compte titulaire. Pour une organisation, son `organisationId`. */
+    accountId?: string
+    startDate?: string
+    endDate?: string
+  }): Promise<{
     totalIn: number
     totalOut: number
     transferVolume: number

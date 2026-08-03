@@ -31,9 +31,7 @@ export default class AccountHolderResolver {
   async resolve(
     accountIds: (string | null | undefined)[]
   ): Promise<Map<string, AccountHolderResult>> {
-    const ids = [
-      ...new Set(accountIds.filter((accountId): accountId is string => !!accountId)),
-    ]
+    const ids = [...new Set(accountIds.filter((accountId): accountId is string => !!accountId))]
     if (ids.length === 0) return new Map()
 
     const users = await this.userDirectoryService.mapByIds(ids)

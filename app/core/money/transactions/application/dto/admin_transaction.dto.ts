@@ -150,8 +150,7 @@ export class AdminTransactionResponseDTO {
     })
     const holder = holders?.get(transaction.accountId)
     if (holder?.user) {
-      const fullName =
-        `${holder.user.firstname ?? ''} ${holder.user.lastname ?? ''}`.trim()
+      const fullName = `${holder.user.firstname ?? ''} ${holder.user.lastname ?? ''}`.trim()
       dto.party = {
         accountId: transaction.accountId,
         type: 'user',

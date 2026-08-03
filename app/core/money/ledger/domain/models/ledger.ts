@@ -9,8 +9,6 @@ export default class Ledger extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  // Nullable (L2-D4) : une écriture de **hold** de réservation n'a pas de transaction pour cause —
-  // sa cause est le batch (`reservation_ref`). Le FK `transaction_id` est nullable en DB.
   @column()
   declare transactionId: number | null
 
@@ -74,6 +72,23 @@ export default class Ledger extends BaseModel {
     if (userId) {
       query.whereHas('wallet', (walletQuery) => {
         walletQuery.where('userId', userId)
+      })
+    }
+  })
+
+  /**
+   * Restreint aux écritures du portefeuille d'un compte.
+   *
+   * Pendant de `filterByUser` pour les comptes non personnels : une organisation n'a pas de
+   * `userId`, son portefeuille est rattaché par `account_id`.
+   *
+   * Passe par une sous-requête plutôt que par la relation, la relation `wallet` n'étant pas typée
+   * pour `whereHas`.
+   */
+  static filterByAccount = scope((query, accountId?: string) => {
+    if (accountId) {
+      query.whereIn('wallet_id', (sub) => {
+        sub.from('wallets').select('id').where('account_id', accountId)
       })
     }
   })

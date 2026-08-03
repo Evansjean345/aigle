@@ -31,4 +31,21 @@ export default abstract class PayableAliasRepository {
     data: Partial<PayableAlias>,
     trx?: TransactionClientContract
   ): Promise<PayableAlias>
+
+  /**
+   * Bascule l'acceptation des paiements d'un compte.
+   *
+   * Un alias inactif fait refuser tout paiement présentant son code : le drapeau est lu à chaque
+   * encaissement, pas seulement à l'affichage.
+   *
+   * @param {string} accountId - Compte titulaire de l'alias.
+   * @param {boolean} active - Nouvel état.
+   * @param {TransactionClientContract} [trx] - Transaction optionnelle.
+   * @returns {Promise<PayableAlias | null>} L'alias mis à jour, ou `null` si le compte n'en a pas.
+   */
+  abstract setActive(
+    accountId: string,
+    active: boolean,
+    trx?: TransactionClientContract
+  ): Promise<PayableAlias | null>
 }

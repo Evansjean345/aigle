@@ -1,7 +1,10 @@
 import { inject } from '@adonisjs/core'
 import { randomUUID } from 'node:crypto'
 import PayableAliasRepository from '#core/qr/domain/interfaces/payable_alias_repository'
-import { type ResolveAliasResult } from '#core/qr/application/dtos/payable_alias.dto'
+import {
+  type PayableAliasResult,
+  type ResolveAliasResult,
+} from '#core/qr/application/dtos/payable_alias.dto'
 import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 /**
@@ -70,5 +73,61 @@ export default class PayableAliasService {
     const uniqueIds = [...new Set(accountIds.filter(Boolean))]
     const aliases = await this.payableAliasRepository.findByAccountIds(uniqueIds)
     return new Map(aliases.map((alias) => [alias.accountId, alias.displayName]))
+  }
+
+  /**
+   * Alias payable d'un compte, pour l'espace admin.
+   *
+   * @param {string} accountId - Compte titulaire.
+   * @returns {Promise<PayableAliasResult | null>} L'alias, ou `null` si le compte n'en a pas.
+   */
+  async findByAccountId(accountId: string): Promise<PayableAliasResult | null> {
+    const alias = await this.payableAliasRepository.findByAccountId(accountId)
+
+    if (!alias) return null
+
+    return { code: alias.code, displayName: alias.displayName, active: alias.active }
+  }
+
+  /**
+   * Alias payables de plusieurs comptes, indexés par compte, en une requête.
+   *
+   * Évite le N+1 lors de l'enrichissement d'une liste d'organisations. Un compte sans alias est
+   * absent de la table.
+   *
+   * @param {string[]} accountIds - Comptes dont on veut l'alias. Doublons tolérés.
+   * @returns {Promise<Map<string, PayableAliasResult>>} Les alias indexés.
+   */
+  async mapByAccountIds(accountIds: string[]): Promise<Map<string, PayableAliasResult>> {
+    const uniqueIds = [...new Set(accountIds.filter(Boolean))]
+
+    if (uniqueIds.length === 0) return new Map()
+
+    const aliases = await this.payableAliasRepository.findByAccountIds(uniqueIds)
+
+    return new Map(
+      aliases.map((alias) => [
+        alias.accountId,
+        { code: alias.code, displayName: alias.displayName, active: alias.active },
+      ])
+    )
+  }
+
+  /**
+   * Ouvre ou ferme l'encaissement d'un compte.
+   *
+   * Le drapeau est relu à chaque paiement : le fermer suspend les encaissements du marchand,
+   * il ne se contente pas de masquer son QR.
+   *
+   * @param {string} accountId - Compte titulaire de l'alias.
+   * @param {boolean} active - `true` rouvre l'encaissement, `false` le suspend.
+   * @returns {Promise<PayableAliasResult | null>} L'alias mis à jour, ou `null` s'il n'existe pas.
+   */
+  async setActive(accountId: string, active: boolean): Promise<PayableAliasResult | null> {
+    const alias = await this.payableAliasRepository.setActive(accountId, active)
+
+    if (!alias) return null
+
+    return { code: alias.code, displayName: alias.displayName, active: alias.active }
   }
 }

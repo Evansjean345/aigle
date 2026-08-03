@@ -16,6 +16,7 @@ const driveConfig = defineConfig({
       routeBasePath: '/uploads',
       visibility: 'public',
     }),
+
     s3: services.s3({
       credentials: {
         accessKeyId: env.get('AWS_ACCESS_KEY_ID'),
@@ -25,6 +26,24 @@ const driveConfig = defineConfig({
       bucket: env.get('S3_BUCKET'),
       visibility: 'public',
     }),
+
+    /**
+     * Même bucket, visibilité privée : pour les pièces lisibles uniquement par une URL signée à
+     * durée limitée.
+     *
+     * Disque séparé plutôt que visibilité passée à l'appel, pour ne pas changer le comportement des
+     * dépôts existants.
+     */
+    s3_private: services.s3({
+      credentials: {
+        accessKeyId: env.get('AWS_ACCESS_KEY_ID'),
+        secretAccessKey: env.get('AWS_SECRET_ACCESS_KEY'),
+      },
+      region: env.get('AWS_REGION'),
+      bucket: env.get('S3_BUCKET'),
+      visibility: 'private',
+    }),
+
     // r2: services.s3({
     //   credentials: {
     //     accessKeyId: env.get('R2_KEY'),

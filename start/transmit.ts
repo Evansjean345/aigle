@@ -1,6 +1,7 @@
 import transmit from '@adonisjs/transmit/services/main'
 import { middleware } from '#start/kernel'
-import KycPolicy from '#core/identity/kyc/presentation/admin/policies/kyc_policy'
+import { adminHasPermission } from '#core/team/application/authorization/permission_helpers'
+import { KYC_PERMISSIONS } from '#core/identity/kyc/presentation/admin/permissions.config'
 import type Admin from '#core/team/domain/models/admin'
 
 /**
@@ -25,5 +26,5 @@ transmit.registerRoutes((route) => {
 transmit.authorize('admin/kyc/queue', async (ctx) => {
   const user = ctx.auth.user as Admin | undefined
   if (!user) return false
-  return new KycPolicy().viewAny(user)
+  return adminHasPermission(user, KYC_PERMISSIONS.read)
 })

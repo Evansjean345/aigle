@@ -17,4 +17,6 @@ export enum LedgerOperationType {
   RESERVATION = 'reservation',
   /** Libération d'un hold (rejet/annulation d'un lot) — recrédit du total, sans transaction. */
   RESERVATION_RELEASE = 'reservation_release',
+  /** Réapprovisionnement d'organisation validé — crédit sans transaction. */
+  FUNDING = 'funding',
 }

@@ -33,7 +33,13 @@ export default class OnKycDocumentProcessedNotification {
       message += ` Raison : ${event.comment}`
     }
 
-    const notification = new Notification(event.userId, title, message, undefined, AppName.AIGLESEND)
+    const notification = new Notification(
+      event.userId,
+      title,
+      message,
+      undefined,
+      AppName.AIGLESEND
+    )
     await this.notificationService.sendVia(NotificationChannelType.PushNotification, notification)
   }
 }

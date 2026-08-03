@@ -67,6 +67,8 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
       endDate?: string
       search?: string
       userId?: string
+      /** Compte titulaire du portefeuille. Pour une organisation, son `organisationId`. */
+      accountId?: string
     }
   ): Promise<ModelPaginatorContract<Ledger>> {
     const query = Ledger.query()
@@ -75,6 +77,7 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
         scopes.filterByDirection(filters?.direction)
         scopes.filterByOperationType(filters?.operationType)
         scopes.filterByUser(filters?.userId)
+        scopes.filterByAccount(filters?.accountId)
         if (filters?.startDate || filters?.endDate) {
           scopes.filterByDateRange(filters.startDate, filters.endDate)
         }
@@ -125,12 +128,14 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
    */
   async getStats(filters: {
     walletId?: number
+    accountId?: string
     period?: string
     startDate?: string
     endDate?: string
   }): Promise<Record<string, any>> {
     const baseQuery = Ledger.query().withScopes((scopes) => {
       scopes.filterByWallet(filters.walletId)
+      scopes.filterByAccount(filters.accountId)
 
       if (filters.startDate || filters.endDate) {
         console.log(filters.startDate, filters.endDate)
@@ -150,7 +155,9 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
         db.raw('SUM(CASE WHEN direction = ? THEN total_amount ELSE 0 END) as total_external', [
           LedgerDirection.EXTERNAL,
         ]),
-        db.raw('SUM(fees) as total_fees')
+        db.raw('SUM(fees) as total_fees'),
+        db.raw('COUNT(CASE WHEN direction = ? THEN 1 END) as in_count', [LedgerDirection.CREDIT]),
+        db.raw('COUNT(CASE WHEN direction = ? THEN 1 END) as out_count', [LedgerDirection.DEBIT])
       )
       .first()
 
@@ -162,6 +169,8 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
       total_external: Number(stats.total_external || 0),
       total_fees: Number(stats.total_fees || 0),
       transaction_count: Number(stats.total || 0),
+      in_count: Number(stats.in_count || 0),
+      out_count: Number(stats.out_count || 0),
       period: filters.period || '30d',
     }
   }

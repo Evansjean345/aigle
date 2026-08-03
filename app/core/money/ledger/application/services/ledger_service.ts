@@ -1,5 +1,7 @@
 import { inject } from '@adonisjs/core'
 import LedgerRepository from '#core/money/ledger/domain/interfaces/ledger_repository'
+import WalletRepository from '#core/money/wallet/domain/interfaces/wallet_repository'
+import { type AccountActivityResult } from '#core/money/ledger/application/dtos/ledger.dto'
 import Transaction from '#core/money/transactions/domain/models/transaction'
 import Ledger from '#core/money/ledger/domain/models/ledger'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
@@ -18,7 +20,10 @@ export default class LedgerService {
    *
    * @param {LedgerRepository} ledgerRepository - The repository used for managing ledger operations.
    */
-  constructor(private ledgerRepository: LedgerRepository) {}
+  constructor(
+    private ledgerRepository: LedgerRepository,
+    private walletRepository: WalletRepository
+  ) {}
 
   /**
    * Creates a ledger entry with the provided transaction details.
@@ -363,6 +368,49 @@ export default class LedgerService {
     )
   }
 
+  /**
+   * Écrit la ligne d'un réapprovisionnement d'organisation validé : un crédit du wallet sans
+   * transaction (`transaction_id = null`), l'argent étant arrivé hors plateforme.
+   *
+   * Écrit directement au repository, comme `recordHold` : `createEntry` exige une `Transaction`,
+   * qui n'existe pas pour ce type de mouvement.
+   *
+   * @param {object} params - Paramètres de la ligne.
+   * @param {number} params.walletId - Wallet crédité.
+   * @param {number} params.amount - Montant crédité, celui vérifié par le gestionnaire.
+   * @param {number} params.balanceBefore - Solde avant le crédit.
+   * @param {number} params.balanceAfter - Solde après le crédit.
+   * @param {string} [params.reference] - Référence de la demande à l'origine du crédit.
+   * @param {TransactionClientContract} [trx] - Transaction à utiliser.
+   * @returns {Promise<Ledger>} La ligne écrite.
+   */
+  async recordFundingCredit(
+    params: {
+      walletId: number
+      amount: number
+      balanceBefore: number
+      balanceAfter: number
+      reference?: string
+    },
+    trx?: TransactionClientContract
+  ): Promise<Ledger> {
+    return this.ledgerRepository.create(
+      {
+        transactionId: null,
+        walletId: params.walletId,
+        direction: LedgerDirection.CREDIT,
+        operationType: LedgerOperationType.FUNDING,
+        description: `Réapprovisionnement validé${params.reference ? ` — ${params.reference}` : ''}`,
+        amountBrut: params.amount,
+        fees: 0,
+        totalAmount: params.amount,
+        balanceBefore: params.balanceBefore,
+        balanceAfter: params.balanceAfter,
+      },
+      trx
+    )
+  }
+
   async recordReversal(
     transaction: Transaction,
     walletId: number,
@@ -385,5 +433,51 @@ export default class LedgerService {
       },
       trx
     )
+  }
+
+  /**
+   * Agrège l'activité comptable d'un compte, portefeuille résolu en interne.
+   *
+   * Exposé aux couches externes pour qu'elles n'aient à connaître ni le portefeuille du compte ni le
+   * grand livre. Un compte sans portefeuille rend des compteurs à zéro plutôt qu'une erreur : il n'a
+   * simplement rien à montrer.
+   *
+   * @param {string} accountId - Identifiant du compte titulaire, l'organisation pour une entreprise.
+   * @returns {Promise<AccountActivityResult>} Les agrégats du compte.
+   */
+  async getAccountActivity(accountId: string): Promise<AccountActivityResult> {
+    const wallet = await this.walletRepository.findByAccountId(accountId)
+
+    if (!wallet) {
+      return {
+        totalIn: 0,
+        totalOut: 0,
+        totalFees: 0,
+        transactionCount: 0,
+        inCount: 0,
+        outCount: 0,
+        monthlyVolume: 0,
+      }
+    }
+
+    const since = new Date()
+    since.setDate(since.getDate() - 30)
+    const sinceIso = since.toISOString().slice(0, 10)
+
+    const [global, lastThirtyDays] = await Promise.all([
+      this.ledgerRepository.getStats({ walletId: wallet.id }),
+      this.ledgerRepository.getStats({ walletId: wallet.id, startDate: sinceIso }),
+    ])
+
+    return {
+      totalIn: Number(global.total_in ?? 0),
+      totalOut: Number(global.total_out ?? 0),
+      totalFees: Number(global.total_fees ?? 0),
+      transactionCount: Number(global.transaction_count ?? 0),
+      inCount: Number(global.in_count ?? 0),
+      outCount: Number(global.out_count ?? 0),
+      // Entrées et sorties confondues : c'est un volume brassé, pas un solde.
+      monthlyVolume: Number(lastThirtyDays.total_in ?? 0) + Number(lastThirtyDays.total_out ?? 0),
+    }
   }
 }
