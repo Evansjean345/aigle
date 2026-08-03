@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type {
-  ExternalToExternalCommand,
+  ExternalInCommand,
   MovementResult,
 } from '#core/money/money_movement/domain/types/money_movement_types'
 import ExternalMovementGateway from '#core/money/money_movement/domain/interfaces/external_movement_gateway'
@@ -17,21 +17,20 @@ import { TransactionType } from '#core/money/transactions/domain/enums/transacti
 import { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
 import { PaymentStatus } from '#core/money/transactions/domain/enums/payment_status'
 import { PaymentStep } from '#core/money/transactions/domain/enums/payment_step'
+import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
+import WalletInactiveException from '#core/money/wallet/domain/exceptions/wallet_inactive_exception'
 import type Wallet from '#core/money/wallet/domain/models/wallet'
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 
 /**
- * Use case de la primitive `initiateExternalToExternal` (opérateur → opérateur, saga 2 jambes,
- * async → PENDING). Flux transfert_inter, jambe 1 (cash-in débiteur).
- *
- * Validations + frais, puis SA trx courte { transaction PENDING EXTERNAL sur le wallet de
- * l'initiateur (AUCUN mouvement de solde) + 2 payments : dépôt PENDING + transfert DRAFT }, puis
- * initiation de la jambe 1 déléguée au gateway. La jambe 2 (cash-out bénéficiaire) est
- * déclenchée au webhook — hors périmètre Lot 2.
+ * Use case de la primitive `initiateExternalIn` (opérateur → crédit compte, async → PENDING).
+ * Flux deposit : validations compte/limites + frais, puis SA trx courte { records PENDING, AUCUN
+ * mouvement wallet }, puis initiation externe déléguée au gateway (routage in-process via provider_gateway),
+ * ou job async). Le crédit du wallet interviendra au settlement (webhook), inchangé au Lot 2.
  */
 @inject()
-export default class ExternalToExternalUseCase {
+export default class ExternalInHandler {
   constructor(
     private readonly walletService: WalletService,
     private readonly transactionService: TransactionService,
@@ -43,81 +42,60 @@ export default class ExternalToExternalUseCase {
     private readonly runner: ExternalInitiationRunner
   ) {}
 
-  async handle(cmd: ExternalToExternalCommand): Promise<MovementResult> {
-    const wallet = await this.resolveWalletWithUser(cmd.initiatedBy)
+  async handle(cmd: ExternalInCommand): Promise<MovementResult> {
+    const wallet = await this.resolveWallet(cmd.toAccountId)
     const { amount, fees, total } = await this.feeResolver.resolve(cmd.feeContext, cmd.amount)
 
-    await this.partyValidator.validate({
-      accountId: wallet.accountId ?? cmd.initiatedBy,
-      amount,
-      transactionType: cmd.type,
-    })
+    await this.validateRecipient(wallet, amount, cmd.type)
 
-    const meta = this.extractMeta(cmd)
+    const { paymentMethodCode, deviceInfo, geoIpLocation, providerParams } = this.extractMeta(cmd)
+    const rawPhone = cmd.source.msisdn
 
     const trx = await db.transaction()
     let transactionId: number
     let transactionReference: string
-    let depositPaymentId: number
+    let paymentId: number
 
     try {
       const transaction = await this.transactionService.createTransaction(
         {
           status: TransactionStatus.PENDING,
-          direction: TransactionDirection.EXTERNAL,
           amount,
           total_amount: total,
+          direction: TransactionDirection.CREDIT,
           fees,
           operation_type: cmd.type,
           idempotency: cmd.idempotencyKey || undefined,
         },
         wallet.id,
-        wallet.user,
-        meta.deviceInfo,
-        meta.geoIpLocation,
-        trx
+        wallet.user ?? null,
+        deviceInfo,
+        geoIpLocation,
+        trx,
+        wallet.accountId ?? cmd.toAccountId
       )
-
-      const depositPayment = await this.paymentService.createPayment(
+      const payment = await this.paymentService.createPayment(
         {
-          payment_method: meta.paymentMethodDepositCode,
-          operation_type: TransactionType.DEPOSIT,
-          payment_details: {
-            operator: cmd.source.operator,
-            phone: cmd.source.msisdn.replaceAll(' ', ''),
-          },
+          payment_method: paymentMethodCode,
+          operation_type: cmd.type,
+          payment_details: { operator: cmd.source.operator, phone: rawPhone.replaceAll(' ', '') },
           status: PaymentStatus.PENDING,
           step: PaymentStep.DEPOSIT_INIT,
         },
         transaction,
-        wallet.user,
+        wallet.user ?? null,
         trx
       )
-      await this.paymentService.createPayment(
-        {
-          payment_method: meta.paymentMethodTransfertCode,
-          operation_type: TransactionType.TRANSFERT,
-          payment_details: {
-            operator: cmd.destination.operator,
-            phone: cmd.destination.msisdn.replaceAll(' ', ''),
-          },
-          status: PaymentStatus.DRAFT,
-          step: PaymentStep.TRANSFERT_INIT,
-        },
-        transaction,
-        wallet.user,
-        trx
-      )
-
-      await trx.commit()
 
       transactionId = transaction.id
       transactionReference = transaction.reference
-      depositPaymentId = depositPayment.id
+      paymentId = payment.id
+
+      await trx.commit()
     } catch (error) {
       await trx.rollback()
       this.activity.failed(
-        error instanceof Error ? error.message : 'Inter-transfer creation failed (rollback)'
+        error instanceof Error ? error.message : 'Deposit creation failed (rollback)'
       )
       throw error
     }
@@ -126,9 +104,9 @@ export default class ExternalToExternalUseCase {
       { transactionReference, amount, fees, total },
       {
         operator: cmd.source.operator,
-        paymentMethodCode: meta.paymentMethodDepositCode,
+        paymentMethodCode,
         actorId: cmd.initiatedBy,
-        ip: meta.geoIpLocation?.ip,
+        ip: geoIpLocation?.ip,
       }
     )
 
@@ -136,27 +114,26 @@ export default class ExternalToExternalUseCase {
       {
         transactionId,
         transactionReference,
-        paymentId: depositPaymentId,
+        paymentId,
         operator: cmd.source.operator,
-        paymentMethod: meta.paymentMethodDepositCode,
-        logCode: 'INTER_TRANSFER_INIT',
-        failureEvent: 'TransfertInterTransactionFailed',
+        paymentMethod: paymentMethodCode,
+        logCode: 'DEPOSIT_CHECKOUT',
+        failureEvent: 'DepositTransactionFailed',
         failureEventData: { reference: transactionReference, amount },
       },
       () =>
-        this.gateway.initiateOutToOut({
+        this.gateway.initiateIn({
           transactionId,
           transactionReference,
-          paymentId: depositPaymentId,
+          paymentId,
           amount,
           totalAmount: total,
           fees,
           operator: cmd.source.operator,
-          paymentMethod: meta.paymentMethodDepositCode,
-          phone: cmd.source.msisdn,
+          paymentMethod: paymentMethodCode,
+          phone: rawPhone,
           userId: cmd.initiatedBy,
-          pinCode: meta.pinCode,
-          providerParams: meta.providerParams,
+          providerParams,
         })
     )
 
@@ -172,32 +149,61 @@ export default class ExternalToExternalUseCase {
     }
   }
 
-  private async resolveWalletWithUser(accountId: string): Promise<Wallet> {
+  /**
+   * Résout le wallet destinataire par compte user ou
+   * marchand (compte org sans user). Charge l'user s'il existe
+   */
+  private async resolveWallet(accountId: string): Promise<Wallet> {
     const wallet = await this.walletService.getByAccountId(accountId)
-    await wallet.load('user')
+    if (wallet.userId) await wallet.load('user')
     return wallet
   }
 
-  private extractMeta(cmd: ExternalToExternalCommand): {
-    paymentMethodDepositCode: string
-    paymentMethodTransfertCode: string
-    pinCode?: string
+  /**
+   * Valide le destinataire d'un crédit externe.
+   *  - **user** (deposit consumer) : validation account-centric complète (statut + wallet + limites)
+   *    via `PartyValidator` par `accountId` ;
+   *  - **marchand** (checkout, compte org sans user) : le payeur anonyme n'a ni KYC ni device ;
+   *    on valide uniquement que le wallet destinataire est **actif** (l'existence de l'alias payable
+   *    garantit déjà un marchand opérationnel). NB : l'enforcement des **limites de réception
+   *    marchand** par le standing (S4) est un suivi — hors de ce lot de validation.
+   */
+  private async validateRecipient(
+    wallet: Wallet,
+    amount: number,
+    type: ExternalInCommand['type']
+  ): Promise<void> {
+    if (wallet.userId) {
+      await this.partyValidator.validate({
+        accountId: wallet.accountId ?? wallet.userId,
+        amount,
+        transactionType: type,
+        isRecipient: true,
+      })
+      return
+    }
+
+    if (wallet.status !== WalletStatus.Active) {
+      throw new WalletInactiveException(
+        'Impossible de finaliser le paiement vers ce compte pour le moment.'
+      )
+    }
+  }
+
+  private extractMeta(cmd: ExternalInCommand): {
+    paymentMethodCode: string
     deviceInfo?: DeviceHeadersInfo
     geoIpLocation?: GeoIpLocation
     providerParams?: Record<string, unknown>
   } {
     const meta = (cmd.metadata ?? {}) as {
-      paymentMethodDepositCode?: string
-      paymentMethodTransfertCode?: string
-      pinCode?: string
+      paymentMethodCode?: string
       deviceInfo?: DeviceHeadersInfo
       geoIpLocation?: GeoIpLocation
       providerParams?: Record<string, unknown>
     }
     return {
-      paymentMethodDepositCode: meta.paymentMethodDepositCode ?? '',
-      paymentMethodTransfertCode: meta.paymentMethodTransfertCode ?? '',
-      pinCode: meta.pinCode,
+      paymentMethodCode: meta.paymentMethodCode ?? '',
       deviceInfo: meta.deviceInfo,
       geoIpLocation: meta.geoIpLocation,
       providerParams: meta.providerParams,
@@ -211,7 +217,7 @@ export default class ExternalToExternalUseCase {
     this.activity.emit({
       event: 'VALIDATION_PASSED',
       transactionId: tx.transactionReference,
-      checks: ['account', 'device', 'debit_phone', 'throttle', 'limits'],
+      checks: ['account', 'device', 'debit_phone'],
       actorId: ctx.actorId,
     })
     this.activity.emit({
@@ -229,7 +235,7 @@ export default class ExternalToExternalUseCase {
       total: tx.total,
       provider: ctx.operator,
       paymentMethod: ctx.paymentMethodCode,
-      transactionType: TransactionType.TRANSFERT_INTER,
+      transactionType: TransactionType.DEPOSIT,
       actorId: ctx.actorId,
       ipAddress: ctx.ip,
     })

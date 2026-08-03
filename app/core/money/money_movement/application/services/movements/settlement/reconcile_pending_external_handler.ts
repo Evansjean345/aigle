@@ -19,7 +19,7 @@ export interface ReconcileResult {
 }
 
 @inject()
-export default class ReconcilePendingExternalUseCase {
+export default class ReconcilePendingExternalHandler {
   constructor(
     private readonly engine: MoneyMovementEngine,
     private readonly paymentRepository: PaymentRepository,

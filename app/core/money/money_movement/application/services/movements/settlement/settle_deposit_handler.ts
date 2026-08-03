@@ -26,7 +26,7 @@ import type {
  * `SettlementSupport`.
  */
 @inject()
-export default class SettleDepositUseCase {
+export default class SettleDepositHandler {
   constructor(
     private readonly walletService: WalletService,
     private readonly ledgerService: LedgerService,

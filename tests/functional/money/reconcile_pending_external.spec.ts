@@ -10,7 +10,7 @@ import { TransactionDirection } from '#core/money/transactions/domain/enums/tran
 import { PaymentStep } from '#core/money/transactions/domain/enums/payment_step'
 import { ProviderRegistry } from '#core/money/provider_gateway/infrastructure/provider_registry'
 import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
-import ReconcilePendingExternalUseCase from '#core/money/money_movement/application/services/movements/settlement/reconcile_pending_external.use_case'
+import ReconcilePendingExternalHandler from '#core/money/money_movement/application/services/movements/settlement/reconcile_pending_external_handler'
 import type { SettleCommand } from '#core/money/money_movement/domain/types/money_movement_types'
 import type { ProviderPollResult } from '#core/money/provider_gateway/domain/types/provider_poll'
 
@@ -131,7 +131,7 @@ test.group('Money | réconciliation des mouvements externes orphelins — B6', (
     const { tx, payment } = await makeOrphanMovement(60)
     provider.next = { outcome: 'succeeded', rawData: { status: 'succeeded' } }
 
-    const useCase = await app.container.make(ReconcilePendingExternalUseCase)
+    const useCase = await app.container.make(ReconcilePendingExternalHandler)
     const result = await useCase.handle()
 
     // Le bon mouvement a été interrogé, avec la référence provider.
@@ -148,7 +148,7 @@ test.group('Money | réconciliation des mouvements externes orphelins — B6', (
     const { tx } = await makeOrphanMovement(60)
     provider.next = { outcome: 'failed', errorCode: 'HARD', errorMessage: 'numéro invalide' }
 
-    const useCase = await app.container.make(ReconcilePendingExternalUseCase)
+    const useCase = await app.container.make(ReconcilePendingExternalHandler)
     await useCase.handle()
 
     const settled = engine.settled.find((c) => c.reference === tx.reference)
@@ -160,7 +160,7 @@ test.group('Money | réconciliation des mouvements externes orphelins — B6', (
     const { tx } = await makeOrphanMovement(60)
     provider.next = { outcome: 'pending' }
 
-    const useCase = await app.container.make(ReconcilePendingExternalUseCase)
+    const useCase = await app.container.make(ReconcilePendingExternalHandler)
     await useCase.handle()
 
     assert.isUndefined(engine.settled.find((c) => c.reference === tx.reference))
@@ -170,7 +170,7 @@ test.group('Money | réconciliation des mouvements externes orphelins — B6', (
     const { tx } = await makeOrphanMovement(60)
     provider.next = { outcome: 'unknown', errorCode: 'NOT_FOUND' }
 
-    const useCase = await app.container.make(ReconcilePendingExternalUseCase)
+    const useCase = await app.container.make(ReconcilePendingExternalHandler)
     await useCase.handle()
 
     // Invariant monétaire : un statut ambigu ne doit provoquer ni crédit ni remboursement.
@@ -183,7 +183,7 @@ test.group('Money | réconciliation des mouvements externes orphelins — B6', (
     const { payment } = await makeOrphanMovement(2)
     provider.next = { outcome: 'succeeded' }
 
-    const useCase = await app.container.make(ReconcilePendingExternalUseCase)
+    const useCase = await app.container.make(ReconcilePendingExternalHandler)
     await useCase.handle()
 
     assert.notInclude(provider.polled, payment.providerReference!)

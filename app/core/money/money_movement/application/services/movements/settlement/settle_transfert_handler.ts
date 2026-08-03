@@ -26,7 +26,7 @@ import type {
  * TransactionAlreadyRefundedException). Plomberie générique dans `SettlementSupport`.
  */
 @inject()
-export default class SettleTransfertUseCase {
+export default class SettleTransfertHandler {
   constructor(
     private readonly walletService: WalletService,
     private readonly paymentService: PaymentService,

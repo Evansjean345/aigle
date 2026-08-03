@@ -38,7 +38,7 @@ import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_servic
  * historique (équivalence prouvée par la caractérisation).
  */
 @inject()
-export default class InternalMoveUseCase {
+export default class InternalMoveHandler {
   constructor(
     private readonly walletService: WalletService,
     private readonly transactionService: TransactionService,

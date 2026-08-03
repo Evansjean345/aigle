@@ -9,7 +9,7 @@ import Wallet from '#core/money/wallet/domain/models/wallet'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
-import ExternalOutUseCase from '#core/money/money_movement/application/services/movements/initiation/external_out.use_case'
+import ExternalOutHandler from '#core/money/money_movement/application/services/movements/initiation/external_out_handler'
 import {
   reloadBalance,
   swapGuards,
@@ -88,7 +88,7 @@ test.group('Engine | initiateExternalOut prefunded (B1)', (group) => {
   }) => {
     const { orgId, wallet } = await makeOrgWallet(100000)
 
-    const useCase = await app.container.make(ExternalOutUseCase)
+    const useCase = await app.container.make(ExternalOutHandler)
     const res = await useCase.handle(prefundedCommand(orgId))
 
     // Fonds déjà réservés au niveau du lot → aucun re-débit du wallet.
@@ -115,7 +115,7 @@ test.group('Engine | initiateExternalOut prefunded (B1)', (group) => {
     cmd.prefunded = false
     cmd.idempotencyKey = 'normal-item-1'
 
-    const useCase = await app.container.make(ExternalOutUseCase)
+    const useCase = await app.container.make(ExternalOutHandler)
     await useCase.handle(cmd)
 
     assert.isBelow(await reloadBalance(wallet.id), 100000)

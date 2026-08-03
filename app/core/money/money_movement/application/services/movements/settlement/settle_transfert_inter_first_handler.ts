@@ -8,7 +8,7 @@ import { PaymentStatus } from '#core/money/transactions/domain/enums/payment_sta
 import PaymentService from '#core/money/transactions/application/services/payment_service'
 import { AuditResult } from '#core/audit/domain/enums'
 import SettlementSupport from '#core/money/money_movement/application/services/settlement_support'
-import InitiateInterSecondLegUseCase from '#core/money/money_movement/application/services/movements/initiation/initiate_inter_second_leg.use_case'
+import InitiateInterSecondLegHandler from '#core/money/money_movement/application/services/movements/initiation/initiate_inter_second_leg_handler'
 import type {
   SettleCommand,
   SettleResult,
@@ -24,11 +24,11 @@ import type {
  * Idempotence propre à la jambe : un succès est déjà appliqué si le 1er paiement est SUCCESS.
  */
 @inject()
-export default class SettleTransfertInterFirstUseCase {
+export default class SettleTransfertInterFirstHandler {
   constructor(
     private readonly paymentService: PaymentService,
     private readonly support: SettlementSupport,
-    private readonly initiateSecondLeg: InitiateInterSecondLegUseCase
+    private readonly initiateSecondLeg: InitiateInterSecondLegHandler
   ) {}
 
   async handle(cmd: SettleCommand): Promise<SettleResult> {

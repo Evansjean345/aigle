@@ -24,7 +24,7 @@ import type {
  * event `TransfertInterTransactionFailed`. C'est la jambe terminale de la saga inter.
  */
 @inject()
-export default class SettleTransfertInterSecondUseCase {
+export default class SettleTransfertInterSecondHandler {
   constructor(
     private readonly walletService: WalletService,
     private readonly ledgerService: LedgerService,

@@ -1,11 +1,11 @@
 import { Job } from '@adonisjs/queue'
 import app from '@adonisjs/core/services/app'
-import ReconcilePendingExternalUseCase from '#core/money/money_movement/application/services/movements/settlement/reconcile_pending_external.use_case'
+import ReconcilePendingExternalHandler from '#core/money/money_movement/application/services/movements/settlement/reconcile_pending_external_handler'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 
 /**
  * B6 — Filet de sécurité des mouvements externes. **Wrapper mince** : un balayage via
- * `ReconcilePendingExternalUseCase'.
+ * `ReconcilePendingExternalHandler'.
  *
  * ⚠️ Écart assumé à L2-D17 (qui prévoyait l'auto-replanification du relais) : ce job est planifié par
  * le **scheduler** ('start/scheduler.ts'). Contrairement au relais — bursty, réveillé par un
@@ -21,7 +21,7 @@ export default class ReconcilePendingExternalJob extends Job<Record<string, neve
     console.log('starting reconcile pending...')
 
     try {
-      const useCase = await app.container.make(ReconcilePendingExternalUseCase)
+      const useCase = await app.container.make(ReconcilePendingExternalHandler)
       const result = await useCase.handle()
 
       if (result.scanned > 0) {

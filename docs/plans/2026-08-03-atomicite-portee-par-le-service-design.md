@@ -32,8 +32,13 @@ Le découpage est délibéré — la façade le documente : « chaque flux testa
 pas le découpage qui pose problème, c'est le **nom**. Partout ailleurs dans le dépôt, un use case
 est ce qu'un contrôleur appelle ; ici, c'est ce qu'un service appelle.
 
-Ils deviennent `application/services/movements/`. Le découpage par flux est conservé, la façade
+Ils deviennent `application/services/movements/`, et prennent le nom de ce qu'ils sont :
+`ExternalInHandler`, `SettleDepositHandler`. Tous exposent `handle()`, et la convention existe déjà
+dans le dépôt (`transaction_failure_handler.ts`). Le découpage par flux est conservé, la façade
 reste légère, et l'atomicité qu'ils portent devient légitime : un service porte sa transaction.
+
+Déplacer sans renommer aurait laissé le problème que cette décision identifie — des fichiers
+`*.use_case.ts` dans un dossier de services.
 
 **L'alternative écartée** : exempter `money_movement` dans la règle. Elle masquerait huit fichiers
 durablement et laisserait la nomenclature incohérente, pour ne rien changer d'autre.

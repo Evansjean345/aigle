@@ -14,7 +14,7 @@ import type {
  * mouvement FAILED + classe/reporte/notifie (aucun wallet à re-créditer — Aigle en pont).
  */
 @inject()
-export default class InitiateInterSecondLegUseCase {
+export default class InitiateInterSecondLegHandler {
   constructor(
     private readonly gateway: ExternalMovementGateway,
     private readonly runner: ExternalInitiationRunner

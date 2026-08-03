@@ -11,14 +11,14 @@ import type {
   SettleCommand,
   SettleResult,
 } from '#core/money/money_movement/domain/types/money_movement_types'
-import InternalMoveUseCase from '#core/money/money_movement/application/services/movements/initiation/internal_move.use_case'
-import ExternalInUseCase from '#core/money/money_movement/application/services/movements/initiation/external_in.use_case'
-import ExternalOutUseCase from '#core/money/money_movement/application/services/movements/initiation/external_out.use_case'
-import ExternalToExternalUseCase from '#core/money/money_movement/application/services/movements/initiation/external_to_external.use_case'
-import SettleDepositUseCase from '#core/money/money_movement/application/services/movements/settlement/settle_deposit.use_case'
-import SettleTransfertUseCase from '#core/money/money_movement/application/services/movements/settlement/settle_transfert.use_case'
-import SettleTransfertInterFirstUseCase from '#core/money/money_movement/application/services/movements/settlement/settle_transfert_inter_first.use_case'
-import SettleTransfertInterSecondUseCase from '#core/money/money_movement/application/services/movements/settlement/settle_transfert_inter_second.use_case'
+import InternalMoveHandler from '#core/money/money_movement/application/services/movements/initiation/internal_move_handler'
+import ExternalInHandler from '#core/money/money_movement/application/services/movements/initiation/external_in_handler'
+import ExternalOutHandler from '#core/money/money_movement/application/services/movements/initiation/external_out_handler'
+import ExternalToExternalHandler from '#core/money/money_movement/application/services/movements/initiation/external_to_external_handler'
+import SettleDepositHandler from '#core/money/money_movement/application/services/movements/settlement/settle_deposit_handler'
+import SettleTransfertHandler from '#core/money/money_movement/application/services/movements/settlement/settle_transfert_handler'
+import SettleTransfertInterFirstHandler from '#core/money/money_movement/application/services/movements/settlement/settle_transfert_inter_first_handler'
+import SettleTransfertInterSecondHandler from '#core/money/money_movement/application/services/movements/settlement/settle_transfert_inter_second_handler'
 
 /**
  * Façade du `MoneyMovementEngine` (core argent, Lot 2).
@@ -36,14 +36,14 @@ import SettleTransfertInterSecondUseCase from '#core/money/money_movement/applic
 @inject()
 export default class MoneyMovementEngineImpl implements MoneyMovementEngine {
   constructor(
-    private readonly internalMove: InternalMoveUseCase,
-    private readonly externalIn: ExternalInUseCase,
-    private readonly externalOut: ExternalOutUseCase,
-    private readonly externalToExternal: ExternalToExternalUseCase,
-    private readonly settleDeposit: SettleDepositUseCase,
-    private readonly settleTransfert: SettleTransfertUseCase,
-    private readonly settleInterFirst: SettleTransfertInterFirstUseCase,
-    private readonly settleInterSecond: SettleTransfertInterSecondUseCase
+    private readonly internalMove: InternalMoveHandler,
+    private readonly externalIn: ExternalInHandler,
+    private readonly externalOut: ExternalOutHandler,
+    private readonly externalToExternal: ExternalToExternalHandler,
+    private readonly settleDeposit: SettleDepositHandler,
+    private readonly settleTransfert: SettleTransfertHandler,
+    private readonly settleInterFirst: SettleTransfertInterFirstHandler,
+    private readonly settleInterSecond: SettleTransfertInterSecondHandler
   ) {}
 
   /** Interne : compte → compte, atomique, synchrone (→ COMPLETED). */
