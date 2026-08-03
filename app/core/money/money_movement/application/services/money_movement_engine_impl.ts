@@ -11,14 +11,14 @@ import type {
   SettleCommand,
   SettleResult,
 } from '#core/money/money_movement/domain/types/money_movement_types'
-import InternalMoveUseCase from '#core/money/money_movement/application/use_cases/initiation/internal_move.use_case'
-import ExternalInUseCase from '#core/money/money_movement/application/use_cases/initiation/external_in.use_case'
-import ExternalOutUseCase from '#core/money/money_movement/application/use_cases/initiation/external_out.use_case'
-import ExternalToExternalUseCase from '#core/money/money_movement/application/use_cases/initiation/external_to_external.use_case'
-import SettleDepositUseCase from '#core/money/money_movement/application/use_cases/settlement/settle_deposit.use_case'
-import SettleTransfertUseCase from '#core/money/money_movement/application/use_cases/settlement/settle_transfert.use_case'
-import SettleTransfertInterFirstUseCase from '#core/money/money_movement/application/use_cases/settlement/settle_transfert_inter_first.use_case'
-import SettleTransfertInterSecondUseCase from '#core/money/money_movement/application/use_cases/settlement/settle_transfert_inter_second.use_case'
+import InternalMoveUseCase from '#core/money/money_movement/application/services/movements/initiation/internal_move.use_case'
+import ExternalInUseCase from '#core/money/money_movement/application/services/movements/initiation/external_in.use_case'
+import ExternalOutUseCase from '#core/money/money_movement/application/services/movements/initiation/external_out.use_case'
+import ExternalToExternalUseCase from '#core/money/money_movement/application/services/movements/initiation/external_to_external.use_case'
+import SettleDepositUseCase from '#core/money/money_movement/application/services/movements/settlement/settle_deposit.use_case'
+import SettleTransfertUseCase from '#core/money/money_movement/application/services/movements/settlement/settle_transfert.use_case'
+import SettleTransfertInterFirstUseCase from '#core/money/money_movement/application/services/movements/settlement/settle_transfert_inter_first.use_case'
+import SettleTransfertInterSecondUseCase from '#core/money/money_movement/application/services/movements/settlement/settle_transfert_inter_second.use_case'
 
 /**
  * Façade du `MoneyMovementEngine` (core argent, Lot 2).

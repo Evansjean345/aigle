@@ -307,10 +307,8 @@ export default class InternalMoveUseCase {
       recipientAfter: number
     }
   ): void {
-    // Début de vie (miroir du flux externe) : le journal admin raconte TOUTE la transaction —
-    // création (acteur = initiateur), validation des parties, calcul des frais — pas seulement
-    // le mouvement d'argent.
     const meta = (cmd.metadata ?? {}) as { geoIpLocation?: GeoIpLocation }
+
     this.activity.emit({
       event: 'CREATED',
       transactionId: senderTx.reference,

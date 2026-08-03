@@ -82,7 +82,6 @@ export default class SettleTransfertUseCase {
 
     await this.support.dispatchFlowEvent('TransfertTransactionCompleted', transaction, {
       amount: transaction.amount,
-      // `accountId` = compte émetteur (payout org : usersUid null). Clé du volume de transaction.
       accountId: transaction.accountId,
       userId: transaction.usersUid,
       balanceAfter: currentBalance,
@@ -107,9 +106,6 @@ export default class SettleTransfertUseCase {
       error: this.support.errorMessage(error),
     })
 
-    // Event de flux d'échec au **settlement** (L2-D13) : symétrique du succès. Dispatché **avant** le
-    // refund pour toujours partir (le refund peut sortir tôt sur une course « déjà remboursé »). Sert
-    // au suivi du mass-transfer (`TransferItemSettledListener`) + au compteur d'échecs risk.
     await this.support.dispatchFlowEvent('TransfertTransactionFailed', transaction, {
       amount: transaction.amount,
       userId: transaction.usersUid,

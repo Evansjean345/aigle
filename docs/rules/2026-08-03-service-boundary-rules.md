@@ -215,7 +215,7 @@ les règles 2 à 4 de ce document, appliqué à la frontière HTTP.
 
 | Règle                               | Violations | Ce qu'elle interdit                                                     |
 | ----------------------------------- | ---------- | ----------------------------------------------------------------------- |
-| `transaction-portee-par-le-service` | **14**     | un use case ou une présentation important `@adonisjs/lucid/services/db` |
+| `transaction-portee-par-le-service` | **3**      | un use case ou une présentation important `@adonisjs/lucid/services/db` |
 
 L'atomicité appartient au service qui écrit, ou au repository. Ouvrir une transaction depuis
 l'appelant grave une décision de persistance dans une couche qui ne devrait connaître que des
@@ -226,20 +226,18 @@ Cette règle comble un angle mort : `produit-consomme-core-par-service` ne filtr
 `#core/…`, alors que `db` vient du package Lucid. Un use case produit pouvait donc piloter une
 transaction sans qu'aucun invariant ne le voie.
 
-**Huit des quatorze relèvent du placement, non de l'atomicité.** Les fichiers d'initiation et de
-règlement de `money_movement` sont injectés et appelés par `MoneyMovementEngineImpl`, et par lui
-seul : aucune présentation ne les atteint. Ce sont les composants internes du service, rangés dans
-`use_cases/`. Ils portent donc la transaction à bon droit — en tant que service, pas en tant
-qu'appelant. Leur place serait `application/services/`.
+**Trois violations subsistent, toutes de même nature** : `create_organisation`, `register` et
+`execute_admin_refund` ouvrent une transaction qui englobe des collaborateurs de features
+différentes — jusqu'à trois frontières pour la première. Aucun service ne peut porter seule cette
+atomicité : elle coordonne précisément ce que le découpage sépare.
 
-Le chemin produit, lui, est déjà conforme : `initiate_transfer.use_case.ts` d'`aiglebusiness`
-délègue à la façade et n'ouvre aucune transaction. C'est le modèle à suivre pour les six autres
-violations — `create_organisation`, `create_role`, `update_role`, `execute_admin_refund`,
-`get_device_transaction_summary` et `register` — où l'atomicité peut descendre dans le service qui
-écrit.
+Elles restent en l'état et sont nommées dans
+[l'atomicité appartient au service](../plans/2026-08-03-atomicite-portee-par-le-service-design.md)
+comme les points où une saga sera nécessaire le jour de l'extraction. La règle continue de les
+signaler : c'est ce qui garantit que la liste sera à jour ce jour-là.
 
-Cette règle peut donc viser ERROR : il faut reclasser les huit composants du moteur et corriger les
-six appelants. Aucun cas n'est irréductible.
+Cette règle ne peut donc pas viser ERROR sans une décision d'architecture sur les sagas — c'est la
+seule des douze dans ce cas, et c'est délibéré.
 
 ### Les garde-fous généraux — [WARN], zéro violation
 

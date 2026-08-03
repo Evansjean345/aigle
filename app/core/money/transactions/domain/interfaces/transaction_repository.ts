@@ -208,4 +208,77 @@ export default abstract class TransactionRepository {
     failedCount: number
     pendingCount: number
   }>
+
+  /**
+   * Totaux des transactions rattachées à une empreinte d'appareil, sur une période.
+   *
+   * @param {string} fingerprint - Empreinte matérielle de l'appareil.
+   * @param {string} from - Début de période, format `yyyy-MM-dd`.
+   * @param {string} to - Fin de période, incluse.
+   * @returns {Promise<DeviceTransactionTotals>} Volumes, frais et compteurs par statut.
+   */
+  abstract sumByDeviceFingerprint(
+    fingerprint: string,
+    from: string,
+    to: string
+  ): Promise<DeviceTransactionTotals>
+
+  /**
+   * Répartition par type d'opération, pour une empreinte d'appareil.
+   *
+   * @param {string} fingerprint - Empreinte matérielle de l'appareil.
+   * @param {string} from - Début de période, format `yyyy-MM-dd`.
+   * @param {string} to - Fin de période, incluse.
+   * @returns {Promise<DeviceOperationTypeRow[]>} Une ligne par type, volume décroissant.
+   */
+  abstract countByOperationTypeForDevice(
+    fingerprint: string,
+    from: string,
+    to: string
+  ): Promise<DeviceOperationTypeRow[]>
+
+  /**
+   * Répartition par compte, pour une empreinte d'appareil.
+   *
+   * Un même appareil peut servir plusieurs comptes : c'est ce que cette lecture met en évidence.
+   *
+   * @param {string} fingerprint - Empreinte matérielle de l'appareil.
+   * @param {string} from - Début de période, format `yyyy-MM-dd`.
+   * @param {string} to - Fin de période, incluse.
+   * @returns {Promise<DeviceAccountRow[]>} Une ligne par compte, volume décroissant.
+   */
+  abstract breakdownByAccountForDevice(
+    fingerprint: string,
+    from: string,
+    to: string
+  ): Promise<DeviceAccountRow[]>
+}
+
+/** Totaux d'activité d'un appareil. */
+export interface DeviceTransactionTotals {
+  transactionCount: number
+  totalVolume: number
+  totalFees: number
+  successCount: number
+  failedCount: number
+  pendingCount: number
+  vpnCount: number
+}
+
+/** Activité d'un appareil pour un type d'opération. */
+export interface DeviceOperationTypeRow {
+  operationType: string
+  count: number
+  volume: number
+}
+
+/** Activité d'un appareil pour un compte donné. */
+export interface DeviceAccountRow {
+  userId: string
+  phone: string
+  firstname: string | null
+  lastname: string | null
+  count: number
+  volume: number
+  lastTransactionAt: string | null
 }

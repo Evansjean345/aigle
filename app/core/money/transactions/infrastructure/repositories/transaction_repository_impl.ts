@@ -399,4 +399,94 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       pendingCount: Number(stats.pendingCount || 0),
     }
   }
+
+  async sumByDeviceFingerprint(fingerprint: string, from: string, to: string) {
+    const result = await db.rawQuery(
+      `SELECT
+        COUNT(*) as transaction_count,
+        COALESCE(SUM(t.amount), 0) as total_volume,
+        COALESCE(SUM(t.fees), 0) as total_fees,
+        SUM(CASE WHEN t.status = 'success' THEN 1 ELSE 0 END) as success_count,
+        SUM(CASE WHEN t.status = 'failed' THEN 1 ELSE 0 END) as failed_count,
+        SUM(CASE WHEN t.status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+        SUM(CASE WHEN sc.is_vpn = true THEN 1 ELSE 0 END) as vpn_count
+      FROM transactions t
+      INNER JOIN transaction_security_contexts sc ON sc.transaction_id = t.id
+      WHERE sc.fingerprint_hash = ?
+        AND t.created_at >= ?
+        AND t.created_at <= ?`,
+      [fingerprint, `${from} 00:00:00`, `${to} 23:59:59`]
+    )
+
+    const row = result[0]?.[0] ?? result[0] ?? {}
+
+    return {
+      transactionCount: Number(row.transaction_count ?? 0),
+      totalVolume: Number(row.total_volume ?? 0),
+      totalFees: Number(row.total_fees ?? 0),
+      successCount: Number(row.success_count ?? 0),
+      failedCount: Number(row.failed_count ?? 0),
+      pendingCount: Number(row.pending_count ?? 0),
+      vpnCount: Number(row.vpn_count ?? 0),
+    }
+  }
+
+  async countByOperationTypeForDevice(fingerprint: string, from: string, to: string) {
+    const result = await db.rawQuery(
+      `SELECT
+        t.operation_type,
+        COUNT(*) as count,
+        COALESCE(SUM(t.amount), 0) as volume
+      FROM transactions t
+      INNER JOIN transaction_security_contexts sc ON sc.transaction_id = t.id
+      WHERE sc.fingerprint_hash = ?
+        AND t.created_at >= ?
+        AND t.created_at <= ?
+      GROUP BY t.operation_type
+      ORDER BY volume DESC`,
+      [fingerprint, `${from} 00:00:00`, `${to} 23:59:59`]
+    )
+
+    const rows = result[0] ?? result ?? []
+
+    return rows.map((row: any) => ({
+      operationType: row.operation_type,
+      count: Number(row.count),
+      volume: Number(row.volume),
+    }))
+  }
+
+  async breakdownByAccountForDevice(fingerprint: string, from: string, to: string) {
+    const result = await db.rawQuery(
+      `SELECT
+        t.users_uid,
+        u.phone,
+        u.firstname,
+        u.lastname,
+        COUNT(*) as count,
+        COALESCE(SUM(t.amount), 0) as volume,
+        MAX(t.created_at) as last_tx_at
+      FROM transactions t
+      INNER JOIN transaction_security_contexts sc ON sc.transaction_id = t.id
+      INNER JOIN users u ON u.users_uid = t.users_uid
+      WHERE sc.fingerprint_hash = ?
+        AND t.created_at >= ?
+        AND t.created_at <= ?
+      GROUP BY t.users_uid, u.phone, u.firstname, u.lastname
+      ORDER BY volume DESC`,
+      [fingerprint, `${from} 00:00:00`, `${to} 23:59:59`]
+    )
+
+    const rows = result[0] ?? result ?? []
+
+    return rows.map((row: any) => ({
+      userId: row.users_uid,
+      phone: row.phone ?? '',
+      firstname: row.firstname ?? null,
+      lastname: row.lastname ?? null,
+      count: Number(row.count),
+      volume: Number(row.volume),
+      lastTransactionAt: row.last_tx_at ?? null,
+    }))
+  }
 }

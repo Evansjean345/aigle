@@ -10,9 +10,7 @@ export default class UnfreezeOnBlockedOrganisationException extends Exception {
   static status = 409
   static code = 'E_UNFREEZE_ON_BLOCKED_ORGANISATION'
 
-  constructor(
-    message: string = "Débloquez l'organisation avant de dégeler son portefeuille."
-  ) {
+  constructor(message: string = "Débloquez l'organisation avant de dégeler son portefeuille.") {
     super(message, {
       status: UnfreezeOnBlockedOrganisationException.status,
       code: UnfreezeOnBlockedOrganisationException.code,

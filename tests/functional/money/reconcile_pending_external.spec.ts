@@ -10,7 +10,7 @@ import { TransactionDirection } from '#core/money/transactions/domain/enums/tran
 import { PaymentStep } from '#core/money/transactions/domain/enums/payment_step'
 import { ProviderRegistry } from '#core/money/provider_gateway/infrastructure/provider_registry'
 import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/money_movement_engine'
-import ReconcilePendingExternalUseCase from '#core/money/money_movement/application/use_cases/settlement/reconcile_pending_external.use_case'
+import ReconcilePendingExternalUseCase from '#core/money/money_movement/application/services/movements/settlement/reconcile_pending_external.use_case'
 import type { SettleCommand } from '#core/money/money_movement/domain/types/money_movement_types'
 import type { ProviderPollResult } from '#core/money/provider_gateway/domain/types/provider_poll'
 

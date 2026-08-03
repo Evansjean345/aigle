@@ -22,8 +22,6 @@ export default function adminUsersRoute() {
           .get('/', [UsersController, 'index'])
           .use(middleware.permission([USER_PERMISSIONS.usersRead]))
 
-        // Parcourir l'annuaire et retrouver une personne précise sont deux besoins distincts :
-        // l'assistance cherche un client qui l'appelle, sans avoir à voir tous les autres.
         router
           .get('/search', [UsersController, 'search'])
           .use(middleware.permission([USER_PERMISSIONS.usersRead, USER_PERMISSIONS.search]))

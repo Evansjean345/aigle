@@ -76,7 +76,7 @@ export const ORGANISATION_WALLET_PERMISSIONS = definePermissions({
     slug: 'organisations.wallets.freeze',
     name: "Geler le portefeuille d'une organisation",
     description:
-      "Faire refuser tout encaissement et tout décaissement, y compris les lots de paiement déjà approuvés, dont les lignes restantes attendent sans être versées ni rendues.",
+      'Faire refuser tout encaissement et tout décaissement, y compris les lots de paiement déjà approuvés, dont les lignes restantes attendent sans être versées ni rendues.',
     sensitive: true,
   },
 

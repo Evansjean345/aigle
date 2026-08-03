@@ -9,7 +9,7 @@ import Wallet from '#core/money/wallet/domain/models/wallet'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
-import ExternalOutUseCase from '#core/money/money_movement/application/use_cases/initiation/external_out.use_case'
+import ExternalOutUseCase from '#core/money/money_movement/application/services/movements/initiation/external_out.use_case'
 import {
   reloadBalance,
   swapGuards,

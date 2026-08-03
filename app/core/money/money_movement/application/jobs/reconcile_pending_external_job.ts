@@ -1,6 +1,6 @@
 import { Job } from '@adonisjs/queue'
 import app from '@adonisjs/core/services/app'
-import ReconcilePendingExternalUseCase from '#core/money/money_movement/application/use_cases/settlement/reconcile_pending_external.use_case'
+import ReconcilePendingExternalUseCase from '#core/money/money_movement/application/services/movements/settlement/reconcile_pending_external.use_case'
 import paymentLog from '#shared/infrastructure/logging/payment_log'
 
 /**

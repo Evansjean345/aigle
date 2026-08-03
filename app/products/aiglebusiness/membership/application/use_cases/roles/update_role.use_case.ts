@@ -1,5 +1,4 @@
 import { inject } from '@adonisjs/core'
-import db from '@adonisjs/lucid/services/db'
 import OrganisationRoleRepository from '#aiglebusiness/membership/domain/interfaces/organisation_role_repository'
 import {
   type UpdateRoleRequestDto,
@@ -32,14 +31,7 @@ export default class UpdateRoleUseCase {
       assertValidPermissions(request.permissionSlugs)
     }
 
-    await db.transaction(async (trx) => {
-      if (request.name !== undefined) {
-        await this.roleRepository.updateName(role.id, request.name, trx)
-      }
-      if (request.permissionSlugs !== undefined) {
-        await this.roleRepository.replacePermissions(role.id, request.permissionSlugs, trx)
-      }
-    })
+    await this.roleRepository.updateWithPermissions(role.id, request.name, request.permissionSlugs)
 
     const updated = await this.roleRepository.findById(role.id)
     return RoleResponseDTO.fromModel(updated!)

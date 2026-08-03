@@ -59,4 +59,32 @@ export default abstract class OrganisationRoleRepository {
    * Supprime un rôle (et ses permissions par cascade FK).
    */
   abstract delete(roleId: number, trx?: TransactionClientContract): Promise<void>
+
+  /**
+   * Crée un rôle et lui rattache ses permissions, de façon atomique.
+   *
+   * Un rôle sans permission ne serait jamais composé volontairement : les deux écritures ne se
+   * séparent pas.
+   *
+   * @param {Partial<OrganisationRole>} data - Rôle à créer.
+   * @param {string[]} permissionSlugs - Permissions du catalogue à rattacher.
+   * @returns {Promise<number>} L'identifiant du rôle créé.
+   */
+  abstract createWithPermissions(
+    data: Partial<OrganisationRole>,
+    permissionSlugs: string[]
+  ): Promise<number>
+
+  /**
+   * Met à jour un rôle et, si elles sont fournies, remplace ses permissions, de façon atomique.
+   *
+   * @param {number} roleId - Rôle visé.
+   * @param {string} [name] - Nouveau nom. Absent, le nom est conservé.
+   * @param {string[]} [permissionSlugs] - Nouvelles permissions. Absentes, elles sont conservées.
+   */
+  abstract updateWithPermissions(
+    roleId: number,
+    name?: string,
+    permissionSlugs?: string[]
+  ): Promise<void>
 }

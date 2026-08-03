@@ -1,3 +1,4 @@
+import db from '@adonisjs/lucid/services/db'
 import OrganisationRole from '#aiglebusiness/membership/domain/models/organisation_role'
 import OrganisationRolePermission from '#aiglebusiness/membership/domain/models/organisation_role_permission'
 import type OrganisationRoleRepository from '#aiglebusiness/membership/domain/interfaces/organisation_role_repository'
@@ -72,5 +73,33 @@ export default class OrganisationRoleRepositoryImpl implements OrganisationRoleR
 
   async delete(roleId: number, trx?: TransactionClientContract): Promise<void> {
     await OrganisationRole.query({ client: trx }).where('id', roleId).delete()
+  }
+
+  async createWithPermissions(
+    data: Partial<OrganisationRole>,
+    permissionSlugs: string[]
+  ): Promise<number> {
+    return db.transaction(async (trx) => {
+      const role = await this.create(data, trx)
+      await this.addPermissions(role.id, permissionSlugs, trx)
+
+      return role.id
+    })
+  }
+
+  async updateWithPermissions(
+    roleId: number,
+    name?: string,
+    permissionSlugs?: string[]
+  ): Promise<void> {
+    await db.transaction(async (trx) => {
+      if (name !== undefined) {
+        await this.updateName(roleId, name, trx)
+      }
+
+      if (permissionSlugs !== undefined) {
+        await this.replacePermissions(roleId, permissionSlugs, trx)
+      }
+    })
   }
 }

@@ -1,6 +1,5 @@
 import { inject } from '@adonisjs/core'
 import string from '@adonisjs/core/helpers/string'
-import db from '@adonisjs/lucid/services/db'
 import OrganisationRoleRepository from '#aiglebusiness/membership/domain/interfaces/organisation_role_repository'
 import { assertValidPermissions } from '#aiglebusiness/membership/domain/permissions.config'
 import {
@@ -32,19 +31,15 @@ export default class CreateRoleUseCase {
       throw new RoleNameAlreadyExistsException()
     }
 
-    const roleId = await db.transaction(async (trx) => {
-      const role = await this.roleRepository.create(
-        {
-          organisationId: request.organisationId,
-          slug,
-          name: request.name,
-          isSystem: false,
-        },
-        trx
-      )
-      await this.roleRepository.addPermissions(role.id, request.permissionSlugs, trx)
-      return role.id
-    })
+    const roleId = await this.roleRepository.createWithPermissions(
+      {
+        organisationId: request.organisationId,
+        slug,
+        name: request.name,
+        isSystem: false,
+      },
+      request.permissionSlugs
+    )
 
     const created = await this.roleRepository.findById(roleId)
     return RoleResponseDTO.fromModel(created!)

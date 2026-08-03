@@ -8,7 +8,7 @@ import { PaymentStatus } from '#core/money/transactions/domain/enums/payment_sta
 import PaymentService from '#core/money/transactions/application/services/payment_service'
 import { AuditResult } from '#core/audit/domain/enums'
 import SettlementSupport from '#core/money/money_movement/application/services/settlement_support'
-import InitiateInterSecondLegUseCase from '#core/money/money_movement/application/use_cases/initiation/initiate_inter_second_leg.use_case'
+import InitiateInterSecondLegUseCase from '#core/money/money_movement/application/services/movements/initiation/initiate_inter_second_leg.use_case'
 import type {
   SettleCommand,
   SettleResult,
