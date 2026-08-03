@@ -59,6 +59,7 @@ export default defineConfig({
     () => import('#core/money/ledger/ledger_provider'),
     () => import('#core/money/provider_gateway/provider_gateway_provider'),
     () => import('#core/money/money_movement/money_movement_provider'),
+    () => import('#core/money/transfer/transfer_provider'),
     {
       file: () => import('@adonisjs/cache/cache_provider'),
       environment: ['web', 'repl', 'console', 'test'],
@@ -89,6 +90,7 @@ export default defineConfig({
   preloads: [
     () => import('#start/routes'),
     () => import('#start/kernel'),
+    () => import('#start/permissions'),
     () => import('#start/events'),
     () => import('#start/admin_routes'),
     () => import('#start/routes_docs'),
