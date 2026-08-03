@@ -1,0 +1,264 @@
+paths:
+  /api/admin/mass-transfers:
+    get:
+      operationId: adminListMassTransfers
+      summary: Lister les lots de paiement en masse
+      description: >
+        Liste les lots de paiement en masse de **toutes** les organisations, les plus récents
+        d'abord. Filtrable par statut et par organisation — le filtre `organisationId` sert l'onglet
+        du détail d'une organisation, qui consomme le même endpoint.
+
+
+        **Lecture seule.** Aucun endpoint admin n'approuve, ne rejette ni ne relance un lot :
+        l'approbation est un contrôle interne à l'organisation, entre deux de ses membres. S'y
+        substituer le rendrait contournable en appelant le support.
+
+
+        ⚠️ Sur cette route, seul `organisation.name` est résolu. `initiatedByActor.name` et
+        `approvedByActor.name` valent `null` — la file ne les affiche pas, et les résoudre coûterait
+        une requête inutile. Utiliser la route de détail pour obtenir ces noms.
+      tags:
+        - Admin - Paiement en masse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filtre sur l'état du lot.
+          schema:
+            type: string
+            enum:
+              [
+                pending_approval,
+                queued,
+                processing,
+                completed,
+                partial,
+                failed,
+                rejected,
+                cancelled,
+              ]
+        - name: organisationId
+          in: query
+          required: false
+          description: Restreint la file aux lots d'une organisation.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Les lots correspondants.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MassTransferAdminResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `mass_transfers.read` absente.
+
+  /api/admin/mass-transfers/{reference}:
+    get:
+      operationId: adminGetMassTransfer
+      summary: Détail d'un lot et de ses bénéficiaires
+      description: >
+        Renvoie le lot, ses acteurs résolus et la liste de ses bénéficiaires avec leur état
+        individuel et, en cas d'échec, le motif retourné par l'opérateur.
+
+
+        Aucune restriction d'organisation : c'est une lecture admin.
+      tags:
+        - Admin - Paiement en masse
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          description: Référence du lot.
+          schema:
+            type: string
+          example: transfer_9f3c1a7b2e04
+      responses:
+        '200':
+          description: Le lot et ses bénéficiaires.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MassTransferAdminDetailResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `mass_transfers.read` absente.
+        '404':
+          description: Référence de lot inconnue.
+
+components:
+  schemas:
+    MassTransferActorRef:
+      type: object
+      required: [id, name]
+      description: >
+        Acteur ou organisation, avec son nom résolu. `name` vaut `null` quand l'acteur n'existe plus,
+        ou quand la route ne le résout pas : l'identifiant reste alors la seule trace.
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          nullable: true
+
+    MassTransferAdminItemResult:
+      type: object
+      description: >
+        Bénéficiaire d'un lot, vu par l'espace admin. Porte en plus du contrat client les colonnes de
+        traçabilité et de reprise — elles ne sont pas exposées à l'organisation propriétaire.
+      properties:
+        sequence:
+          type: integer
+          description: Rang du bénéficiaire dans le lot.
+        recipientName:
+          type: string
+          nullable: true
+        recipientPhone:
+          type: string
+        operator:
+          type: string
+          description: Code opérateur mobile money (`wave`, `orange`, `moov`…).
+        amount:
+          type: integer
+          description: Montant reçu par le bénéficiaire, hors frais.
+        fees:
+          type: integer
+          description: >
+            Frais tarifés pour ce bénéficiaire seul. Le paiement en masse est tarifé par
+            bénéficiaire : la somme de ces frais est le `fees` du lot.
+        currency:
+          type: string
+          example: XOF
+        country:
+          type: string
+          description: Pays de destination, en ISO 2 lettres minuscules.
+          example: ci
+        status:
+          type: string
+          enum: [queued, sending, sent, succeeded, failed, released, needs_review, cancelled]
+        failureReason:
+          type: string
+          nullable: true
+          description: Motif retourné par l'opérateur en cas d'échec.
+        idempotencyKey:
+          type: string
+          description: >
+            Clé de déduplication : empêche le rejeu du même versement lors d'une reprise du drain.
+        transactionReference:
+          type: string
+          nullable: true
+          description: >
+            Référence de la transaction Aigle générée pour ce versement. `null` tant qu'il n'a pas
+            été envoyé. Résolvable via `GET /api/admin/transactions/{reference}`.
+        providerReference:
+          type: string
+          nullable: true
+          description: >
+            Référence côté opérateur, à lui communiquer pour faire tracer un versement. `null` tant
+            qu'il n'a pas accusé réception.
+        attempts:
+          type: integer
+          description: Nombre de tentatives d'envoi déjà consommées.
+        nextRetryAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Prochaine tentative planifiée, si le versement attend une reprise.
+        settledAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Confirmation de l'opérateur — l'instant où l'argent est réellement arrivé.
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    MassTransferAdminResponseDTO:
+      type: object
+      description: Lot de paiement en masse tel que le voit le back-office.
+      properties:
+        reference:
+          type: string
+        accountId:
+          type: string
+          description: Compte propriétaire du lot. La file mélange les organisations.
+        organisation:
+          $ref: '#/components/schemas/MassTransferActorRef'
+        label:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            [
+              pending_approval,
+              queued,
+              processing,
+              completed,
+              partial,
+              failed,
+              rejected,
+              cancelled,
+            ]
+        totalAmount:
+          type: integer
+          description: Montant total versé aux bénéficiaires, hors frais.
+        fees:
+          type: integer
+        expectedCount:
+          type: integer
+          description: Nombre de bénéficiaires attendus.
+        successfulCount:
+          type: integer
+        failedCount:
+          type: integer
+        initiatedBy:
+          type: string
+          description: Identifiant brut du membre initiateur. Préférer `initiatedByActor`.
+        initiatedByActor:
+          $ref: '#/components/schemas/MassTransferActorRef'
+        approvedBy:
+          type: string
+          nullable: true
+          description: Identifiant brut de l'approbateur. Préférer `approvedByActor`.
+        approvedByActor:
+          allOf:
+            - $ref: '#/components/schemas/MassTransferActorRef'
+          nullable: true
+          description: Membre ayant approuvé. `null` tant que le lot n'est pas approuvé.
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    MassTransferAdminDetailResponseDTO:
+      allOf:
+        - $ref: '#/components/schemas/MassTransferAdminResponseDTO'
+        - type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MassTransferAdminItemResult'

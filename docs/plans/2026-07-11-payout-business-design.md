@@ -1,9 +1,9 @@
 ---
 type: design
-statut: approved (Lot 1 livré ; Lot 2 mass-payout — brainstorm de reprise CLOS, prêt pour writing-plans)
-derniere_maj: 2026-07-21
-session_courante: S7 (Lot 2 : brainstorm de reprise clos B1→B10, décisions L2-D1→L2-D28)
-lot: 2 — paiement en masse (batch)
+statut: approved (Lots 1 et 2 livrés ; Lot 3 supervision admin — conception close, décisions L3-D1→L3-D3)
+derniere_maj: 2026-07-30
+session_courante: S8 (Lot 3 : supervision admin du paiement en masse)
+lot: 3 — supervision admin du paiement en masse
 ---
 
 # Paiement business — transfert unique + paiement en masse (payout)
@@ -901,3 +901,59 @@ composant de moins.
   autorisation de coder), en commençant par **B1** ?
 
 ## Fin du brainstorming  *(après S7)*
+
+---
+
+## Lot 3 — Supervision admin du paiement en masse *(conception 2026-07-30)*
+
+### Contexte exploré
+
+- **API admin : inexistante.** Aucune route mass-transfer dans `start/admin_routes.ts`.
+- **Core disponible mais cloisonné** : `TransferQueryService.listBatches(accountId, status?)` et
+  `getBatchDetail(accountId, reference)` filtrent par compte — voulu côté client, inadapté à un
+  admin qui doit voir tous les lots.
+- **UI admin par organisation : existante et MOCKÉE.** Onglet `OrganisationMassPayoutTab`, page
+  `[batchId].vue`, composable `useOrganisationMassPayouts`, alimentés par `MOCK_MASS_PAYOUTS`.
+- **UI admin globale : inexistante.**
+
+### Décisions
+
+| # | Décision | Alternatives écartées | Raison | Date |
+|---|----------|----------------------|--------|------|
+| **L3-D1 — L'admin Aigle est en LECTURE SEULE sur les lots** | Lecture + relance des échecs ; lecture + approbation/rejet. | Le maker-checker est un contrôle **interne à l'organisation**, entre deux de ses membres (L2-D21). Qu'Aigle approuve à leur place le viderait de son sens et engagerait notre responsabilité sur un décaissement que le marchand n'a pas confirmé — pire, le contrôle deviendrait contournable en appelant le support. La relance des échecs répond à un vrai besoin de support mais reste une **action monétaire** : elle exigerait son propre lot en TDD, avec verrou, idempotence et permission distincte. Hors périmètre de la supervision. | 2026-07-30 |
+| **L3-D2 — Une file globale filtrable, pas deux endpoints** | Deux routes distinctes (`/admin/mass-transfers` et `/admin/organisations/:id/mass-transfers`). | `GET /admin/mass-transfers?organisationId=…` sert la page globale **et** l'onglet du détail organisation, filtre pré-rempli. Deux routes pour la même lecture divergeraient à la première évolution. C'est la leçon de R-D19 (réapprovisionnement) : le mock supposait un endpoint par organisation qui n'a jamais existé. | 2026-07-30 |
+| **L3-D3 — L'UI mockée par organisation est RECONSTRUITE, pas rebranchée** | Rebrancher l'onglet et la page `[batchId].vue` existants sur la vraie API. | Contrats **incompatibles**, vérifié champ par champ : le mock invente `id`, `currency`, `executedAt`, renomme `expectedCount`→`recipientCount` et `successfulCount`→`successCount`, expose `createdBy` comme un **nom** là où le core donne un **UUID** (`initiatedBy`), et ignore `approvedBy`. Surtout, son enum `MassPayoutStatus` déclare `draft` et `scheduled` — **qui n'existent pas** — et omet `pending_approval`, `queued`, `rejected`, `cancelled` : la moitié de la machine à états réelle, dont l'état d'attente d'approbation, le plus intéressant pour un superviseur. Une UI qui ne sait pas afficher `pending_approval` ne supervise rien. | 2026-07-30 |
+
+### Découpage
+
+| Lot | Contenu | Dépend de | Statut |
+|-----|---------|-----------|--------|
+| **M1** | API admin : lectures non cloisonnées + 2 endpoints + permission + OpenAPI | — | livré |
+| **M2** | Page admin globale : file filtrable (statut, organisation) + détail avec bénéficiaires | M1 | livré |
+| **M2b** | Cloisonnement des canaux DTO + colonnes de traçabilité par bénéficiaire | M2 | livré |
+| **M3** | Onglet du détail organisation : reconstruit sur la vraie API, suppression du mock | M2 | livré |
+
+#### L3-D4 — Les canaux client et admin ont des DTO séparés, jamais dérivés l'un de l'autre
+
+| Option écartée | Pourquoi |
+|---|---|
+| Partager `MassTransferItemView` entre le chemin client et le chemin admin, en y ajoutant les colonnes de traçabilité | C'est l'état d'origine, et il a produit une question qui n'aurait pas dû exister : « si j'ajoute dix champs pour l'admin, les marchands les reçoivent aussi — faut-il retirer `idempotencyKey` du contrat ? ». Le partage transforme chaque ajout admin en arbitrage sur ce que voit le client, et l'arbitrage finit toujours par être oublié une fois. Les conventions DTO du dépôt tranchent déjà (`dtos/admin/admin_{domaine}.dto.ts`) ; la feature ne les appliquait pas. |
+| Garder les mappers `toSummary` / `toItemView` dans `TransferQueryService` | La convention DTO impose une classe avec `static fromX()` dès qu'un DTO mappe depuis un modèle. Un mapper dans le service laisse le contrat sans propriétaire : deux canaux, un seul point de transformation, donc un couplage qui se recrée à la première évolution. |
+
+Conséquences : `core/.../dtos/transfer.dto.ts` porte le canal client (sans `accountId`, que seul
+l'admin exploite), `core/.../dtos/admin/admin_transfer.dto.ts` porte le canal admin avec les colonnes
+`currency`, `country`, `idempotencyKey`, `transactionReference`, `providerReference`, `attempts`,
+`nextRetryAt`, `settledAt`, `createdAt`, `updatedAt`. `id` et `batchId` restent hors contrat : clés
+techniques sans valeur pour un lecteur humain. Un test verrouille le cloisonnement — il échoue si un
+canal se remet à dériver de l'autre.
+
+Vocabulaire : le mot « supervision » a été retiré du code, c'est un terme du domaine produit et non
+un nom de canal. Les canaux sont `client` et `admin`.
+
+**Hors périmètre** : toute action monétaire (approbation, rejet, relance d'échec), l'ingestion
+fichier XLSX (B7, différée), et la pagination de la file — à ajouter quand le volume l'exigera.
+
+**Compteurs d'en-tête omis** (décidé 2026-07-30) : un « 3 lots en attente d'approbation » serait
+utile, mais le core n'expose aucune agrégation. Le calculer côté client sur la liste chargée serait
+exact aujourd'hui et **faux le jour où la pagination arrive** — on s'en passe plutôt que de livrer un
+chiffre qui deviendra silencieusement erroné.

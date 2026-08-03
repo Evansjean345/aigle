@@ -74,6 +74,10 @@ export class WalletAdjustmentResponseDTO {
 > service/port est une `Query`, jamais un `RequestDto`. Placement selon la couche propriétaire :
 > voir [placement des types & contrats](./2026-07-05-type-placement-rules.md).
 
+> Un `Result` ne contient **jamais** de modèle ORM, ni comme type de retour ni comme champ : voir
+> [frontières de service](./2026-08-03-service-boundary-rules.md). L'exemple 2 ci-dessous en expose
+> un (`WalletAdjustmentResult.walletAdjustment`) — c'est de la dette, pas un modèle à suivre.
+
 ---
 
 ## Règle 6 — Structure interne d'un fichier DTO

@@ -1,7 +1,7 @@
 ---
 type: backlog
 description: Remarques / observations à brainstormer et corriger plus tard (ne pas traiter à la volée)
-derniere_maj: 2026-07-11
+derniere_maj: 2026-08-01
 ---
 
 # Remarques à brainstormer
@@ -27,6 +27,7 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 
 | # | Niveau | Statut | Remarque |
 |---|--------|--------|----------|
+| R11 | 🔴 Critique | à brainstormer | **Les tests s'exécutent sur la base de production** : `config/database.ts` n'a qu'une connexion, alimentée par `.env`, et il n'existe pas de `.env.test`. Plusieurs suites vident des tables (`Permission.query().delete()`) en comptant sur le rollback |
 | R1 | 🔴 Critique | à brainstormer | Permissions du RBAC **team** créées en CRUD par l'admin au lieu d'être **déclarées en code** par chaque feature — faille de sécurité (contrôle d'accès orphelin / privilege escalation) |
 | R2 | 🟠 Majeur | ✅ FAIT (2026-07-11) | Notifications **push** scopées par app. Infra : `Notification.targetApp?` + `expo_push_channel.send` → `getTrustedDevices(recipientId, app)`. **Scopés `aiglesend`** : dépôt, transfert, w2w (transfert émis/reçu + payeur pay-merchant), KYC (soumis/traité). **Scopé `aiglebusiness`** : encaissement marchand (checkout + pay-merchant reçu). **Volontairement all-apps** (sécurité account-wide, le porteur doit être averti partout) : `user_state_changed` (blocage/activation compte), `wallet_status_changed` (gel wallet). `new_device` déjà scopé (via `getActiveUserDevices(userId, app)`) |
 | R3 | 🟢 Feature | **décidé — à implémenter** | Flux de **transfert de propriété** d'une organisation (owner unique). Le verrou (owner non attribuable) est en place ; il manque l'endpoint de transmission explicite |
@@ -39,6 +40,27 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 | R8 | 🟡 Mineur | décidé (direction) — à implémenter | **Pas de montant (`amount_step`) porté par la tarification du catalogue** (SPM), pas hardcodé côté mobile. Les opérateurs externes (mobile money) imposent des montants **multiples de 5** ; les mouvements internes aigle (wallet-to-wallet, marchand) **non**. À exposer dans `payment-options` comme `minAmount`/`fees`, le mobile valide via `provider.amountStep` |
 
 ---
+
+### R11 — Les tests s'exécutent sur la base de production
+- **Niveau** : 🔴 Critique (perte de données possible sur une base de production)
+- **Date** : 2026-08-01
+- **Contexte** : relevé pendant le chantier RBAC (lot L3). `config/database.ts` définit une unique
+  connexion `mysql` alimentée par `.env` ; `bin/test.ts` pose `NODE_ENV = 'test'` mais cela ne change
+  pas la connexion, et aucun `.env.test` n'existe. La base pointée par `.env` est celle de
+  **production** (confirmé le 2026-07-31).
+- **Observation** : plusieurs suites fonctionnelles vident des tables avant chaque cas —
+  `Permission.query().delete()` dans `tests/functional/team/permissions_sync.spec.ts` et
+  `permissions_check.spec.ts` — en comptant sur `db.beginGlobalTransaction()` pour restaurer. La
+  convention est antérieure au chantier (`organisations_admin.spec.ts` et d'autres l'appliquent),
+  mais elle vise désormais aussi la table du contrôle d'accès.
+- **Pourquoi ça tient aujourd'hui** : le rollback fonctionne. Preuve observée le 2026-08-01 — les 38
+  slugs hors catalogue ont survécu à des dizaines d'exécutions de tests qui vident la table.
+- **Pourquoi c'est critique quand même** : la marge tient à un rollback. Un test qui plante entre le
+  `delete` et le rollback, une connexion coupée, ou un `SET FOREIGN_KEY_CHECKS = 0` laissé en place,
+  et la table part. Les suites posent d'ailleurs ce `FOREIGN_KEY_CHECKS = 0` à chaque cas.
+- **Piste** : un `.env.test` dédié, chargé par `bin/test.ts`, pointant une base jetable ;
+  éventuellement un garde-fou refusant de démarrer la suite si la base cible est celle de `.env`.
+- **Statut** : à brainstormer (chantier à part, hors RBAC — décidé le 2026-08-01).
 
 ### R6 — Consommation cross-feature par repository (au lieu du service)
 - **Niveau** : 🟠 Majeur (couplage structurel inter-feature ; érode l'extractibilité)

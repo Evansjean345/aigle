@@ -1856,9 +1856,196 @@ paths:
                     type: mobile_money
                     accountIdentifier: '0700112233'
                     accountHolder: AIGLE SA
-                    instructions: Mentionnez la référence de votre demande dans le motif.
+                    instructions: Conservez le reçu du versement, il vous sera demandé à la déclaration.
         '403':
-          description: Permission `provision:request` manquante
+          description: |
+            `E_FUNDING_ENTERPRISE_ONLY` — le réapprovisionnement est réservé aux comptes
+            entreprise ; ou permission `provision:request` manquante.
+
+  /api/business/organisations/{organisationId}/funding-requests:
+    post:
+      operationId: declareFundingRequest
+      summary: Déclarer un versement effectué
+      description: |
+        Le marchand **a déjà viré** sur un compte de collecte, hors plateforme. Cet endpoint
+        enregistre sa **déclaration** de ce versement, avec le justificatif.
+
+        ⚠️ **Aucun mouvement d'argent** : le wallet n'est pas crédité ici. Un gestionnaire vérifie la
+        pièce et crédite ensuite le montant qu'il a **constaté**, qui peut différer du montant
+        déclaré.
+
+        Le **justificatif est obligatoire** : le versement précédant la déclaration, le marchand a
+        son reçu en main. Il est stocké en accès **privé** et n'est consultable que par une URL
+        signée à durée limitée.
+
+        Le compte de collecte visé doit être **actif** : déclarer sur un compte fermé est refusé.
+
+        Permission `provision:request`.
+      tags:
+        - Business - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [collectionAccountReference, declaredAmount, document]
+              properties:
+                collectionAccountReference:
+                  type: string
+                  example: collect_9f3c1a7b2e04
+                declaredAmount:
+                  type: number
+                  description: Montant déclaré par le marchand — non vérifié à ce stade.
+                  example: 500000
+                document:
+                  type: string
+                  format: binary
+                  description: Reçu du versement — jpg, jpeg, png ou pdf, 10 Mo maximum.
+      responses:
+        '201':
+          description: Déclaration enregistrée, en attente de vérification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FundingRequestView'
+        '403':
+          description: |
+            `E_FUNDING_ENTERPRISE_ONLY` — le réapprovisionnement est réservé aux comptes
+            entreprise ; ou permission `provision:request` manquante.
+        '422':
+          description: |
+            `E_COLLECTION_ACCOUNT_UNAVAILABLE` (compte inexistant ou désactivé), justificatif
+            manquant ou hors format, ou montant non strictement positif.
+
+    get:
+      operationId: listFundingRequests
+      summary: Mes déclarations de réapprovisionnement
+      description: |
+        Déclarations de l'organisation, les plus récentes d'abord. Filtrable par statut.
+
+        Chaque élément embarque une **URL signée fraîche** du justificatif : elle expire, ne la
+        mettez pas en cache.
+
+        Permission `provision:request`.
+      tags:
+        - Business - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, cancelled]
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: Liste des déclarations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FundingRequestView'
+        '403':
+          description: |
+            `E_FUNDING_ENTERPRISE_ONLY` — le réapprovisionnement est réservé aux comptes
+            entreprise ; ou permission `provision:request` manquante.
+
+  /api/business/organisations/{organisationId}/funding-requests/{reference}:
+    get:
+      operationId: getFundingRequest
+      summary: Détail d'une déclaration
+      description: |
+        ⚠️ Une déclaration appartenant à une **autre organisation** renvoie `404`, et non `403` :
+        répondre « interdit » confirmerait l'existence de la référence et permettrait de sonder les
+        demandes d'un concurrent.
+
+        Permission `provision:request`.
+      tags:
+        - Business - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string }
+          example: funding_9f3c1a7b2e04
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: La déclaration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FundingRequestView'
+        '404':
+          description: '`E_FUNDING_REQUEST_NOT_FOUND` — inconnue, ou appartenant à une autre organisation'
+
+  /api/business/organisations/{organisationId}/funding-requests/{reference}/cancel:
+    post:
+      operationId: cancelFundingRequest
+      summary: Annuler une déclaration en attente
+      description: |
+        Retire une déclaration encore `pending`. Elle **reste en base** avec le statut `cancelled` :
+        elle documente ce qui a été affirmé, puis retiré.
+
+        ⚠️ Il n'existe **aucun endpoint de modification** : une déclaration est une affirmation
+        datée. Corriger une erreur de saisie = annuler, puis redéclarer.
+
+        Permission `provision:request`.
+      tags:
+        - Business - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: Déclaration annulée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FundingRequestView'
+        '404':
+          description: '`E_FUNDING_REQUEST_NOT_FOUND`'
+        '409':
+          description: '`E_FUNDING_REQUEST_NOT_CANCELLABLE` — la déclaration n''est plus en attente'
 
   /api/checkout/payment-options:
     get:
@@ -2191,7 +2378,10 @@ components:
           description: Nature du compte — détermine le format de `accountIdentifier`.
         accountIdentifier:
           type: string
-          description: Numéro mobile money ou IBAN **sur lequel verser**.
+          description: |
+            Numéro mobile money, RIB ou numéro de compte **sur lequel verser**. Aucun format n'est
+            imposé aux comptes bancaires : en Côte d'Ivoire l'identifiant communiqué est le plus
+            souvent un RIB, pas un IBAN.
           example: '0700112233'
         accountHolder:
           type: string
@@ -2200,7 +2390,47 @@ components:
         instructions:
           type: string
           nullable: true
-          description: Consignes de versement (ex. mention à porter dans le motif).
+          description: Consignes de versement libres, saisies par l'administrateur du catalogue.
+
+    FundingRequestView:
+      type: object
+      description: |
+        Déclaration d'un versement déjà effectué hors plateforme. **Ne représente aucun mouvement
+        d'argent** : le wallet n'est crédité qu'après vérification humaine, et le montant crédité
+        peut différer de `declaredAmount`.
+      properties:
+        reference:
+          type: string
+          example: funding_9f3c1a7b2e04
+        declaredAmount:
+          type: number
+          description: Montant **déclaré** par le marchand — affirmation non vérifiée.
+          example: 500000
+        status:
+          type: string
+          enum: [pending, cancelled]
+          description: |
+            `pending` en attente de vérification, `cancelled` retirée par le marchand. La validation
+            et le rejet par un gestionnaire ajouteront leurs propres statuts.
+        documentUrl:
+          type: string
+          description: |
+            URL **signée et temporaire** du justificatif, régénérée à chaque réponse. Elle expire —
+            ne pas la mettre en cache ni la stocker.
+        collectionAccount:
+          allOf:
+            - $ref: '#/components/schemas/CollectionAccountView'
+          nullable: true
+          description: |
+            Le compte visé par le versement. Renvoyé **même s'il a été désactivé depuis** : c'est
+            l'information dont le marchand a besoin pour comprendre sa propre demande.
+        declaredAt:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
 
     MassTransferRequest:
       type: object

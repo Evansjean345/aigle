@@ -675,7 +675,10 @@ paths:
     get:
       operationId: adminListCollectionAccounts
       summary: Catalogue des comptes de collecte (admin)
-      description: Catalogue complet — comptes **actifs et inactifs**, ordonnés.
+      description: |
+        Catalogue complet — comptes **actifs et inactifs**, ordonnés.
+
+        Permission requise : `collection_accounts.read`.
       tags:
         - Admin - Réapprovisionnement
       security:
@@ -692,6 +695,8 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/CollectionAccountAdminView'
+        '403':
+          description: Permission `collection_accounts.read` manquante
     post:
       operationId: adminCreateCollectionAccount
       summary: Créer un compte de collecte
@@ -699,10 +704,21 @@ paths:
         Déclare un compte sur lequel les marchands pourront verser.
 
         ⚠️ **L'identifiant bancaire est immuable après création** : le modifier détournerait tous les
-        versements suivants. Changer de compte = **désactiver** l'ancien + en créer un nouveau. Le
-        format est donc validé strictement à la création (MSISDN pour `mobile_money`, IBAN pour
-        `bank`) — c'est le dernier contrôle automatique avant qu'un marchand verse sur un mauvais
-        numéro.
+        versements suivants. Changer de compte = **désactiver** l'ancien + en créer un nouveau.
+
+        Validation du format :
+        - `mobile_money` → MSISDN ivoirien (10 chiffres, indicatif `+225` facultatif) ;
+        - `bank` → **aucun contrôle de format**. En Côte d'Ivoire l'identifiant communiqué est le
+          plus souvent un RIB ou un numéro de compte, pas un IBAN ; imposer un motif rejetterait des
+          comptes valides, et sur un champ non corrigeable un faux refus coûte plus cher qu'un
+          contrôle absent.
+
+        Dans les deux cas la longueur est bornée (8 à 40 caractères saisis) et les espaces sont
+        retirés avant enregistrement.
+
+        Permission requise : `collection_accounts.manage`, **distincte** de
+        `collection_accounts.read`. Décider où arrive l'argent des marchands et valider les demandes
+        de réapprovisionnement ne doivent pas pouvoir être le fait du même agent.
       tags:
         - Admin - Réapprovisionnement
       security:
@@ -731,6 +747,8 @@ paths:
                 properties:
                   data:
                     $ref: '#/components/schemas/CollectionAccountAdminView'
+        '403':
+          description: Permission `collection_accounts.manage` manquante
         '422':
           description: |
             `E_COLLECTION_ACCOUNT_DUPLICATE` (identifiant déjà présent) ou
@@ -746,6 +764,8 @@ paths:
         ⚠️ `accountIdentifier` et `type` **ne sont pas modifiables** — ils ne figurent ni dans ce
         contrat ni dans aucun autre. Il n'existe aucun chemin pour changer le numéro d'un compte
         existant.
+
+        Permission requise : `collection_accounts.manage`.
       tags:
         - Admin - Réapprovisionnement
       security:
@@ -769,6 +789,8 @@ paths:
       responses:
         '200':
           description: Compte mis à jour
+        '403':
+          description: Permission `collection_accounts.manage` manquante
         '404':
           description: '`E_COLLECTION_ACCOUNT_NOT_FOUND`'
 
@@ -780,6 +802,8 @@ paths:
         **Remplace la suppression** : un compte désactivé disparaît de la liste marchand mais reste
         en base — les demandes de réapprovisionnement le référencent, le supprimer rendrait
         l'historique illisible. Aucune route `DELETE` n'existe.
+
+        Permission requise : `collection_accounts.manage`.
       tags:
         - Admin - Réapprovisionnement
       security:
@@ -801,9 +825,201 @@ paths:
       responses:
         '200':
           description: État mis à jour
+        '403':
+          description: Permission `collection_accounts.manage` manquante
         '404':
           description: '`E_COLLECTION_ACCOUNT_NOT_FOUND`'
 
+
+  /api/admin/funding-requests:
+    get:
+      operationId: adminListFundingRequests
+      summary: File des demandes de réapprovisionnement
+      description: |
+        Déclarations de versement de **toutes** les organisations, les plus anciennes d'abord — une
+        file de validation se traite dans l'ordre d'arrivée, sinon les demandes du bas vieillissent
+        pendant qu'un marchand attend son argent.
+
+        Chaque élément expose `amountGap` (`verifiedAmount - declaredAmount`), calculé côté serveur :
+        un gestionnaire qui créditerait systématiquement au-dessus du déclaré doit être visible sans
+        que personne ait à faire la soustraction.
+
+        Permission `funding_requests.read` — n'engage aucun mouvement d'argent.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, cancelled, approved, rejected]
+      responses:
+        '200':
+          description: File de validation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FundingRequestAdminView'
+        '403':
+          description: Permission `funding_requests.read` manquante
+
+  /api/admin/funding-requests/{reference}:
+    get:
+      operationId: adminGetFundingRequest
+      summary: Détail d'une demande de réapprovisionnement
+      description: |
+        Inclut une **URL signée fraîche** du justificatif, à durée limitée. Permission
+        `funding_requests.read`.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string }
+          example: funding_9f3c1a7b2e04
+      responses:
+        '200':
+          description: La demande
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FundingRequestAdminView'
+        '404':
+          description: '`E_FUNDING_REQUEST_NOT_FOUND`'
+
+  /api/admin/funding-requests/{reference}/approve:
+    post:
+      operationId: adminApproveFundingRequest
+      summary: ⚠️ Valider et CRÉDITER le wallet
+      description: |
+        ⚠️ **Cette route fait apparaître de l'argent dans le système.** Elle crédite le wallet de
+        l'organisation du **montant vérifié** par le gestionnaire, et non du montant déclaré par le
+        marchand.
+
+        Règles appliquées, toutes dans une **seule transaction SQL** :
+
+        - la demande est relue **sous verrou** puis revérifiée `pending` — deux gestionnaires
+          validant simultanément ne peuvent pas créditer deux fois le même versement ;
+        - `verifiedAmount` est **plafonné au montant déclaré** : les écarts légitimes (frais
+          bancaires, arrondis, versement partiel) vont à la baisse ; au-dessus, c'est une faute de
+          frappe ou une fraude, et c'est refusé ;
+        - le solde est crédité et une ligne est écrite au ledger (`operationType: funding`,
+          `transaction_id = null`) — **comme un dépôt**, et non comme un ajustement : un
+          réapprovisionnement est une entrée d'argent réelle, pas une écriture corrective, et il ne
+          laisse donc aucune ligne dans `wallet_adjustments` ;
+        - l'identité du valideur vient de la **session**, jamais du corps de la requête.
+
+        Si quoi que ce soit échoue, **rien** n'est écrit : la demande reste `pending`.
+
+        Il n'existe **aucune route pour défaire** une validation : retirer de l'argent déjà
+        disponible est un ajustement DEBIT motivé, un autre acte.
+
+        Permission `funding_requests.review` — à **ne pas cumuler** avec `wallet_adjustment.execute`.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verifiedAmount]
+              properties:
+                verifiedAmount:
+                  type: number
+                  description: Montant réellement constaté sur le justificatif. Strictement positif.
+                  example: 498500
+                comment:
+                  type: string
+                  maxLength: 500
+                  example: Frais bancaires 1 500 F
+      responses:
+        '200':
+          description: Demande validée, wallet crédité
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FundingRequestAdminView'
+        '403':
+          description: Permission `funding_requests.review` manquante
+        '404':
+          description: '`E_FUNDING_REQUEST_NOT_FOUND`'
+        '409':
+          description: '`E_FUNDING_REQUEST_NOT_REVIEWABLE` — demande déjà traitée'
+        '422':
+          description: |
+            `E_VERIFIED_AMOUNT_EXCEEDS_DECLARED` (au-dessus du déclaré),
+            `E_INVALID_VERIFIED_AMOUNT` (nul ou négatif), ou wallet d'organisation introuvable.
+
+  /api/admin/funding-requests/{reference}/reject:
+    post:
+      operationId: adminRejectFundingRequest
+      summary: Refuser une demande de réapprovisionnement
+      description: |
+        **Aucun mouvement d'argent.** Le motif est **obligatoire** : c'est la seule information dont
+        dispose le marchand pour comprendre pourquoi un versement réellement effectué n'a pas été
+        crédité, et pour corriger.
+
+        État terminal — une demande refusée ne peut plus être validée.
+
+        Permission `funding_requests.review`.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                  example: Reçu illisible, montant non vérifiable
+      responses:
+        '200':
+          description: Demande refusée
+        '403':
+          description: Permission `funding_requests.review` manquante
+        '404':
+          description: '`E_FUNDING_REQUEST_NOT_FOUND`'
+        '409':
+          description: '`E_FUNDING_REQUEST_NOT_REVIEWABLE` — demande déjà traitée'
+        '422':
+          description: '`E_INVALID_REVIEW_COMMENT` — motif absent ou trop court'
 
 components:
   parameters:
@@ -839,6 +1055,64 @@ components:
         type: integer
 
   schemas:
+    # Défini ici en plus de business.yaml : les deux specs sont servies séparément (/docs/admin et
+    # /docs business), et un $ref ne traverse pas d'un document à l'autre.
+    CollectionAccountView:
+      type: object
+      description: Compte de collecte tel que le voit le marchand — de quoi effectuer le versement.
+      properties:
+        reference: { type: string, example: collect_9f3c1a7b2e04 }
+        label: { type: string, example: Wave Entreprise }
+        type: { type: string, enum: [mobile_money, bank] }
+        accountIdentifier: { type: string, example: '0700112233' }
+        accountHolder: { type: string, example: AIGLE SA }
+        instructions: { type: string, nullable: true }
+
+    FundingRequestAdminView:
+      type: object
+      description: |
+        Demande de réapprovisionnement vue par le back-office : la vue marchand, plus tout ce qui
+        rend la décision auditable.
+      properties:
+        reference: { type: string, example: funding_9f3c1a7b2e04 }
+        organisationId: { type: string }
+        declaredByUserId: { type: string }
+        declaredAmount:
+          type: number
+          description: Montant **affirmé** par le marchand — non vérifié.
+          example: 500000
+        verifiedAmount:
+          type: number
+          nullable: true
+          description: Montant **constaté** par le gestionnaire, et réellement crédité.
+          example: 498500
+        amountGap:
+          type: number
+          nullable: true
+          description: |
+            `verifiedAmount - declaredAmount`. Négatif = crédité en dessous du déclaré, le cas
+            courant (frais bancaires, arrondis, versement partiel). Calculé côté serveur pour que
+            l'écart soit lisible sans qu'aucun client ait à le refaire.
+          example: -1500
+        status:
+          type: string
+          enum: [pending, cancelled, approved, rejected]
+        documentUrl:
+          type: string
+          description: URL **signée et temporaire** du justificatif. Expire — ne pas mettre en cache.
+        collectionAccount:
+          allOf:
+            - $ref: '#/components/schemas/CollectionAccountView'
+          nullable: true
+        reviewedByAdminId:
+          type: integer
+          nullable: true
+          description: Identité du valideur — contrepartie non négociable de l'écart autorisé.
+        reviewedAt: { type: string, format: date-time, nullable: true }
+        reviewComment: { type: string, nullable: true }
+        declaredAt: { type: string, format: date-time }
+        cancelledAt: { type: string, format: date-time, nullable: true }
+
     CollectionAccountAdminView:
       type: object
       description: Compte de collecte vu par l'admin — vue marchand + état d'administration.

@@ -566,6 +566,13 @@ paths:
       security:
         - BearerAuth: []
       parameters:
+        - name: accountId
+          in: query
+          description: >
+            Compte titulaire du portefeuille. Pour une organisation, son `organisationId` — sert
+            l'onglet grand livre de sa fiche. Pendant de `user_id` pour les comptes non personnels.
+          schema:
+            type: string
         - name: page
           in: query
           schema:

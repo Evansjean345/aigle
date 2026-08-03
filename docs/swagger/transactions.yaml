@@ -246,6 +246,13 @@ paths:
           description: Recherche par référence, téléphone, etc.
           schema:
             type: string
+        - name: accountId
+          in: query
+          description: >
+            Compte titulaire. Pour une organisation, son `organisationId` — c'est ce filtre qui sert
+            l'onglet transactions de la fiche organisation, plutôt qu'une route dédiée.
+          schema:
+            type: string
       responses:
         '200':
           description: Liste paginée des transactions
