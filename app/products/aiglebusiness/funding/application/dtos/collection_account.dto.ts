@@ -2,18 +2,14 @@ import type CollectionAccount from '#aiglebusiness/funding/domain/models/collect
 import type { CollectionAccountType } from '#aiglebusiness/funding/domain/enums/collection_account_type'
 
 /**
- * DTOs du **catalogue des comptes de collecte** (F1) — frontière HTTP.
+ * Contrats du catalogue des comptes de collecte.
  *
- * Deux vues distinctes du même modèle, et la distinction est intentionnelle :
- * - **admin** : voit l'état d'activation et les dates (il administre le catalogue) ;
- * - **marchand** : voit seulement de quoi verser — ni `isActive` (toujours vrai, il ne reçoit que
- *   les actifs), ni `id', ni timestamps.
- *
- * Aucun modèle Lucid n'est renvoyé tel quel : `id', `$isPersisted` et les internes ne franchissent
- * jamais la frontière HTTP.
+ * Canal client : ce que le marchand reçoit pour effectuer son versement. Le back-office a ses
+ * propres contrats dans `dtos/admin/admin_collection_account.dto.ts` — les deux ne se dérivent pas
+ * l'un de l'autre.
  */
 
-// ── Entrées ───────────────────────────────────────────────────────────────
+// ── Command (input service) ─────────────────────────────────────────
 
 export interface CreateCollectionAccountCommand {
   label: string
@@ -25,8 +21,9 @@ export interface CreateCollectionAccountCommand {
 }
 
 /**
- * Champs modifiables. 'accountIdentifier` et `type` en sont **volontairement absents** (R-D6) :
- * les modifier détournerait les versements suivants. Changer de compte = désactiver + recréer.
+ * Champs modifiables d'un compte.
+ *
+ * `accountIdentifier` et `type` en sont volontairement absents : ils ne sont pas modifiables.
  */
 export interface UpdateCollectionAccountCommand {
   label?: string
@@ -35,48 +32,32 @@ export interface UpdateCollectionAccountCommand {
   displayOrder?: number
 }
 
-// ── Sorties ───────────────────────────────────────────────────────────────
+// ── Response (output HTTP) ──────────────────────────────────────────
 
-/** Vue marchand : strictement ce qu'il faut pour effectuer le versement. */
-export interface CollectionAccountView {
-  reference: string
-  label: string
-  type: CollectionAccountType
-  accountIdentifier: string
-  accountHolder: string
-  instructions: string | null
-}
+/** Compte de collecte tel que le voit le marchand : de quoi effectuer le versement. */
+export class CollectionAccountResponseDTO {
+  declare reference: string
+  declare label: string
+  declare type: CollectionAccountType
+  declare accountIdentifier: string
+  declare accountHolder: string
+  declare instructions: string | null
 
-/** Vue admin : la vue marchande + l'état d'administration. */
-export interface CollectionAccountAdminView extends CollectionAccountView {
-  isActive: boolean
-  displayOrder: number
-  createdAt: string
-  updatedAt: string
-}
+  /**
+   * Construit la vue marchand d'un compte de collecte.
+   *
+   * @param {CollectionAccount} account - Compte chargé depuis le repository.
+   * @returns {CollectionAccountResponseDTO} La vue destinée au marchand.
+   */
+  static fromAccount(account: CollectionAccount): CollectionAccountResponseDTO {
+    const dto = new CollectionAccountResponseDTO()
+    dto.reference = account.reference
+    dto.label = account.label
+    dto.type = account.type
+    dto.accountIdentifier = account.accountIdentifier
+    dto.accountHolder = account.accountHolder
+    dto.instructions = account.instructions
 
-// ── Mapping ───────────────────────────────────────────────────────────────
-
-export function toCollectionAccountView(account: CollectionAccount): CollectionAccountView {
-  return {
-    reference: account.reference,
-    label: account.label,
-    type: account.type,
-    accountIdentifier: account.accountIdentifier,
-    accountHolder: account.accountHolder,
-    instructions: account.instructions,
-  }
-}
-
-export function toCollectionAccountAdminView(
-  account: CollectionAccount
-): CollectionAccountAdminView {
-  return {
-    ...toCollectionAccountView(account),
-    isActive: account.isActive,
-    displayOrder: account.displayOrder,
-    // Dates sérialisées en string : un DTO de sortie ne transporte pas d'objet DateTime.
-    createdAt: account.createdAt.toISO() ?? '',
-    updatedAt: account.updatedAt.toISO() ?? '',
+    return dto
   }
 }

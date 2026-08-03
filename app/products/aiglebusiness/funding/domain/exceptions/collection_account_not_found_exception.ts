@@ -1,10 +1,9 @@
 import { Exception } from '@adonisjs/core/exceptions'
 
 /**
- * Compte de collecte introuvable (F1) — référence inconnue.
+ * Compte de collecte introuvable.
  *
- * Un canal **désactivé** existe toujours : il n'est pas « introuvable », il est seulement invisible
- * côté marchand. Cette exception ne concerne donc qu'une référence qui n'a jamais existé.
+ * Un compte désactivé existe toujours : il n'est pas concerné par cette exception.
  */
 export default class CollectionAccountNotFoundException extends Exception {
   static status = 404

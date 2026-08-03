@@ -1,0 +1,584 @@
+paths:
+  /api/admin/funding-requests:
+    get:
+      operationId: adminListFundingRequests
+      summary: Lister la file des demandes de réapprovisionnement
+      description: >
+        Renvoie toutes les demandes de réapprovisionnement, toutes organisations confondues,
+        les plus anciennes d'abord. La file n'est pas paginée. Un filtre optionnel par statut
+        permet de restreindre la liste (par défaut : tous statuts). Chaque demande embarque
+        une URL signée et temporaire de son justificatif.
+
+
+        ⚠️ Sur cette route, seul `organisation.name` est résolu. `declaredBy.name`,
+        `reviewedBy.name` et `firstApprovedBy.name` valent `null` — non pas parce que l'acteur est
+        inconnu, mais parce que la file ne les affiche pas et que les résoudre coûterait deux
+        requêtes inutiles. Utiliser la route de détail pour obtenir ces noms.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filtre sur le cycle de vie de la demande.
+          schema:
+            type: string
+            enum: [pending, pending_second_approval, cancelled, approved, rejected]
+        - name: organisationId
+          in: query
+          required: false
+          description: >
+            Restreint la file aux demandes d'une organisation — sert l'onglet réapprovisionnement de
+            sa fiche, plutôt qu'une route dédiée.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File des demandes.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FundingRequestAdminView'
+              example:
+                data:
+                  - reference: "FND-2507-AB12CD"
+                    declaredAmount: 150000
+                    status: "pending"
+                    documentUrl: "https://storage.example.com/fnd-2507-ab12cd?signature=..."
+                    collectionAccount:
+                      reference: "CA-MM-001"
+                      label: "MoMo Marchand"
+                      type: "mobile_money"
+                      accountIdentifier: "+243800000000"
+                      accountHolder: "Aigle SARL"
+                      instructions: "Envoyer le montant exact, frais à la charge du marchand."
+                    declaredAt: "2026-07-28T09:12:00Z"
+                    cancelledAt: null
+                    organisationId: "org_01HZ..."
+                    declaredByUserId: "usr_01HZ..."
+                    verifiedAmount: null
+                    amountGap: null
+                    reviewedByAdminId: null
+                    reviewedAt: null
+                    reviewComment: null
+        '401':
+          description: Non autorisé (JWT admin manquant ou invalide).
+        '403':
+          description: Permission `funding_requests.read` absente.
+
+  /api/admin/funding-requests/{reference}:
+    get:
+      operationId: adminGetFundingRequest
+      summary: Détails d'une demande de réapprovisionnement
+      description: >
+        Renvoie une demande par sa référence, avec l'URL signée de son justificatif et le compte
+        de collecte visé. La trace de la décision (montant constaté, écart, réviseur, motif) est
+        incluse dès que la demande a été traitée.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          description: Référence stable de la demande.
+          schema:
+            type: string
+          example: "FND-2507-AB12CD"
+      responses:
+        '200':
+          description: Détails de la demande.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FundingRequestAdminView'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `funding_requests.read` absente.
+        '404':
+          description: Demande introuvable (la référence n'existe pas ou n'appartient pas à une organisation visible).
+
+  /api/admin/funding-requests/{reference}/approve:
+    post:
+      operationId: adminApproveFundingRequest
+      summary: Valider une demande
+      description: >
+        Valide la demande. Si le montant **déclaré** est au-delà du seuil de double validation, la
+        demande passe en `pending_second_approval` et **aucun argent ne bouge** : un second
+        gestionnaire doit la confirmer. Sinon le wallet est crédité immédiatement du montant
+        constaté.
+
+
+        Le seuil se compare au montant déclaré par le marchand, jamais au montant saisi par le
+        gestionnaire : sans cela, il suffirait de saisir sous le seuil pour se passer du second
+        regard. Le seuil appliqué est figé sur la demande.
+
+
+        Le crédit est irréversible : aucune route ne défait une validation (un retrait passe par les
+        ajustements de wallet). Le montant constaté est plafonné au montant déclaré par le service,
+        qui lit la demande sous verrou pour empêcher une double validation. Le gestionnaire est
+        identifié depuis la session, pas depuis le corps de la requête.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          description: Référence de la demande à valider.
+          schema:
+            type: string
+          example: "FND-2507-AB12CD"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApproveFundingRequest'
+            example:
+              verifiedAmount: 150000
+              comment: "Justificatif vérifié, montant concordant."
+      responses:
+        '200':
+          description: >
+            Demande validée. Wallet crédité si le montant déclaré est sous le seuil, sinon demande
+            mise en attente d'un second gestionnaire sans mouvement d'argent.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FundingRequestAdminView'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `funding_requests.review` absente.
+        '404':
+          description: Demande introuvable.
+        '409':
+          description: >
+            La demande n'est plus en attente (déjà traitée ou annulée). Le verrou empêche deux
+            validations concurrentes.
+        '422':
+          description: >
+            Montant constaté non entier, nul, négatif ou supérieur au montant déclaré, ou crédit du
+            wallet impossible (la demande reste en attente et la transaction est annulée).
+        '500':
+          description: >
+            `E_FUNDING_THRESHOLD_NOT_CONFIGURED` — le seuil de double validation n'est pas réglé.
+            Aucune valeur de repli n'est appliquée : sans seuil connu, la validation est refusée.
+
+  /api/admin/funding-requests/{reference}/confirm:
+    post:
+      operationId: adminConfirmFundingRequest
+      summary: Confirmer une demande et créditer le wallet
+      description: >
+        Confirme une demande déjà approuvée par un premier gestionnaire, et déclenche le crédit.
+
+
+        Ne prend **pas** de montant : le second gestionnaire contrôle le constat du premier, il ne le
+        corrige pas. S'il le juge faux, il refuse la demande.
+
+
+        Le confirmateur doit être **différent** du premier valideur.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          description: Référence de la demande à confirmer.
+          schema:
+            type: string
+          example: "funding_9f3c1a7b2e04"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                  description: >
+                    Attestation du second contrôle. **Obligatoire** : le commentaire vaut signature
+                    de ce que le gestionnaire a contrôlé, et reste attaché à la demande.
+            example:
+              comment: "Second contrôle : reçu bancaire concordant."
+      responses:
+        '200':
+          description: Demande confirmée, wallet crédité.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FundingRequestAdminView'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: >
+            Permission `funding_requests.review` absente, ou
+            `E_SECOND_APPROVAL_SAME_ADMIN` — le confirmateur est le premier valideur.
+        '404':
+          description: Demande introuvable.
+        '409':
+          description: >
+            `E_FUNDING_REQUEST_NOT_AWAITING_CONFIRMATION` — la demande n'attend pas de second
+            valideur : elle n'a pas reçu de première approbation, ou elle est déjà close.
+        '422':
+          description: >
+            Commentaire absent ou trop court, ou crédit du wallet impossible ; la demande reste en
+            attente de confirmation.
+
+  /api/admin/funding-settings:
+    get:
+      operationId: adminGetFundingSettings
+      summary: Consulter le seuil de double validation
+      description: >
+        Renvoie le seuil au-delà duquel une demande exige deux valideurs distincts, avec son dernier
+        auteur. `data` vaut `null` si le seuil n'a jamais été réglé — dans ce cas aucune validation
+        n'est possible.
+
+
+        Lecture ouverte à `funding_requests.read` **ou** `funding_settings.manage` : connaître le
+        seuil ne l'affaiblit pas, c'est le modifier qui désarme le contrôle. Un gestionnaire doit
+        pouvoir savoir si son dossier exigera un second valideur.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Le seuil courant, ou `null`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    nullable: true
+                    $ref: '#/components/schemas/FundingSettingsView'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permissions `funding_requests.read` et `funding_settings.manage` absentes.
+    put:
+      operationId: adminUpdateFundingSettings
+      summary: Régler le seuil de double validation
+      description: >
+        Enregistre le seuil et journalise son auteur.
+
+
+        ⚠️ Permission **distincte** de `funding_requests.review`, et à ne pas cumuler avec elle dans
+        un même rôle : un gestionnaire capable de relever le seuil se dispenserait de tout second
+        regard sur ses propres validations.
+
+
+        `0` est accepté et signifie que **toute** demande exige deux valideurs.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [doubleApprovalThreshold]
+              properties:
+                doubleApprovalThreshold:
+                  type: integer
+                  minimum: 0
+                  description: Montant en XOF, entier. Le XOF n'a pas de subdivision.
+            example:
+              doubleApprovalThreshold: 1000000
+      responses:
+        '200':
+          description: Seuil enregistré.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FundingSettingsView'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `funding_settings.manage` absente.
+        '422':
+          description: Seuil négatif ou non entier.
+
+  /api/admin/funding-requests/{reference}/reject:
+    post:
+      operationId: adminRejectFundingRequest
+      summary: Refuser une demande
+      description: >
+        Refuse la demande avec un motif obligatoire. Le wallet n'est pas affecté. Le motif est
+        conservé dans la trace de la décision et renvoyé au marchand.
+      tags:
+        - Admin - Réapprovisionnement
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          description: Référence de la demande à refuser.
+          schema:
+            type: string
+          example: "FND-2507-AB12CD"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectFundingRequest'
+            example:
+              comment: "Justificatif illisible, merci de renvoyer un versement lisible."
+      responses:
+        '200':
+          description: Demande refusée.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FundingRequestAdminView'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `funding_requests.review` absente.
+        '404':
+          description: Demande introuvable.
+        '409':
+          description: La demande n'est plus en attente.
+        '422':
+          description: Motif absent ou trop court (minimum 3 caractères).
+
+components:
+  schemas:
+    CollectionAccountView:
+      type: object
+      description: >
+        Compte de collecte visé par la demande. Vue marchand (sans état d'activation ni dates) :
+        de quoi rapprocher un versement. `null` si le compte a été désactivé depuis la déclaration.
+      required: [reference, label, type, accountIdentifier, accountHolder]
+      properties:
+        reference:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+          enum: [mobile_money, bank]
+        accountIdentifier:
+          type: string
+          description: Numéro de compte ou numéro de téléphone marchand.
+        accountHolder:
+          type: string
+        instructions:
+          type: string
+          nullable: true
+
+    FundingRequestAdminView:
+      type: object
+      description: >
+        Demande de réapprovisionnement telle que la voit le back-office. `verifiedAmount`,
+        `amountGap` et la trace de revue sont `null` tant que la demande n'a pas été traitée.
+        `documentUrl` est une URL signée et temporaire, à ne pas mettre en cache.
+      required:
+        - reference
+        - declaredAmount
+        - status
+        - documentUrl
+        - collectionAccount
+        - declaredAt
+        - cancelledAt
+        - organisationId
+        - declaredByUserId
+        - verifiedAmount
+        - amountGap
+        - reviewedByAdminId
+        - reviewedAt
+        - reviewComment
+      properties:
+        reference:
+          type: string
+        declaredAmount:
+          type: number
+          description: Montant déclaré par le marchand avoir versé.
+        status:
+          type: string
+          enum: [pending, pending_second_approval, cancelled, approved, rejected]
+          description: Cycle de vie. Seul `pending` est non terminal.
+        documentUrl:
+          type: string
+          description: URL signée et temporaire du justificatif.
+        collectionAccount:
+          allOf:
+            - $ref: '#/components/schemas/CollectionAccountView'
+          nullable: true
+        declaredAt:
+          type: string
+          format: date-time
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        organisationId:
+          type: string
+        declaredByUserId:
+          type: string
+          description: Identifiant brut du déclarant. Conservé pour la traçabilité ; préférer `declaredBy`.
+        organisation:
+          $ref: '#/components/schemas/FundingActorRef'
+        declaredBy:
+          $ref: '#/components/schemas/FundingActorRef'
+        reviewedBy:
+          allOf:
+            - $ref: '#/components/schemas/FundingActorRef'
+          nullable: true
+          description: Gestionnaire ayant clos le dossier. `null` tant qu'il ne l'est pas.
+        firstApprovedBy:
+          allOf:
+            - $ref: '#/components/schemas/FundingActorRef'
+          nullable: true
+          description: Premier valideur, uniquement quand deux valideurs ont été exigés.
+        verifiedAmount:
+          type: number
+          nullable: true
+          description: Montant constaté par le gestionnaire, une fois validée.
+        amountGap:
+          type: number
+          nullable: true
+          description: '`verifiedAmount - declaredAmount`. Négatif quand le crédit est inférieur au déclaré.'
+        reviewedByAdminId:
+          type: integer
+          nullable: true
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewComment:
+          type: string
+          nullable: true
+          description: >
+            Commentaire de la décision qui clôt le dossier : validation, confirmation ou motif de
+            refus.
+        firstApprovalComment:
+          type: string
+          nullable: true
+          description: >
+            Commentaire du premier valideur, uniquement quand deux valideurs ont été exigés. Champ
+            distinct de `reviewComment` : les deux gestionnaires peuvent commenter, et le second ne
+            doit pas effacer le constat du premier.
+        firstApprovedByAdminId:
+          type: integer
+          nullable: true
+          description: >
+            Gestionnaire ayant donné la première approbation, quand deux valideurs sont exigés. Nul
+            si un seul valideur a suffi.
+        firstApprovedAt:
+          type: string
+          format: date-time
+          nullable: true
+        approvalThresholdApplied:
+          type: integer
+          nullable: true
+          description: >
+            Seuil de double validation en vigueur au moment de la décision. Figé sur la demande, il
+            permet d'expliquer après coup pourquoi un dossier n'a eu qu'un valideur, même si le seuil
+            a changé depuis.
+        awaitsSecondApproval:
+          type: boolean
+          description: Indique si la demande attend la confirmation d'un second gestionnaire.
+
+    FundingActorRef:
+      type: object
+      required: [id, name]
+      description: >
+        Acteur ou organisation, avec son nom résolu par l'API. `name` vaut `null` quand l'acteur
+        n'existe plus : l'identifiant reste alors la seule trace et ne doit pas être masqué.
+      properties:
+        id:
+          oneOf:
+            - type: string
+            - type: integer
+        name:
+          type: string
+          nullable: true
+
+    FundingSettingsView:
+      type: object
+      required: [doubleApprovalThreshold]
+      properties:
+        doubleApprovalThreshold:
+          type: integer
+          description: >
+            Montant déclaré au-delà duquel une demande exige deux valideurs distincts, en XOF entier.
+        updatedByAdminId:
+          type: integer
+          nullable: true
+          description: Dernier gestionnaire à avoir modifié le seuil. Nul si posé par le seeder.
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ApproveFundingRequest:
+      type: object
+      required: [verifiedAmount, comment]
+      properties:
+        verifiedAmount:
+          type: number
+          description: Montant constaté sur le justificatif. Strictement positif, plafonné au montant déclaré par le service.
+          example: 150000
+        comment:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: >
+            Attestation de la vérification. **Obligatoire** : le commentaire vaut signature de ce que
+            le gestionnaire a constaté sur le justificatif, et reste attaché à la demande.
+
+    RejectFundingRequest:
+      type: object
+      required: [comment]
+      properties:
+        comment:
+          type: string
+          minLength: 3
+          maxLength: 500
+          description: Motif du refus, obligatoire.
+          example: "Justificatif illisible."

@@ -2,18 +2,16 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import { BUSINESS_PERMISSION } from '#aiglebusiness/membership/domain/permissions.config'
+import FundingEnterpriseOnlyException from '#aiglebusiness/funding/domain/exceptions/funding_enterprise_only_exception'
 
 const ClientCollectionAccountsController = () =>
   import('#aiglebusiness/funding/presentation/client/controllers/collection_accounts_controller')
 
 /**
- * Catalogue consulté par le marchand (F1) : les comptes sur lesquels verser pour réapprovisionner.
+ * Catalogue consulté par le marchand pour savoir où verser.
  *
- * Gardé par `provision:request` — la permission de **demander un approvisionnement** : celui qui
- * peut faire la demande est exactement celui qui a besoin de savoir où verser. Pas de permission de
- * lecture séparée, qui n'apporterait rien et multiplierait les rôles à administrer.
- *
- * Lecture seule : le marchand ne peut ni créer ni modifier un canal.
+ * Lecture seule, gardée par `provision:request` et réservée aux organisations de type entreprise,
+ * comme la déclaration elle-même.
  */
 const clientCollectionAccountRoutes = () => {
   router
@@ -30,7 +28,9 @@ const clientCollectionAccountRoutes = () => {
       middleware.auth(),
       middleware.requireApp({ app: AppName.AIGLEBUSINESS }),
       middleware.businessDevice(),
+      middleware.activeOrganisation(),
       middleware.orgPermission({ permission: BUSINESS_PERMISSION.provisionRequest }),
+      middleware.requireEnterprise({ onDenied: () => new FundingEnterpriseOnlyException() }),
     ])
 }
 

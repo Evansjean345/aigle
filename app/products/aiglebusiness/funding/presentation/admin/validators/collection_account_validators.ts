@@ -2,25 +2,29 @@ import vine from '@vinejs/vine'
 import { CollectionAccountType } from '#aiglebusiness/funding/domain/enums/collection_account_type'
 
 /**
- * Validateurs du catalogue des comptes de collecte (F1).
+ * Validateurs du catalogue des comptes de collecte.
  *
- * ⚠️ Le format de `accountIdentifier` est le **dernier contrôle automatique** avant qu'un marchand
- * verse des centaines de milliers de francs : l'identifiant est **immuable après création** (R-D6),
- * une faute de frappe ne se corrige donc pas — elle se désactive et se recrée. On valide strictement.
+ * `accountIdentifier` n'est pas modifiable après création : on valide uniquement ce qui peut l'être
+ * avec certitude, une règle trop stricte bloquant des comptes légitimes.
  */
 
-/** Mobile money CI : 10 chiffres, éventuellement précédés de l'indicatif. */
+/** Mobile money ivoirien : 10 chiffres, indicatif +225 facultatif. */
 const MSISDN = /^(?:\+?225)?\d{10}$/
-/** IBAN : 2 lettres pays + 2 clés + 11 à 30 caractères alphanumériques. */
-const IBAN = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/
 
 export const createCollectionAccountValidator = vine.compile(
   vine.object({
     label: vine.string().trim().minLength(2).maxLength(120),
     type: vine.enum(Object.values(CollectionAccountType)),
+    // Borne de longueur, pas de contrainte de forme : elle attrape la saisie manifestement vide ou
+    // tronquée sans présumer d'un format (RIB, numéro de compte, IBAN…).
+    // Les bornes s'appliquent AVANT `transform`, donc sur la valeur encore espacée : la limite haute
+    // est volontairement large pour ne pas rejeter un RIB saisi par groupes (« CI008 01001 … »),
+    // les séparateurs étant retirés juste après.
     accountIdentifier: vine
       .string()
       .trim()
+      .minLength(8)
+      .maxLength(40)
       .transform((value) => value.replaceAll(' ', '').toUpperCase()),
     accountHolder: vine.string().trim().minLength(2).maxLength(160),
     instructions: vine.string().trim().maxLength(500).optional().nullable(),
@@ -29,20 +33,23 @@ export const createCollectionAccountValidator = vine.compile(
 )
 
 /**
- * Vérifie que l'identifiant correspond bien au **type** annoncé. Vine ne permet pas simplement une
- * règle conditionnelle inter-champs ici, on l'exprime donc explicitement — et on la garde côté
- * présentation, car c'est une contrainte de **saisie**, pas une règle métier.
+ * Vérifie que l'identifiant correspond au format attendu pour le type de compte annoncé.
+ *
+ * Aucun contrôle sur les comptes bancaires : en Côte d'Ivoire l'identifiant communiqué est le plus
+ * souvent un RIB ou un numéro de compte, pas un IBAN.
+ *
+ * @param {CollectionAccountType} type - Type de compte déclaré.
+ * @param {string} accountIdentifier - Identifiant normalisé, sans espaces et en majuscules.
+ * @returns {boolean} `true` si l'identifiant est acceptable pour ce type.
  */
 export function assertIdentifierMatchesType(
   type: CollectionAccountType,
   accountIdentifier: string
 ): boolean {
-  return type === CollectionAccountType.MOBILE_MONEY
-    ? MSISDN.test(accountIdentifier)
-    : IBAN.test(accountIdentifier)
+  return type === CollectionAccountType.MOBILE_MONEY ? MSISDN.test(accountIdentifier) : true
 }
 
-/** Mise à jour : `accountIdentifier` et `type` sont **absents par conception** (R-D6). */
+/** Mise à jour : `accountIdentifier` et `type` sont volontairement absents. */
 export const updateCollectionAccountValidator = vine.compile(
   vine.object({
     label: vine.string().trim().minLength(2).maxLength(120).optional(),

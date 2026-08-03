@@ -1,18 +1,10 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 /**
- * F1 — Catalogue des **comptes de collecte d'Aigle** (numéro Wave d'entreprise, RIB…).
+ * Catalogue des comptes de collecte : les comptes d'Aigle sur lesquels les marchands versent.
  *
- * Le marchand les consulte pour savoir **où verser**, puis effectue son versement **hors plateforme**
- * (R-D1). Aucun flux ne traverse le système : cette table est un référentiel de consultation.
- *
- * ⚠️ `account_identifier` est **immuable** après création (R-D6) : c'est le numéro sur lequel des
- * marchands envoient de l'argent — le modifier détournerait tous les versements suivants. Changer de
- * compte = désactiver l'ancien + en créer un nouveau. Contrainte portée par l'application (aucun
- * endpoint d'écriture ne l'expose), la DB n'ayant pas de colonne « read-only ».
- *
- * Pas de suppression physique non plus : les demandes de réapprovisionnement référencent leur canal,
- * le supprimer rendrait l'historique illisible. On désactive via `is_active`.
+ * `account_identifier` n'est modifiable par aucun endpoint : changer de compte suppose de désactiver
+ * celui-ci et d'en créer un nouveau. Pas de suppression non plus, les demandes le référencent.
  */
 export default class extends BaseSchema {
   protected tableName = 'collection_accounts'

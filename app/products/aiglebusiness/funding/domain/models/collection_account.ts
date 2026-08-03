@@ -3,11 +3,10 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { CollectionAccountType } from '#aiglebusiness/funding/domain/enums/collection_account_type'
 
 /**
- * Compte de collecte d'Aigle — où un marchand verse pour réapprovisionner son wallet (F1, R-D1).
+ * Compte sur lequel un marchand verse pour réapprovisionner le wallet de son organisation.
  *
- * Référentiel de **consultation** : aucun mouvement d'argent ne passe par ici, le versement se fait
- * hors plateforme. Le lien avec la monnaie n'apparaît qu'en F3, quand un gestionnaire valide une
- * demande et crédite le wallet.
+ * Référentiel de consultation : aucun mouvement d'argent ne passe par ici, le versement se fait
+ * hors plateforme.
  */
 export default class CollectionAccount extends BaseModel {
   static table = 'collection_accounts'
@@ -15,11 +14,11 @@ export default class CollectionAccount extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  /** Clé stable citée par les demandes de réapprovisionnement. */
+  /** Référence publique, citée par les demandes de réapprovisionnement. */
   @column()
   declare reference: string
 
-  /** Intitulé vu par le marchand (« Wave Entreprise », « Compte BOA »). */
+  /** Intitulé affiché au marchand, par exemple « Wave Entreprise ». */
   @column()
   declare label: string
 
@@ -27,24 +26,29 @@ export default class CollectionAccount extends BaseModel {
   declare type: CollectionAccountType
 
   /**
-   * Numéro mobile money ou IBAN sur lequel le marchand verse.
+   * Numéro mobile money, RIB ou IBAN sur lequel le marchand verse.
    *
-   * ⚠️ **Immuable après création** (R-D6) — aucun endpoint ne l'expose en écriture. Le modifier
-   * détournerait tous les versements suivants.
+   * Immuable après création : aucun endpoint ne l'expose en écriture. Changer de compte suppose de
+   * désactiver celui-ci et d'en créer un nouveau.
    */
   @column()
   declare accountIdentifier: string
 
-  /** Titulaire, que le marchand doit retrouver sur son reçu de versement. */
+  /** Titulaire du compte, à retrouver sur le reçu de versement. */
   @column()
   declare accountHolder: string
 
-  /** Consignes libres (ex. « mentionner la référence de la demande dans le motif »). */
+  /** Consignes de versement libres, saisies par l'administrateur. */
   @column()
   declare instructions: string | null
 
-  /** Visible côté marchand. Désactiver remplace la suppression : l'historique reste lisible. */
-  @column()
+  /**
+   * Visibilité côté marchand. La désactivation remplace la suppression.
+   *
+   * 'consume` convertit le `tinyint(1)` MySQL en booléen : sans lui, un consommateur comparant avec
+   * `=== true` lirait « inactif » sur un compte actif.
+   */
+  @column({ consume: (value) => Boolean(value) })
   declare isActive: boolean
 
   @column()
