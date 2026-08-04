@@ -1,7 +1,7 @@
 ---
 type: backlog
 description: Remarques / observations à brainstormer et corriger plus tard (ne pas traiter à la volée)
-derniere_maj: 2026-08-01
+derniere_maj: 2026-08-04
 ---
 
 # Remarques à brainstormer
@@ -27,8 +27,8 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 
 | # | Niveau | Statut | Remarque |
 |---|--------|--------|----------|
-| R11 | 🔴 Critique | à brainstormer | **Les tests s'exécutent sur la base de production** : `config/database.ts` n'a qu'une connexion, alimentée par `.env`, et il n'existe pas de `.env.test`. Plusieurs suites vident des tables (`Permission.query().delete()`) en comptant sur le rollback |
-| R1 | 🔴 Critique | à brainstormer | Permissions du RBAC **team** créées en CRUD par l'admin au lieu d'être **déclarées en code** par chaque feature — faille de sécurité (contrôle d'accès orphelin / privilege escalation) |
+| R11 | 🔴 Critique | **décidé (design) — à implémenter** | **Les tests s'exécutent sur la base de production** : `config/database.ts` n'a qu'une connexion, alimentée par `.env`, et il n'existe pas de `.env.test`. Plusieurs suites vident des tables (`Permission.query().delete()`) en comptant sur le rollback. Design : `2026-08-04-base-de-test-dediee-design.md` (T1–T3) |
+| R1 | 🔴 Critique | ✅ FAIT (chantier RBAC L1–L7) | Permissions du RBAC **team** créées en CRUD par l'admin au lieu d'être **déclarées en code** par chaque feature — faille de sécurité (contrôle d'accès orphelin / privilege escalation) |
 | R2 | 🟠 Majeur | ✅ FAIT (2026-07-11) | Notifications **push** scopées par app. Infra : `Notification.targetApp?` + `expo_push_channel.send` → `getTrustedDevices(recipientId, app)`. **Scopés `aiglesend`** : dépôt, transfert, w2w (transfert émis/reçu + payeur pay-merchant), KYC (soumis/traité). **Scopé `aiglebusiness`** : encaissement marchand (checkout + pay-merchant reçu). **Volontairement all-apps** (sécurité account-wide, le porteur doit être averti partout) : `user_state_changed` (blocage/activation compte), `wallet_status_changed` (gel wallet). `new_device` déjà scopé (via `getActiveUserDevices(userId, app)`) |
 | R3 | 🟢 Feature | **décidé — à implémenter** | Flux de **transfert de propriété** d'une organisation (owner unique). Le verrou (owner non attribuable) est en place ; il manque l'endpoint de transmission explicite |
 | R4 | 🟠 Majeur | à faire (endgame D8) | Supprimer `user_id`/`users_uid` de `wallets` & `transactions` une fois le core argent **entièrement** account-centrique (`account_id` suffit). Aujourd'hui encore très référencés → nettoyage différé après la migration complète des lookups |
@@ -60,7 +60,9 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
   et la table part. Les suites posent d'ailleurs ce `FOREIGN_KEY_CHECKS = 0` à chaque cas.
 - **Piste** : un `.env.test` dédié, chargé par `bin/test.ts`, pointant une base jetable ;
   éventuellement un garde-fou refusant de démarrer la suite si la base cible est celle de `.env`.
-- **Statut** : à brainstormer (chantier à part, hors RBAC — décidé le 2026-08-01).
+- **Statut** : décidé (design `2026-08-04-base-de-test-dediee-design.md`, 2026-08-04) — à
+  implémenter, lots T1 à T3. Le garde-fou devient l'élément central plutôt que le fichier : la suite
+  refuse de démarrer si la base connectée n'est pas celle des tests.
 
 ### R6 — Consommation cross-feature par repository (au lieu du service)
 - **Niveau** : 🟠 Majeur (couplage structurel inter-feature ; érode l'extractibilité)
@@ -170,7 +172,10 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 - **Piste (à brainstormer, pas à figer)** : catalogue de permissions team **en code** (chaque feature/back-office déclare ses slugs, comme le business) ; retirer le CRUD de permissions ; garder le CRUD de **rôles** (composés depuis le catalogue) ; migration : seeder/valider les permissions existantes contre le catalogue, gérer les slugs orphelins.
 - **Pourquoi différé** : touche le RBAC back-office **en production** (rôles/permissions admin existants) → nécessite un design de migration (compat, seed, slugs orphelins) + validation ; hors du fil en cours (auth multi-app / Lot D).
 - **Impact pressenti** : **fort** (sécurité : contrôle d'accès back-office ; cohérence d'architecture RBAC code-first).
-- **Statut** : à brainstormer
+- **Statut** : ✅ FAIT — résorbé par le chantier RBAC (`2026-07-30-rbac-permissions-design.md`, lots L1
+  à L7). Le catalogue est déclaré en code et marqué par slugs ; les use cases `create`/`update`/
+  `delete` de permission ont disparu — il ne reste que `list_catalog_permissions_use_case`. L'admin
+  ne compose plus que des **rôles** à partir du catalogue. Constaté le 2026-08-04.
 
 <!-- Modèle pour une nouvelle remarque :
 
