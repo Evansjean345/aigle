@@ -61,6 +61,15 @@ export default abstract class OrganisationRepository {
   abstract searchByTerm(term: string, limit: number): Promise<Organisation[]>
 
   /**
+   * Liste les organisations dont la configuration traîne, les plus anciennes d'abord.
+   *
+   * @param {number} olderThanMinutes - Âge minimal, pour ne pas reprendre une création en cours.
+   * @param {number} limit - Nombre maximal d'organisations rendues.
+   * @returns {Promise<Organisation[]>} Les organisations en `PROVISIONING` dépassant ce délai.
+   */
+  abstract findStaleProvisioning(olderThanMinutes: number, limit: number): Promise<Organisation[]>
+
+  /**
    * Attache le code d'encaissement à une organisation.
    *
    * @param {string} organisationId - Identifiant public de l'organisation.

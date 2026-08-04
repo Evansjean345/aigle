@@ -1,7 +1,7 @@
 # Création d'organisation en saga — Design
 
 **Date** : 2026-08-04
-**Statut** : approuvé — G1 et G2 livrés
+**Statut** : approuvé — G1, G2 et G3 livrés
 **Portée** : `create_organisation.use_case.ts` et son flux
 
 ---
@@ -85,6 +85,10 @@ mentent pas.
 Ce choix est peu coûteux parce que **deux étapes sur quatre sont déjà idempotentes** :
 `openAccount` fait `existing ?? create`, `payableAlias.register` renvoie l'alias existant. Le job
 peut rejouer sans condition.
+
+En pratique, reprendre revient à **relancer toutes les étapes** : celles déjà passées ne font rien.
+`OrganisationProvisioningService` porte cette séquence, et sert aussi bien la création que la
+reprise — il n'existe qu'un seul endroit qui sache configurer une organisation.
 
 ---
 

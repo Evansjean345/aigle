@@ -12,6 +12,8 @@ import { AccountOwnerType } from '#core/identity/account/domain/enums/account_ow
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
+import OrganisationProvisioningService from '#aiglebusiness/organisation/application/services/organisation_provisioning_service'
+import OrganisationRepositoryImpl from '#aiglebusiness/organisation/infrastructure/repositories/organisation_repository_impl'
 import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
 import ListOrganisationsUseCase from '#aiglebusiness/organisation/application/use_cases/list_organisations.use_case'
 import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/create_role.use_case'
@@ -298,5 +300,48 @@ test.group('Business organisation | liste', (group) => {
     // Seuls les membres ACTIFS voient l'org.
     const theirs = await list.execute(memberUserId)
     assert.lengthOf(theirs, 0)
+  })
+
+  test('reprend une organisation restée en configuration', async ({ assert }) => {
+    const ownerUserId = randomUUID()
+    const organisationId = randomUUID()
+
+    // Ce que laisse un échec après l'étape 1 : l'organisation seule, sans compte ni alias.
+    const repository = await app.container.make(OrganisationRepositoryImpl)
+    await repository.create({
+      organisationId,
+      ownerUserId,
+      name: 'Boutique interrompue',
+      accountType: OrganisationAccountType.MARCHAND,
+      level: OrganisationLevel.LEVEL_1,
+      status: OrganisationStatus.PROVISIONING,
+      payableCode: null,
+    })
+
+    const provisioning = await app.container.make(OrganisationProvisioningService)
+    const resumed = await provisioning.resume(organisationId)
+
+    assert.equal(resumed.status, OrganisationStatus.ACTIVE)
+    assert.isNotNull(resumed.payableCode)
+
+    const aliases = await PayableAlias.query().where('account_id', organisationId)
+    assert.lengthOf(aliases, 1, "l'alias est créé par la reprise")
+
+    const members = await OrganisationMember.query().where('organisation_id', organisationId)
+    assert.lengthOf(members, 1, 'le propriétaire est rattaché')
+  })
+
+  test('reprendre une organisation déjà active ne la touche pas', async ({ assert }) => {
+    const useCase = await app.container.make(CreateOrganisationUseCase)
+    const created = await useCase.execute(command({ name: 'Déjà prête' }))
+
+    const provisioning = await app.container.make(OrganisationProvisioningService)
+    const resumed = await provisioning.resume(created.organisationId)
+
+    assert.equal(resumed.status, OrganisationStatus.ACTIVE)
+    assert.equal(resumed.payableCode, created.payableCode)
+
+    const aliases = await PayableAlias.query().where('account_id', created.organisationId)
+    assert.lengthOf(aliases, 1, "aucun alias en double")
   })
 })

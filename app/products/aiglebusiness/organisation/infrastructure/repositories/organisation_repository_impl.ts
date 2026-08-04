@@ -92,6 +92,18 @@ export default class OrganisationRepositoryImpl implements OrganisationRepositor
       .limit(limit)
   }
 
+  async findStaleProvisioning(olderThanMinutes: number, limit: number): Promise<Organisation[]> {
+    const threshold = DateTime.now().minus({ minutes: olderThanMinutes }).toSQL({
+      includeOffset: false,
+    })
+
+    return Organisation.query()
+      .where('status', OrganisationStatus.PROVISIONING)
+      .where('created_at', '<=', threshold!)
+      .orderBy('created_at', 'asc')
+      .limit(limit)
+  }
+
   async attachPayableCode(
     organisationId: string,
     payableCode: string,

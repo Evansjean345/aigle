@@ -1,11 +1,7 @@
 import { inject } from '@adonisjs/core'
 import { randomUUID } from 'node:crypto'
 import { UserKycStatus } from '#core/identity/user/domain/enum'
-import AccountService from '#core/identity/account/application/services/account_service'
-import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
-import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
-import PayableAliasService from '#core/qr/application/services/payable_alias_service'
-import MembershipService from '#aiglebusiness/membership/application/services/membership_service'
+import OrganisationProvisioningService from '#aiglebusiness/organisation/application/services/organisation_provisioning_service'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
@@ -36,9 +32,7 @@ import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/d
 export default class CreateOrganisationUseCase {
   constructor(
     private readonly organisationRepository: OrganisationRepository,
-    private readonly accountService: AccountService,
-    private readonly payableAliasService: PayableAliasService,
-    private readonly membershipService: MembershipService
+    private readonly provisioning: OrganisationProvisioningService
   ) {}
 
   /**
@@ -69,7 +63,8 @@ export default class CreateOrganisationUseCase {
 
     const organisationId = randomUUID()
 
-    await this.organisationRepository.create({
+    // L'organisation existe, sans compte ni alias : les routes scopées la refusent d'ici là.
+    const created = await this.organisationRepository.create({
       organisationId,
       ownerUserId: request.ownerUserId,
       name: request.name,
@@ -79,24 +74,7 @@ export default class CreateOrganisationUseCase {
       payableCode: null,
     })
 
-    await this.membershipService.seedForNewOrganisation(organisationId, request.ownerUserId)
-
-    const account = await this.accountService.openAccount({
-      ownerType: AccountOwnerType.ORGANISATION,
-      ownerRef: organisationId,
-      segment: isMerchant ? AccountSegment.MARCHAND : AccountSegment.ENTERPRISE,
-      level: isMerchant ? 1 : 0,
-    })
-
-    const payableCode = await this.payableAliasService.register(organisationId, request.name)
-    await this.organisationRepository.attachPayableCode(organisationId, payableCode)
-
-    const organisation = await this.organisationRepository.updateStatus(
-      organisationId,
-      OrganisationStatus.ACTIVE
-    )
-
-    await this.accountService.announceOpened(account)
+    const organisation = await this.provisioning.provision(created)
 
     return OrganisationResponseDTO.fromModel(organisation)
   }
