@@ -573,6 +573,72 @@ paths:
         '422':
           description: Motif absent ou trop court.
 
+  /api/admin/organisations/stuck-provisioning:
+    get:
+      operationId: adminListStuckOrganisations
+      summary: Organisations bloquées en configuration
+      description: >
+        Organisations dont la création ne s'est pas achevée malgré les reprises automatiques.
+        Chaque ligne porte les étapes manquantes — `membership`, `account`, `payable_alias` —
+        déduites de ce qui existe réellement, comme le fait le balayage de reprise.
+
+
+        Le seuil est celui de la revue manuelle : en deçà, la reprise automatique a encore des
+        chances d'aboutir et signaler serait du bruit.
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Les organisations bloquées, les plus anciennes d'abord.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StuckOrganisationResponseDTO'
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.provisioning.review` absente.
+
+  /api/admin/organisations/{id}/resume-provisioning:
+    post:
+      operationId: adminResumeOrganisationProvisioning
+      summary: Relancer la configuration d'une organisation
+      description: >
+        Rejoue la configuration sans attendre le prochain balayage. Même séquence que la reprise
+        automatique : les étapes déjà passées ne font rien, celles qui manquent sont exécutées.
+
+
+        Une organisation déjà active est renvoyée telle quelle, sans effet.
+
+
+        La décision est auditée (`RESUME_PROVISIONING`).
+      tags:
+        - Admin - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: L'organisation, active si la reprise a abouti.
+        '401':
+          description: Non autorisé.
+        '403':
+          description: Permission `organisations.provisioning.review` absente.
+        '404':
+          description: Organisation inconnue.
+
 components:
   schemas:
     PayableStatusResponseDTO:
@@ -749,6 +815,27 @@ components:
           description: Membres au statut actif. Les invitations en attente ne sont pas comptées.
         createdAt: { type: string, format: date-time, nullable: true }
         updatedAt: { type: string, format: date-time, nullable: true }
+
+    StuckOrganisationResponseDTO:
+      type: object
+      description: >
+        Organisation dont la configuration n'a pas abouti, et ce qui lui manque. Les étapes sont
+        déduites de l'existant, non d'un état stocké.
+      required: [organisationId, name, accountType, ownerUserId, ageMinutes, missingSteps]
+      properties:
+        organisationId: { type: string }
+        name: { type: string }
+        accountType: { type: string, enum: [marchand, enterprise] }
+        ownerUserId: { type: string }
+        createdAt: { type: string, format: date-time, nullable: true }
+        ageMinutes:
+          type: integer
+          description: Âge en minutes, pour distinguer une création récente d'un blocage installé.
+        missingSteps:
+          type: array
+          items:
+            type: string
+            enum: [membership, account, payable_alias]
 
     OrganisationWalletStateResponseDTO:
       type: object

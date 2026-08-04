@@ -263,6 +263,51 @@ export class OrganisationWalletStateResponseDTO {
   }
 }
 
+/** Étape de configuration non aboutie. */
+export type OrganisationProvisioningStep = 'membership' | 'account' | 'payable_alias'
+
+/**
+ * Organisation dont la configuration n'a pas abouti, avec ce qui lui manque.
+ *
+ * Les étapes manquantes sont déduites de l'existant, non d'un état stocké : c'est ce que le job de
+ * reprise interroge, montré tel quel au gestionnaire.
+ */
+export class StuckOrganisationResponseDTO {
+  declare organisationId: string
+  declare name: string
+  declare accountType: OrganisationAccountType
+  declare ownerUserId: string
+  declare createdAt: string | null
+  /** Âge en minutes, pour distinguer une création récente d'un blocage installé. */
+  declare ageMinutes: number
+  declare missingSteps: OrganisationProvisioningStep[]
+
+  /**
+   * Construit la vue depuis l'organisation et son diagnostic.
+   *
+   * @param {Organisation} organisation - Organisation restée en configuration.
+   * @param {OrganisationProvisioningStep[]} missingSteps - Étapes non abouties.
+   * @param {number} ageMinutes - Âge de l'organisation.
+   * @returns {StuckOrganisationResponseDTO} La vue destinée au back-office.
+   */
+  static from(
+    organisation: Organisation,
+    missingSteps: OrganisationProvisioningStep[],
+    ageMinutes: number
+  ): StuckOrganisationResponseDTO {
+    const dto = new StuckOrganisationResponseDTO()
+    dto.organisationId = organisation.organisationId
+    dto.name = organisation.name
+    dto.accountType = organisation.accountType
+    dto.ownerUserId = organisation.ownerUserId
+    dto.createdAt = organisation.createdAt ? organisation.createdAt.toISO() : null
+    dto.ageMinutes = ageMinutes
+    dto.missingSteps = missingSteps
+
+    return dto
+  }
+}
+
 /** État d'une organisation après blocage ou déblocage. */
 export class OrganisationStateResponseDTO {
   declare organisationId: string

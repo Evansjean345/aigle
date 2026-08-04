@@ -9,6 +9,7 @@ import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enum
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import OrganisationNotFoundException from '#aiglebusiness/organisation/domain/exceptions/organisation_not_found_exception'
 import type Organisation from '#aiglebusiness/organisation/domain/models/organisation'
+import type { OrganisationProvisioningStep } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
 
 /**
  * Configure une organisation nouvellement créée : membership, compte, alias d'encaissement.
@@ -89,5 +90,36 @@ export default class OrganisationProvisioningService {
     }
 
     return this.provision(organisation)
+  }
+
+  /**
+   * Relève les étapes de configuration non abouties d'une organisation.
+   *
+   * Rien n'est lu dans un état stocké : chaque étape est déduite de ce qui existe, comme le fait la
+   * reprise. Ce que voit le gestionnaire est donc ce sur quoi le job travaille.
+   *
+   * @param {Organisation} organisation - Organisation à diagnostiquer.
+   * @returns {Promise<OrganisationProvisioningStep[]>} Les étapes manquantes, dans l'ordre du flux.
+   */
+  async diagnose(organisation: Organisation): Promise<OrganisationProvisioningStep[]> {
+    const missing: OrganisationProvisioningStep[] = []
+
+    const hasOwner = await this.membershipService.isOwner(
+      organisation.organisationId,
+      organisation.ownerUserId
+    )
+
+    if (!hasOwner) missing.push('membership')
+
+    const hasAccount = await this.accountService.exists(
+      AccountOwnerType.ORGANISATION,
+      organisation.organisationId
+    )
+
+    if (!hasAccount) missing.push('account')
+
+    if (!organisation.payableCode) missing.push('payable_alias')
+
+    return missing
   }
 }

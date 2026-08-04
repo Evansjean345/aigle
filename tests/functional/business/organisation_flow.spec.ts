@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
+import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import { UserKycStatus } from '#core/identity/user/domain/enum'
@@ -16,6 +17,8 @@ import OrganisationProvisioningService from '#aiglebusiness/organisation/applica
 import OrganisationRepositoryImpl from '#aiglebusiness/organisation/infrastructure/repositories/organisation_repository_impl'
 import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
 import ListOrganisationsUseCase from '#aiglebusiness/organisation/application/use_cases/list_organisations.use_case'
+import ListStuckOrganisationsUseCase from '#aiglebusiness/organisation/application/use_cases/admin/list_stuck_organisations.use_case'
+import { reviewAfterMinutes } from '#config/organisation_provisioning'
 import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/create_role.use_case'
 import OrganisationMember from '#aiglebusiness/membership/domain/models/organisation_member'
 import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
@@ -23,13 +26,14 @@ import OwnerKycNotVerifiedException from '#aiglebusiness/organisation/domain/exc
 import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/domain/exceptions/merchant_account_already_exists_exception'
 
 /**
- * Caractérise la feature produit organisation (sous-lot 1) : création (avec
- * gardes §4.3) et liste. La création ouvre le compte money de l'org via
- * openFor('organisation') → account + wallet. Un marchand est auto-LEVEL_1 et
- * reçoit son alias payable (QR) ; une entreprise reste LEVEL_0 sans alias.
+ * Création, liste et reprise de configuration des organisations.
  *
- * L'org n'a aucune FK vers le core → un ownerUserId arbitraire suffit (pas de
- * user réel), et le KYC est passé dans la commande (frontière par ID).
+ * La création ouvre le compte money de l'organisation — compte et portefeuille — et lui attribue
+ * son alias d'encaissement. Un marchand est auto-LEVEL_1, une entreprise reste LEVEL_0 ; les deux
+ * reçoivent un alias.
+ *
+ * L'organisation n'a aucune clé étrangère vers le core : un `ownerUserId` arbitraire suffit, et le
+ * KYC est passé dans la commande.
  */
 function command(
   overrides: Partial<{
@@ -66,12 +70,9 @@ test.group('Business organisation | création', (group) => {
     )
 
     assert.equal(result.accountType, OrganisationAccountType.MARCHAND)
-    // Marchand auto-LEVEL_1 (encaissant tout de suite, KYB photo ignoré).
     assert.equal(result.level, OrganisationLevel.LEVEL_1)
     assert.equal(result.status, OrganisationStatus.ACTIVE)
     assert.isString(result.payableCode)
-    // Le QR encode un lien vers la page aigleplay (base configurable + code).
-    // Schéma http(s) selon l'environnement (dev = http local, prod = https).
     assert.match(result.payableQr!, /^https?:\/\//)
     assert.isTrue(result.payableQr!.endsWith(`/${result.payableCode}`))
 
@@ -115,8 +116,6 @@ test.group('Business organisation | création', (group) => {
     assert.equal(result.level, OrganisationLevel.LEVEL_0)
     assert.isNotNull(result.payableCode)
 
-    // L'alias existe dès la création ; ce sont les plafonds du niveau 0 qui bloquent
-    // l'encaissement jusqu'au KYB, pas l'absence de QR.
     const aliases = await PayableAlias.query().where('account_id', result.organisationId)
     assert.lengthOf(aliases, 1)
   })
@@ -146,6 +145,7 @@ test.group('Business organisation | création', (group) => {
     )
 
     let error: unknown
+
     try {
       await useCase.execute(
         command({ ownerUserId, name: 'M2', accountType: OrganisationAccountType.MARCHAND })
@@ -164,7 +164,7 @@ test.group('Business organisation | création', (group) => {
     )
 
     const orgs = await Organisation.query().where('owner_user_id', ownerUserId)
-    assert.lengthOf(orgs, 3) // 1 marchand + 2 entreprises
+    assert.lengthOf(orgs, 3)
   })
 })
 
@@ -342,6 +342,82 @@ test.group('Business organisation | liste', (group) => {
     assert.equal(resumed.payableCode, created.payableCode)
 
     const aliases = await PayableAlias.query().where('account_id', created.organisationId)
-    assert.lengthOf(aliases, 1, "aucun alias en double")
+    assert.lengthOf(aliases, 1, 'aucun alias en double')
+  })
+})
+
+test.group('Business organisation | revue des configurations bloquées', (group) => {
+  group.each.setup(async () => {
+    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
+    await db.beginGlobalTransaction()
+    return async () => {
+      await db.rollbackGlobalTransaction()
+      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
+    }
+  })
+
+  /** Laisse une organisation dans l'état d'un échec après l'étape 1, vieillie du délai voulu. */
+  async function stuckSince(ageMinutes: number): Promise<string> {
+    const organisationId = randomUUID()
+    const repository = await app.container.make(OrganisationRepositoryImpl)
+
+    await repository.create({
+      organisationId,
+      ownerUserId: randomUUID(),
+      name: 'Boutique interrompue',
+      accountType: OrganisationAccountType.MARCHAND,
+      level: OrganisationLevel.LEVEL_1,
+      status: OrganisationStatus.PROVISIONING,
+      payableCode: null,
+    })
+
+    await db
+      .from('organisations')
+      .where('organisation_id', organisationId)
+      .update({
+        created_at: DateTime.now().minus({ minutes: ageMinutes }).toSQL({ includeOffset: false }),
+      })
+
+    return organisationId
+  }
+
+  test('nomme les étapes manquantes, et plus rien après la reprise', async ({ assert }) => {
+    const organisationId = await stuckSince(0)
+    const repository = await app.container.make(OrganisationRepositoryImpl)
+    const provisioning = await app.container.make(OrganisationProvisioningService)
+
+    const before = await repository.findByOrganisationId(organisationId)
+    assert.deepEqual(await provisioning.diagnose(before!), [
+      'membership',
+      'account',
+      'payable_alias',
+    ])
+
+    await provisioning.resume(organisationId)
+
+    const after = await repository.findByOrganisationId(organisationId)
+    assert.deepEqual(await provisioning.diagnose(after!), [])
+  })
+
+  test('signale une organisation bloquée au-delà du délai de revue', async ({ assert }) => {
+    const organisationId = await stuckSince(reviewAfterMinutes + 60)
+
+    const useCase = await app.container.make(ListStuckOrganisationsUseCase)
+    const stuck = await useCase.execute()
+    const line = stuck.find((entry) => entry.organisationId === organisationId)
+
+    assert.exists(line, "l'organisation bloquée est signalée")
+    assert.deepEqual(line!.missingSteps, ['membership', 'account', 'payable_alias'])
+    assert.isAtLeast(line!.ageMinutes, reviewAfterMinutes)
+  })
+
+  test('ne signale pas une création encore récente', async ({ assert }) => {
+    const organisationId = await stuckSince(0)
+
+    // La reprise automatique a encore ses chances : signaler serait du bruit.
+    const useCase = await app.container.make(ListStuckOrganisationsUseCase)
+    const stuck = await useCase.execute()
+
+    assert.notExists(stuck.find((entry) => entry.organisationId === organisationId))
   })
 })

@@ -1,7 +1,7 @@
 # Création d'organisation en saga — Design
 
 **Date** : 2026-08-04
-**Statut** : approuvé — G1, G2 et G3 livrés
+**Statut** : approuvé — G1 à G4 livrés
 **Portée** : `create_organisation.use_case.ts` et son flux
 
 ---
@@ -127,6 +127,14 @@ d'administration avec son point de blocage — quelle étape manque. Un gestionn
 Rien n'est supprimé : le projet ne supprime nulle part, et une organisation à moitié configurée
 doit rester visible plutôt que disparaître. Pas de statut `FAILED` non plus — il libérerait la
 contrainte et laisserait une organisation morte en base sans qu'on sache quoi en faire.
+
+Deux seuils, non un seul. `staleAfterMinutes` déclenche la reprise automatique, `reviewAfterMinutes`
+l'inscription au back-office. Entre les deux, le job a encore ses chances et signaler serait du
+bruit : le gestionnaire ne voit que ce que la machine n'a pas su résoudre.
+
+Le diagnostic ne lit aucun état stocké — il redemande à chaque étape si son effet existe, exactement
+comme le fait la reprise. Ce que voit le gestionnaire est donc ce sur quoi le job travaille, sans
+possibilité de divergence entre l'écran et la réalité.
 
 ---
 

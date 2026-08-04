@@ -26,6 +26,13 @@ export const ORGANISATION_PERMISSIONS = definePermissions({
       "Ouvrir ou suspendre le QR d'encaissement. Suspendre fait refuser tout paiement présentant ce QR.",
     sensitive: true,
   },
+  provisioningReview: {
+    slug: 'organisations.provisioning.review',
+    name: 'Reprendre une organisation bloquée en configuration',
+    description:
+      "Voir les organisations dont la création ne s'est pas achevée et relancer leur configuration. Le geste est le même que la reprise automatique, exécuté sans attendre.",
+    sensitive: false,
+  },
   block: {
     slug: 'organisations.block',
     name: 'Bloquer ou débloquer une organisation',

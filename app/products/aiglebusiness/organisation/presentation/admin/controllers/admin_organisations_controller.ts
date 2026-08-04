@@ -10,6 +10,8 @@ import ListOrganisationRolesForAdminUseCase from '#aiglebusiness/organisation/ap
 import SetPayableStatusForAdminUseCase from '#aiglebusiness/organisation/application/use_cases/admin/set_payable_status.use_case'
 import ChangeOrganisationStateForAdminUseCase from '#aiglebusiness/organisation/application/use_cases/admin/change_organisation_state.use_case'
 import FreezeOrganisationWalletForAdminUseCase from '#aiglebusiness/organisation/application/use_cases/admin/freeze_organisation_wallet.use_case'
+import ListStuckOrganisationsUseCase from '#aiglebusiness/organisation/application/use_cases/admin/list_stuck_organisations.use_case'
+import ResumeOrganisationProvisioningUseCase from '#aiglebusiness/organisation/application/use_cases/admin/resume_organisation_provisioning.use_case'
 import {
   listOrganisationsValidator,
   listOrganisationMembersValidator,
@@ -37,6 +39,8 @@ export default class AdminOrganisationsController {
     private readonly setPayableStatus: SetPayableStatusForAdminUseCase,
     private readonly changeState: ChangeOrganisationStateForAdminUseCase,
     private readonly walletState: FreezeOrganisationWalletForAdminUseCase,
+    private readonly listStuck: ListStuckOrganisationsUseCase,
+    private readonly resumeProvisioning: ResumeOrganisationProvisioningUseCase,
     private readonly listRoles: ListOrganisationRolesForAdminUseCase
   ) {}
 
@@ -56,6 +60,29 @@ export default class AdminOrganisationsController {
     })
 
     return response.ok({ data: await this.searchOrganisations.execute(q) })
+  }
+
+  /**
+   * Organisations dont la configuration n'a pas abouti malgré les reprises automatiques.
+   *
+   * Chaque ligne porte les étapes manquantes, déduites de l'existant comme le fait le job.
+   */
+  async stuckProvisioning({ response }: HttpContext): Promise<void> {
+    return response.ok({ data: await this.listStuck.execute() })
+  }
+
+  /**
+   * Relance la configuration d'une organisation bloquée.
+   *
+   * Même séquence que la reprise automatique, exécutée sans attendre le prochain balayage.
+   */
+  async resumeProvisioningNow({ params, response, auth }: HttpContext): Promise<void> {
+    const organisation = await this.resumeProvisioning.execute(
+      params.id as string,
+      auth.user!.id as number
+    )
+
+    return response.ok({ data: organisation })
   }
 
   /** Compteurs d'en-tête de la liste : parc entier, indépendants des filtres affichés. */

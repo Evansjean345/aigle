@@ -29,6 +29,10 @@ const adminOrganisationRoutes = () => {
         .use(middleware.permission([ORGANISATION_PERMISSIONS.list]))
 
       router
+        .get('/stuck-provisioning', [AdminOrganisationsController, 'stuckProvisioning'])
+        .use(middleware.permission([ORGANISATION_PERMISSIONS.provisioningReview]))
+
+      router
         .get('/:id', [AdminOrganisationsController, 'show'])
         .use(middleware.permission([ORGANISATION_PERMISSIONS.read]))
 
@@ -51,6 +55,10 @@ const adminOrganisationRoutes = () => {
       router
         .patch('/:id/status', [AdminOrganisationsController, 'changeStatus'])
         .use(middleware.permission([ORGANISATION_PERMISSIONS.block]))
+
+      router
+        .post('/:id/resume-provisioning', [AdminOrganisationsController, 'resumeProvisioningNow'])
+        .use(middleware.permission([ORGANISATION_PERMISSIONS.provisioningReview]))
 
       router
         .patch('/:id/wallet/freeze', [AdminOrganisationsController, 'freezeWallet'])
