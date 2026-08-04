@@ -114,8 +114,9 @@ export class OrganisationAdminResponseDTO {
   /**
    * Encaissement ouvert ou suspendu.
    *
-   * `null` quand l'organisation n'a pas d'alias payable — elle n'encaisse pas du tout, ce qui n'est
-   * pas la même chose qu'un encaissement fermé.
+   * `null` quand l'organisation n'a pas d'alias payable, ce qui n'est pas la même chose qu'un
+   * encaissement fermé. Ne concerne plus que les organisations créées avant que l'alias soit
+   * attribué aux entreprises comme aux marchands.
    */
   declare payableActive: boolean | null
   /** Nom montré au payeur au moment du scan. */

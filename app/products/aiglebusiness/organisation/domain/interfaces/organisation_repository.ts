@@ -61,6 +61,20 @@ export default abstract class OrganisationRepository {
   abstract searchByTerm(term: string, limit: number): Promise<Organisation[]>
 
   /**
+   * Attache le code d'encaissement à une organisation.
+   *
+   * @param {string} organisationId - Identifiant public de l'organisation.
+   * @param {string} payableCode - Code de l'alias d'encaissement.
+   * @param {TransactionClientContract} [trx] - Transaction englobante.
+   * @returns {Promise<Organisation>} L'organisation mise à jour.
+   */
+  abstract attachPayableCode(
+    organisationId: string,
+    payableCode: string,
+    trx?: TransactionClientContract
+  ): Promise<Organisation>
+
+  /**
    * Fixe le statut de cycle de vie d'une organisation.
    *
    * @param {string} organisationId - Identifiant public de l'organisation.

@@ -88,7 +88,7 @@ export const BUSINESS_PERMISSIONS: readonly BusinessPermission[] = [
 
 /**
  * Slugs nommés, pour référence en code (policies, gates) sans chaîne magique.
- * Doit rester aligné avec `BUSINESS_PERMISSIONS`.
+ * Doit rester aligné avec `BUSINESS_PERMISSIONS'.
  */
 export const BUSINESS_PERMISSION = {
   organisationManage: 'organisation:manage',

@@ -102,7 +102,7 @@ test.group('Business organisation | création', (group) => {
     assert.isTrue(resolved!.active)
   })
 
-  test('crée une entreprise LEVEL_0 sans alias payable', async ({ assert }) => {
+  test('crée une entreprise LEVEL_0 avec son alias payable', async ({ assert }) => {
     const useCase = await app.container.make(CreateOrganisationUseCase)
 
     const result = await useCase.execute(
@@ -111,11 +111,12 @@ test.group('Business organisation | création', (group) => {
 
     assert.equal(result.accountType, OrganisationAccountType.ENTERPRISE)
     assert.equal(result.level, OrganisationLevel.LEVEL_0)
-    assert.isNull(result.payableCode)
+    assert.isNotNull(result.payableCode)
 
-    // Pas d'alias payable tant que l'entreprise n'encaisse pas (avant KYB).
+    // L'alias existe dès la création ; ce sont les plafonds du niveau 0 qui bloquent
+    // l'encaissement jusqu'au KYB, pas l'absence de QR.
     const aliases = await PayableAlias.query().where('account_id', result.organisationId)
-    assert.lengthOf(aliases, 0)
+    assert.lengthOf(aliases, 1)
   })
 
   test('refuse la création si le KYC du propriétaire n’est pas valide', async ({ assert }) => {

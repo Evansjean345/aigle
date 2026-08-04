@@ -92,6 +92,24 @@ export default class OrganisationRepositoryImpl implements OrganisationRepositor
       .limit(limit)
   }
 
+  async attachPayableCode(
+    organisationId: string,
+    payableCode: string,
+    trx?: TransactionClientContract
+  ): Promise<Organisation> {
+    const organisation = await Organisation.query({ client: trx })
+      .where('organisation_id', organisationId)
+      .firstOrFail()
+
+    organisation.payableCode = payableCode
+
+    if (trx) {
+      return organisation.useTransaction(trx).save()
+    }
+
+    return organisation.save()
+  }
+
   async updateStatus(
     organisationId: string,
     status: OrganisationStatus,

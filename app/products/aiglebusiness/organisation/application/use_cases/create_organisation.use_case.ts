@@ -1,6 +1,5 @@
 import { inject } from '@adonisjs/core'
 import { randomUUID } from 'node:crypto'
-import db from '@adonisjs/lucid/services/db'
 import { UserKycStatus } from '#core/identity/user/domain/enum'
 import AccountService from '#core/identity/account/application/services/account_service'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
@@ -19,15 +18,19 @@ import OwnerKycNotVerifiedException from '#aiglebusiness/organisation/domain/exc
 import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/domain/exceptions/merchant_account_already_exists_exception'
 
 /**
- * Crée une organisation business et ouvre son compte money (account + wallet).
+ * Crée une organisation business et achève sa configuration.
  *
- * KYB simplifié (décision produit) : un MARCHAND est auto-LEVEL_1 à la création
- * (opérationnel tout de suite) et reçoit son alias payable (QR de comptoir). Une
- * ENTREPRISE reste en LEVEL_0 (mouvement bloqué produit jusqu'au KYB RCCM/DFE,
- * pas d'alias tant qu'elle n'encaisse pas).
+ * KYB simplifié : un marchand est opérationnel dès la création, au niveau 1 ; une entreprise reste
+ * au niveau 0 jusqu'à son KYB, ce qui bloque ses mouvements. Les deux reçoivent leur alias
+ * d'encaissement à la création.
  *
- * Gardes de création (§4.3) : KYC personnel valide du propriétaire, et contrainte
- * multi-org (≤ 1 marchand par user ; entreprises illimitées).
+ * Gardes de création : KYC personnel vérifié du propriétaire, et au plus un compte marchand par
+ * utilisateur — une organisation en cours de configuration occupe cette place.
+ *
+ * La configuration se fait en étapes, chacune avec sa transaction, sans qu'aucune n'englobe les
+ * autres. L'organisation naît en `PROVISIONING` et n'est activée qu'une fois toutes menées à bien ;
+ * les routes scopées la refusent d'ici là. Une étape qui échoue laisse l'organisation visible et
+ * reprenable, jamais à moitié créée en silence.
  */
 @inject()
 export default class CreateOrganisationUseCase {
@@ -38,57 +41,60 @@ export default class CreateOrganisationUseCase {
     private readonly membershipService: MembershipService
   ) {}
 
+  /**
+   * Crée l'organisation et enchaîne sa configuration.
+   *
+   * @param {CreateOrganisationRequestDto} request - Nom, type et propriétaire.
+   * @returns {Promise<OrganisationResponseDTO>} L'organisation, active si tout a abouti.
+   * @throws {OwnerKycNotVerifiedException} Le KYC du propriétaire n'est pas vérifié.
+   * @throws {MerchantAccountAlreadyExistsException} Le propriétaire a déjà un compte marchand.
+   */
   async execute(request: CreateOrganisationRequestDto): Promise<OrganisationResponseDTO> {
     if (request.ownerKycStatus !== UserKycStatus.VERIFIED) {
       throw new OwnerKycNotVerifiedException()
     }
 
-    if (request.accountType === OrganisationAccountType.MARCHAND) {
+    const isMerchant = request.accountType === OrganisationAccountType.MARCHAND
+
+    if (isMerchant) {
       const existingMerchants = await this.organisationRepository.countByOwnerAndType(
         request.ownerUserId,
         OrganisationAccountType.MARCHAND
       )
+
       if (existingMerchants > 0) {
         throw new MerchantAccountAlreadyExistsException()
       }
     }
 
-    const isMerchant = request.accountType === OrganisationAccountType.MARCHAND
-    const segment = isMerchant ? AccountSegment.MARCHAND : AccountSegment.ENTERPRISE
+    const organisationId = randomUUID()
 
-    const { organisation, account } = await db.transaction(async (trx) => {
-      const organisationId = randomUUID()
-
-      const openedAccount = await this.accountService.openAccount(
-        {
-          ownerType: AccountOwnerType.ORGANISATION,
-          ownerRef: organisationId,
-          segment,
-          level: isMerchant ? 1 : 0,
-        },
-        trx
-      )
-
-      const payableCode = isMerchant
-        ? await this.payableAliasService.register(organisationId, request.name, trx)
-        : null
-
-      const created = await this.organisationRepository.create(
-        {
-          organisationId,
-          ownerUserId: request.ownerUserId,
-          name: request.name,
-          accountType: request.accountType,
-          level: isMerchant ? OrganisationLevel.LEVEL_1 : OrganisationLevel.LEVEL_0,
-          status: OrganisationStatus.ACTIVE,
-          payableCode,
-        },
-        trx
-      )
-
-      await this.membershipService.seedForNewOrganisation(organisationId, request.ownerUserId, trx)
-      return { organisation: created, account: openedAccount }
+    await this.organisationRepository.create({
+      organisationId,
+      ownerUserId: request.ownerUserId,
+      name: request.name,
+      accountType: request.accountType,
+      level: isMerchant ? OrganisationLevel.LEVEL_1 : OrganisationLevel.LEVEL_0,
+      status: OrganisationStatus.PROVISIONING,
+      payableCode: null,
     })
+
+    await this.membershipService.seedForNewOrganisation(organisationId, request.ownerUserId)
+
+    const account = await this.accountService.openAccount({
+      ownerType: AccountOwnerType.ORGANISATION,
+      ownerRef: organisationId,
+      segment: isMerchant ? AccountSegment.MARCHAND : AccountSegment.ENTERPRISE,
+      level: isMerchant ? 1 : 0,
+    })
+
+    const payableCode = await this.payableAliasService.register(organisationId, request.name)
+    await this.organisationRepository.attachPayableCode(organisationId, payableCode)
+
+    const organisation = await this.organisationRepository.updateStatus(
+      organisationId,
+      OrganisationStatus.ACTIVE
+    )
 
     await this.accountService.announceOpened(account)
 

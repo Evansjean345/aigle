@@ -1,7 +1,7 @@
 # Création d'organisation en saga — Design
 
 **Date** : 2026-08-04
-**Statut** : approuvé — G1 livré
+**Statut** : approuvé — G1 et G2 livrés
 **Portée** : `create_organisation.use_case.ts` et son flux
 
 ---
@@ -28,13 +28,13 @@ compte↔wallet éventuelle ».
 
 ## S-D1 — Cinq étapes, chacune sa transaction
 
-| #   | Étape                              | Tables écrites                                                                |
-| --- | ---------------------------------- | ----------------------------------------------------------------------------- |
-| 1   | Organisation en `PROVISIONING`     | `organisations`                                                               |
-| 2   | Rôle propriétaire et membership    | `organisation_roles`, `organisation_role_permissions`, `organisation_members` |
-| 3   | Ouverture du compte                | `accounts`, puis `wallets` par listener                                       |
-| 4   | Alias payable — marchand seulement | `payable_aliases`, `organisations.payable_code`                               |
-| 5   | Activation                         | `organisations.status = ACTIVE`                                               |
+| #   | Étape                           | Tables écrites                                                                |
+| --- | ------------------------------- | ----------------------------------------------------------------------------- |
+| 1   | Organisation en `PROVISIONING`  | `organisations`                                                               |
+| 2   | Rôle propriétaire et membership | `organisation_roles`, `organisation_role_permissions`, `organisation_members` |
+| 3   | Ouverture du compte             | `accounts`, puis `wallets` par listener                                       |
+| 4   | Alias payable                   | `payable_aliases`, `organisations.payable_code`                               |
+| 5   | Activation                      | `organisations.status = ACTIVE`                                               |
 
 Chaque étape committe dans ses tables définitives. Rien n'est mis de côté ni tenu en attente
 ailleurs : ce qui a réussi est en base, exactement comme si l'organisation avait été créée d'un
@@ -43,6 +43,14 @@ seul tenant.
 L'ordre s'inverse par rapport à aujourd'hui, où le compte et l'alias précèdent l'organisation. Cet
 ordre n'existait que pour satisfaire la transaction unique : l'organisation avait besoin du
 `payableCode`. En saga, elle naît sans, et l'étape 4 le lui attache.
+
+**L'alias est attribué aux entreprises comme aux marchands.** Il l'était auparavant au seul
+marchand, l'entreprise devant attendre son KYB. Ce n'est pas l'absence de QR qui doit l'empêcher
+d'encaisser mais ses plafonds : le segment `enterprise` au niveau 0 est semé à zéro — « KYB non
+finalisé → mouvement bloqué ». Le QR existe, l'encaissement est refusé par les limites, et le KYB
+validé le débloque sans qu'il faille créer quoi que ce soit.
+
+Les organisations créées avant ce changement n'ont pas d'alias ; leur `payableCode` reste `null`.
 
 ---
 

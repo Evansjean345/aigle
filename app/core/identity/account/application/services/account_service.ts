@@ -60,8 +60,8 @@ export default class AccountService {
   }
 
   /**
-   * Annonce l'ouverture du compte (`AccountOpened`) → money crée le wallet. À appeler **après
-   * commit** par les appelants transactionnels. Idempotent côté money (`createForAccount`).
+   * Annonce l'ouverture du compte ('AccountOpened`) → money crée le wallet. À appeler **après
+   * commit** par les appelants transactionnels. Idempotent côté money ('createForAccount`).
    */
   async announceOpened(account: Account): Promise<void> {
     await AccountOpened.dispatch({
