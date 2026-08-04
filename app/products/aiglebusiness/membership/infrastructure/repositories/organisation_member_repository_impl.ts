@@ -30,9 +30,10 @@ export default class OrganisationMemberRepositoryImpl implements OrganisationMem
 
   async findByOrganisationAndUser(
     organisationId: string,
-    userId: string
+    userId: string,
+    trx?: TransactionClientContract
   ): Promise<OrganisationMember | null> {
-    return await OrganisationMember.query()
+    return await OrganisationMember.query({ client: trx })
       .where('organisation_id', organisationId)
       .where('user_id', userId)
       .preload('role')

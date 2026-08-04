@@ -11,6 +11,7 @@ import OrganisationMember from '#aiglebusiness/membership/domain/models/organisa
 import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
 import { OWNER_ROLE_SLUG } from '#aiglebusiness/membership/domain/system_roles'
 import { allPermissionSlugs } from '#aiglebusiness/membership/domain/permissions.config'
+import MembershipService from '#aiglebusiness/membership/application/services/membership_service'
 
 /**
  * Caractérise le seeding RBAC (Lot A) à la création d'une organisation : le rôle
@@ -78,5 +79,29 @@ test.group('Business membership | seeding RBAC à la création', (group) => {
     const members = await OrganisationMember.query().where('organisation_id', organisationId)
     assert.lengthOf(members, 1)
     assert.equal(members[0].userId, ownerUserId)
+  })
+
+  test('rejouer l’amorçage ne produit ni rôle ni membre en double', async ({ assert }) => {
+    const ownerUserId = randomUUID()
+    const organisationId = await createOrg(OrganisationAccountType.MARCHAND, ownerUserId)
+
+    // Ce que fera la reprise après un échec partiel : relancer l'étape déjà passée.
+    const membershipService = await app.container.make(MembershipService)
+    await membershipService.seedForNewOrganisation(organisationId, ownerUserId)
+    await membershipService.seedForNewOrganisation(organisationId, ownerUserId)
+
+    const roles = await OrganisationRole.query().where('organisation_id', organisationId)
+    assert.lengthOf(roles, 1, 'le rôle propriétaire est unique')
+
+    const perms = await OrganisationRolePermission.query().where('role_id', roles[0].id)
+    assert.sameMembers(
+      perms.map((p) => p.permissionSlug),
+      allPermissionSlugs(),
+      'le catalogue est réinscrit sans doublon'
+    )
+
+    const members = await OrganisationMember.query().where('organisation_id', organisationId)
+    assert.lengthOf(members, 1, 'le membre propriétaire est unique')
+    assert.equal(members[0].roleId, roles[0].id)
   })
 })

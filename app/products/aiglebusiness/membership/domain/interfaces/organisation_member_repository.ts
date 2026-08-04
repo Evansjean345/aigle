@@ -26,7 +26,8 @@ export default abstract class OrganisationMemberRepository {
    */
   abstract findByOrganisationAndUser(
     organisationId: string,
-    userId: string
+    userId: string,
+    trx?: TransactionClientContract
   ): Promise<OrganisationMember | null>
 
   /**

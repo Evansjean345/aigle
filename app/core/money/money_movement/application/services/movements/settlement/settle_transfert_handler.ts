@@ -20,10 +20,10 @@ import type {
 /**
  * Règlement d'un transfert, sur callback opérateur.
  *
- * Symétrie de l'initiation `external_out`. Au succès, simple marquage : le débit a eu lieu à
+ * Symétrie de l'initiation `external_out'. Au succès, simple marquage : le débit a eu lieu à
  * l'initiation, aucun mouvement de portefeuille ici. À l'échec, marquage FAILED et remboursement du
  * montant total — la course avec le traitement d'échec de l'initiation est résolue par
- * `TransactionAlreadyRefundedException`. La plomberie commune vit dans `SettlementSupport`.
+ * `TransactionAlreadyRefundedException'. La plomberie commune vit dans `SettlementSupport'.
  */
 @inject()
 export default class SettleTransfertHandler {

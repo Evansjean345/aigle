@@ -18,36 +18,58 @@ export default class MembershipService {
   ) {}
 
   /**
-   * Seed le RBAC d'une organisation nouvellement créée : le rôle système OWNER
-   * (toutes les permissions du catalogue) et le membre OWNER (le créateur).
-   * Identique marchand/entreprise. À appeler dans la transaction de création d'org.
+   * Amorce le RBAC d'une organisation : le rôle système propriétaire, portant tout le catalogue,
+   * et le membre propriétaire. Identique pour un marchand et une entreprise.
+   *
+   * Rejouable : chaque écriture vérifie d'abord ce qui existe. Une reprise après échec partiel ne
+   * produit ni rôle ni membre en double.
+   *
+   * @param {string} organisationId - Organisation à amorcer.
+   * @param {string} ownerUserId - Utilisateur qui en devient propriétaire.
+   * @param {TransactionClientContract} [trx] - Transaction englobante.
    */
   async seedForNewOrganisation(
     organisationId: string,
     ownerUserId: string,
     trx?: TransactionClientContract
   ): Promise<void> {
-    const ownerRole = await this.roleRepository.create(
-      {
-        organisationId,
-        slug: OWNER_ROLE_SLUG,
-        name: OWNER_ROLE_NAME,
-        isSystem: true,
-      },
+    const existingRole = await this.roleRepository.findByOrganisationAndSlug(
+      organisationId,
+      OWNER_ROLE_SLUG,
       trx
     )
 
-    await this.roleRepository.addPermissions(ownerRole.id, allPermissionSlugs(), trx)
+    const ownerRole =
+      existingRole ??
+      (await this.roleRepository.create(
+        {
+          organisationId,
+          slug: OWNER_ROLE_SLUG,
+          name: OWNER_ROLE_NAME,
+          isSystem: true,
+        },
+        trx
+      ))
 
-    await this.memberRepository.create(
-      {
-        organisationId,
-        userId: ownerUserId,
-        roleId: ownerRole.id,
-        status: MemberStatus.ACTIVE,
-      },
+    await this.roleRepository.replacePermissions(ownerRole.id, allPermissionSlugs(), trx)
+
+    const existingMember = await this.memberRepository.findByOrganisationAndUser(
+      organisationId,
+      ownerUserId,
       trx
     )
+
+    if (!existingMember) {
+      await this.memberRepository.create(
+        {
+          organisationId,
+          userId: ownerUserId,
+          roleId: ownerRole.id,
+          status: MemberStatus.ACTIVE,
+        },
+        trx
+      )
+    }
   }
 
   /**
