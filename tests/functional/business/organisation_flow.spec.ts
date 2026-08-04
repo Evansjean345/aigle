@@ -23,7 +23,7 @@ import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/r
 import OrganisationMember from '#aiglebusiness/membership/domain/models/organisation_member'
 import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
 import OwnerKycNotVerifiedException from '#aiglebusiness/organisation/domain/exceptions/owner_kyc_not_verified_exception'
-import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/domain/exceptions/merchant_account_already_exists_exception'
+import OrganisationAlreadyOwnedException from '#aiglebusiness/organisation/domain/exceptions/organisation_already_owned_exception'
 
 /**
  * Création, liste et reprise de configuration des organisations.
@@ -136,7 +136,7 @@ test.group('Business organisation | création', (group) => {
     assert.lengthOf(orgs, 0)
   })
 
-  test('refuse un 2e marchand, autorise N entreprises', async ({ assert }) => {
+  test('refuse une 2e organisation, quel que soit son type', async ({ assert }) => {
     const ownerUserId = randomUUID()
     const useCase = await app.container.make(CreateOrganisationUseCase)
 
@@ -144,27 +144,31 @@ test.group('Business organisation | création', (group) => {
       command({ ownerUserId, name: 'M1', accountType: OrganisationAccountType.MARCHAND })
     )
 
-    let error: unknown
+    let sameType: unknown
 
     try {
       await useCase.execute(
         command({ ownerUserId, name: 'M2', accountType: OrganisationAccountType.MARCHAND })
       )
     } catch (err) {
-      error = err
+      sameType = err
     }
-    assert.instanceOf(error, MerchantAccountAlreadyExistsException)
+    assert.instanceOf(sameType, OrganisationAlreadyOwnedException)
 
-    // Les entreprises restent illimitées.
-    await useCase.execute(
-      command({ ownerUserId, name: 'E1', accountType: OrganisationAccountType.ENTERPRISE })
-    )
-    await useCase.execute(
-      command({ ownerUserId, name: 'E2', accountType: OrganisationAccountType.ENTERPRISE })
-    )
+    // Changer de type ne libère pas la place.
+    let otherType: unknown
+
+    try {
+      await useCase.execute(
+        command({ ownerUserId, name: 'E1', accountType: OrganisationAccountType.ENTERPRISE })
+      )
+    } catch (err) {
+      otherType = err
+    }
+    assert.instanceOf(otherType, OrganisationAlreadyOwnedException)
 
     const orgs = await Organisation.query().where('owner_user_id', ownerUserId)
-    assert.lengthOf(orgs, 3)
+    assert.lengthOf(orgs, 1)
   })
 })
 
@@ -178,38 +182,59 @@ test.group('Business organisation | liste', (group) => {
     }
   })
 
-  test('liste les organisations où je suis membre actif (owner inclus)', async ({ assert }) => {
-    const ownerUserId = randomUUID()
+  test('liste mon organisation et celles où je suis invité', async ({ assert }) => {
+    const userId = randomUUID()
     const create = await app.container.make(CreateOrganisationUseCase)
+    const createRole = await app.container.make(CreateRoleUseCase)
 
+    // La seule que je puisse créer.
     await create.execute(
-      command({ ownerUserId, name: 'A', accountType: OrganisationAccountType.MARCHAND })
+      command({ ownerUserId: userId, name: 'A', accountType: OrganisationAccountType.MARCHAND })
     )
-    await create.execute(
-      command({ ownerUserId, name: 'B', accountType: OrganisationAccountType.ENTERPRISE })
+
+    // Celle d'un tiers, où je suis rattaché comme membre actif.
+    const hosting = await create.execute(
+      command({ name: 'B', accountType: OrganisationAccountType.ENTERPRISE })
     )
-    // Une org où je ne suis ni owner ni membre ne doit pas apparaître.
+    const role = await createRole.execute({
+      organisationId: hosting.organisationId,
+      name: 'Comptable',
+      permissionSlugs: ['transactions:view'],
+    })
+    const member = new OrganisationMember()
+    member.organisationId = hosting.organisationId
+    member.userId = userId
+    member.roleId = role.id
+    member.status = MemberStatus.ACTIVE
+    await member.save()
+
+    // Une org où je ne suis ni propriétaire ni membre ne doit pas apparaître.
     await create.execute(command({ name: 'C', accountType: OrganisationAccountType.MARCHAND }))
 
     const list = await app.container.make(ListOrganisationsUseCase)
-    const mine = await list.execute(ownerUserId)
+    const mine = await list.execute(userId)
 
     assert.lengthOf(mine, 2)
     assert.includeMembers(
       mine.map((o) => o.name),
       ['A', 'B']
     )
-    // En tant que créateur, je suis OWNER de chacune, avec toutes les permissions.
-    for (const org of mine) {
-      assert.equal(org.role.slug, 'owner')
-      assert.isTrue(org.permissions.includes('members:manage'))
-      assert.isTrue(org.permissions.includes('roles:manage'))
-      // OWNER a `wallet:view` → le solde du compte de l'org est projeté (0 à la création).
-      assert.isNotNull(org.wallet)
-      assert.equal(org.wallet!.balance, 0)
-      assert.equal(org.wallet!.currency, 'XOF')
-      assert.isString(org.wallet!.status)
-    }
+
+    // Sur la mienne je suis OWNER : toutes les permissions, et le solde projeté.
+    const owned = mine.find((org) => org.name === 'A')!
+    assert.equal(owned.role.slug, 'owner')
+    assert.isTrue(owned.permissions.includes('members:manage'))
+    assert.isTrue(owned.permissions.includes('roles:manage'))
+    assert.isNotNull(owned.wallet)
+    assert.equal(owned.wallet!.balance, 0)
+    assert.equal(owned.wallet!.currency, 'XOF')
+    assert.isString(owned.wallet!.status)
+
+    // Sur celle où je suis invité, je porte mon rôle métier et rien de plus.
+    const guest = mine.find((org) => org.name === 'B')!
+    assert.equal(guest.role.slug, role.slug)
+    assert.deepEqual(guest.permissions, ['transactions:view'])
+    assert.isNull(guest.wallet)
   })
 
   test('un membre non-owner voit l’organisation dont il est membre actif', async ({ assert }) => {

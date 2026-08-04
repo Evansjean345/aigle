@@ -11,7 +11,7 @@ import {
   OrganisationResponseDTO,
 } from '#aiglebusiness/organisation/application/dtos/organisation.dto'
 import OwnerKycNotVerifiedException from '#aiglebusiness/organisation/domain/exceptions/owner_kyc_not_verified_exception'
-import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/domain/exceptions/merchant_account_already_exists_exception'
+import OrganisationAlreadyOwnedException from '#aiglebusiness/organisation/domain/exceptions/organisation_already_owned_exception'
 
 /**
  * Crée une organisation business et achève sa configuration.
@@ -20,8 +20,10 @@ import MerchantAccountAlreadyExistsException from '#aiglebusiness/organisation/d
  * au niveau 0 jusqu'à son KYB, ce qui bloque ses mouvements. Les deux reçoivent leur alias
  * d'encaissement à la création.
  *
- * Gardes de création : KYC personnel vérifié du propriétaire, et au plus un compte marchand par
- * utilisateur — une organisation en cours de configuration occupe cette place.
+ * Gardes de création : KYC personnel vérifié du propriétaire, et une seule organisation créée par
+ * utilisateur, quel que soit son type — une organisation en cours de configuration occupe la place.
+ * L'appartenance reste libre : un utilisateur peut être membre d'autant d'entreprises qu'il y est
+ * invité.
  *
  * La configuration se fait en étapes, chacune avec sa transaction, sans qu'aucune n'englobe les
  * autres. L'organisation naît en `PROVISIONING` et n'est activée qu'une fois toutes menées à bien ;
@@ -41,25 +43,20 @@ export default class CreateOrganisationUseCase {
    * @param {CreateOrganisationRequestDto} request - Nom, type et propriétaire.
    * @returns {Promise<OrganisationResponseDTO>} L'organisation, active si tout a abouti.
    * @throws {OwnerKycNotVerifiedException} Le KYC du propriétaire n'est pas vérifié.
-   * @throws {MerchantAccountAlreadyExistsException} Le propriétaire a déjà un compte marchand.
+   * @throws {OrganisationAlreadyOwnedException} Le propriétaire possède déjà une organisation.
    */
   async execute(request: CreateOrganisationRequestDto): Promise<OrganisationResponseDTO> {
     if (request.ownerKycStatus !== UserKycStatus.VERIFIED) {
       throw new OwnerKycNotVerifiedException()
     }
 
-    const isMerchant = request.accountType === OrganisationAccountType.MARCHAND
+    const owned = await this.organisationRepository.countByOwner(request.ownerUserId)
 
-    if (isMerchant) {
-      const existingMerchants = await this.organisationRepository.countByOwnerAndType(
-        request.ownerUserId,
-        OrganisationAccountType.MARCHAND
-      )
-
-      if (existingMerchants > 0) {
-        throw new MerchantAccountAlreadyExistsException()
-      }
+    if (owned > 0) {
+      throw new OrganisationAlreadyOwnedException()
     }
+
+    const isMerchant = request.accountType === OrganisationAccountType.MARCHAND
 
     const organisationId = randomUUID()
 

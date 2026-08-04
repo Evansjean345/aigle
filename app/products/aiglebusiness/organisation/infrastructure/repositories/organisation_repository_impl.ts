@@ -29,14 +29,9 @@ export default class OrganisationRepositoryImpl implements OrganisationRepositor
     return await organisation.save()
   }
 
-  async countByOwnerAndType(
-    ownerUserId: string,
-    accountType: OrganisationAccountType,
-    trx?: TransactionClientContract
-  ): Promise<number> {
+  async countByOwner(ownerUserId: string, trx?: TransactionClientContract): Promise<number> {
     const result = await Organisation.query({ client: trx })
       .where('owner_user_id', ownerUserId)
-      .where('account_type', accountType)
       .count('* as total')
 
     return Number(result[0].$extras.total)

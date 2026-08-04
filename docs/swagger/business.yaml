@@ -370,12 +370,17 @@ paths:
       summary: Créer une organisation
       description: |
         Crée une organisation pour l'utilisateur authentifié, puis ouvre son compte money
-        (account + wallet). Un **marchand** est auto-`LEVEL_1` (opérationnel immédiatement) et
-        reçoit son **alias payable** (QR de comptoir) ; une **entreprise** reste `LEVEL_0`
-        (avant KYB) sans alias.
+        (account + wallet). Un **marchand** est auto-`LEVEL_1` (opérationnel immédiatement) ;
+        une **entreprise** reste `LEVEL_0` jusqu'à son KYB, ce qui bloque ses mouvements. Les
+        deux reçoivent leur **alias payable** (QR de comptoir) à la création.
 
-        Gardes : le propriétaire doit avoir un **KYC valide** ; un utilisateur ne peut
-        posséder qu'**un seul marchand** (les entreprises sont illimitées).
+        Gardes : le propriétaire doit avoir un **KYC valide** ; un utilisateur ne peut créer
+        qu'**une seule organisation**, marchand ou entreprise. L'appartenance reste libre — il
+        peut être membre d'autant d'entreprises qu'il y est invité.
+
+        L'organisation naît en `provisioning` et n'est activée qu'une fois sa configuration
+        achevée. Une création restée en configuration **occupe la place** : elle est reprise
+        automatiquement, et arbitrable depuis le back-office au-delà d'un délai.
       tags:
         - Business - Organisations
       security:
@@ -418,12 +423,12 @@ paths:
                 code: E_OWNER_KYC_NOT_VERIFIED
                 message: Un KYC valide est requis pour créer une organisation
         '409':
-          description: L'utilisateur possède déjà un compte marchand
+          description: L'utilisateur possède déjà une organisation
           content:
             application/json:
               example:
-                code: E_MERCHANT_ACCOUNT_ALREADY_EXISTS
-                message: Vous possédez déjà un compte marchand
+                code: E_ORGANISATION_ALREADY_OWNED
+                message: Vous possédez déjà une organisation
         '422':
           description: Payload invalide
           content:

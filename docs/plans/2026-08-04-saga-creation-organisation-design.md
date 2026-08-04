@@ -111,11 +111,17 @@ de les ajouter. Un test rejoue l'amorçage deux fois et vérifie l'unicité des 
 
 ## S-D5 — Une organisation en cours de création occupe sa place
 
-La contrainte « ≤ 1 marchand par utilisateur » compte les `PROVISIONING`. Un propriétaire ne peut
-pas en créer une seconde pendant que la première se configure.
+La contrainte « une organisation créée par utilisateur » compte les `PROVISIONING`. Un propriétaire
+ne peut pas en créer une seconde pendant que la première se configure.
 
 C'est tenable **parce que** S-D2 la rend visible : il voit ce qui l'empêche de recommencer. Sans
 cette visibilité, la contrainte serait un piège.
+
+**Mise à jour du 2026-08-04** — la règle est passée de « ≤ 1 marchand, entreprises illimitées » à
+« une organisation créée par utilisateur, quel que soit le type ». Une création restée en
+`PROVISIONING` ne bloque donc plus seulement un second marchand : elle bloque **toute** création
+pour cet utilisateur. Ce que S-D2, la reprise (G3) et l'écran d'arbitrage (G4) garantissaient par
+confort devient la seule chose qui l'empêche de rester enfermé sans recours.
 
 ---
 

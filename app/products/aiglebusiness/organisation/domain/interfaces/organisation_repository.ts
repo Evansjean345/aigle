@@ -1,5 +1,4 @@
 import type Organisation from '#aiglebusiness/organisation/domain/models/organisation'
-import { type OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { type OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import type {
   ListOrganisationsQuery,
@@ -20,15 +19,8 @@ export default abstract class OrganisationRepository {
     trx?: TransactionClientContract
   ): Promise<Organisation>
 
-  /**
-   * Compte les organisations d'un type donné possédées par un utilisateur
-   * (contrainte multi-org : ≤ 1 marchand par user).
-   */
-  abstract countByOwnerAndType(
-    ownerUserId: string,
-    accountType: OrganisationAccountType,
-    trx?: TransactionClientContract
-  ): Promise<number>
+  /** Compte les organisations possédées par un utilisateur, tous types confondus. */
+  abstract countByOwner(ownerUserId: string, trx?: TransactionClientContract): Promise<number>
 
   /**
    * Liste les organisations par identifiants publics (uuid), triées par date de
