@@ -677,6 +677,23 @@ components:
         is_rooted:
           type: boolean
           description: Indique si l'appareil est rooté/jailbreaké
+        identity:
+          type: string
+          enum: [strong, weak]
+          description: |
+            Solidité de `fingerprint_hash` — optionnel.
+
+            `strong` : l'empreinte dérive d'un identifiant fourni par la plateforme, propre à
+            l'appareil. `weak` : cet identifiant était indisponible, l'empreinte ne vaut que pour
+            cette installation et ne survivra pas à une réinstallation.
+
+            **Ne jamais déduire une empreinte des attributs de modèle** : marque, modèle et
+            fabricant sont identiques sur tous les exemplaires d'un même téléphone, et deux
+            appareils distincts se retrouveraient sur la même ligne. En l'absence d'identifiant,
+            déclarer `weak`.
+
+            Absent des clients antérieurs à cette déclaration : le serveur retient alors une
+            origine inconnue, sans la supposer solide.
 
     RegisterRequest:
       type: object

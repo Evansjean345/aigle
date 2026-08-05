@@ -11,6 +11,8 @@ import {
 import { DeviceStatus } from '#core/identity/device/domain/enums'
 import { AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
 import UserDevice from '#core/identity/device/domain/models/user_device'
+import Device from '#core/identity/device/domain/models/device'
+import { DeviceIdentity } from '#core/identity/device/domain/enums/device_identity'
 import User from '#core/identity/user/domain/models/user'
 import RevokeUserDeviceUseCase from '#core/identity/device/application/use_cases/admin/revoke_user_device_use_case'
 import { makeUser, authTestSetup } from '#tests/helpers/auth_test_helpers'
@@ -176,7 +178,6 @@ test.group('DeviceService | assertTrustedForApp', (group) => {
     const fp = randomUUID()
     const uid = randomUUID()
 
-    // Enregistré mais pas trusté (reste PENDING).
     await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLESEND)
 
     await assert.rejects(
@@ -424,5 +425,80 @@ test.group('DeviceService | collision d’empreinte', (group) => {
     )
 
     assert.equal(second.deviceId, first.deviceId)
+  })
+})
+
+test.group('DeviceService | identité déclarée', (group) => {
+  group.each.setup(authTestSetup())
+
+  test('une identité faible ne reprend jamais une ligne existante', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+
+    // Même empreinte, mais déclarée sans valeur : elle ne dit rien de l'appareil.
+    const fingerprint = randomUUID()
+
+    const first = deviceCommand(fingerprint, randomUUID())
+    first.identity = DeviceIdentity.WEAK
+    const firstLink = await service.saveDevice(first, user.usersUid, AppName.AIGLESEND)
+
+    const second = deviceCommand(fingerprint, randomUUID())
+    second.identity = DeviceIdentity.WEAK
+    const secondLink = await service.saveDevice(second, user.usersUid, AppName.AIGLESEND)
+
+    assert.notEqual(
+      secondLink.deviceId,
+      firstLink.deviceId,
+      'deux installations faibles restent deux lignes'
+    )
+  })
+
+  test('une identité solide reprend la ligne du même utilisateur', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+
+    const fingerprint = randomUUID()
+
+    const first = deviceCommand(fingerprint, randomUUID())
+    first.identity = DeviceIdentity.STRONG
+    const firstLink = await service.saveDevice(first, user.usersUid, AppName.AIGLESEND)
+
+    const second = deviceCommand(fingerprint, randomUUID())
+    second.identity = DeviceIdentity.STRONG
+    const secondLink = await service.saveDevice(second, user.usersUid, AppName.AIGLESEND)
+
+    assert.equal(secondLink.deviceId, firstLink.deviceId)
+  })
+
+  test('la solidité déclarée est conservée', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+
+    const fingerprint = randomUUID()
+    const uid = randomUUID()
+    const command = deviceCommand(fingerprint, uid)
+    command.identity = DeviceIdentity.WEAK
+    await service.saveDevice(command, user.usersUid, AppName.AIGLESEND)
+
+    const stored = await Device.query()
+      .where('fingerprint_hash', fingerprint)
+      .where('device_uid', uid)
+      .firstOrFail()
+    assert.equal(stored.identity, DeviceIdentity.WEAK)
+  })
+
+  test('un client qui ne déclare rien laisse la solidité inconnue', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+
+    const fingerprint = randomUUID()
+    const uid = randomUUID()
+    await service.saveDevice(deviceCommand(fingerprint, uid), user.usersUid, AppName.AIGLESEND)
+
+    const stored = await Device.query()
+      .where('fingerprint_hash', fingerprint)
+      .where('device_uid', uid)
+      .firstOrFail()
+    assert.isNotOk(stored.identity, "l'absence de déclaration ne se devine pas")
   })
 })

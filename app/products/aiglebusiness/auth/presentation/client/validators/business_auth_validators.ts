@@ -22,10 +22,12 @@ const deviceInfoSchema = vine.object({
   app_version: vine.string().trim().optional(),
   is_emulator: vine.boolean(),
   is_rooted: vine.boolean(),
+  // Absent des clients antérieurs : leur empreinte reste d'origine inconnue.
+  identity: vine.enum(['strong', 'weak']).optional(),
 })
 
 /** Étape 1 : identifiants (phone + PIN) + appareil optionnel (mobile business). */
-export const businessLoginValidator = vine.compile(
+export const businessLoginValidator = vine.create(
   vine.object({
     phone: vine.string().trim().minLength(6).maxLength(20),
     pincode: vine.string().trim().minLength(4).maxLength(8),
@@ -37,7 +39,7 @@ export const businessLoginValidator = vine.compile(
  * Étape 2 : OTP de connexion. L'appareil (mobile business) passe par les **headers**
  * device (`X-Device-Fingerprint`, `X-Device-Uid`), pas par le body.
  */
-export const businessVerifyLoginValidator = vine.compile(
+export const businessVerifyLoginValidator = vine.create(
   vine.object({
     phone: vine.string().trim().minLength(6).maxLength(20),
     otp: vine.string().trim().minLength(4).maxLength(8),
@@ -49,7 +51,7 @@ export const businessVerifyLoginValidator = vine.compile(
  * authentifié**. Seul le PIN transite ; le numéro vient du token. PIN à 5 chiffres
  * (aligné sur le lock-screen mobile et le `checkPinValidator` aiglesend).
  */
-export const businessCheckPinValidator = vine.compile(
+export const businessCheckPinValidator = vine.create(
   vine.object({
     pincode: vine.string().trim().minLength(5).maxLength(5),
   })

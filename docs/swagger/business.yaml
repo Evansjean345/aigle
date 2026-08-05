@@ -3301,6 +3301,19 @@ components:
         is_rooted:
           type: boolean
           example: false
+        identity:
+          type: string
+          enum: [strong, weak]
+          example: strong
+          description: |
+            Solidité de `fingerprint_hash` — optionnel.
+
+            `strong` : l'empreinte dérive d'un identifiant fourni par la plateforme, propre à
+            l'appareil. `weak` : cet identifiant était indisponible, l'empreinte ne vaut que pour
+            cette installation.
+
+            **Ne jamais déduire une empreinte des attributs de modèle** : deux appareils du même
+            modèle se retrouveraient sur la même ligne. En l'absence d'identifiant, déclarer `weak`.
 
     BusinessVerifyRequest:
       type: object

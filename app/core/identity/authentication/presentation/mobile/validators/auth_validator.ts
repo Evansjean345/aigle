@@ -11,6 +11,8 @@ const deviceSchema = vine.object({
   app_version: vine.string().trim().optional(),
   is_emulator: vine.boolean(),
   is_rooted: vine.boolean(),
+  // Absent des clients antérieurs : leur empreinte reste d'origine inconnue.
+  identity: vine.enum(['strong', 'weak']).optional(),
 })
 
 const registerSchema = vine.object({

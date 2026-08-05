@@ -1,4 +1,5 @@
 import { type DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
+import { type DeviceIdentity } from '#core/identity/device/domain/enums/device_identity'
 
 export class DeviceCommandDTO {
   declare fingerprintHash: string
@@ -10,6 +11,7 @@ export class DeviceCommandDTO {
   declare appVersion?: string
   declare isEmulator: boolean
   declare isRooted: boolean
+  declare identity?: DeviceIdentity
   declare ipFirstSeen?: string
   declare ipLastSeen?: string
   declare pushToken?: string | null
@@ -31,6 +33,7 @@ export class DeviceCommandDTO {
     command.appVersion = request.app_version
     command.isEmulator = request.is_emulator
     command.isRooted = request.is_rooted
+    command.identity = request.identity as DeviceIdentity | undefined
     command.ipFirstSeen = request.ip_first_seen
     command.ipLastSeen = request.ip_last_seen
     command.firstCountryCode = request.first_country_code

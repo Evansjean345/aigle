@@ -2,6 +2,7 @@ import { BaseModel, beforeCreate, column, hasMany } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import UserDevice from '#core/identity/device/domain/models/user_device'
+import { type DeviceIdentity } from '#core/identity/device/domain/enums/device_identity'
 
 export default class Device extends BaseModel {
   @column({ isPrimary: true })
@@ -12,6 +13,10 @@ export default class Device extends BaseModel {
 
   @column()
   declare deviceUid: string
+
+  /** `null` sur les lignes antérieures : leur formule pouvait retomber sur le modèle sans le dire. */
+  @column()
+  declare identity?: DeviceIdentity | null
 
   @column()
   declare platform?: string

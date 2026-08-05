@@ -6,6 +6,7 @@ import UserDeviceRepository from '#core/identity/device/domain/interfaces/user_d
 import UserDevice from '#core/identity/device/domain/models/user_device'
 import type Device from '#core/identity/device/domain/models/device'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
+import { DeviceIdentity } from '#core/identity/device/domain/enums/device_identity'
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
 import { type DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
 import { type UserDeviceResult } from '#core/identity/device/application/dto/user_device_result'
@@ -210,6 +211,7 @@ export default class DeviceService {
       appVersion: payload.appVersion,
       isEmulator: payload.isEmulator,
       isRooted: payload.isRooted,
+      identity: payload.identity,
     }
 
     const known = await this.deviceRepository.findByFingerprintAndUid(
@@ -220,6 +222,14 @@ export default class DeviceService {
     if (known) {
       known.merge(attributes)
       return this.deviceRepository.save(known)
+    }
+
+    if (payload.identity === DeviceIdentity.WEAK) {
+      return this.deviceRepository.create({
+        fingerprintHash: payload.fingerprintHash,
+        deviceUid: payload.deviceUid,
+        ...attributes,
+      })
     }
 
     const siblings = await this.deviceRepository.findAllByFingerprintHash(payload.fingerprintHash)

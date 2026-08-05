@@ -1,5 +1,6 @@
 import { type GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 import type UserDevice from '#core/identity/device/domain/models/user_device'
+import { type DeviceIdentity } from '#core/identity/device/domain/enums/device_identity'
 
 export class DeviceRequestDTO {
   declare fingerprint_hash: string
@@ -11,6 +12,13 @@ export class DeviceRequestDTO {
   declare app_version?: string
   declare is_emulator: boolean
   declare is_rooted: boolean
+  /**
+   * Solidité de l'empreinte, telle que déclarée sur le fil. Absent des clients antérieurs.
+   *
+   * Typé sur les valeurs de l'énumération plutôt que sur l'énumération : c'est une chaîne validée,
+   * qui ne devient une valeur du domaine qu'en franchissant `DeviceCommandDTO`.
+   */
+  declare identity?: `${DeviceIdentity}`
   declare ip_first_seen?: string
   declare ip_last_seen?: string
   declare push_token?: string | null
@@ -30,6 +38,7 @@ export class DeviceRequestDTO {
     dto.app_version = payload.app_version ?? undefined
     dto.is_rooted = Boolean(payload.is_rooted)
     dto.is_emulator = Boolean(payload.is_emulator)
+    dto.identity = payload.identity ?? undefined
     dto.platform = payload.platform ?? undefined
     dto.os_version = payload.os_version ?? undefined
     dto.ip_first_seen = geoIp.ip ?? undefined
