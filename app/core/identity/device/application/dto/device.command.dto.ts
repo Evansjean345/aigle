@@ -12,6 +12,8 @@ export class DeviceCommandDTO {
   declare isEmulator: boolean
   declare isRooted: boolean
   declare identity?: DeviceIdentity
+  /** Clé matérielle, commune aux apps d'un même téléphone quand la plateforme le permet. */
+  declare hardwareKey?: string
   declare ipFirstSeen?: string
   declare ipLastSeen?: string
   declare pushToken?: string | null
@@ -34,6 +36,7 @@ export class DeviceCommandDTO {
     command.isEmulator = request.is_emulator
     command.isRooted = request.is_rooted
     command.identity = request.identity as DeviceIdentity | undefined
+    command.hardwareKey = request.hardware_key
     command.ipFirstSeen = request.ip_first_seen
     command.ipLastSeen = request.ip_last_seen
     command.firstCountryCode = request.first_country_code

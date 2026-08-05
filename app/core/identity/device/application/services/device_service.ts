@@ -211,7 +211,8 @@ export default class DeviceService {
       appVersion: payload.appVersion,
       isEmulator: payload.isEmulator,
       isRooted: payload.isRooted,
-      identity: payload.identity,
+      ...(payload.identity ? { identity: payload.identity } : {}),
+      ...(payload.hardwareKey ? { hardwareKey: payload.hardwareKey } : {}),
     }
 
     const known = await this.deviceRepository.findByFingerprintAndUid(
@@ -254,7 +255,6 @@ export default class DeviceService {
         continue
       }
 
-      // Réinstallation : personne d'autre ne tient cette ligne, l'historique est repris.
       sibling.deviceUid = payload.deviceUid
       sibling.merge(attributes)
 

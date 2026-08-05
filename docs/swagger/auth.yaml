@@ -677,6 +677,19 @@ components:
         is_rooted:
           type: boolean
           description: Indique si l'appareil est rooté/jailbreaké
+        hardware_key:
+          type: string
+          description: |
+            Clé matérielle — optionnel. Reconnaît un même téléphone d'une application à l'autre,
+            là où `fingerprint_hash` s'arrête à une seule app.
+
+            Dérivée du seul identifiant fourni par la plateforme, **sans rien d'applicatif** :
+            `identifierForVendor` sur iOS, `ANDROID_ID` sur Android. Hachée — le regroupement
+            n'a besoin que d'une égalité, pas de l'identifiant en clair.
+
+            Omise quand la plateforme ne fournit rien. Elle ne se corrèle par ailleurs que si les
+            applications relèvent du même compte éditeur (iOS) ou de la même clé de signature
+            (Android) ; sinon les valeurs diffèrent et aucun regroupement n'a lieu.
         identity:
           type: string
           enum: [strong, weak]

@@ -19,6 +19,8 @@ export class DeviceRequestDTO {
    * qui ne devient une valeur du domaine qu'en franchissant `DeviceCommandDTO`.
    */
   declare identity?: `${DeviceIdentity}`
+  /** Clé matérielle, commune aux apps d'un même téléphone quand la plateforme le permet. */
+  declare hardware_key?: string
   declare ip_first_seen?: string
   declare ip_last_seen?: string
   declare push_token?: string | null
@@ -39,6 +41,7 @@ export class DeviceRequestDTO {
     dto.is_rooted = Boolean(payload.is_rooted)
     dto.is_emulator = Boolean(payload.is_emulator)
     dto.identity = payload.identity ?? undefined
+    dto.hardware_key = payload.hardware_key ?? undefined
     dto.platform = payload.platform ?? undefined
     dto.os_version = payload.os_version ?? undefined
     dto.ip_first_seen = geoIp.ip ?? undefined

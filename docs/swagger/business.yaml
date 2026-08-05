@@ -3301,6 +3301,17 @@ components:
         is_rooted:
           type: boolean
           example: false
+        hardware_key:
+          type: string
+          description: |
+            Clé matérielle — optionnel. Reconnaît un même téléphone d'une application à l'autre,
+            là où `fingerprint_hash` s'arrête à une seule app.
+
+            Dérivée du seul identifiant fourni par la plateforme, **sans rien d'applicatif** :
+            `identifierForVendor` sur iOS, `ANDROID_ID` sur Android. Hachée — le regroupement
+            n'a besoin que d'une égalité, pas de l'identifiant en clair.
+
+            Omise quand la plateforme ne fournit rien.
         identity:
           type: string
           enum: [strong, weak]

@@ -18,6 +18,14 @@ export default class Device extends BaseModel {
   @column()
   declare identity?: DeviceIdentity | null
 
+  /**
+   * Reconnaît un même téléphone d'une application à l'autre, là où l'empreinte s'arrête à une app.
+   *
+   * `null` quand la plateforme n'a rien fourni, ou quand le client est antérieur à ce champ.
+   */
+  @column()
+  declare hardwareKey?: string | null
+
   @column()
   declare platform?: string
 

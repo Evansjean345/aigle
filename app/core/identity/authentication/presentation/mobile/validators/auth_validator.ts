@@ -13,6 +13,7 @@ const deviceSchema = vine.object({
   is_rooted: vine.boolean(),
   // Absent des clients antérieurs : leur empreinte reste d'origine inconnue.
   identity: vine.enum(['strong', 'weak']).optional(),
+  hardware_key: vine.string().trim().optional(),
 })
 
 const registerSchema = vine.object({

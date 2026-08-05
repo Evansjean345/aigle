@@ -502,3 +502,63 @@ test.group('DeviceService | identité déclarée', (group) => {
     assert.isNotOk(stored.identity, "l'absence de déclaration ne se devine pas")
   })
 })
+
+test.group('DeviceService | clé matérielle', (group) => {
+  group.each.setup(authTestSetup())
+
+  test('deux apps du même téléphone partagent leur clé matérielle', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+    const hardwareKey = randomUUID()
+
+    // Empreintes distinctes — le bundle entre dans leur calcul — mais même appareil.
+    const send = deviceCommand(randomUUID(), randomUUID())
+    send.hardwareKey = hardwareKey
+    await service.saveDevice(send, user.usersUid, AppName.AIGLESEND)
+
+    const business = deviceCommand(randomUUID(), randomUUID())
+    business.hardwareKey = hardwareKey
+    await service.saveDevice(business, user.usersUid, AppName.AIGLEBUSINESS)
+
+    const grouped = await Device.query().where('hardware_key', hardwareKey)
+    assert.lengthOf(grouped, 2, 'un seul téléphone, deux installations')
+    assert.notEqual(grouped[0].fingerprintHash, grouped[1].fingerprintHash)
+  })
+
+  test('un client muet n’efface pas une clé déjà établie', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+
+    const fingerprint = randomUUID()
+    const uid = randomUUID()
+    const hardwareKey = randomUUID()
+
+    const declaring = deviceCommand(fingerprint, uid)
+    declaring.hardwareKey = hardwareKey
+    await service.saveDevice(declaring, user.usersUid, AppName.AIGLESEND)
+
+    // Même installation, client antérieur au champ : il ne déclare rien.
+    await service.saveDevice(deviceCommand(fingerprint, uid), user.usersUid, AppName.AIGLESEND)
+
+    const stored = await Device.query()
+      .where('fingerprint_hash', fingerprint)
+      .where('device_uid', uid)
+      .firstOrFail()
+    assert.equal(stored.hardwareKey, hardwareKey)
+  })
+
+  test('une plateforme muette laisse la clé absente', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+
+    const fingerprint = randomUUID()
+    const uid = randomUUID()
+    await service.saveDevice(deviceCommand(fingerprint, uid), user.usersUid, AppName.AIGLESEND)
+
+    const stored = await Device.query()
+      .where('fingerprint_hash', fingerprint)
+      .where('device_uid', uid)
+      .firstOrFail()
+    assert.isNotOk(stored.hardwareKey)
+  })
+})
