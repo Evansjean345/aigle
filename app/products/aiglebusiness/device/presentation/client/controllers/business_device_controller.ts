@@ -5,6 +5,9 @@ import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import User from '#core/identity/user/domain/models/user'
 import { updateBusinessPushTokenValidator } from '#aiglebusiness/device/presentation/client/validators/update_push_token_validator'
 import ListBusinessDevicesUseCase from '#aiglebusiness/device/application/use_cases/list_business_devices.use_case'
+import RevokeBusinessDeviceUseCase from '#aiglebusiness/device/application/use_cases/revoke_business_device.use_case'
+import { AuditResult } from '#core/audit/domain/enums'
+import { businessTraceContext, emitBusinessAudit } from '#aiglebusiness/shared/business_audit'
 
 /**
  * Appareils du canal business : liste et token push. Présentation **mince**, tout est délégué
@@ -21,7 +24,8 @@ import ListBusinessDevicesUseCase from '#aiglebusiness/device/application/use_ca
 export default class BusinessDeviceController {
   constructor(
     private readonly deviceService: DeviceService,
-    private readonly listDevices: ListBusinessDevicesUseCase
+    private readonly listDevices: ListBusinessDevicesUseCase,
+    private readonly revokeDevice: RevokeBusinessDeviceUseCase
   ) {}
 
   /**
@@ -39,6 +43,29 @@ export default class BusinessDeviceController {
     )
 
     return response.ok(devices)
+  }
+
+  /**
+   * DELETE /api/business/devices/:id — retire un appareil et libère sa place.
+   *
+   * La session que l'appareil portait tombe avec lui. L'appareil principal est refusé.
+   */
+  async destroy(ctx: HttpContext): Promise<void> {
+    const { auth, params, response } = ctx
+    const userId = (auth.user as User).usersUid
+
+    await this.revokeDevice.execute(userId, String(params.id))
+
+    emitBusinessAudit(businessTraceContext(ctx), {
+      eventCategory: 'AUTH',
+      eventAction: 'BUSINESS_DEVICE_REVOKED',
+      actorId: userId,
+      targetType: 'UserDevice',
+      targetId: String(params.id),
+      result: AuditResult.SUCCESS,
+    })
+
+    return response.noContent()
   }
 
   /** PUT /api/business/devices/push-token — enregistre/actualise le token push de l'appareil. */

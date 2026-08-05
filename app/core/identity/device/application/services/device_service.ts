@@ -18,6 +18,8 @@ import UnauthenticatedDeviceException from '#core/identity/device/domain/excepti
 import NotTrustedDeviceException from '#core/identity/device/domain/exceptions/not_trusted_device_exception'
 import FailedToUpdatePushTokenException from '#core/identity/device/domain/exceptions/failed_to_update_push_token_exception'
 import MaxDevicesConnectedException from '#core/identity/device/domain/exceptions/max_devices_connected_exception'
+import DeviceNotFoundException from '#core/identity/device/domain/exceptions/device_not_found_exception'
+import CannotRevokePrimaryDeviceException from '#core/identity/device/domain/exceptions/cannot_revoke_primary_device_exception'
 
 import { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
@@ -68,7 +70,6 @@ export default class DeviceService {
         platform: userDevice.device?.platform ?? null,
         appVersion: userDevice.device?.appVersion ?? null,
         status: userDevice.status,
-        // `tinyint` rendu en 0/1 par le driver, que le modèle déclare pourtant booléen.
         isPrimary: Boolean(userDevice.isPrimary),
         linkedAt: userDevice.linkedAt?.toISO() ?? null,
         lastSeenAt: userDevice.lastSeenAt?.toISO() ?? null,
@@ -77,6 +78,43 @@ export default class DeviceService {
           currentFingerprintHash !== undefined &&
           userDevice.device?.fingerprintHash === currentFingerprintHash,
       }))
+  }
+
+  /**
+   * Délie un appareil d'un utilisateur pour une app, libérant sa place dans le quota. API
+   * PRODUIT : prend un identifiant, ne renvoie pas le modèle.
+   *
+   * Ne touche pas aux jetons : l'appelant révoque la session s'il veut couper l'accès dans la
+   * foulée. Un appareil délié ne franchit de toute façon plus `assertTrustedForApp`.
+   *
+   * @param {string} userId - Propriétaire de la liaison.
+   * @param {string} userDeviceId - Liaison à délier.
+   * @param {string} app - App dont relève la liaison.
+   * @returns {Promise<void>}
+   * @throws {DeviceNotFoundException} Liaison inconnue, d'un autre utilisateur, d'une autre app,
+   *   ou déjà déliée.
+   * @throws {CannotRevokePrimaryDeviceException} La liaison est l'appareil principal.
+   */
+  async revokeForApp(userId: string, userDeviceId: string, app: string): Promise<void> {
+    const userDevice = await this.userDeviceRepository.findById(userDeviceId)
+
+    if (
+      !userDevice ||
+      userDevice.userId !== userId ||
+      userDevice.app !== app ||
+      userDevice.unlinkedAt
+    ) {
+      throw new DeviceNotFoundException()
+    }
+
+    if (userDevice.isPrimary) {
+      throw new CannotRevokePrimaryDeviceException()
+    }
+
+    userDevice.status = DeviceStatus.REVOKED
+    userDevice.unlinkedAt = DateTime.now()
+
+    await this.userDeviceRepository.save(userDevice)
   }
 
   /**

@@ -8,6 +8,12 @@ import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.c
 import { DeviceStatus } from '#core/identity/device/domain/enums'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import ListBusinessDevicesUseCase from '#aiglebusiness/device/application/use_cases/list_business_devices.use_case'
+import RevokeBusinessDeviceUseCase from '#aiglebusiness/device/application/use_cases/revoke_business_device.use_case'
+import UserSessionService from '#core/identity/authentication/application/services/user_session_service'
+import { type UserDeviceResult } from '#core/identity/device/application/dto/user_device_result'
+import { appAbility } from '#core/identity/authentication/domain/enums/app_name'
+import User from '#core/identity/user/domain/models/user'
+import { maxDeviceConnectionAllowed } from '#config/app'
 import { makeUser, authTestSetup } from '#tests/helpers/auth_test_helpers'
 
 /**
@@ -38,6 +44,7 @@ test.group('Business appareils | liste', (group) => {
     const user = await makeUser()
 
     const businessFp = randomUUID()
+
     await service.saveDevice(
       deviceCommand(businessFp, randomUUID(), 'Business-1'),
       user.usersUid,
@@ -130,7 +137,7 @@ test.group('Business appareils | liste', (group) => {
     const [toUnlink] = (await useCase.execute(user.usersUid)).filter(
       (device) => device.model === 'À retirer'
     )
- 
+
     // Ce que posera le retrait (P2) : statut révoqué et lien daté.
     const link = await UserDevice.findOrFail(toUnlink.id)
     link.status = DeviceStatus.REVOKED
@@ -139,6 +146,110 @@ test.group('Business appareils | liste', (group) => {
 
     const remaining = await useCase.execute(user.usersUid)
     assert.lengthOf(remaining, 1)
+
     assert.equal(remaining[0].model, 'Gardé')
+  })
+})
+
+test.group('Business appareils | retrait', (group) => {
+  group.each.setup(authTestSetup())
+
+  /** Lie `count` appareils business, le premier étant le principal. */
+  async function linkDevices(userId: string, count: number): Promise<UserDeviceResult[]> {
+    const service = await app.container.make(DeviceService)
+    const useCase = await app.container.make(ListBusinessDevicesUseCase)
+
+    for (let index = 0; index < count; index += 1) {
+      await service.saveDevice(
+        deviceCommand(randomUUID(), randomUUID(), `Appareil-${index}`),
+        userId,
+        AppName.AIGLEBUSINESS
+      )
+    }
+
+    return useCase.execute(userId)
+  }
+
+  test('le retrait libère une place du quota', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const revoke = await app.container.make(RevokeBusinessDeviceUseCase)
+    const user = await makeUser()
+
+    // Le quota se compte sur les liens TRUSTED/PENDING non déliés.
+    const devices = await linkDevices(user.usersUid, maxDeviceConnectionAllowed)
+    assert.isTrue(await service.checkIfMaxConnectionReached(user.usersUid, AppName.AIGLEBUSINESS))
+
+    const removable = devices.find((device) => !device.isPrimary)!
+    await revoke.execute(user.usersUid, removable.id)
+
+    assert.isFalse(await service.checkIfMaxConnectionReached(user.usersUid, AppName.AIGLEBUSINESS))
+  })
+
+  test('le retrait coupe la session que l’appareil portait', async ({ assert }) => {
+    const sessions = await app.container.make(UserSessionService)
+    const revoke = await app.container.make(RevokeBusinessDeviceUseCase)
+    const user = await makeUser()
+
+    const devices = await linkDevices(user.usersUid, 2)
+    const removable = devices.find((device) => !device.isPrimary)!
+
+    await User.accessTokens.create(user, [appAbility(AppName.AIGLEBUSINESS)], {
+      name: `device:${removable.id}`,
+    })
+    assert.lengthOf(await sessions.listActive(user.usersUid), 1)
+
+    await revoke.execute(user.usersUid, removable.id)
+
+    assert.lengthOf(await sessions.listActive(user.usersUid), 0)
+  })
+
+  test('l’appareil principal est refusé', async ({ assert }) => {
+    const revoke = await app.container.make(RevokeBusinessDeviceUseCase)
+    const user = await makeUser()
+
+    const [primary] = (await linkDevices(user.usersUid, 2)).filter((device) => device.isPrimary)
+
+    await assert.rejects(() => revoke.execute(user.usersUid, primary.id), /principal|PRIMARY/i)
+  })
+
+  test('un appareil d’une autre app est introuvable', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const revoke = await app.container.make(RevokeBusinessDeviceUseCase)
+    const user = await makeUser()
+
+    const link = await service.saveDevice(
+      deviceCommand(randomUUID(), randomUUID(), 'AigleSend'),
+      user.usersUid,
+      AppName.AIGLESEND
+    )
+
+    // La route business ne peut pas délier un appareil AigleSend.
+    await assert.rejects(() => revoke.execute(user.usersUid, link.id), /trouv/i)
+  })
+
+  test('un appareil d’un autre compte est introuvable', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const revoke = await app.container.make(RevokeBusinessDeviceUseCase)
+    const owner = await makeUser()
+    const intruder = await makeUser()
+
+    const link = await service.saveDevice(
+      deviceCommand(randomUUID(), randomUUID(), 'Le sien'),
+      owner.usersUid,
+      AppName.AIGLEBUSINESS
+    )
+
+    await assert.rejects(() => revoke.execute(intruder.usersUid, link.id), /trouv/i)
+  })
+
+  test('retirer deux fois le même appareil est refusé la seconde', async ({ assert }) => {
+    const revoke = await app.container.make(RevokeBusinessDeviceUseCase)
+    const user = await makeUser()
+
+    const devices = await linkDevices(user.usersUid, 2)
+    const removable = devices.find((device) => !device.isPrimary)!
+
+    await revoke.execute(user.usersUid, removable.id)
+    await assert.rejects(() => revoke.execute(user.usersUid, removable.id), /trouv/i)
   })
 })

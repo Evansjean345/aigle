@@ -17,6 +17,7 @@ export default function businessDeviceRoutes() {
     .group(() => {
       router.get('devices', [BusinessDeviceController, 'index'])
       router.put('devices/push-token', [BusinessDeviceController, 'updatePushToken'])
+      router.delete('devices/:id', [BusinessDeviceController, 'destroy'])
     })
     .prefix('business')
     .use([

@@ -72,6 +72,28 @@ export default class UserSessionService {
   }
 
   /**
+   * Révoque les sessions portant un nom donné.
+   *
+   * Le nom est la seule attache entre un jeton et ce qui l'a émis — `device:<id>` pour une
+   * connexion mobile. Un nom sans session ouverte n'est pas une erreur : l'appelant retire un
+   * appareil, la session avait pu expirer avant.
+   *
+   * @param {string} userId - Identifiant public de l'utilisateur.
+   * @param {string} name - Nom des sessions à révoquer.
+   * @returns {Promise<number>} Le nombre de sessions révoquées.
+   * @throws {PhoneNotFoundException} Utilisateur introuvable.
+   */
+  async revokeByName(userId: string, name: string): Promise<number> {
+    const user = await this.requireUser(userId)
+    const tokens = await User.accessTokens.all(user)
+    const named = tokens.filter((token) => token.name === name)
+
+    await Promise.all(named.map((token) => User.accessTokens.delete(user, token.identifier)))
+
+    return named.length
+  }
+
+  /**
    * Révoque les sessions d'une seule app pour un lot d'utilisateurs.
    *
    * Les sessions des autres apps sont conservées : le jeton porte l'ability `app:<name>`. Un
@@ -108,9 +130,11 @@ export default class UserSessionService {
    */
   private async requireUser(userId: string): Promise<User> {
     const user = await this.userRepository.findById(userId)
+
     if (!user) {
       throw new PhoneNotFoundException()
     }
+
     return user
   }
 

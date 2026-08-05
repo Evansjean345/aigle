@@ -27,9 +27,11 @@ export default class IssueAppTokenService {
   /** Émet pour un `User` déjà chargé (appelants core). Renvoie le token en clair. */
   async issueForUser(user: User, app: AppName, options?: IssueOptions): Promise<string> {
     const abilities = [appAbility(app)]
+
     if (options?.channel) {
       abilities.push(channelAbility(options.channel))
     }
+
     const token = await User.accessTokens.create(user, abilities, { name: options?.name })
     return token.value!.release()
   }

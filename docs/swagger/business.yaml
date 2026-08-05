@@ -1667,6 +1667,54 @@ paths:
         '403':
           description: Jeton d'une autre app.
 
+  /api/business/devices/{id}:
+    delete:
+      operationId: revokeBusinessDevice
+      summary: Retirer un appareil du compte business
+      description: |
+        Délie l'appareil et **libère sa place** dans le quota. La session qu'il portait tombe avec
+        lui : son jeton `device:<id>` est révoqué. Une session déjà expirée n'est pas une erreur.
+
+        Retirer n'est pas se déconnecter. Révoquer une session
+        (`DELETE /api/business/auth/sessions/{id}`) laisse l'appareil de confiance — il se
+        reconnectera sans consommer de nouvelle place ni déclencher l'alerte « nouvel appareil ».
+        Un appareil retiré, lui, redevient un appareil inconnu.
+
+        L'**appareil principal** — le premier lié — est refusé : le retirer reviendrait à se couper
+        l'accès depuis lequel on rétablit les autres.
+
+        Utilisable **depuis le web** : c'est le chemin quand le téléphone à retirer est perdu.
+      tags:
+        - Business - Appareils
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - name: id
+          in: path
+          required: true
+          description: Identifiant de la liaison, tel que rendu par `GET /api/business/devices`.
+          schema: { type: string }
+      responses:
+        '204':
+          description: Appareil retiré, place libérée.
+        '401':
+          description: Non authentifié.
+        '403':
+          description: L'appareil est le principal.
+          content:
+            application/json:
+              example:
+                code: E_CANNOT_REVOKE_PRIMARY_DEVICE
+                message: Vous ne pouvez pas supprimer votre appareil principal. Veuillez contacter le support si nécessaire.
+        '404':
+          description: Appareil inconnu, d'un autre compte, d'une autre app, ou déjà retiré.
+          content:
+            application/json:
+              example:
+                code: E_DEVICE_NOT_FOUND
+                message: Appareil non trouvé.
+
   /api/business/devices/push-token:
     put:
       operationId: updateBusinessDevicePushToken

@@ -1,7 +1,7 @@
 # Gestion des appareils business — sortir du cul-de-sac du quota
 
 **Date** : 2026-08-04
-**Statut** : à approuver
+**Statut** : approuvé — P1 et P2 livrés
 **Portée** : `products/aiglebusiness/device/`, `core/identity/device`, `core/identity/authentication`
 
 ---
@@ -106,6 +106,17 @@ Dette relevée au passage, hors périmètre : `BusinessDeviceController.updatePu
 `UserDevice` de `DeviceService.updatePushToken` et lit ses champs. Depcruise ne le voit pas — le type
 est inféré, aucun import de modèle — mais c'est la même classe de violation. À traiter quand la
 règle sera outillée pour les types inférés.
+
+**Trouvé pendant P1** : `isPrimary` vaut `0`/`1` à l'exécution alors que le modèle le déclare
+`boolean` — Lucid ne convertit pas le `tinyint`, et TypeScript ne voit rien. Le `Result` convertit,
+puisqu'il promet un booléen. La valeur brute continue en revanche de partir vers le mobile AigleSend
+via `DeviceResponseDTO.is_primary`, et le cas vaut pour tout `tinyint` déclaré booléen.
+
+**Trouvé pendant P2** : `DeviceService.revokeDevice` est codé en dur sur `AppName.AIGLESEND`. Son
+seul appelant est `RevokeUserDeviceUseCase`, côté **back-office** : un gestionnaire qui révoque
+l'appareil d'un utilisateur ne peut donc atteindre que sa liaison AigleSend, jamais sa liaison
+business. Défaut réel, hors périmètre — il demande de décider si l'admin révoque par app ou pour
+toutes.
 
 ---
 

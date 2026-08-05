@@ -203,6 +203,7 @@ export type ScannedRoutes = {
     'funding_requests.cancel': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'business_device.index': { paramsTuple?: []; params?: {} }
     'business_device.update_push_token': { paramsTuple?: []; params?: {} }
+    'business_device.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
@@ -514,6 +515,7 @@ export type ScannedRoutes = {
     'business_session.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'role.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'roleId': ParamValue} }
     'member.destroy': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'memberId': ParamValue} }
+    'business_device.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
   }
   PATCH: {
     'collection_accounts.update': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }

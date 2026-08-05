@@ -1,9 +1,9 @@
 import { inject } from '@adonisjs/core'
-import { Exception } from '@adonisjs/core/exceptions'
 import { DateTime } from 'luxon'
 import User from '#core/identity/user/domain/models/user'
 import UserDeviceRepository from '#core/identity/device/domain/interfaces/user_device_repository'
 import DeviceNotFoundException from '#core/identity/device/domain/exceptions/device_not_found_exception'
+import CannotRevokePrimaryDeviceException from '#core/identity/device/domain/exceptions/cannot_revoke_primary_device_exception'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
@@ -30,16 +30,9 @@ export default class RevokeDeviceUseCase {
     }
 
     if (userDevice.isPrimary) {
-      throw new Exception(
-        'Vous ne pouvez pas supprimer votre appareil principal. Veuillez contacter le support si nécessaire.',
-        {
-          status: 403,
-          code: 'E_CANNOT_REVOKE_PRIMARY_DEVICE',
-        }
-      )
+      throw new CannotRevokePrimaryDeviceException()
     }
 
-    // Révoquer le token d'accès associé
     const allTokens = await User.accessTokens.all(user)
     const deviceToken = allTokens.find((t) => t.name === `device:${userDevice.id}`)
 
@@ -47,7 +40,6 @@ export default class RevokeDeviceUseCase {
       await User.accessTokens.delete(user, deviceToken.identifier)
     }
 
-    // Révoquer la liaison
     userDevice.status = DeviceStatus.REVOKED
     userDevice.unlinkedAt = DateTime.now()
     await this.userDeviceRepository.save(userDevice)
