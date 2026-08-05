@@ -89,6 +89,38 @@ test.group('Business sessions', (group) => {
     res.assertStatus(401)
   })
 
+  test('une session AigleSend n’apparaît pas dans la liste business', async ({
+    client,
+    assert,
+  }) => {
+    const user = await makeUser()
+    const [businessToken] = await businessTokens(user, 1)
+    await forgeToken(user, AppName.AIGLESEND)
+
+    const res = await client
+      .get(SESSIONS)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${businessToken}`)
+    res.assertStatus(200)
+
+    // Le compte a deux sessions ouvertes ; l'app business n'en voit qu'une.
+    assert.lengthOf(res.body(), 1)
+    assert.isTrue(res.body()[0].current)
+  })
+
+  test('révoquer une session AigleSend depuis le business → 404', async ({ client }) => {
+    const user = await makeUser()
+    const [businessToken] = await businessTokens(user, 1)
+
+    const sendToken = await User.accessTokens.create(user, [appAbility(AppName.AIGLESEND)])
+
+    const res = await client
+      .delete(`${SESSIONS}/${String(sendToken.identifier)}`)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${businessToken}`)
+    res.assertStatus(404)
+  })
+
   test('token aiglesend sur les sessions business → 403 (cloisonnement)', async ({ client }) => {
     const user = await makeUser()
     const token = await forgeToken(user, AppName.AIGLESEND)

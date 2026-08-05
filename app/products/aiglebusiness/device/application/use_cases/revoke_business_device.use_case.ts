@@ -29,6 +29,10 @@ export default class RevokeBusinessDeviceUseCase {
    */
   async execute(userId: string, userDeviceId: string): Promise<void> {
     await this.deviceService.revokeForApp(userId, userDeviceId, AppName.AIGLEBUSINESS)
-    await this.userSessionService.revokeByName(userId, `device:${userDeviceId}`)
+    await this.userSessionService.revokeByName(
+      userId,
+      `device:${userDeviceId}`,
+      AppName.AIGLEBUSINESS
+    )
   }
 }

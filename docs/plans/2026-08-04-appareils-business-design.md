@@ -1,7 +1,7 @@
 # Gestion des appareils business — sortir du cul-de-sac du quota
 
 **Date** : 2026-08-04
-**Statut** : approuvé — P1 et P2 livrés
+**Statut** : livré — P1, P2 et P3
 **Portée** : `products/aiglebusiness/device/`, `core/identity/device`, `core/identity/authentication`
 
 ---
@@ -137,6 +137,14 @@ existe pourtant juste à côté : `revokeAppSessions` filtre sur `token.abilitie
 `listActive` et `revoke` prennent l'app en paramètre et filtrent dessus. Une session d'une autre app
 devient introuvable, donc non révocable — `SessionNotFoundException` plutôt qu'un succès silencieux
 sur la mauvaise app.
+
+Le filtre devient `appTokens(user, app)`, une seule fois pour les quatre méthodes du service.
+`revokeAppSessions`, qui portait déjà ce filtre en propre, passe dessus : il n'existe plus qu'une
+définition de « les jetons de cette app ».
+
+Constaté en livrant : **aucun appelant côté aiglesend**. Les sessions ne sont exposées que par le
+produit business, donc la fuite était unidirectionnelle — l'app business voyait les sessions
+AigleSend, jamais l'inverse.
 
 ---
 

@@ -1,4 +1,5 @@
 import { inject } from '@adonisjs/core'
+import { type AccessToken } from '@adonisjs/auth/access_tokens'
 import User from '#core/identity/user/domain/models/user'
 import UserRepository from '#core/identity/user/domain/interfaces/user_repository'
 import { type UserSessionResult } from '#core/identity/authentication/application/dtos/user_session_result'
@@ -18,16 +19,24 @@ export default class UserSessionService {
   constructor(private readonly userRepository: UserRepository) {}
 
   /**
-   * Liste les sessions actives d'un utilisateur.
+   * Liste les sessions actives d'un utilisateur pour une app.
+   *
+   * Les sessions des autres apps ne sont pas rendues : le jeton porte l'ability `app:<name>`, et
+   * un même compte ouvre des sessions dans plusieurs apps.
    *
    * @param {string} userId - Identifiant public de l'utilisateur.
+   * @param {AppName} app - App dont on liste les sessions.
    * @param {string | number} [currentTokenId] - Jeton de la requête courante, marqué `current`.
-   * @returns {Promise<UserSessionResult[]>} Les sessions ouvertes.
+   * @returns {Promise<UserSessionResult[]>} Les sessions ouvertes de cette app.
    * @throws {PhoneNotFoundException} Utilisateur introuvable.
    */
-  async listActive(userId: string, currentTokenId?: string | number): Promise<UserSessionResult[]> {
+  async listActive(
+    userId: string,
+    app: AppName,
+    currentTokenId?: string | number
+  ): Promise<UserSessionResult[]> {
     const user = await this.requireUser(userId)
-    const tokens = await User.accessTokens.all(user)
+    const tokens = await this.appTokens(user, app)
 
     return tokens.map((token) => ({
       id: String(token.identifier),
@@ -40,23 +49,29 @@ export default class UserSessionService {
   }
 
   /**
-   * Révoque une session d'un utilisateur.
+   * Révoque une session d'un utilisateur pour une app.
+   *
+   * Une session d'une autre app est introuvable, non refusée : une app n'a pas à savoir ce que
+   * le compte ouvre ailleurs.
    *
    * @param {string} userId - Identifiant public de l'utilisateur.
    * @param {string | number} tokenId - Session à révoquer.
+   * @param {AppName} app - App dont relève la session.
    * @param {string | number} [currentTokenId] - Jeton de la requête courante.
    * @returns {Promise<{ wasCurrent: boolean }>} `wasCurrent` indique que l'appelant vient de se
    *   déconnecter lui-même.
    * @throws {PhoneNotFoundException} Utilisateur introuvable.
-   * @throws {SessionNotFoundException} La session n'appartient pas à cet utilisateur.
+   * @throws {SessionNotFoundException} La session n'appartient pas à cet utilisateur, ou relève
+   *   d'une autre app.
    */
   async revoke(
     userId: string,
     tokenId: string | number,
+    app: AppName,
     currentTokenId?: string | number
   ): Promise<{ wasCurrent: boolean }> {
     const user = await this.requireUser(userId)
-    const tokens = await User.accessTokens.all(user)
+    const tokens = await this.appTokens(user, app)
 
     const owned = tokens.find((token) => String(token.identifier) === String(tokenId))
 
@@ -80,12 +95,13 @@ export default class UserSessionService {
    *
    * @param {string} userId - Identifiant public de l'utilisateur.
    * @param {string} name - Nom des sessions à révoquer.
+   * @param {AppName} app - App dont relèvent les sessions.
    * @returns {Promise<number>} Le nombre de sessions révoquées.
    * @throws {PhoneNotFoundException} Utilisateur introuvable.
    */
-  async revokeByName(userId: string, name: string): Promise<number> {
+  async revokeByName(userId: string, name: string, app: AppName): Promise<number> {
     const user = await this.requireUser(userId)
-    const tokens = await User.accessTokens.all(user)
+    const tokens = await this.appTokens(user, app)
     const named = tokens.filter((token) => token.name === name)
 
     await Promise.all(named.map((token) => User.accessTokens.delete(user, token.identifier)))
@@ -104,21 +120,36 @@ export default class UserSessionService {
    * @returns {Promise<number>} Nombre de sessions révoquées.
    */
   async revokeAppSessions(userIds: string[], app: AppName): Promise<number> {
-    const ability = appAbility(app)
     let revoked = 0
 
     for (const userId of new Set(userIds)) {
       const user = await this.userRepository.findById(userId)
       if (!user) continue
 
-      const tokens = await User.accessTokens.all(user)
-      const scoped = tokens.filter((token) => token.abilities.includes(ability))
+      const scoped = await this.appTokens(user, app)
 
       await Promise.all(scoped.map((token) => User.accessTokens.delete(user, token.identifier)))
       revoked += scoped.length
     }
 
     return revoked
+  }
+
+  /**
+   * Jetons d'un utilisateur pour une app.
+   *
+   * L'app est portée par l'ability `app:<name>` du jeton : c'est la seule chose qui rattache une
+   * session à l'application qui l'a ouverte.
+   *
+   * @param {User} user - Utilisateur dont on lit les jetons.
+   * @param {AppName} app - App dont relèvent les jetons.
+   * @returns {Promise<AccessToken[]>} Les jetons de cette app.
+   */
+  private async appTokens(user: User, app: AppName): Promise<AccessToken[]> {
+    const ability = appAbility(app)
+    const tokens = await User.accessTokens.all(user)
+
+    return tokens.filter((token) => token.abilities.includes(ability))
   }
 
   /**

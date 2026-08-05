@@ -196,11 +196,11 @@ test.group('Business appareils | retrait', (group) => {
     await User.accessTokens.create(user, [appAbility(AppName.AIGLEBUSINESS)], {
       name: `device:${removable.id}`,
     })
-    assert.lengthOf(await sessions.listActive(user.usersUid), 1)
+    assert.lengthOf(await sessions.listActive(user.usersUid, AppName.AIGLEBUSINESS), 1)
 
     await revoke.execute(user.usersUid, removable.id)
 
-    assert.lengthOf(await sessions.listActive(user.usersUid), 0)
+    assert.lengthOf(await sessions.listActive(user.usersUid, AppName.AIGLEBUSINESS), 0)
   })
 
   test('l’appareil principal est refusé', async ({ assert }) => {

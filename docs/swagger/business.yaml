@@ -298,9 +298,16 @@ paths:
       operationId: listBusinessSessions
       summary: Lister mes sessions actives
       description: |
-        Liste les sessions actives de l'utilisateur (une session = une connexion). La session
-        utilisée pour la requête courante est marquée `current: true`. Réservé aux jetons
-        AigleBusiness.
+        Liste les sessions actives de l'utilisateur **sur cette app** (une session = une
+        connexion). La session utilisée pour la requête courante est marquée `current: true`.
+        Réservé aux jetons AigleBusiness.
+
+        Les sessions AigleSend du même compte ne sont pas rendues : ce que le compte ouvre
+        ailleurs ne regarde pas le business.
+
+        Une session porte son `channel` (`web` ou `mobile`). Elle n'est pas un appareil : une
+        session web n'en a aucun, et un appareil de confiance peut subsister sans session. Les
+        appareils — et le quota qu'ils occupent — relèvent de `GET /api/business/devices`.
       tags:
         - Business - Authentification
       security:
@@ -330,9 +337,13 @@ paths:
       operationId: revokeBusinessSession
       summary: Révoquer une session
       description: |
-        Révoque une session (déconnecte l'appareil ou le navigateur correspondant). Vous ne
-        pouvez révoquer que vos propres sessions ; toute autre → 404. Réservé aux jetons
-        AigleBusiness.
+        Révoque une session — déconnecte l'appareil ou le navigateur correspondant. Vous ne
+        pouvez révoquer que vos propres sessions **de cette app** ; toute autre → 404, y compris
+        une session AigleSend du même compte. Réservé aux jetons AigleBusiness.
+
+        Déconnecter n'est pas retirer : l'appareil reste de confiance et se reconnectera sans
+        consommer de nouvelle place ni déclencher l'alerte « nouvel appareil ». Pour libérer une
+        place du quota, utilisez `DELETE /api/business/devices/{id}`.
       tags:
         - Business - Authentification
       security:
