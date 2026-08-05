@@ -121,6 +121,29 @@ export default class DeviceService {
   }
 
   /**
+   * Les autres installations du même téléphone, toutes applications confondues.
+   *
+   * Une ligne `devices` est une installation, pas un appareil : l'empreinte intègre l'application,
+   * si bien qu'un même téléphone en produit une par app. La clé matérielle est ce qui les
+   * rapproche — quand la plateforme en fournit une.
+   *
+   * @param {string} deviceId - Installation dont on cherche les jumelles.
+   * @returns {Promise<Device[]>} Les autres installations du même appareil. Vide si l'installation
+   *   est inconnue, sans clé matérielle, ou seule sur son téléphone.
+   */
+  async findSiblingInstallations(deviceId: string): Promise<Device[]> {
+    const device = await this.deviceRepository.findById(deviceId)
+
+    if (!device?.hardwareKey) {
+      return []
+    }
+
+    const installations = await this.deviceRepository.findAllByHardwareKey(device.hardwareKey)
+
+    return installations.filter((installation) => installation.id !== device.id)
+  }
+
+  /**
    * Récupère les associations actives trusted pour un utilisateur (scopées par app
    * si fourni).
    */

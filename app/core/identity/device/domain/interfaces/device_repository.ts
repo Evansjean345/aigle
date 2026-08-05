@@ -58,6 +58,15 @@ export default abstract class DeviceRepository {
   abstract findAllByFingerprintHash(fingerprintHash: string): Promise<Device[]>
 
   /**
+   * Toutes les installations partageant une clé matérielle, c'est-à-dire un même téléphone.
+   *
+   * Là où l'empreinte s'arrête à une application, la clé matérielle les traverse : c'est elle qui
+   * permet de reconnaître qu'un compte AigleSend et un compte AigleBusiness vivent sur le même
+   * appareil.
+   */
+  abstract findAllByHardwareKey(hardwareKey: string): Promise<Device[]>
+
+  /**
    * Find a device by its device UID.
    * @param {string} deviceUid - The device UID of the device to find.
    */

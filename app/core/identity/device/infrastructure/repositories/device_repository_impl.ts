@@ -113,6 +113,10 @@ export default class DeviceRepositoryImpl implements DeviceRepository {
     return Device.query().where('fingerprintHash', fingerprintHash)
   }
 
+  async findAllByHardwareKey(hardwareKey: string): Promise<Device[]> {
+    return Device.query().where('hardwareKey', hardwareKey).orderBy('createdAt', 'asc')
+  }
+
   async findByDeviceUid(deviceUid: string): Promise<Device | null> {
     return Device.findBy('deviceUid', deviceUid)
   }

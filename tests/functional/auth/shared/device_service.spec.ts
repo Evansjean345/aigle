@@ -562,3 +562,54 @@ test.group('DeviceService | clé matérielle', (group) => {
     assert.isNotOk(stored.hardwareKey)
   })
 })
+
+test.group('DeviceService | installations d’un même téléphone', (group) => {
+  group.each.setup(authTestSetup())
+
+  /** Enregistre une installation portant une clé matérielle donnée. */
+  async function install(
+    userId: string,
+    appName: AppName,
+    hardwareKey?: string
+  ): Promise<UserDevice> {
+    const service = await app.container.make(DeviceService)
+    const command = deviceCommand(randomUUID(), randomUUID())
+    command.hardwareKey = hardwareKey
+
+    return service.saveDevice(command, userId, appName)
+  }
+
+  test('rapproche les installations partageant une clé matérielle', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+    const hardwareKey = randomUUID()
+
+    const send = await install(user.usersUid, AppName.AIGLESEND, hardwareKey)
+    const business = await install(user.usersUid, AppName.AIGLEBUSINESS, hardwareKey)
+
+    // Un autre téléphone, qui ne doit pas être ramené.
+    await install(user.usersUid, AppName.AIGLESEND, randomUUID())
+
+    const siblings = await service.findSiblingInstallations(send.deviceId)
+
+    assert.lengthOf(siblings, 1, "l'installation elle-même est exclue")
+    assert.equal(siblings[0].id, business.deviceId)
+  })
+
+  test('une installation sans clé matérielle est seule', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+
+    // Deux installations sans clé : rien ne permet de dire qu'elles partagent un téléphone.
+    const first = await install(user.usersUid, AppName.AIGLESEND)
+    await install(user.usersUid, AppName.AIGLEBUSINESS)
+
+    assert.isEmpty(await service.findSiblingInstallations(first.deviceId))
+  })
+
+  test('une installation inconnue ne rapproche rien', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+
+    assert.isEmpty(await service.findSiblingInstallations(randomUUID()))
+  })
+})
