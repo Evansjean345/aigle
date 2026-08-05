@@ -47,6 +47,8 @@ export class AdminDeviceAssociationDto {
   declare phone: string
   declare fullname: string
   declare userStatus: string
+  /** App dont relève la liaison : un même appareil en porte une par app. */
+  declare app: string
   declare status: string
   declare isPrimary: boolean
   declare ipFirstSeen?: string
@@ -66,6 +68,7 @@ export class AdminDeviceAssociationDto {
     dto.phone = user?.phone ?? ''
     dto.fullname = user ? [user.firstname, user.lastname].filter(Boolean).join(' ').trim() : ''
     dto.userStatus = user?.status ?? ''
+    dto.app = ud.app
     dto.status = ud.status
     dto.isPrimary = ud.isPrimary
     dto.ipFirstSeen = ud.ipFirstSeen
@@ -151,6 +154,8 @@ export class AdminDeviceAccountDto {
   declare phone: string
   declare fullname: string
   declare userStatus: string
+  /** App dont relève la liaison : un même appareil en porte une par app. */
+  declare app: string
   declare associationStatus: string
   declare isPrimary: boolean
   declare ipFirstSeen?: string
@@ -169,6 +174,7 @@ export class AdminDeviceAccountDto {
     dto.phone = user?.phone ?? ''
     dto.fullname = user ? [user.firstname, user.lastname].filter(Boolean).join(' ').trim() : ''
     dto.userStatus = user?.status ?? ''
+    dto.app = ud.app
     dto.associationStatus = ud.status
     dto.isPrimary = ud.isPrimary
     dto.ipFirstSeen = ud.ipFirstSeen

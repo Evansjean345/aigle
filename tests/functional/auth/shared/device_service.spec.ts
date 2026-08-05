@@ -5,8 +5,10 @@ import DeviceService from '#core/identity/device/application/services/device_ser
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
 import { DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
-import { AppName } from '#core/identity/authentication/domain/enums/app_name'
+import { AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
 import UserDevice from '#core/identity/device/domain/models/user_device'
+import User from '#core/identity/user/domain/models/user'
+import RevokeUserDeviceUseCase from '#core/identity/device/application/use_cases/admin/revoke_user_device_use_case'
 import { makeUser, authTestSetup } from '#tests/helpers/auth_test_helpers'
 
 /**
@@ -221,5 +223,70 @@ test.group('DeviceService | assertTrustedForApp', (group) => {
       () => service.assertTrustedForApp(user.usersUid, fp, uid, AppName.AIGLESEND, 'ios'),
       /plateforme|PLATFORM/i
     )
+  })
+})
+
+test.group('DeviceService | révocation back-office', (group) => {
+  group.each.setup(authTestSetup())
+
+  test('révoquer un appareil coupe toutes ses apps', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const useCase = await app.container.make(RevokeUserDeviceUseCase)
+    const user = await makeUser()
+    const fp = randomUUID()
+    const uid = randomUUID()
+
+    // Un même téléphone, une liaison par app.
+    const sendLink = await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLESEND)
+    const businessLink = await service.saveDevice(
+      deviceCommand(fp, uid),
+      user.usersUid,
+      AppName.AIGLEBUSINESS
+    )
+    assert.notEqual(sendLink.id, businessLink.id)
+    assert.equal(sendLink.deviceId, businessLink.deviceId)
+
+    await useCase.execute(user.usersUid, sendLink.deviceId)
+
+    const remaining = await service.getActiveUserDevices(user.usersUid)
+    assert.lengthOf(remaining, 0, 'aucune app ne survit à la révocation')
+  })
+
+  test('les sessions des liaisons révoquées tombent', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const useCase = await app.container.make(RevokeUserDeviceUseCase)
+    const user = await makeUser()
+    const fp = randomUUID()
+    const uid = randomUUID()
+
+    const sendLink = await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLESEND)
+    const businessLink = await service.saveDevice(
+      deviceCommand(fp, uid),
+      user.usersUid,
+      AppName.AIGLEBUSINESS
+    )
+
+    for (const link of [sendLink, businessLink]) {
+      await User.accessTokens.create(user, [appAbility(link.app as AppName)], {
+        name: `device:${link.id}`,
+      })
+    }
+    // Une session sans rapport avec cet appareil, qui doit survivre.
+    await User.accessTokens.create(user, [appAbility(AppName.AIGLESEND)], { name: 'web-session' })
+
+    await useCase.execute(user.usersUid, sendLink.deviceId)
+
+    const tokens = await User.accessTokens.all(user)
+    assert.deepEqual(
+      tokens.map((token) => token.name),
+      ['web-session']
+    )
+  })
+
+  test('un appareil sans liaison active → introuvable', async ({ assert }) => {
+    const useCase = await app.container.make(RevokeUserDeviceUseCase)
+    const user = await makeUser()
+
+    await assert.rejects(() => useCase.execute(user.usersUid, randomUUID()), /trouv/i)
   })
 })

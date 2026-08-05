@@ -45,6 +45,8 @@ export class DeviceResponseDTO {
   declare id: string
   declare device_id: string
   declare last_seen?: string
+  /** App dont relève la liaison : un même appareil en porte une par app. */
+  declare app: string
   declare status: string
   declare app_version?: string
   declare platform?: string
@@ -65,6 +67,7 @@ export class DeviceResponseDTO {
     response.id = userDevice.id
     response.device_id = userDevice.deviceId
     response.last_seen = userDevice.lastSeenAt?.toISO() ?? undefined
+    response.app = userDevice.app
     response.status = userDevice.status
     response.is_primary = userDevice.isPrimary
     response.is_vpn = userDevice.isVpn

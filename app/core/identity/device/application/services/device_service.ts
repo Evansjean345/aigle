@@ -482,23 +482,32 @@ export default class DeviceService {
   }
 
   /**
-   * Révoque une liaison user↔device.
+   * Révoque les liaisons d'un appareil pour un utilisateur, **toutes apps confondues**.
+   *
+   * Un même téléphone porte une liaison par app. Le geste est celui d'un gestionnaire face à un
+   * appareil compromis : n'en couper qu'une moitié laisserait l'autre ouverte.
+   *
+   * @param {string} userId - Propriétaire des liaisons.
+   * @param {string} deviceId - Appareil matériel visé.
+   * @returns {Promise<UserDevice[]>} Les liaisons révoquées. Vide si l'appareil n'en avait aucune
+   *   d'active pour cet utilisateur.
    */
-  async revokeDevice(userId: string, deviceId: string): Promise<UserDevice | null> {
-    const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
+  async revokeDevice(userId: string, deviceId: string): Promise<UserDevice[]> {
+    const userDevices = await this.userDeviceRepository.findActiveByUserAndDeviceAllApps(
       userId,
-      deviceId,
-      AppName.AIGLESEND
+      deviceId
     )
 
-    if (!userDevice) {
-      return null
-    }
+    const revokedAt = DateTime.now()
 
-    userDevice.status = DeviceStatus.REVOKED
-    userDevice.unlinkedAt = DateTime.now()
+    return Promise.all(
+      userDevices.map((userDevice) => {
+        userDevice.status = DeviceStatus.REVOKED
+        userDevice.unlinkedAt = revokedAt
 
-    return this.userDeviceRepository.save(userDevice)
+        return this.userDeviceRepository.save(userDevice)
+      })
+    )
   }
 
   /**

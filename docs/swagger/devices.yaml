@@ -202,7 +202,14 @@ paths:
     delete:
       operationId: adminRevokeUserDevice
       summary: Révoquer l'appareil d'un utilisateur
-      description: Révoque un appareil spécifique d'un utilisateur donné (action admin).
+      description: |
+        Révoque un appareil d'un utilisateur donné, **toutes apps confondues**.
+
+        Un même téléphone porte une liaison par application (`aiglesend`, `aiglebusiness`). Le
+        geste vise un appareil compromis, pas une application : les deux liaisons tombent, et les
+        sessions qu'elles portaient avec elles. Les autres sessions du compte sont intactes.
+
+        Chaque liaison libère sa place dans le quota de son app.
       tags:
         - Admin - Appareils
       security:
@@ -252,9 +259,15 @@ components:
           type: string
         appVersion:
           type: string
+        app:
+          type: string
+          enum: [aiglesend, aiglebusiness]
+          description: |
+            Application dont relève la liaison. Un même appareil matériel en porte une par app —
+            sans ce champ, deux lignes identiques désignent en réalité deux liaisons distinctes.
         status:
           type: string
-          enum: [active, revoked]
+          enum: [pending, trusted, blocked, revoked]
         isPrimary:
           type: boolean
           description: Indique si c'est l'appareil principal

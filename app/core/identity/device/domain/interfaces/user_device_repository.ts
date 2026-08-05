@@ -22,6 +22,17 @@ export default abstract class UserDeviceRepository {
   ): Promise<UserDevice | null>
 
   /**
+   * Toutes les liaisons actives entre un utilisateur et un appareil, toutes apps confondues.
+   *
+   * Un même téléphone porte une liaison par app : les révoquer ensemble suppose de les lire
+   * ensemble.
+   */
+  abstract findActiveByUserAndDeviceAllApps(
+    userId: string,
+    deviceId: string
+  ): Promise<UserDevice[]>
+
+  /**
    * Find all active associations for a user (with preloaded device).
    */
   abstract findActiveByUserId(userId: string, app?: string): Promise<UserDevice[]>
