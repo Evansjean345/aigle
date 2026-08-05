@@ -95,15 +95,22 @@ export default class DeviceRepositoryImpl implements DeviceRepository {
     return await device.save()
   }
 
-  async updateOrCreateByFingerprintHash(
-    fingerprintHash: string,
-    payload: Partial<Device>
-  ): Promise<Device> {
-    return await Device.updateOrCreate({ fingerprintHash }, payload)
+  async create(payload: Partial<Device>): Promise<Device> {
+    return Device.create(payload)
   }
 
-  async findByFingerprintHash(fingerprintHash: string): Promise<Device | null> {
-    return Device.findBy('fingerprintHash', fingerprintHash)
+  async findByFingerprintAndUid(
+    fingerprintHash: string,
+    deviceUid: string
+  ): Promise<Device | null> {
+    return Device.query()
+      .where('fingerprintHash', fingerprintHash)
+      .where('deviceUid', deviceUid)
+      .first()
+  }
+
+  async findAllByFingerprintHash(fingerprintHash: string): Promise<Device[]> {
+    return Device.query().where('fingerprintHash', fingerprintHash)
   }
 
   async findByDeviceUid(deviceUid: string): Promise<Device | null> {

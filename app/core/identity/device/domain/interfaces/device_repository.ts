@@ -10,6 +10,9 @@ export default abstract class DeviceRepository {
    */
   abstract save(device: Device, trx?: TransactionClientContract): Promise<Device>
 
+  /** Crée une installation. */
+  abstract create(payload: Partial<Device>): Promise<Device>
+
   /**
    * Find all devices with pagination, filters, and enriched counters.
    */
@@ -36,10 +39,23 @@ export default abstract class DeviceRepository {
   abstract findById(deviceId: string): Promise<Device | null>
 
   /**
-   * Find a device by its fingerprint hash.
-   * @param {string} fingerprintHash - The fingerprint hash of the device to find.
+   * Retrouve une installation par sa paire (empreinte, uid).
+   *
+   * C'est la paire qui identifie une ligne : l'empreinte peut être partagée par plusieurs
+   * installations, l'uid non.
    */
-  abstract findByFingerprintHash(fingerprintHash: string): Promise<Device | null>
+  abstract findByFingerprintAndUid(
+    fingerprintHash: string,
+    deviceUid: string
+  ): Promise<Device | null>
+
+  /**
+   * Toutes les installations partageant une empreinte.
+   *
+   * Plus d'une signifie soit une réinstallation, soit une collision d'empreinte entre deux appareils
+   * distincts — l'appelant tranche.
+   */
+  abstract findAllByFingerprintHash(fingerprintHash: string): Promise<Device[]>
 
   /**
    * Find a device by its device UID.
@@ -51,13 +67,4 @@ export default abstract class DeviceRepository {
    * Delete a device.
    */
   abstract deleteDevice(device: Device): Promise<void>
-
-  /**
-   * Atomically finds a device by fingerprint hash and updates it, or creates a new one.
-   * Relies on the UNIQUE constraint on fingerprint_hash to prevent race conditions.
-   */
-  abstract updateOrCreateByFingerprintHash(
-    fingerprintHash: string,
-    payload: Partial<Device>
-  ): Promise<Device>
 }

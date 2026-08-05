@@ -1,9 +1,13 @@
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
+import { DateTime } from 'luxon'
 import app from '@adonisjs/core/services/app'
 import DeviceService from '#core/identity/device/application/services/device_service'
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
-import { DeviceRequestDTO, DeviceResponseDTO } from '#core/identity/device/application/dto/device.dto'
+import {
+  DeviceRequestDTO,
+  DeviceResponseDTO,
+} from '#core/identity/device/application/dto/device.dto'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
 import { AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
 import UserDevice from '#core/identity/device/domain/models/user_device'
@@ -99,8 +103,6 @@ test.group('DeviceService | trust', (group) => {
     const fp = randomUUID()
     const uid = randomUUID()
 
-    // API produit two-step : registerForApp (PIN, DTO complet) puis trustForApp
-    // (OTP, fingerprint+uid des headers) pour les 2 apps.
     await service.registerForApp(deviceRequest(fp, uid), user.usersUid, AppName.AIGLESEND)
     const s = await service.trustForApp(fp, uid, user.usersUid, AppName.AIGLESEND)
     await service.registerForApp(deviceRequest(fp, uid), user.usersUid, AppName.AIGLEBUSINESS)
@@ -237,7 +239,11 @@ test.group('DeviceService | révocation back-office', (group) => {
     const uid = randomUUID()
 
     // Un même téléphone, une liaison par app.
-    const sendLink = await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLESEND)
+    const sendLink = await service.saveDevice(
+      deviceCommand(fp, uid),
+      user.usersUid,
+      AppName.AIGLESEND
+    )
     const businessLink = await service.saveDevice(
       deviceCommand(fp, uid),
       user.usersUid,
@@ -259,7 +265,11 @@ test.group('DeviceService | révocation back-office', (group) => {
     const fp = randomUUID()
     const uid = randomUUID()
 
-    const sendLink = await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLESEND)
+    const sendLink = await service.saveDevice(
+      deviceCommand(fp, uid),
+      user.usersUid,
+      AppName.AIGLESEND
+    )
     const businessLink = await service.saveDevice(
       deviceCommand(fp, uid),
       user.usersUid,
@@ -313,5 +323,106 @@ test.group('DeviceService | distinction des apps', (group) => {
       [AppName.AIGLESEND, AppName.AIGLEBUSINESS]
     )
     assert.equal(projected[0].model, projected[1].model)
+  })
+})
+
+test.group('DeviceService | collision d’empreinte', (group) => {
+  group.each.setup(authTestSetup())
+
+  test('une empreinte tenue par un autre compte ne déloge pas son titulaire', async ({
+    assert,
+  }) => {
+    const service = await app.container.make(DeviceService)
+    const owner = await makeUser()
+    const intruder = await makeUser()
+
+    const sharedFingerprint = randomUUID()
+    const ownerUid = randomUUID()
+    const intruderUid = randomUUID()
+
+    await service.saveDevice(
+      deviceCommand(sharedFingerprint, ownerUid),
+      owner.usersUid,
+      AppName.AIGLESEND
+    )
+    await service.trustDevice(
+      owner.usersUid,
+      sharedFingerprint,
+      ownerUid,
+      undefined,
+      AppName.AIGLESEND
+    )
+
+    await service.saveDevice(
+      deviceCommand(sharedFingerprint, intruderUid),
+      intruder.usersUid,
+      AppName.AIGLESEND
+    )
+
+    // Le titulaire garde son appareil.
+    await assert.doesNotReject(() =>
+      service.assertTrustedForApp(
+        owner.usersUid,
+        sharedFingerprint,
+        ownerUid,
+        AppName.AIGLESEND,
+        'android'
+      )
+    )
+
+    // Et les deux comptes ne partagent pas la même ligne.
+    const ownerDevices = await service.getActiveUserDevices(owner.usersUid)
+    const intruderDevices = await service.getActiveUserDevices(intruder.usersUid)
+    assert.notEqual(ownerDevices[0].deviceId, intruderDevices[0].deviceId)
+  })
+
+  test('le même utilisateur qui réinstalle reprend sa ligne', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+
+    const fingerprint = randomUUID()
+    const before = await service.saveDevice(
+      deviceCommand(fingerprint, randomUUID()),
+      user.usersUid,
+      AppName.AIGLESEND
+    )
+
+    // Réinstallation : l'empreinte matérielle est stable, l'uid d'installation est régénéré.
+    const after = await service.saveDevice(
+      deviceCommand(fingerprint, randomUUID()),
+      user.usersUid,
+      AppName.AIGLESEND
+    )
+
+    assert.equal(after.deviceId, before.deviceId, "l'historique de l'appareil est conservé")
+
+    const devices = await service.getActiveUserDevices(user.usersUid)
+    assert.lengthOf(devices, 1, 'aucune ligne en double')
+  })
+
+  test('une empreinte libre est reprise, pas dupliquée', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const owner = await makeUser()
+    const newcomer = await makeUser()
+
+    const fingerprint = randomUUID()
+    const first = await service.saveDevice(
+      deviceCommand(fingerprint, randomUUID()),
+      owner.usersUid,
+      AppName.AIGLESEND
+    )
+
+    // Plus personne ne tient la ligne : le titulaire s'est retiré.
+    const link = await UserDevice.findOrFail(first.id)
+    link.unlinkedAt = DateTime.now()
+    await link.save()
+
+    const second = await service.saveDevice(
+      deviceCommand(fingerprint, randomUUID()),
+      newcomer.usersUid,
+      AppName.AIGLESEND
+    )
+
+    assert.equal(second.deviceId, first.deviceId)
   })
 })

@@ -4,6 +4,7 @@ import { DateTime } from 'luxon'
 import DeviceRepository from '#core/identity/device/domain/interfaces/device_repository'
 import UserDeviceRepository from '#core/identity/device/domain/interfaces/user_device_repository'
 import UserDevice from '#core/identity/device/domain/models/user_device'
+import type Device from '#core/identity/device/domain/models/device'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
 import { type DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
@@ -150,9 +151,9 @@ export default class DeviceService {
     geoLocation: GeoIpLocation | undefined,
     app: string
   ): Promise<UserDevice | null> {
-    const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
+    const device = await this.deviceRepository.findByFingerprintAndUid(fingerprintHash, deviceUid)
 
-    if (!device || device.deviceUid !== deviceUid) {
+    if (!device) {
       return null
     }
 
@@ -180,6 +181,84 @@ export default class DeviceService {
   }
 
   /**
+   * Résout l'installation derrière une empreinte, sans jamais en déloger une autre.
+   *
+   * L'empreinte n'est pas une identité : quand l'identifiant plateforme manque, le mobile la calcule
+   * à partir des seuls attributs de modèle, et deux appareils du même modèle la partagent. La paire
+   * `(empreinte, uid)` est l'identité réelle, l'uid étant tiré au hasard.
+   *
+   * Une empreinte déjà connue sous un autre uid a deux lectures possibles, que rien dans la donnée
+   * ne distingue :
+   *  - une **réinstallation** — le même utilisateur revient, l'uid est régénéré. On reprend la ligne,
+   *    l'historique de l'appareil est conservé.
+   *  - une **collision** — un autre appareil produit la même empreinte. On crée une ligne distincte
+   *    et on journalise ; reprendre la ligne éjecterait son propriétaire.
+   *
+   * L'arbitrage se fait sur les titulaires des liaisons actives : tant qu'elles appartiennent toutes
+   * au demandeur, la reprise ne peut léser personne.
+   *
+   * @param {DeviceCommandDTO} payload - Appareil déclaré par le client.
+   * @param {string} userId - Utilisateur qui présente cet appareil.
+   * @returns {Promise<Device>} L'installation, existante ou créée.
+   */
+  private async resolveDevice(payload: DeviceCommandDTO, userId: string): Promise<Device> {
+    const attributes = {
+      platform: payload.platform,
+      brand: payload.brand,
+      model: payload.model,
+      osVersion: payload.osVersion,
+      appVersion: payload.appVersion,
+      isEmulator: payload.isEmulator,
+      isRooted: payload.isRooted,
+    }
+
+    const known = await this.deviceRepository.findByFingerprintAndUid(
+      payload.fingerprintHash,
+      payload.deviceUid
+    )
+
+    if (known) {
+      known.merge(attributes)
+      return this.deviceRepository.save(known)
+    }
+
+    const siblings = await this.deviceRepository.findAllByFingerprintHash(payload.fingerprintHash)
+
+    for (const sibling of siblings) {
+      const holders = await this.userDeviceRepository.findActiveByDeviceId(sibling.id)
+      const foreign = holders.filter((holder) => holder.userId !== userId)
+
+      if (foreign.length > 0) {
+        appLog.error(
+          'DEVICE_FINGERPRINT_COLLISION',
+          {
+            fingerprintHash: payload.fingerprintHash,
+            claimingUserId: userId,
+            claimingDeviceUid: payload.deviceUid,
+            heldByDeviceId: sibling.id,
+            heldByUserIds: [...new Set(foreign.map((holder) => holder.userId))],
+            model: payload.model,
+          },
+          "Empreinte déjà détenue par un autre compte : une installation distincte est créée plutôt que de déloger l'appareil en place."
+        )
+        continue
+      }
+
+      // Réinstallation : personne d'autre ne tient cette ligne, l'historique est repris.
+      sibling.deviceUid = payload.deviceUid
+      sibling.merge(attributes)
+
+      return this.deviceRepository.save(sibling)
+    }
+
+    return this.deviceRepository.create({
+      fingerprintHash: payload.fingerprintHash,
+      deviceUid: payload.deviceUid,
+      ...attributes,
+    })
+  }
+
+  /**
    * Enregistre ou met à jour un device pour un utilisateur.
    * - Crée le Device (hardware) s'il n'existe pas
    * - Crée ou met à jour la liaison UserDevice
@@ -189,19 +268,7 @@ export default class DeviceService {
   async saveDevice(payload: DeviceCommandDTO, userId: string, app: string): Promise<UserDevice> {
     try {
       // 1. Trouver ou créer le device hardware
-      const device = await this.deviceRepository.updateOrCreateByFingerprintHash(
-        payload.fingerprintHash,
-        {
-          deviceUid: payload.deviceUid,
-          platform: payload.platform,
-          brand: payload.brand,
-          model: payload.model,
-          osVersion: payload.osVersion,
-          appVersion: payload.appVersion,
-          isEmulator: payload.isEmulator,
-          isRooted: payload.isRooted,
-        }
-      )
+      const device = await this.resolveDevice(payload, userId)
 
       // 2. Chercher une liaison active existante (scopée à l'app)
       const existingUserDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
@@ -310,9 +377,9 @@ export default class DeviceService {
     userId: string,
     app: AppName = AppName.AIGLESEND
   ): Promise<UserDevice> {
-    const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
+    const device = await this.deviceRepository.findByFingerprintAndUid(fingerprintHash, deviceUid)
 
-    if (!device || device.deviceUid !== deviceUid) {
+    if (!device) {
       appLog.error(
         'DEVICE_NOT_FOUND_WITH_FINGERPRINT_HASH_AND_UID',
         { fingerprintHash, deviceUid, pushToken },
@@ -363,9 +430,9 @@ export default class DeviceService {
     app: string,
     platform?: string | null
   ): Promise<void> {
-    const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
+    const device = await this.deviceRepository.findByFingerprintAndUid(fingerprintHash, deviceUid)
 
-    if (!device || device.deviceUid !== deviceUid) {
+    if (!device) {
       throw new UnauthenticatedDeviceException()
     }
 
@@ -420,9 +487,9 @@ export default class DeviceService {
     fingerprintHash: string,
     deviceUid: string
   ): Promise<UserDevice | null> {
-    const device = await this.deviceRepository.findByFingerprintHash(fingerprintHash)
+    const device = await this.deviceRepository.findByFingerprintAndUid(fingerprintHash, deviceUid)
 
-    if (!device || device.deviceUid !== deviceUid) {
+    if (!device) {
       return null
     }
 
