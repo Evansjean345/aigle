@@ -1,7 +1,7 @@
 ---
 type: backlog
 description: Remarques / observations à brainstormer et corriger plus tard (ne pas traiter à la volée)
-derniere_maj: 2026-08-04
+derniere_maj: 2026-08-05
 ---
 
 # Remarques à brainstormer
@@ -27,6 +27,7 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 
 | # | Niveau | Statut | Remarque |
 |---|--------|--------|----------|
+| R12 | 🔴 Critique | **décidé (design) — à implémenter** | **L'empreinte d'appareil identifie un modèle, pas un appareil** : quand l'identifiant plateforme manque, `deviceInstanceId` tombe à `''` et le hachage ne retient que marque/modèle/OS/bundle. Deux Galaxy S26 distincts ont partagé une ligne `devices` ; `updateOrCreate` sur la seule empreinte écrase alors le `device_uid` et éjecte l'utilisateur légitime. Design : `2026-08-05-identite-appareil-design.md` (I1–I4) |
 | R11 | 🔴 Critique | **décidé (design) — à implémenter** | **Les tests s'exécutent sur la base de production** : `config/database.ts` n'a qu'une connexion, alimentée par `.env`, et il n'existe pas de `.env.test`. Plusieurs suites vident des tables (`Permission.query().delete()`) en comptant sur le rollback. Design : `2026-08-04-base-de-test-dediee-design.md` (T1–T3) |
 | R1 | 🔴 Critique | ✅ FAIT (chantier RBAC L1–L7) | Permissions du RBAC **team** créées en CRUD par l'admin au lieu d'être **déclarées en code** par chaque feature — faille de sécurité (contrôle d'accès orphelin / privilege escalation) |
 | R2 | 🟠 Majeur | ✅ FAIT (2026-07-11) | Notifications **push** scopées par app. Infra : `Notification.targetApp?` + `expo_push_channel.send` → `getTrustedDevices(recipientId, app)`. **Scopés `aiglesend`** : dépôt, transfert, w2w (transfert émis/reçu + payeur pay-merchant), KYC (soumis/traité). **Scopé `aiglebusiness`** : encaissement marchand (checkout + pay-merchant reçu). **Volontairement all-apps** (sécurité account-wide, le porteur doit être averti partout) : `user_state_changed` (blocage/activation compte), `wallet_status_changed` (gel wallet). `new_device` déjà scopé (via `getActiveUserDevices(userId, app)`) |
@@ -40,6 +41,23 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
 | R8 | 🟡 Mineur | décidé (direction) — à implémenter | **Pas de montant (`amount_step`) porté par la tarification du catalogue** (SPM), pas hardcodé côté mobile. Les opérateurs externes (mobile money) imposent des montants **multiples de 5** ; les mouvements internes aigle (wallet-to-wallet, marchand) **non**. À exposer dans `payment-options` comme `minAmount`/`fees`, le mobile valide via `provider.amountStep` |
 
 ---
+
+### R12 — L'empreinte d'appareil identifie un modèle, pas un appareil
+- **Niveau** : 🔴 Critique (éviction d'utilisateurs légitimes, faux signal de partage d'appareil)
+- **Date** : 2026-08-05
+- **Contexte** : relevé en câblant l'affichage des apps dans le back-office. `deviceInfoService.ts`,
+  identique dans les deux applications mobiles.
+- **Observation** : `Application.getAndroidId() || ''` et `getIosIdForVendorAsync() || ''` avalent en
+  silence un identifiant absent. Le hachage ne contient alors plus que marque, modèle, type,
+  fabricant, OS et bundle — identiques pour tous les exemplaires d'un modèle. Le commentaire du code
+  promet pourtant « identifies the physical device ».
+- **Impact constaté** : deux Galaxy S26 distincts sur la même ligne `devices`. Comme
+  `Device.updateOrCreate({ fingerprintHash }, payload)` cherche par la seule empreinte, le second
+  appareil écrase le `device_uid` du premier, qui est ensuite rejeté par `assertTrustedForApp`.
+- **Second effet, distinct** : `Application.applicationId` entre dans le hachage, donc un même
+  téléphone produit une ligne `devices` par app — la corrélation inter-app est impossible.
+- **Statut** : décidé (design `2026-08-05-identite-appareil-design.md`) — à implémenter, lots I1 à
+  I4. I1 (garde-fou serveur) ferme la collision sans livraison mobile.
 
 ### R11 — Les tests s'exécutent sur la base de production
 - **Niveau** : 🔴 Critique (perte de données possible sur une base de production)
