@@ -121,6 +121,37 @@ laquelle il part en premier lot.
 
 ---
 
+## ID-D6 — Le vendor iOS est le bundle privé de son dernier composant
+
+Établi expérimentalement le 2026-08-05, après deux hypothèses fausses — ni « les deux premiers
+composants du bundle », ni « le Team ID ». Sur un même iPhone, deux applications de la même équipe
+Apple `QTH3897N4K` :
+
+| bundle                     | vendor déduit         | IDFV      |
+| -------------------------- | --------------------- | --------- |
+| `com.aigle.aiglesend.dev`  | `com.aigle.aiglesend` | distinct  |
+| `com.aigle.aiglesend`      | `com.aigle`           | **commun** |
+| `com.aigle.aiglebusiness`  | `com.aigle`           | **commun** |
+
+Conséquence contre-intuitive : **un suffixe de variante casse la corrélation**. `com.aigle.aiglesend.dev`
+ajoute un quatrième composant et décale le calcul d'un cran, si bien que les builds de développement
+ne se corrélaient jamais — seule la production l'aurait fait, ce qu'aucun test local n'aurait montré.
+
+D'où la règle de nommage : **trois composants, sans variante**, pour toutes les apps et tous les
+environnements. Le vendor reste `com.aigle` quelle que soit la règle qu'Apple applique réellement —
+on cesse ainsi de dépendre d'un comportement non documenté.
+
+Ce que ça coûte, assumé : dev et production ne cohabitent plus sur un même appareil.
+
+Deux pièges rencontrés en le vérifiant, à retenir :
+
+- changer le `bundleIdentifier` **n'écrase pas** l'app installée — iOS la traite comme une autre
+  application, et les deux coexistent avec le même nom et la même icône en variante dev ;
+- l'IDFV d'un vendor **survit** tant qu'une de ses apps est installée. Tester sans avoir supprimé
+  l'ancienne mesure le vendor de l'ancienne.
+
+---
+
 ## ID-D5 — La correction de collision ne dépend pas de la corrélation
 
 Deux chantiers de nature différente vivent dans ce design, et ils ne doivent pas s'attendre :
@@ -132,6 +163,12 @@ Deux chantiers de nature différente vivent dans ce design, et ils ne doivent pa
   un moteur probabiliste — donc un prestataire.
 
 À vérifier avant d'engager la corrélation, pas avant l'anti-collision.
+
+**Vérifié le 2026-08-05** : même équipe Apple `QTH3897N4K` pour les deux apps, et corrélation iOS
+obtenue une fois le nommage aligné (ID-D6) — une seule `hardware_key` pour deux installations.
+Android reste ouvert : `ANDROID_ID` est cloisonné par clé de signature, et EAS en génère une par
+projet. Il faudra y trancher entre keystore partagé et App Set ID natif, `expo-application`
+n'exposant pas ce dernier.
 
 ---
 
