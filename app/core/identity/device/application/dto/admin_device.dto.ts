@@ -49,6 +49,8 @@ export class AdminDeviceAssociationDto {
   declare userStatus: string
   /** App dont relève la liaison : un même appareil en porte une par app. */
   declare app: string
+  /** Version de l'app pour cette liaison. `null` tant que la liaison n'a pas été revue. */
+  declare appVersion: string | null
   declare status: string
   declare isPrimary: boolean
   declare ipFirstSeen?: string
@@ -69,6 +71,7 @@ export class AdminDeviceAssociationDto {
     dto.fullname = user ? [user.firstname, user.lastname].filter(Boolean).join(' ').trim() : ''
     dto.userStatus = user?.status ?? ''
     dto.app = ud.app
+    dto.appVersion = ud.appVersion ?? null
     dto.status = ud.status
     dto.isPrimary = ud.isPrimary
     dto.ipFirstSeen = ud.ipFirstSeen

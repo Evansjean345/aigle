@@ -21,6 +21,10 @@ export default class UserDevice extends BaseModel {
   @column()
   declare app: string
 
+  /** Version de l'app pour cette liaison. Le matériel n'en garde qu'une, la dernière enregistrée. */
+  @column()
+  declare appVersion?: string | null
+
   @column()
   declare isPrimary: boolean
 

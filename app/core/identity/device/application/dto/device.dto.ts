@@ -75,8 +75,11 @@ export class DeviceResponseDTO {
     response.first_country_code = userDevice?.firstCountryCode
     response.last_country_code = userDevice?.lastCountryCode
 
+    // La liaison porte la version de SON app ; le matériel ne retient que la dernière enregistrée.
+    response.app_version = userDevice.appVersion ?? undefined
+
     if (userDevice.device) {
-      response.app_version = userDevice.device.appVersion
+      response.app_version = response.app_version ?? userDevice.device.appVersion
       response.model = userDevice.device.model
       response.platform = userDevice.device.platform
       response.device_uid = userDevice.device.deviceUid

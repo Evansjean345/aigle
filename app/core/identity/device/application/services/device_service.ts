@@ -68,7 +68,8 @@ export default class DeviceService {
         brand: userDevice.device?.brand ?? null,
         model: userDevice.device?.model ?? null,
         platform: userDevice.device?.platform ?? null,
-        appVersion: userDevice.device?.appVersion ?? null,
+        // Celle de cette liaison ; le matériel ne retient que la dernière app enregistrée.
+        appVersion: userDevice.appVersion ?? userDevice.device?.appVersion ?? null,
         status: userDevice.status,
         isPrimary: Boolean(userDevice.isPrimary),
         linkedAt: userDevice.linkedAt?.toISO() ?? null,
@@ -215,6 +216,7 @@ export default class DeviceService {
         existingUserDevice.ipLastSeen = payload.ipLastSeen
         existingUserDevice.lastCountryCode = payload.lastCountryCode
         existingUserDevice.isVpn = payload.isVpn || false
+        existingUserDevice.appVersion = payload.appVersion ?? existingUserDevice.appVersion
 
         return this.userDeviceRepository.save(existingUserDevice)
       }
@@ -231,6 +233,7 @@ export default class DeviceService {
       userDevice.userId = userId
       userDevice.deviceId = device.id
       userDevice.app = app
+      userDevice.appVersion = payload.appVersion ?? null
       userDevice.status = DeviceStatus.PENDING
       userDevice.isPrimary = shouldBePrimary
       userDevice.ipFirstSeen = payload.ipFirstSeen

@@ -267,7 +267,7 @@ export const toUserDetailsResult = (user: User): UserDetailsResult => ({
           brand: ud.device.brand,
           model: ud.device.model,
           osVersion: ud.device.osVersion,
-          appVersion: ud.device.appVersion,
+          appVersion: ud.appVersion ?? ud.device.appVersion,
           isEmulator: ud.device.isEmulator,
           isRooted: ud.device.isRooted,
         }
