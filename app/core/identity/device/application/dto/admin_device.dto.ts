@@ -15,6 +15,8 @@ export class AdminDeviceListItemDto {
   declare appVersion?: string
   declare isEmulator: boolean
   declare isRooted: boolean
+  /** Solidité de l'empreinte. `null` sur les installations antérieures à sa déclaration. */
+  declare identity: string | null
   declare createdAt: string
   declare accountCount: number
   declare lastActivity: string | null
@@ -31,6 +33,7 @@ export class AdminDeviceListItemDto {
     dto.appVersion = device.appVersion
     dto.isEmulator = device.isEmulator
     dto.isRooted = device.isRooted
+    dto.identity = device.identity ?? null
     dto.createdAt = device.createdAt.toISO()!
     dto.accountCount = Number(device.$extras.account_count ?? 0)
     dto.lastActivity = device.$extras.last_activity ?? null
@@ -87,6 +90,39 @@ export class AdminDeviceAssociationDto {
 }
 
 /**
+ * Autre installation du même téléphone.
+ *
+ * Une ligne `devices` est une installation, pas un appareil : l'empreinte intègre l'application,
+ * si bien qu'un même téléphone en produit une par app. La clé matérielle les rapproche.
+ */
+export class AdminDeviceSiblingDto {
+  declare id: string
+  /** Apps portées par cette installation, d'après ses liaisons actives. */
+  declare apps: string[]
+  declare appVersion?: string
+  declare identity: string | null
+  declare createdAt: string
+
+  /**
+   * Construit la vue depuis l'installation et ses liaisons actives.
+   *
+   * @param {Device} device - Installation jumelle.
+   * @param {UserDevice[]} links - Ses liaisons actives.
+   * @returns {AdminDeviceSiblingDto} La vue destinée au back-office.
+   */
+  static from(device: Device, links: UserDevice[]): AdminDeviceSiblingDto {
+    const dto = new AdminDeviceSiblingDto()
+    dto.id = device.id
+    dto.apps = [...new Set(links.map((link) => link.app))]
+    dto.appVersion = device.appVersion
+    dto.identity = device.identity ?? null
+    dto.createdAt = device.createdAt.toISO()!
+
+    return dto
+  }
+}
+
+/**
  * DTO pour le detail complet d'un device.
  */
 export class AdminDeviceDetailDto {
@@ -100,7 +136,14 @@ export class AdminDeviceDetailDto {
   declare appVersion?: string
   declare isEmulator: boolean
   declare isRooted: boolean
+  /**
+   * Solidité de l'empreinte. `null` sur les installations antérieures à sa déclaration : leur
+   * formule pouvait retomber sur les attributs de modèle sans qu'on puisse le savoir après coup.
+   */
+  declare identity: string | null
   declare createdAt: string
+  /** Autres installations du même téléphone. Vide si aucune clé matérielle ne les rapproche. */
+  declare siblings: AdminDeviceSiblingDto[]
   declare counters: {
     activeAccounts: number
     historicalAccounts: number
@@ -112,7 +155,11 @@ export class AdminDeviceDetailDto {
   }
   declare associations: AdminDeviceAssociationDto[]
 
-  static fromDevice(device: Device, associations: UserDevice[]): AdminDeviceDetailDto {
+  static fromDevice(
+    device: Device,
+    associations: UserDevice[],
+    siblings: AdminDeviceSiblingDto[] = []
+  ): AdminDeviceDetailDto {
     const activeAssociations = associations.filter((a) => !a.unlinkedAt)
     const historicalAssociations = associations.filter((a) => a.unlinkedAt)
 
@@ -137,7 +184,9 @@ export class AdminDeviceDetailDto {
     dto.appVersion = device.appVersion
     dto.isEmulator = device.isEmulator
     dto.isRooted = device.isRooted
+    dto.identity = device.identity ?? null
     dto.createdAt = device.createdAt.toISO()!
+    dto.siblings = siblings
     dto.counters = {
       activeAccounts: activeAssociations.length,
       historicalAccounts: historicalAssociations.length,

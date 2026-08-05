@@ -1,7 +1,7 @@
 # Identité d'appareil — cesser de confondre un modèle avec un appareil
 
 **Date** : 2026-08-05
-**Statut** : approuvé — I1, I2 et I3 livrés
+**Statut** : livré — I1 à I4
 **Portée** : `core/identity/device`, `mobile/aiglesend`, `mobile/aiglebusiness`
 
 ---

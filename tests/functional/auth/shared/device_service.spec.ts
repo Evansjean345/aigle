@@ -15,6 +15,7 @@ import Device from '#core/identity/device/domain/models/device'
 import { DeviceIdentity } from '#core/identity/device/domain/enums/device_identity'
 import User from '#core/identity/user/domain/models/user'
 import RevokeUserDeviceUseCase from '#core/identity/device/application/use_cases/admin/revoke_user_device_use_case'
+import GetDeviceDetailsUseCase from '#core/identity/device/application/use_cases/admin/get_device_details_use_case'
 import { makeUser, authTestSetup } from '#tests/helpers/auth_test_helpers'
 
 /**
@@ -611,5 +612,50 @@ test.group('DeviceService | installations d’un même téléphone', (group) => 
     const service = await app.container.make(DeviceService)
 
     assert.isEmpty(await service.findSiblingInstallations(randomUUID()))
+  })
+})
+
+test.group('Back-office | fiche d’une installation', (group) => {
+  group.each.setup(authTestSetup())
+
+  test('la fiche porte les installations jumelles et leurs apps', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const useCase = await app.container.make(GetDeviceDetailsUseCase)
+    const user = await makeUser()
+    const hardwareKey = randomUUID()
+
+    const send = deviceCommand(randomUUID(), randomUUID())
+    send.hardwareKey = hardwareKey
+    send.identity = DeviceIdentity.STRONG
+    const sendLink = await service.saveDevice(send, user.usersUid, AppName.AIGLESEND)
+
+    const business = deviceCommand(randomUUID(), randomUUID())
+    business.hardwareKey = hardwareKey
+    business.identity = DeviceIdentity.STRONG
+    const businessLink = await service.saveDevice(business, user.usersUid, AppName.AIGLEBUSINESS)
+
+    const detail = await useCase.execute(sendLink.deviceId)
+
+    assert.equal(detail.identity, DeviceIdentity.STRONG)
+    assert.lengthOf(detail.siblings, 1)
+    assert.equal(detail.siblings[0].id, businessLink.deviceId)
+    assert.deepEqual(detail.siblings[0].apps, [AppName.AIGLEBUSINESS])
+  })
+
+  test('une installation sans jumelle porte une liste vide', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const useCase = await app.container.make(GetDeviceDetailsUseCase)
+    const user = await makeUser()
+
+    const link = await service.saveDevice(
+      deviceCommand(randomUUID(), randomUUID()),
+      user.usersUid,
+      AppName.AIGLESEND
+    )
+
+    const detail = await useCase.execute(link.deviceId)
+
+    assert.isEmpty(detail.siblings)
+    assert.isNull(detail.identity, "l'origine non déclarée reste inconnue")
   })
 })
