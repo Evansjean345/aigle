@@ -91,6 +91,8 @@ export interface UserSearchResult {
 export interface UserDeviceResult {
   id: string
   deviceId: string
+  /** App dont relève la liaison : un même appareil en porte une par app. */
+  app: string
   status: string
   isPrimary: boolean
   ipFirstSeen?: string
@@ -247,6 +249,7 @@ export const toUserDetailsResult = (user: User): UserDetailsResult => ({
   devices: user.userDevices.map((ud) => ({
     id: ud.id,
     deviceId: ud.deviceId,
+    app: ud.app,
     status: ud.status,
     isPrimary: ud.isPrimary,
     ipFirstSeen: ud.ipFirstSeen,

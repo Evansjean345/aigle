@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import app from '@adonisjs/core/services/app'
 import DeviceService from '#core/identity/device/application/services/device_service'
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
-import { DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
+import { DeviceRequestDTO, DeviceResponseDTO } from '#core/identity/device/application/dto/device.dto'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
 import { AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
 import UserDevice from '#core/identity/device/domain/models/user_device'
@@ -288,5 +288,30 @@ test.group('DeviceService | révocation back-office', (group) => {
     const user = await makeUser()
 
     await assert.rejects(() => useCase.execute(user.usersUid, randomUUID()), /trouv/i)
+  })
+})
+
+test.group('DeviceService | distinction des apps', (group) => {
+  group.each.setup(authTestSetup())
+
+  test('les liaisons d’un même appareil portent leur app', async ({ assert }) => {
+    const service = await app.container.make(DeviceService)
+    const user = await makeUser()
+    const fp = randomUUID()
+    const uid = randomUUID()
+
+    await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLESEND)
+    await service.saveDevice(deviceCommand(fp, uid), user.usersUid, AppName.AIGLEBUSINESS)
+
+    const links = await service.getActiveUserDevices(user.usersUid)
+    const projected = links.map((link) => DeviceResponseDTO.fromUserDevice(link))
+
+    // Même marque, même modèle : sans `app`, les deux lignes sont indiscernables.
+    assert.lengthOf(projected, 2)
+    assert.sameMembers(
+      projected.map((device) => device.app),
+      [AppName.AIGLESEND, AppName.AIGLEBUSINESS]
+    )
+    assert.equal(projected[0].model, projected[1].model)
   })
 })
