@@ -62,9 +62,6 @@ export default class BusinessLoginUseCase {
       throw error
     }
 
-    // Règle device selon le canal : mobile → appareil requis (enregistré en PENDING,
-    // déclenche l'alerte « nouvel appareil ») ; web → appareil ignoré (sessions gérées
-    // par les tokens).
     if (context.channel === ClientChannel.MOBILE) {
       if (!request.deviceInfo) {
         throw new BusinessDeviceRequiredException()

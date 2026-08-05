@@ -7,6 +7,7 @@ import UserDevice from '#core/identity/device/domain/models/user_device'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
 import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
 import { type DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
+import { type UserDeviceResult } from '#core/identity/device/application/dto/user_device_result'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import NewDeviceDetected from '#core/identity/device/application/events/new_device_detected'
 import { maxDeviceConnectionAllowed } from '#config/app'
@@ -37,6 +38,45 @@ export default class DeviceService {
    */
   async getActiveUserDevices(userId: string, app?: string): Promise<UserDevice[]> {
     return this.userDeviceRepository.findActiveByUserId(userId, app)
+  }
+
+  /**
+   * Liste les appareils liés à un utilisateur pour une app. API PRODUIT : ne renvoie pas le
+   * modèle `UserDevice` (invariant produit→core).
+   *
+   * Les plus récemment vus d'abord — l'appareil qu'on cherche à retirer est rarement celui
+   * qu'on utilise.
+   *
+   * @param {string} userId - Identifiant public de l'utilisateur.
+   * @param {string} app - App dont on liste les appareils.
+   * @param {string} [currentFingerprintHash] - Empreinte de l'appareil appelant, marqué `current`.
+   * @returns {Promise<UserDeviceResult[]>} Les appareils liés, du plus récemment vu au plus ancien.
+   */
+  async listForApp(
+    userId: string,
+    app: string,
+    currentFingerprintHash?: string
+  ): Promise<UserDeviceResult[]> {
+    const userDevices = await this.userDeviceRepository.findActiveByUserId(userId, app)
+
+    return userDevices
+      .sort((a, b) => (b.lastSeenAt?.toMillis() ?? 0) - (a.lastSeenAt?.toMillis() ?? 0))
+      .map((userDevice) => ({
+        id: userDevice.id,
+        brand: userDevice.device?.brand ?? null,
+        model: userDevice.device?.model ?? null,
+        platform: userDevice.device?.platform ?? null,
+        appVersion: userDevice.device?.appVersion ?? null,
+        status: userDevice.status,
+        // `tinyint` rendu en 0/1 par le driver, que le modèle déclare pourtant booléen.
+        isPrimary: Boolean(userDevice.isPrimary),
+        linkedAt: userDevice.linkedAt?.toISO() ?? null,
+        lastSeenAt: userDevice.lastSeenAt?.toISO() ?? null,
+        lastCountryCode: userDevice.lastCountryCode ?? null,
+        current:
+          currentFingerprintHash !== undefined &&
+          userDevice.device?.fingerprintHash === currentFingerprintHash,
+      }))
   }
 
   /**

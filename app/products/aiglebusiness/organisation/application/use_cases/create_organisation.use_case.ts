@@ -60,7 +60,6 @@ export default class CreateOrganisationUseCase {
 
     const organisationId = randomUUID()
 
-    // L'organisation existe, sans compte ni alias : les routes scopées la refusent d'ici là.
     const created = await this.organisationRepository.create({
       organisationId,
       ownerUserId: request.ownerUserId,

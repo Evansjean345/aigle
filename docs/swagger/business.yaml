@@ -1630,6 +1630,43 @@ paths:
                 code: FROM_PROVIDER_REQUIRED
                 message: fromProviderCode is required
 
+  /api/business/devices:
+    get:
+      operationId: listBusinessDevices
+      summary: Appareils liés au compte business
+      description: |
+        Les appareils mobiles liés au compte pour l'app `aiglebusiness`. **Ce sont eux qui
+        occupent le quota** (`MAX_DEVICE_CONNECTIONS`, compté par app) : atteindre la limite
+        refuse la connexion depuis un nouvel appareil avec 429 `MAX_DEVICES_CONNECTION_REACHED`.
+
+        Une **session web n'a pas d'appareil** et ne figure donc pas ici — elle relève de
+        `GET /api/business/auth/sessions`. Un appareil peut à l'inverse subsister **sans session
+        ouverte** : se déconnecter ne délie pas l'appareil.
+
+        Consultable **depuis le web**, sans en-têtes d'appareil : retirer un téléphone perdu ne se
+        fait pas depuis ce téléphone. `current` vaut alors `false` partout.
+
+        Les plus récemment vus d'abord.
+      tags:
+        - Business - Appareils
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ClientChannelHeader'
+      responses:
+        '200':
+          description: Les appareils liés.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BusinessDeviceResponse'
+        '401':
+          description: Non authentifié.
+        '403':
+          description: Jeton d'une autre app.
+
   /api/business/devices/push-token:
     put:
       operationId: updateBusinessDevicePushToken
@@ -2364,6 +2401,36 @@ components:
             message: Ce token n'est pas autorisé pour cette application
 
   schemas:
+    BusinessDeviceResponse:
+      type: object
+      description: |
+        Appareil lié au compte business. Ne porte ni l'empreinte ni l'uid de l'appareil : ces
+        valeurs servent à s'authentifier par en-têtes. `id` suffit à le désigner.
+      required: [id, status, isPrimary, current]
+      properties:
+        id:
+          type: string
+          description: Identifiant de la liaison, à passer au retrait.
+        brand: { type: string, nullable: true }
+        model: { type: string, nullable: true }
+        platform: { type: string, nullable: true }
+        appVersion: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [pending, trusted, blocked, revoked]
+        isPrimary:
+          type: boolean
+          description: Un appareil principal ne peut pas être retiré.
+        linkedAt: { type: string, format: date-time, nullable: true }
+        lastSeenAt: { type: string, format: date-time, nullable: true }
+        lastCountryCode:
+          type: string
+          nullable: true
+          description: Dernier pays d'où l'appareil s'est manifesté.
+        current:
+          type: boolean
+          description: L'appareil d'où vient la requête. Toujours `false` hors canal mobile.
+
     CollectionAccountView:
       type: object
       description: |

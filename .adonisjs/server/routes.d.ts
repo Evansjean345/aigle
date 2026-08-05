@@ -201,6 +201,7 @@ export type ScannedRoutes = {
     'funding_requests.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'funding_requests.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'funding_requests.cancel': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'business_device.index': { paramsTuple?: []; params?: {} }
     'business_device.update_push_token': { paramsTuple?: []; params?: {} }
     'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
@@ -302,6 +303,7 @@ export type ScannedRoutes = {
     'client_collection_accounts.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'funding_requests.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'funding_requests.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'business_device.index': { paramsTuple?: []; params?: {} }
     'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }
@@ -401,6 +403,7 @@ export type ScannedRoutes = {
     'client_collection_accounts.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'funding_requests.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'funding_requests.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
+    'business_device.index': { paramsTuple?: []; params?: {} }
     'business_catalog.payment_options_by_service_type': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'business_catalog.payment_options_by_service_type_to': { paramsTuple: [ParamValue]; params: {'serviceType': ParamValue} }
     'payable_alias.resolve': { paramsTuple: [ParamValue]; params: {'code': ParamValue} }

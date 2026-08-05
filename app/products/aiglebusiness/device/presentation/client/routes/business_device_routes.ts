@@ -6,14 +6,16 @@ const BusinessDeviceController = () =>
   import('#aiglebusiness/device/presentation/client/controllers/business_device_controller')
 
 /**
- * Appareil (canal client business). Même chaîne de middleware que les autres routes
+ * Appareils (canal client business). Même chaîne de middleware que les autres routes
  * business authentifiées : canal + auth + app `aiglebusiness` + appareil de confiance.
- * Le token push est ainsi enregistré pour l'appareil de l'app business (miroir du flux
- * aiglesend `PUT /mobile/devices/push-token`).
+ *
+ * `businessDevice` n'exige les en-têtes d'appareil qu'en canal mobile : la liste reste donc
+ * consultable depuis le web, ce qui est le cas d'usage quand l'appareil à retirer est perdu.
  */
 export default function businessDeviceRoutes() {
   router
     .group(() => {
+      router.get('devices', [BusinessDeviceController, 'index'])
       router.put('devices/push-token', [BusinessDeviceController, 'updatePushToken'])
     })
     .prefix('business')
