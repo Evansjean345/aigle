@@ -74,6 +74,8 @@ Relevé du code au 2026-08-10 (les points marqués ✏️ corrigent ou précisen
 | D0  | Le KYB vit dans le core (`core/identity/kyc` devient « vérification de compte »), documents ancrés `account_id` | KYB dans `products/aiglebusiness` | Acté avec l'utilisateur avant ce design (R5) : le palier du compte dérive de la vérification, un KYB produit créerait `core → produit` | 2026-07-10 |
 | D1  | **Seule l'entreprise passe un KYB**, de son niveau 0 (bloqué) au niveau 2 (illimité). Le marchand n'en a pas | Marchand 1 → 2 ; marchand 0 → 1 | Le marchand encaisse dès sa création et le restera ; ajouter une revue bloquante ou un palier marchand supplémentaire n'apporte rien au produit | 2026-08-10 |
 | D2  | Le dossier porte des **pièces typées en liste**, seuls RCCM et DFE au départ | Colonnes fixes recto/verso/selfie comme le KYC identité | D'autres pièces sont attendues plus tard ; des colonnes fixes imposeraient une migration à chaque ajout | 2026-08-10 |
+| D3  | **Le moteur de revue reste dans le core** et apprend `ownerType` ; les produits n'exposent que des présentations | Remonter les routes admin au core ; dupliquer la revue pour le KYB | C'est déjà la structure : le lot S2 n'a descendu dans le produit que la présentation, `KycDocumentAdminService` est core. Ni S2 ni R5 n'est contredit | 2026-08-10 |
+| D4  | **Un dossier de vérification commun** (`kyc_documents` ancré `account_id` + `owner_type`) et **une table de pièces typées** ; les recto/verso/selfie du KYC identité migrent en pièces | Table KYB séparée ; réemploi des colonnes existantes (recto = RCCM) | La prémisse du chantier est que `kyc` *devient* la vérification de compte : une table séparée ferait coexister deux formes de dossier, et le réemploi de colonnes fermerait D2 dès la troisième pièce | 2026-08-10 |
 
 ### Conséquences de D1
 
@@ -103,8 +105,8 @@ Validé le 2026-08-10.
 
 | Lot | Contenu | Dépend de | Statut |
 | --- | ------- | --------- | ------ |
-| K1  | **Socle account-anchored** — `kyc_documents` bascule sur `account_id` (colonne déjà présente et backfillée), le port et les services parlent `accountId` + `ownerType`. Zéro changement fonctionnel visible | — | design en cours |
-| K2  | **Le dossier KYB dans le core** — pièces typées, soumission par compte org, service de vérification, event | K1 | à faire |
+| K1  | **Socle « vérification de compte »** — `kyc_documents` devient le dossier ancré `account_id` + `owner_type` ; les pièces passent en table fille typée ; les recto/verso/selfie existants y sont migrés. Le KYC identité fonctionne à l'identique de bout en bout | — | design en cours |
+| K2  | **Le dossier KYB dans le core** — types de pièces RCCM/DFE, règle de complétude par segment, soumission par compte org, service de vérification, events | K1 | à faire |
 | K3  | **Revue et palier** — la revue admin couvre les dossiers org ; l'approbation pousse le niveau 0 → 2 (`AccountService.setLevel`) et miroite `organisation.level` | K2 | à faire |
 | K4  | **Présentations** — soumission owner côté `aiglebusiness` (`kyb:submit` / `kyb:view`), onglet KYB du back-office `aiglesend` | K3 | à faire |
 
@@ -113,7 +115,16 @@ une régression KYC serait dure à isoler ; 5 lots avec K3 scindé en revue puis
 
 ---
 
+## Inconnues
+
+| # | Inconnue | Résolution |
+| --- | --- | --- |
+| U1 | **Volume de `kyc_documents` en production** — la migration D4 (recto/verso/selfie → pièces) parcourt toute la table. Inconnu à ce jour | À mesurer avant d'écrire la migration K1 (`SELECT COUNT(*)`), par l'utilisateur |
+| U2 | **`kyc_attemps` n'a pas de `account_id`** — seule `kyc_documents` a reçu la colonne. L'historique des tentatives d'un dossier d'organisation n'a pas de porteur | À trancher dans la section « Architecture » de K1 |
+| U3 | **Le back-office lit `user` dans le dossier** (`KycDocumentResult.user`, recherche `whereHas('user')`, stats par CNI/PASSPORT/PERMIS). Pour un dossier d'organisation ces champs sont vides | À trancher dans la section « Impact sur l'existant » de K1 |
+
+---
+
 ## Prochaine session
 
-Étape 3 (approches) sur le lot K1 — la question ouverte est l'arbitrage « où vit la revue ? » posé
-par le prompt de reprise.
+Étape 4 (design) sur le lot K1, section « Architecture ».
