@@ -1,7 +1,7 @@
 ---
 status: draft
 etape: 4
-lot: K2
+lot: K3
 derniere_maj: 2026-08-10
 ---
 
@@ -75,15 +75,17 @@ Relevé du code au 2026-08-10 (les points marqués ✏️ corrigent ou précisen
 | D1  | **Seule l'entreprise passe un KYB**, de son niveau 0 (bloqué) au niveau 2 (illimité). Le marchand n'en a pas | Marchand 1 → 2 ; marchand 0 → 1 | Le marchand encaisse dès sa création et le restera ; ajouter une revue bloquante ou un palier marchand supplémentaire n'apporte rien au produit | 2026-08-10 |
 | D2  | Le dossier porte des **pièces typées en liste**, seuls RCCM et DFE au départ | Colonnes fixes recto/verso/selfie comme le KYC identité | D'autres pièces sont attendues plus tard ; des colonnes fixes imposeraient une migration à chaque ajout | 2026-08-10 |
 | D3  | **Le moteur de revue reste dans le core** et apprend `ownerType` ; les produits n'exposent que des présentations | Remonter les routes admin au core ; dupliquer la revue pour le KYB | C'est déjà la structure : le lot S2 n'a descendu dans le produit que la présentation, `KycDocumentAdminService` est core. Ni S2 ni R5 n'est contredit | 2026-08-10 |
-| D5  | Les colonnes `document_recto_url` / `document_verso_url` / `selfie_url` sont **conservées et cessent d'être écrites** | Drop dans K1 ; double écriture pendant K1 | Convention déjà suivie par le dépôt (`add_account_id_to_kyc_documents`, R4/`users_uid`) : un backfill incomplet sur des documents KYC réels reste rattrapable, sans le coût d'une double représentation | 2026-08-10 |
-| D5  | Les colonnes `document_recto_url` / `document_verso_url` / `selfie_url` sont **conservées et cessent d'être écrites** | Drop dans K1 ; double écriture pendant K1 | Convention déjà suivie par le dépôt (`add_account_id_to_kyc_documents`, R4/`users_uid`) : un backfill incomplet sur des documents KYC réels reste rattrapable, sans le coût d'une double représentation | 2026-08-10 |
+| D4  | **Un dossier de vérification commun** (`kyc_documents` ancré `account_id` + `owner_type`) et **une table de pièces typées**. **L'historique KYC n'est pas migré** : les dossiers antérieurs gardent leurs trois colonnes, lues en repli | Table KYB dédiée ; réemploi des colonnes existantes (recto = RCCM) ; dossier commun **avec** migration de l'historique | Réexaminée le 2026-08-10 à la demande de l'utilisateur. Une table dédiée dupliquerait `status` / `comment` / `agent_id` / `valid_until` **et** la table des tentatives, et priverait le back-office d'une file d'attente unique. Ne pas migrer l'historique supprime le risque numéro un du chantier (réécrire des dossiers KYC de production) pour le prix d'un repli de lecture, qui meurt de lui-même à mesure que les vieux dossiers sont resoumis | 2026-08-10 |
+| D5  | Les colonnes `document_recto_url` / `document_verso_url` / `selfie_url` sont **conservées et lues en repli** quand le dossier n'a pas de pièces ; elles cessent d'être écrites | Drop dans K1 ; double écriture pendant K1 | Corollaire de D4 : elles restent la source de vérité des dossiers antérieurs à K1. Convention déjà suivie par le dépôt (`add_account_id_to_kyc_documents`, R4/`users_uid`) | 2026-08-10 |
 | D6  | La table des pièces s'appelle **`document_pieces`**, le modèle `DocumentPiece`, l'enum `DocumentPieceType` | `kyc_document_pieces` | Le KYC est **un cas** de la vérification de compte, pas son préfixe : préfixer les pièces par `kyc` graverait dans le schéma la lecture que ce chantier abandonne | 2026-08-10 |
 | D7  | **L'onglet KYB du back-office vit dans `products/aiglebusiness`**, pas dans `aiglesend` | Onglet KYB dans le back-office `aiglesend/kyc` | Le back-office des organisations est déjà dans `aiglebusiness/organisation/presentation/admin/`. Chaque produit joint le libellé de son propre propriétaire ; le core n'en résout aucun (résout **U3**) | 2026-08-10 |
 | D8  | `KycDocumentAdminService` garde un **shim `findByUser(userId)`** qui délègue à `findByAccountId`, retiré en K3 | Migrer le produit dès K1 ; garder les deux entrées durablement | K1 doit rester invisible : migrer le produit changerait le contrat HTTP du back-office dans le lot censé ne rien changer. L'invariant β (`account_id == usersUid`) rend le shim exact, pas approximatif | 2026-08-10 |
 | D9  | La règle de complétude d'un dossier vit dans un **catalogue en code**, dans `core/identity/kyc/domain` | Table de configuration en base ; règle portée par le validator HTTP de chaque produit | Deux entrées aujourd'hui : une table coûterait repository, cache et écran d'administration pour rien. La porter côté produit sortirait du core une règle qui détermine une montée de palier | 2026-08-10 |
 | D10 | `SubmitKycDocumentUsecase` **délègue** à `AccountVerificationService` — un seul moteur de soumission pour KYC et KYB | Deux chemins distincts ; unification différée à un lot dédié | C'est le patron déjà en place côté revue (`ProcessKycDocumentUseCase` → `KycDocumentAdminService`). Deux orchestrations sur le même stockage laisseraient la règle de complétude diverger | 2026-08-10 |
 | D11 | `valid_until` reste **porté par le dossier**, pas par la pièce | Validité par pièce | Le renouvellement d'un RCCM ou d'un DFE entraîne une resoumission du dossier entier ; une validité par pièce n'aurait pas de consommateur | 2026-08-10 |
-| D4  | **Un dossier de vérification commun** (`kyc_documents` ancré `account_id` + `owner_type`) et **une table de pièces typées** ; les recto/verso/selfie du KYC identité migrent en pièces | Table KYB séparée ; réemploi des colonnes existantes (recto = RCCM) | La prémisse du chantier est que `kyc` *devient* la vérification de compte : une table séparée ferait coexister deux formes de dossier, et le réemploi de colonnes fermerait D2 dès la troisième pièce | 2026-08-10 |
+| D12 | La **référence** (numéro RCCM / DFE) est **obligatoire à la soumission**, non vide, **sans contrainte de format** | Fichier seul ; saisie par le gestionnaire à la revue ; validation par regex du format OHADA | Le numéro est la clé de requête vers un registre officiel : sans champ structuré, aucune vérification automatique n'est possible plus tard. Le déclarer à la soumission préserve l'écart déclaré/lu comme signal de fraude, que la saisie par le gestionnaire supprimerait. Pas de regex : un format OHADA mal deviné rejetterait des entreprises légitimes sans recours | 2026-08-10 |
+| D13 | **Soumission progressive pour l'entreprise.** Le dossier est une machine à états portée par `kyc_documents.status` : `in_submission` tant qu'une pièce requise manque, `pending` dès que la dernière arrive. `next_action` nomme la pièce attendue. Le catalogue (D9) porte, par segment, les pièces requises **et le mode** — `particulier` atomique, `enterprise` progressif | Refuser toute soumission incomplète ; envoi explicite en revue par le propriétaire ; fenêtre de correction après complétude | Une entreprise n'a pas toujours son DFE le jour où elle a son RCCM. `IN_SUBMISSION` et `KycDocumentNextAction` sont **déjà déclarés et inutilisés** dans `kyc_enum.ts` — l'échafaudage attendait ce cas. Le passage automatique évite qu'un dossier complet dorme parce que personne n'a cliqué. Le mode atomique préserve à l'identique le chemin KYC identité | 2026-08-10 |
+| D14 | **Le refus porte sur le dossier**, pas sur la pièce ; le motif nomme la pièce en cause | Statut par pièce ; refus global avec liste de pièces à reprendre | La soumission progressive (D13) donne déjà le résultat pratique : l'entreprise redépose le seul DFE, le RCCM en place ne bouge pas. Un statut par pièce obligerait l'historique des tentatives à suivre le grain de la pièce | 2026-08-10 |
 
 ### Conséquences de D1
 
@@ -114,7 +116,7 @@ Validé le 2026-08-10.
 | Lot | Contenu | Dépend de | Statut |
 | --- | ------- | --------- | ------ |
 | K1  | **Socle « vérification de compte »** — `kyc_documents` devient le dossier ancré `account_id` + `owner_type` ; les pièces passent en table fille typée ; les recto/verso/selfie existants y sont migrés. Le KYC identité fonctionne à l'identique de bout en bout | — | **design terminé** |
-| K2  | **Le dossier KYB dans le core** — types de pièces RCCM/DFE, règle de complétude par segment, soumission par compte org, service de vérification, events | K1 | à faire |
+| K2  | **Le dossier KYB dans le core** — types de pièces RCCM/DFE, règle de complétude par segment, soumission par compte org, service de vérification, events | K1 | **design terminé** |
 | K3  | **Revue et palier** — la revue admin couvre les dossiers org ; l'approbation pousse le niveau 0 → 2 (`AccountService.setLevel`) et miroite `organisation.level` | K2 | à faire |
 | K4  | **Présentations** — soumission owner côté `aiglebusiness` (`kyb:submit` / `kyb:view`), onglet KYB du back-office `aiglesend` | K3 | à faire |
 
@@ -127,7 +129,7 @@ une régression KYC serait dure à isoler ; 5 lots avec K3 scindé en revue puis
 
 | # | Inconnue | Résolution |
 | --- | --- | --- |
-| U1 | **Volume de `kyc_documents` en production** — la migration D4 (recto/verso/selfie → pièces) parcourt toute la table. Inconnu à ce jour | À mesurer avant d'écrire la migration K1 (`SELECT COUNT(*)`), par l'utilisateur |
+| ~~U1~~ | ~~Volume de `kyc_documents` en production~~ | **Close le 2026-08-10** — D4 renonce au backfill, le volume n'a plus d'effet |
 | U2 | **`kyc_attemps` n'a pas de `account_id`** — seule `kyc_documents` a reçu la colonne. L'historique des tentatives d'un dossier d'organisation n'a pas de porteur | À trancher dans la section « Architecture » de K1 |
 | U3 | **Le back-office lit `user` dans le dossier** (`KycDocumentResult.user`, recherche `whereHas('user')`, stats par CNI/PASSPORT/PERMIS). Pour un dossier d'organisation ces champs sont vides | À trancher dans la section « Impact sur l'existant » de K1 |
 | U4 | **La table du dossier s'appelle encore `kyc_documents`** alors que D6 retire `kyc` du vocabulaire des pièces. La renommer touche tous les lots ; ne pas la renommer laisse une incohérence de nommage | À trancher en fin de K1, une fois le rayon d'impact réel connu — hors chemin critique |
@@ -151,8 +153,10 @@ Les migrations sont lancées par l'utilisateur.
 | `kyc_attemps` | `account_id` ajouté, backfill `= user_id`. La numérotation des tentatives passe **par dossier**, au lieu du couple `(user_id, document_type)` |
 | `document_pieces` *(nouvelle)* | `id`, `kyc_document_id` (FK), `piece_type`, `file_url`, `reference` nullable, timestamps. Unique `(kyc_document_id, piece_type)` |
 
-Backfill des pièces : pour chaque dossier existant, une ligne `RECTO`, `VERSO` et `SELFIE` par URL
-non vide.
+**Aucun backfill de pièces** (D4) : les dossiers antérieurs à K1 restent tels quels et sont lus sur
+leurs trois colonnes. Seules les soumissions postérieures écrivent des pièces. La lecture applique
+donc un repli — un dossier sans pièce projette ses colonnes en pièces à la volée — et ce repli
+disparaît de lui-même à mesure que les vieux dossiers sont resoumis.
 
 `document_type` **reste sur le dossier** : c'est ce qui rend K1 non-cassant, les stats
 `byDocumentType` et les filtres du back-office continuant de lire la même colonne. Il ne vaut que
@@ -199,9 +203,9 @@ gagnent des champs sans en perdre. `ownerType` réutilise l'enum `AccountOwnerTy
 
 **Risques de régression.**
 
-1. *Backfill de pièces incomplet* — les images deviendraient invisibles au back-office alors que
-   D5 conserve la donnée en colonne. Garde-fou : la migration compare le nombre de pièces créées au
-   nombre d'URL non vides et échoue si l'écart n'est pas nul.
+1. *Repli de lecture oublié* — un chemin de lecture qui n'applique pas le repli D4 afficherait un
+   dossier antérieur à K1 sans aucune image. Garde-fou : le repli vit dans la projection
+   `toKycDocumentResult`, en un seul endroit, et non chez chaque appelant.
 2. *Renumérotation des tentatives* — la numérotation passe de `(user_id, document_type)` au dossier.
    Un utilisateur ayant soumis deux types de pièce pourrait produire un `attempt_number` en doublon
    dans l'historique. Sans effet fonctionnel, à constater plutôt qu'à corriger.
@@ -251,15 +255,18 @@ ne l'aggrave pas et ne le traite pas.
 - un passeport produit `RECTO` + `SELFIE`, sans `VERSO` ;
 - `findByAccountId` retrouve le dossier d'un compte utilisateur par l'invariant β ;
 - le `Result` expose `pieces[]`, `accountId` et `ownerType` tout en gardant `user` ;
+- **un dossier antérieur à K1, sans aucune pièce, projette bien ses trois colonnes** (repli D4) ;
 - un échec d'écriture de pièce ne laisse aucun dossier orphelin.
 
 Les 2 échecs KYC préexistants sont **hors périmètre** : K1 ne prétend pas les corriger.
 
 ### Risques & repli — validés le 2026-08-10
 
-- **U1** (volume de `kyc_documents`) reste ouverte et se mesure avant d'écrire la migration.
+- **U1 est close** : D4 ayant renoncé au backfill, le volume de `kyc_documents` n'a plus d'effet sur
+  le chantier.
 - **U4** (nom de la table `kyc_documents`) se tranche en fin de K1.
-- **Repli** : D5 conserve les trois colonnes, donc le backfill des pièces est rejouable sans perte.
+- **Repli** : aucune donnée existante n'est réécrite. Un retour arrière sur K1 se limite à cesser
+  d'écrire des pièces — les dossiers antérieurs n'ont jamais bougé.
 
 **Design de K1 complet.**
 
@@ -277,19 +284,42 @@ Le dossier KYB ne crée aucune structure : c'est un dossier du socle K1 avec
 
 - `DocumentPieceType` gagne `RCCM` et `DFE`.
 - Un **catalogue de complétude** `requiredPieces(segment, documentType?)` : `enterprise` exige
-  `RCCM` + `DFE` ; `particulier` exige `RECTO` + `SELFIE`, plus `VERSO` hors passeport.
-- Exception `IncompleteVerificationFileException`.
+  `RCCM` + `DFE` ; `particulier` exige `RECTO` + `SELFIE`, plus `VERSO` hors passeport. Le catalogue
+  porte aussi le **mode** de soumission : `particulier` atomique, `enterprise` progressif (D13).
+- Exception `IncompleteVerificationFileException` — levée en mode **atomique** seulement.
+
+#### La machine à états du dossier (D13)
+
+```
+                pièce reçue, il en manque             dernière pièce reçue
+   (aucun)  ────────────────────────────►  in_submission  ──────────────►  pending
+                                            next_action =                  next_action =
+                                            pièce attendue                 IN_REVIEW
+```
+
+Un dossier `in_submission` **n'atteint jamais un gestionnaire** : la file de revue ne lit que
+`pending`. Le statut vit sur le dossier ; une pièce n'a pas d'état propre, elle est présente ou
+absente.
+
+En mode atomique (`particulier`), les pièces arrivent ensemble et le dossier passe directement en
+`pending` — le chemin KYC identité est inchangé.
 
 #### Application
 
-`AccountVerificationService` porte la soumission pour **n'importe quel compte** :
+`AccountVerificationService.submit({ accountId, pieces })` porte la soumission pour **n'importe quel
+compte**, avec une liste de pièces qui peut être partielle :
 
 1. lit `ownerType` et `segment` du compte via le service `account` — `identity/kyc` consommant
    `identity/account`, franchissement intra-contexte, autorisé ;
-2. applique le catalogue de complétude ;
+2. en mode atomique, refuse si le lot reçu ne couvre pas les pièces requises ;
 3. téléverse les fichiers, écrit dossier et pièces dans une transaction portée par le repository ;
-4. émet l'event ;
-5. rend un `Result` — statut et pièces manquantes le cas échéant, jamais le modèle.
+4. recalcule les pièces manquantes via le catalogue et pose `status` et `next_action` en
+   conséquence (D13) ;
+5. émet l'event ;
+6. rend un `Result` — statut, `nextAction` et pièces manquantes, jamais le modèle.
+
+La même méthode sert les deux chemins : le mobile envoie ses trois pièces d'un coup, une entreprise
+en envoie une seule.
 
 `SubmitKycDocumentUsecase` est réduit à un appel à ce service (D10).
 
@@ -303,9 +333,80 @@ d'organisation. Les deux listeners de diffusion admin doivent tolérer cette abs
 Aucune route, aucune présentation, aucun effet sur les paliers — la revue et la montée de niveau
 sont K3, les présentations K4.
 
+### Impact sur l'existant — validé le 2026-08-10
+
+**Neuf fichiers du core, aucun fichier produit.**
+
+| Fichier | Changement |
+| --- | --- |
+| `domain/enum/kyc_enum.ts` | `DocumentPieceType` gagne `RCCM` et `DFE` |
+| `domain/verification_requirements.ts` | **nouveau** — le catalogue de complétude |
+| `domain/exceptions/incomplete_verification_file_exception.ts` | **nouveau** |
+| `domain/exceptions/verification_not_applicable_exception.ts` | **nouveau** |
+| `application/services/account_verification_service.ts` | **nouveau** |
+| `application/dtos/account_verification.dto.ts` | **nouveau** — `Command` et `Result` |
+| `application/usecases/mobile/submit_kyc_document.usecase.ts` | réduit à une délégation (D10) |
+| `application/events/kyc_document_submitted.ts` | `+accountId`, `+ownerType`, `userId` nullable |
+| `application/listeners/on_kyc_submitted_admin_broadcast.ts` | tolère `userId` nul |
+
+Relevé au 2026-08-10 : les deux listeners ne lisent `userId` que dans un log d'erreur — le passage en
+nullable ne les casse pas.
+
+**Risque de régression** : le chemin KYC mobile est retouché une deuxième fois par D10, après que K1
+vient de le stabiliser. Le filet est déjà écrit — les tests de K1 doivent passer **sans
+modification** après la délégation.
+
+### Flux de données — validé le 2026-08-10
+
+Cas de l'entreprise qui dépose son RCCM aujourd'hui et son DFE plus tard.
+
+**Premier appel** — `submit({ accountId: 'org-4d9e', pieces: [{ type: RCCM, file, reference }] })` :
+
+1. lecture du compte → `ownerType = organisation`, `segment = enterprise`, mode progressif ;
+2. refus si un dossier est déjà `PENDING` ou `APPROVED` ;
+3. téléversement — même préfixe de stockage qu'aujourd'hui, clé `accountId` ;
+4. création du dossier `ownerType = organisation`, `documentType = null` ;
+5. écriture de la pièce `RCCM` avec sa `reference` ;
+6. `requiredPieces(enterprise)` moins les pièces présentes → il manque `DFE` →
+   `status = in_submission`, `next_action = DFE` ;
+7. tentative numérotée, puis event.
+
+**Second appel**, le jour où le DFE arrive — même chemin, mais l'étape 6 ne trouve plus rien de
+manquant → `status = pending`, `next_action = IN_REVIEW`. Le dossier entre dans la file de revue.
+
+Le `Result` rendu porte `status`, `nextAction` et `missingPieces` : le produit sait quoi demander
+ensuite sans rien recalculer.
+
+### Gestion des erreurs — validée le 2026-08-10
+
+| Cas | Réponse |
+| --- | --- |
+| Compte inconnu | `AccountNotFoundException` |
+| Compte marchand | `VerificationNotApplicableException` — D1 dit qu'un marchand n'a pas de KYB ; un refus explicite vaut mieux qu'un dossier orphelin que personne ne revoira |
+| Dossier déjà `PENDING` / `APPROVED` | `KycAlreadySubmittedException`, réutilisée |
+| Lot incomplet, **mode atomique** (`particulier`) | `IncompleteVerificationFileException`, listant les types manquants — comportement d'aujourd'hui |
+| Lot incomplet, **mode progressif** (`enterprise`) | **Pas une erreur** : le dossier reste `in_submission`, `missingPieces` dit ce qui manque |
+| Pièce fournie sans `reference` alors que son type l'exige | `IncompleteVerificationFileException` — une référence vide vaut une pièce absente (D12) |
+| Type de pièce hors catalogue du segment | Refus : un `SELFIE` n'a rien à faire dans un dossier d'entreprise |
+
+### Tests — validés le 2026-08-10
+
+- le catalogue de complétude, par segment et par type de pièce d'identité, mode compris ;
+- **le scénario RCCM puis DFE** : après le premier appel le dossier est `in_submission` avec
+  `next_action = DFE` et n'apparaît pas dans la file de revue ; après le second il est `pending` ;
+- soumission d'organisation avec référence vide → refusée comme une pièce absente ;
+- soumission sur un compte marchand → `VerificationNotApplicableException` ;
+- pièce hors catalogue du segment → refusée ;
+- refus puis resoumission de la seule pièce en cause : le RCCM déjà présent n'est pas retouché (D14) ;
+- l'event porte `accountId` et `ownerType`, avec `userId` nul pour une organisation ;
+- **les tests KYC de K1 passent sans modification** — la preuve que la délégation D10 n'a pas
+  déplacé le chemin identité.
+
+**Design de K2 complet.**
+
 ---
 
 ## Prochaine session
 
-Étape 4 (design) sur le lot K2, sections restantes : « Impact sur l'existant », « Flux de données »,
-« Gestion des erreurs », « Tests ».
+Étape 4 (design) sur le lot **K3** — revue et palier : la revue admin couvre les dossiers
+d'organisation, et l'approbation pousse le compte du niveau 0 au niveau 2.
