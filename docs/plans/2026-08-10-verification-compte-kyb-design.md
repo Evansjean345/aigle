@@ -75,6 +75,9 @@ Relevé du code au 2026-08-10 (les points marqués ✏️ corrigent ou précisen
 | D1  | **Seule l'entreprise passe un KYB**, de son niveau 0 (bloqué) au niveau 2 (illimité). Le marchand n'en a pas | Marchand 1 → 2 ; marchand 0 → 1 | Le marchand encaisse dès sa création et le restera ; ajouter une revue bloquante ou un palier marchand supplémentaire n'apporte rien au produit | 2026-08-10 |
 | D2  | Le dossier porte des **pièces typées en liste**, seuls RCCM et DFE au départ | Colonnes fixes recto/verso/selfie comme le KYC identité | D'autres pièces sont attendues plus tard ; des colonnes fixes imposeraient une migration à chaque ajout | 2026-08-10 |
 | D3  | **Le moteur de revue reste dans le core** et apprend `ownerType` ; les produits n'exposent que des présentations | Remonter les routes admin au core ; dupliquer la revue pour le KYB | C'est déjà la structure : le lot S2 n'a descendu dans le produit que la présentation, `KycDocumentAdminService` est core. Ni S2 ni R5 n'est contredit | 2026-08-10 |
+| D5  | Les colonnes `document_recto_url` / `document_verso_url` / `selfie_url` sont **conservées et cessent d'être écrites** | Drop dans K1 ; double écriture pendant K1 | Convention déjà suivie par le dépôt (`add_account_id_to_kyc_documents`, R4/`users_uid`) : un backfill incomplet sur des documents KYC réels reste rattrapable, sans le coût d'une double représentation | 2026-08-10 |
+| D5  | Les colonnes `document_recto_url` / `document_verso_url` / `selfie_url` sont **conservées et cessent d'être écrites** | Drop dans K1 ; double écriture pendant K1 | Convention déjà suivie par le dépôt (`add_account_id_to_kyc_documents`, R4/`users_uid`) : un backfill incomplet sur des documents KYC réels reste rattrapable, sans le coût d'une double représentation | 2026-08-10 |
+| D6  | La table des pièces s'appelle **`document_pieces`**, le modèle `DocumentPiece`, l'enum `DocumentPieceType` | `kyc_document_pieces` | Le KYC est **un cas** de la vérification de compte, pas son préfixe : préfixer les pièces par `kyc` graverait dans le schéma la lecture que ce chantier abandonne | 2026-08-10 |
 | D4  | **Un dossier de vérification commun** (`kyc_documents` ancré `account_id` + `owner_type`) et **une table de pièces typées** ; les recto/verso/selfie du KYC identité migrent en pièces | Table KYB séparée ; réemploi des colonnes existantes (recto = RCCM) | La prémisse du chantier est que `kyc` *devient* la vérification de compte : une table séparée ferait coexister deux formes de dossier, et le réemploi de colonnes fermerait D2 dès la troisième pièce | 2026-08-10 |
 
 ### Conséquences de D1
@@ -122,9 +125,53 @@ une régression KYC serait dure à isoler ; 5 lots avec K3 scindé en revue puis
 | U1 | **Volume de `kyc_documents` en production** — la migration D4 (recto/verso/selfie → pièces) parcourt toute la table. Inconnu à ce jour | À mesurer avant d'écrire la migration K1 (`SELECT COUNT(*)`), par l'utilisateur |
 | U2 | **`kyc_attemps` n'a pas de `account_id`** — seule `kyc_documents` a reçu la colonne. L'historique des tentatives d'un dossier d'organisation n'a pas de porteur | À trancher dans la section « Architecture » de K1 |
 | U3 | **Le back-office lit `user` dans le dossier** (`KycDocumentResult.user`, recherche `whereHas('user')`, stats par CNI/PASSPORT/PERMIS). Pour un dossier d'organisation ces champs sont vides | À trancher dans la section « Impact sur l'existant » de K1 |
+| U4 | **La table du dossier s'appelle encore `kyc_documents`** alors que D6 retire `kyc` du vocabulaire des pièces. La renommer touche tous les lots ; ne pas la renommer laisse une incohérence de nommage | À trancher en fin de K1, une fois le rayon d'impact réel connu — hors chemin critique |
+
+---
+
+## Lot K1 — Socle « vérification de compte »
+
+### Architecture — validée le 2026-08-10
+
+Le dossier cesse d'être une pièce d'identité à trois colonnes pour devenir un **dossier de
+vérification ancré sur le compte**, dont les pièces vivent dans une table fille typée.
+
+#### Schéma
+
+Les migrations sont lancées par l'utilisateur.
+
+| Table | Changement |
+| --- | --- |
+| `kyc_documents` | Devient le **dossier**. `account_id` passe NOT NULL (colonne déjà présente et backfillée). `owner_type` ajouté (`user` \| `organisation`), backfill `user`. `document_type` passe nullable. `user_id` conservé |
+| `kyc_attemps` | `account_id` ajouté, backfill `= user_id`. La numérotation des tentatives passe **par dossier**, au lieu du couple `(user_id, document_type)` |
+| `document_pieces` *(nouvelle)* | `id`, `kyc_document_id` (FK), `piece_type`, `file_url`, `reference` nullable, timestamps. Unique `(kyc_document_id, piece_type)` |
+
+Backfill des pièces : pour chaque dossier existant, une ligne `RECTO`, `VERSO` et `SELFIE` par URL
+non vide.
+
+`document_type` **reste sur le dossier** : c'est ce qui rend K1 non-cassant, les stats
+`byDocumentType` et les filtres du back-office continuant de lire la même colonne. Il ne vaut que
+pour un dossier `user` (CNI / PASSPORT / PERMIS) et est `null` pour un dossier d'organisation. La
+pièce, elle, ne porte que son rôle : `RECTO`, `VERSO`, `SELFIE` — puis `RCCM` et `DFE` en K2.
+
+#### Code
+
+- **Domaine** — modèle `DocumentPiece` et enum `DocumentPieceType` ; `KycDocument` gagne
+  `accountId`, `ownerType` et `hasMany(pieces)`.
+- **Port** — `findUserKycDocument(userId)` devient `findByAccountId(accountId)` ;
+  `findLastAttempt` prend le dossier ; ajout de l'écriture des pièces.
+- **Application** — `KycDocumentAdminService` et `SubmitKycDocumentUsecase` parlent `accountId` ; la
+  soumission écrit des pièces au lieu des trois colonnes. Le contrôleur passe `usersUid` comme
+  `accountId` (invariant β : pour un compte utilisateur, `account_id == usersUid`).
+- **DTO** — `KycDocumentResult` **gagne** `accountId`, `ownerType` et `pieces[]`, et **garde**
+  `userId` et `user` : le back-office existant n'est pas touché.
+
+#### Hors périmètre de K1
+
+Aucun type de pièce KYB, aucune route nouvelle, aucun effet sur les paliers, aucun drop de colonne.
 
 ---
 
 ## Prochaine session
 
-Étape 4 (design) sur le lot K1, section « Architecture ».
+Étape 4 (design) sur le lot K1, section « Impact sur l'existant » — U3 y sera tranchée.
