@@ -44,7 +44,7 @@ monitoring
 docs/*
 !docs/rules/
 !docs/swagger/
-!docs/plans/
+# docs/plans/ deplace vers ../docs/api/plans/ le 2026-08-10
 
 *.sql
 *.md
