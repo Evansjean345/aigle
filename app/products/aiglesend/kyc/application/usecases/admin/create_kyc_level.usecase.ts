@@ -5,7 +5,7 @@ import { AuditResult } from '#core/audit/domain/enums'
 import {
   CreateKycLevelDto,
   KycLevelResponseDto,
-} from '#core/identity/kyc/application/dtos/admin/admin_kyc_level.dto'
+} from '#aiglesend/kyc/application/dtos/admin/admin_kyc_level.dto'
 
 export interface AdminAuditContext {
   actorId: string

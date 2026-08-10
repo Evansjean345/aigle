@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import KycLevelService from '#core/identity/kyc/application/services/kyc_level_service'
-import { KycLevelResponseDto } from '#core/identity/kyc/application/dtos/admin/admin_kyc_level.dto'
+import { KycLevelResponseDto } from '#aiglesend/kyc/application/dtos/admin/admin_kyc_level.dto'
 
 /**
  * Liste les niveaux KYC configurés.

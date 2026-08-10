@@ -5,7 +5,7 @@ import { AuditResult } from '#core/audit/domain/enums'
 import {
   KycLevelResponseDto,
   UpdateKycLevelDto,
-} from '#core/identity/kyc/application/dtos/admin/admin_kyc_level.dto'
+} from '#aiglesend/kyc/application/dtos/admin/admin_kyc_level.dto'
 import type { AdminAuditContext } from '#aiglesend/kyc/application/usecases/admin/create_kyc_level.usecase'
 
 /**
