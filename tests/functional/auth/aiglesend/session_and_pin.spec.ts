@@ -68,6 +68,6 @@ test.group('Auth | session status & profil', (group) => {
     const user = await makeUser()
 
     const profile = await useCase.execute(user)
-    assert.equal(profile.usersUid, user.usersUid)
+    assert.equal(profile.id, user.usersUid)
   })
 })

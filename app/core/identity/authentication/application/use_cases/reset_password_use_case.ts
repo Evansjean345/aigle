@@ -8,6 +8,7 @@ import ResetPasswordTokenProvider from '#core/identity/authentication/domain/int
 import InvalidResetTokenException from '#core/identity/authentication/domain/exceptions/invalid_reset_token_exception'
 import { AuthenticatedProfileAndTokenResponseDto } from '#core/identity/authentication/application/dtos/profile.dto'
 import IssueAppTokenService from '#core/identity/authentication/application/services/issue_app_token_service'
+import VerificationPictureService from '#core/identity/kyc/application/services/verification_picture_service'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
@@ -26,7 +27,8 @@ export default class ResetPasswordUseCase {
     protected userRepository: UserRepository,
     protected countryRepository: CountryRepository,
     protected resetPasswordTokenProvider: ResetPasswordTokenProvider,
-    protected issueAppTokenService: IssueAppTokenService
+    protected issueAppTokenService: IssueAppTokenService,
+    protected verificationPictureService: VerificationPictureService
   ) {}
 
   /**
@@ -82,6 +84,8 @@ export default class ResetPasswordUseCase {
       })
       .catch(() => {})
 
-    return AuthenticatedProfileAndTokenResponseDto.from(user, tokenValue)
+    const selfieUrl = await this.verificationPictureService.selfieUrlFor(user.usersUid)
+
+    return AuthenticatedProfileAndTokenResponseDto.from(user, tokenValue, selfieUrl)
   }
 }

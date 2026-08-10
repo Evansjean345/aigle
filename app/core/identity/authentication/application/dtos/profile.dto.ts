@@ -17,8 +17,13 @@ export class AuthenticatedProfileResponseDto {
 
   /**
    * Converts a user entity to an AuthenticatedProfileResponseDto
+   *
+   * @param {User} user - Utilisateur authentifié.
+   * @param {string | null} [selfieUrl] - Adresse consultable du selfie de vérification, résolue par
+   *   l'appelant : un selfie récent vit sur le stockage privé et demande une signature, que ce DTO
+   *   ne peut pas produire.
    */
-  static fromModel(user: User): AuthenticatedProfileResponseDto {
+  static fromModel(user: User, selfieUrl: string | null = null): AuthenticatedProfileResponseDto {
     const response = new AuthenticatedProfileResponseDto()
     response.id = user.usersUid
     response.firstname = user.firstname
@@ -27,9 +32,7 @@ export class AuthenticatedProfileResponseDto {
     response.accountNumber = user.accountNumber
     response.accountType = user.accountType
     response.pictureUrl =
-      user.kycStatus === UserKycStatus.VERIFIED
-        ? user.kycDocument?.selfieUrl || user.pictureUrl || ''
-        : ''
+      user.kycStatus === UserKycStatus.VERIFIED ? selfieUrl || user.pictureUrl || '' : ''
     response.status = user.status
     response.kycStatus = user.kycStatus
     response.kycLevel = user.kycLevel
@@ -57,10 +60,18 @@ export class AuthenticatedProfileAndTokenResponseDto {
 
   /**
    * Transforms a user and token into an AuthenticatedProfileAndTokenResponseDto object.
+   *
+   * @param {User} user - Utilisateur authentifié.
+   * @param {string} token - Jeton d'accès.
+   * @param {string | null} [selfieUrl] - Adresse consultable du selfie, résolue par l'appelant.
    */
-  static from(user: User, token: string): AuthenticatedProfileAndTokenResponseDto {
+  static from(
+    user: User,
+    token: string,
+    selfieUrl: string | null = null
+  ): AuthenticatedProfileAndTokenResponseDto {
     const dto = new AuthenticatedProfileAndTokenResponseDto()
-    dto.user = AuthenticatedProfileResponseDto.fromModel(user)
+    dto.user = AuthenticatedProfileResponseDto.fromModel(user, selfieUrl)
     dto.token = token
     dto.type = 'Bearer'
     return dto

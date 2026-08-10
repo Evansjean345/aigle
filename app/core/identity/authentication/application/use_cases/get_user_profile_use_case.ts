@@ -1,17 +1,27 @@
-﻿import { inject } from '@adonisjs/core'
+import { inject } from '@adonisjs/core'
 import User from '#core/identity/user/domain/models/user'
+import { AuthenticatedProfileResponseDto } from '#core/identity/authentication/application/dtos/profile.dto'
+import VerificationPictureService from '#core/identity/kyc/application/services/verification_picture_service'
 
 @inject()
 export default class GetUserProfileUseCase {
+  constructor(private readonly verificationPictureService: VerificationPictureService) {}
+
   /**
-   * Executes the process of loading related data (wallet, country, and document) for the given authenticated user.
+   * Charge le profil et rend la vue destinée à l'application.
    *
-   * @param {User} authenticated - The user object that is authenticated and should have related data loaded.
-   * @return {Promise<User>} A promise that resolves to the authenticated user object with the related data loaded.
+   * Le selfie d'un dossier récent vit sur le stockage privé : il est signé ici, à la lecture, plutôt
+   * que servi depuis une colonne que la soumission n'écrit plus.
+   *
+   * @param {User} authenticated - Utilisateur authentifié.
+   * @return {Promise<AuthenticatedProfileResponseDto>} Le profil, photo de vérification comprise.
    */
-  async execute(authenticated: User): Promise<User> {
+  async execute(authenticated: User): Promise<AuthenticatedProfileResponseDto> {
     await authenticated.load('country')
     await authenticated.load('kycDocument')
-    return authenticated
+
+    const selfieUrl = await this.verificationPictureService.selfieUrlFor(authenticated.usersUid)
+
+    return AuthenticatedProfileResponseDto.fromModel(authenticated, selfieUrl)
   }
 }

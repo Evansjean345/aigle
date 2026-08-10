@@ -13,6 +13,7 @@ import UserRepository from '#core/identity/user/domain/interfaces/user_repositor
 import AccountBlockedException from '#core/identity/authentication/domain/exceptions/account_blocked_exception'
 import UserOtpAttemptGuard from '#core/identity/authentication/application/services/user_otp_attempt_guard'
 import IssueAppTokenService from '#core/identity/authentication/application/services/issue_app_token_service'
+import VerificationPictureService from '#core/identity/kyc/application/services/verification_picture_service'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import OtpLockedException from '#core/identity/otp/domain/exceptions/otp_locked_exception'
 import securityLog from '#shared/infrastructure/logging/security_log'
@@ -39,7 +40,8 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
     private readonly countryRepository: CountryRepository,
     private readonly deviceService: DeviceService,
     private readonly otpAttemptGuard: UserOtpAttemptGuard,
-    private readonly issueAppTokenService: IssueAppTokenService
+    private readonly issueAppTokenService: IssueAppTokenService,
+    private readonly verificationPictureService: VerificationPictureService
   ) {}
 
   /**
@@ -176,7 +178,9 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
       await user.load('wallet')
       await user.load('kycDocument')
 
-      return AuthenticatedProfileAndTokenResponseDto.from(user, tokenValue)
+      const selfieUrl = await this.verificationPictureService.selfieUrlFor(user.usersUid)
+
+      return AuthenticatedProfileAndTokenResponseDto.from(user, tokenValue, selfieUrl)
     } catch (error) {
       errorLog.error(
         'AUTH_EXECUTE_ERROR',

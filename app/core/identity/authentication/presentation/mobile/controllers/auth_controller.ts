@@ -15,7 +15,6 @@ import GetUserProfileUseCase from '#core/identity/authentication/application/use
 import LogoutUseCase from '#core/identity/authentication/application/use_cases/logout_use_case'
 import CheckPhoneUseCase from '#core/identity/authentication/application/use_cases/check_phone_use_case'
 import ResetPasswordUseCase from '#core/identity/authentication/application/use_cases/reset_password_use_case'
-import { AuthenticatedProfileResponseDto } from '#core/identity/authentication/application/dtos/profile.dto'
 import VerifyAndAuthenticateUserAccountUseCase from '#core/identity/authentication/application/use_cases/verify_and_authenticate_user_account_use_case'
 import VerifyForgotPasswordOtpUseCase from '#core/identity/authentication/application/use_cases/verify_forgot_password_otp_use_case'
 import User from '#core/identity/user/domain/models/user'
@@ -111,8 +110,7 @@ export default class AuthController {
    */
   async userAuth({ response, auth }: HttpContext): Promise<void> {
     const authenticatedUser = auth.user!! as User
-    const user = await this.getUserProfileUseCase.execute(authenticatedUser)
-    return response.ok(AuthenticatedProfileResponseDto.fromModel(user))
+    return response.ok(await this.getUserProfileUseCase.execute(authenticatedUser))
   }
 
   /**
