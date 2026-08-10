@@ -3,7 +3,7 @@ import { middleware } from '#start/kernel'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 
 const KycSubmittionController = () =>
-  import('#core/identity/kyc/presentation/mobile/controllers/kyc_submittion_controller')
+  import('#aiglesend/kyc/presentation/mobile/controllers/kyc_submittion_controller')
 
 const mobileKycRoutes = () =>
   router

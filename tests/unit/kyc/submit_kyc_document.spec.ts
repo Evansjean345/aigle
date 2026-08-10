@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { v4 as uuidv4 } from 'uuid'
-import SubmitKycDocumentUsecase from '#core/identity/kyc/application/usecases/mobile/submit_kyc_document.usecase'
+import SubmitKycDocumentUsecase from '#aiglesend/kyc/application/usecases/mobile/submit_kyc_document.usecase'
 import InMemoryKycDocumentRepository from '#tests/fakes/kyc/in_memory_kyc_document_repository'
 import {
   DocumentPieceType,

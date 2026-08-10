@@ -82,10 +82,6 @@ export default class UpdateUserKycStatus {
       }
 
       await this.userRepository.save(user)
-      // L'event porte le niveau **résultant** (`user.kycLevel`), pas le param d'entrée : quand
-      // `status === VERIFIED`, le niveau est relevé à `KYC_VERIFIED` ci-dessus même sans `kycLevel`
-      // explicite. Les consommateurs (dont la synchro du niveau de compte) reçoivent ainsi le niveau
-      // effectif.
       await UserKycStatusUpdated.dispatch(userId, status, user.kycLevel, comment)
 
       emitter

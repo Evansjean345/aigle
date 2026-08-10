@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import {
   KycDocumentRequestDto,
   KycDocumentResponseDto,
-} from '#core/identity/kyc/application/dtos/kyc.dto'
+} from '#aiglesend/kyc/application/dtos/kyc.dto'
 import AccountVerificationService from '#core/identity/kyc/application/services/account_verification_service'
 import type { SubmitPieceCommand } from '#core/identity/kyc/application/dtos/account_verification.dto'
 import { DocumentPieceType, KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'

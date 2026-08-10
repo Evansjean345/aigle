@@ -2,9 +2,9 @@ import { HttpContext } from '@adonisjs/core/http'
 import {
   errorMessages,
   kycDocumentValidator,
-} from '#core/identity/kyc/presentation/mobile/validators/kyc_document_validator'
+} from '#aiglesend/kyc/presentation/mobile/validators/kyc_document_validator'
 import { SimpleMessagesProvider } from '@vinejs/vine'
-import SubmitKycDocumentUsecase from '#core/identity/kyc/application/usecases/mobile/submit_kyc_document.usecase'
+import SubmitKycDocumentUsecase from '#aiglesend/kyc/application/usecases/mobile/submit_kyc_document.usecase'
 import { inject } from '@adonisjs/core'
 
 /**

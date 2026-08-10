@@ -10,7 +10,7 @@ import providerWebhookRoutes from '#core/money/webhooks/presentation/provider/ro
 import mobileTransactionRoutes from '#core/money/transactions/presentation/mobile/routes/transaction_routes'
 import userAccountMobileRoutes from '#core/identity/user/presentation/mobile/routes/profile_routes'
 import mobileQrRoutes from '#aiglesend/qr/presentation/mobile/routes/qr_routes'
-import mobileKycRoutes from '#core/identity/kyc/presentation/mobile/routes/kyc_routes'
+import mobileKycRoutes from '#aiglesend/kyc/presentation/mobile/routes/kyc_routes'
 import mobileDeviceRoutes from '#core/identity/device/presentation/mobile/routes/device_routes'
 import mobileDebitPhoneRoutes from '#core/identity/user/presentation/mobile/routes/debit_phone_routes'
 import businessAuthRoutes from '#aiglebusiness/auth/presentation/client/routes/business_auth_routes'
