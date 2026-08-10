@@ -65,7 +65,17 @@ export default class KycDocumentAdminService {
    * @returns {Promise<KycDocumentResult | null>} Le document, ou `null` s'il n'en a pas soumis.
    */
   async findByUser(userId: string): Promise<KycDocumentResult | null> {
-    const document = await this.kycDocumentRepository.findUserKycDocument(userId)
+    return this.findByAccountId(userId)
+  }
+
+  /**
+   * Charge le dossier de vérification d'un compte.
+   *
+   * @param {string} accountId - Compte porteur du dossier.
+   * @returns {Promise<KycDocumentResult | null>} Le dossier, ou `null` s'il n'en existe pas.
+   */
+  async findByAccountId(accountId: string): Promise<KycDocumentResult | null> {
+    const document = await this.kycDocumentRepository.findByAccountId(accountId)
 
     return document ? toKycDocumentResult(document) : null
   }
@@ -111,15 +121,13 @@ export default class KycDocumentAdminService {
 
       await this.kycDocumentRepository.saveKycDocument(kycDocument)
 
-      const lastAttempt = await this.kycDocumentRepository.findLastAttempt(
-        kycDocument.userId,
-        kycDocument.documentType
-      )
+      const lastAttempt = await this.kycDocumentRepository.findLastAttempt(kycDocument.id)
 
       const attemptNumber = (lastAttempt?.attemptNumber || 0) + 1
 
       const decisionAttempt = new KycAttemp()
       decisionAttempt.userId = kycDocument.userId
+      decisionAttempt.accountId = kycDocument.accountId
       decisionAttempt.kycDocumentId = kycDocument.id
       decisionAttempt.documentType = kycDocument.documentType
       decisionAttempt.documentRectoUrl = kycDocument.documentRectoUrl

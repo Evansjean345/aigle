@@ -1,19 +1,42 @@
 import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
-import { type KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
+import {
+  type DocumentPieceType,
+  type KycDocumentStatus,
+} from '#core/identity/kyc/domain/enum/kyc_enum'
+
+/** Pièce à écrire dans un dossier : son rôle, la clé de l'objet déposé, et sa référence s'il y en a une. */
+export interface DocumentPieceInput {
+  pieceType: DocumentPieceType
+  fileKey: string
+  reference?: string
+}
 
 export default abstract class KycDocumentRepository {
   /**
-   * Check if user has submitted KYC documents
-   * @param userId
-   * @returns {Promise<KycDocument | null>}
+   * Charge le dossier de vérification d'un compte.
+   *
+   * @param accountId Compte porteur du dossier.
    */
-  abstract findUserKycDocument(userId: string): Promise<KycDocument | null>
+  abstract findByAccountId(accountId: string): Promise<KycDocument | null>
 
   /**
    * Save KYC document
    * @param kycDocument
    */
   abstract saveKycDocument(kycDocument: KycDocument): Promise<KycDocument>
+
+  /**
+   * Écrit le dossier et ses pièces en une seule transaction.
+   *
+   * Une pièce déjà présente pour le même rôle est remplacée.
+   *
+   * @param kycDocument Dossier à écrire.
+   * @param pieces Pièces à rattacher.
+   */
+  abstract saveWithPieces(
+    kycDocument: KycDocument,
+    pieces: DocumentPieceInput[]
+  ): Promise<KycDocument>
 
   /**
    * Find all KYC documents with pagination and filters
@@ -29,6 +52,7 @@ export default abstract class KycDocumentRepository {
       documentType?: string
       userId?: string
       search?: string
+      ownerType?: string
       startDate?: string
       endDate?: string
     }
@@ -46,9 +70,11 @@ export default abstract class KycDocumentRepository {
   abstract findById(id: number): Promise<KycDocument | null>
 
   /**
-   * Get last attempt for a user and document type
+   * Charge la dernière tentative enregistrée pour un dossier.
+   *
+   * @param kycDocumentId Dossier concerné.
    */
-  abstract findLastAttempt(userId: string, documentType?: string): Promise<any | null>
+  abstract findLastAttempt(kycDocumentId: number): Promise<any | null>
 
   /**
    * Save a KYC attempt

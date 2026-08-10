@@ -12,7 +12,7 @@ test.group('Kyc | revue des documents', () => {
       saveKycDocument: async (doc: any) => doc,
       findAll: async () => ({}) as any,
       getStats: async () => ({}) as any,
-      findUserKycDocument: async () => null,
+      findByAccountId: async () => null,
       findLastAttempt: async () => null,
       saveAttempt: async () => {},
     } as unknown as KycDocumentRepository
@@ -43,7 +43,7 @@ test.group('Kyc | revue des documents', () => {
       },
       findAll: async () => ({}) as any,
       getStats: async () => ({}) as any,
-      findUserKycDocument: async () => null,
+      findByAccountId: async () => null,
       findLastAttempt: async () => null,
       saveAttempt: async (attempt: any) => {
         savedAttempt = attempt
@@ -78,7 +78,7 @@ test.group('Kyc | revue des documents', () => {
       },
       findAll: async () => ({}) as any,
       getStats: async () => ({}) as any,
-      findUserKycDocument: async () => null,
+      findByAccountId: async () => null,
       findLastAttempt: async () => ({ attemptNumber: 1 }) as any,
       saveAttempt: async (attempt: any) => {
         savedAttempt = attempt

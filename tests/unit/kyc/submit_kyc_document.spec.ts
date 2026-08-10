@@ -13,7 +13,7 @@ test.group('Kyc | Submit Use Case', () => {
     const userId = uuidv4()
 
     const mockRepo = {
-      findUserKycDocument: async () => ({ status: KycDocumentStatus.APPROVED }) as KycDocument,
+      findByAccountId: async () => ({ status: KycDocumentStatus.APPROVED }) as KycDocument,
       saveKycDocument: async (doc: any) => doc,
       findAll: async () => ({}) as any,
       getStats: async () => ({}) as any,
@@ -44,7 +44,7 @@ test.group('Kyc | Submit Use Case', () => {
     const userId = uuidv4()
 
     const mockRepo = {
-      findUserKycDocument: async () => ({ status: KycDocumentStatus.PENDING }) as KycDocument,
+      findByAccountId: async () => ({ status: KycDocumentStatus.PENDING }) as KycDocument,
       saveKycDocument: async (doc: any) => doc,
       findAll: async () => ({}) as any,
       getStats: async () => ({}) as any,
@@ -77,7 +77,7 @@ test.group('Kyc | Submit Use Case', () => {
     const userId = uuidv4()
 
     const mockRepo = {
-      findUserKycDocument: async () => null,
+      findByAccountId: async () => null,
       saveKycDocument: async (doc: any) => doc,
       findAll: async () => ({}) as any,
       getStats: async () => ({}) as any,
@@ -108,7 +108,7 @@ test.group('Kyc | Submit Use Case', () => {
     const userId = uuidv4()
 
     const mockRepo = {
-      findUserKycDocument: async () => null,
+      findByAccountId: async () => null,
       saveKycDocument: async (doc: any) => {
         doc.id = 1
         return doc

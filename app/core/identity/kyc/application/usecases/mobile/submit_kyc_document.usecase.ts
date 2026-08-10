@@ -47,7 +47,7 @@ export default class SubmitKycDocumentUsecase {
     userId: string,
     kycDocument: KycDocumentRequestDto
   ): Promise<KycDocumentResponseDto> {
-    const existingKyc = await this.kycDocumentRepository.findUserKycDocument(userId)
+    const existingKyc = await this.kycDocumentRepository.findByAccountId(userId)
 
     if (
       existingKyc &&
@@ -89,19 +89,17 @@ export default class SubmitKycDocumentUsecase {
         await this.kycDocumentRepository.saveKycDocument(newKycDocument)
       }
 
+      const currentKyc = existingKyc || (await this.kycDocumentRepository.findByAccountId(userId))
+      if (!currentKyc) throw new KycDocumentNotFoundException()
+
       // Enregistrement de la tentative dans l'historique
-      const lastAttempt = await this.kycDocumentRepository.findLastAttempt(
-        userId,
-        kycDocument.documentType
-      )
+      const lastAttempt = await this.kycDocumentRepository.findLastAttempt(currentKyc.id)
 
       const attemptNumber = (lastAttempt?.attemptNumber || 0) + 1
 
       const newAttempt = new KycAttemp()
       newAttempt.userId = userId
-      const currentKyc =
-        existingKyc || (await this.kycDocumentRepository.findUserKycDocument(userId))
-      if (!currentKyc) throw new KycDocumentNotFoundException()
+      newAttempt.accountId = userId
 
       newAttempt.kycDocumentId = currentKyc.id
       newAttempt.documentType = kycDocument.documentType

@@ -1,5 +1,7 @@
 import type KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
+import type { DocumentPieceInput } from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
+import DocumentPiece from '#core/identity/kyc/domain/models/document_piece'
 import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
 import db from '@adonisjs/lucid/services/db'
 import { KycAttemp } from '#core/identity/kyc/domain/models/kyc_attemp'
@@ -10,15 +12,16 @@ import { KycAttemp } from '#core/identity/kyc/domain/models/kyc_attemp'
  */
 export default class KycDocumentRepositoryImpl implements KycDocumentRepository {
   /**
-   * Retrieves the KYC (Know Your Customer) document associated with a specific user.
+   * Charge le dossier de vérification d'un compte, ses pièces, son agent et ses tentatives.
    *
-   * @param {string} userId - The unique identifier of the user whose KYC document is to be retrieved.
-   * @return {Promise<KycDocument | null>} A promise that resolves to the KYC document of the user if found, or null if no document exists for the user.
+   * @param {string} accountId - Compte porteur du dossier.
+   * @return {Promise<KycDocument | null>} Le dossier, ou `null` si le compte n'en a aucun.
    */
-  async findUserKycDocument(userId: string): Promise<KycDocument | null> {
+  async findByAccountId(accountId: string): Promise<KycDocument | null> {
     return KycDocument.query()
-      .where('user_id', userId)
+      .where('account_id', accountId)
       .preload('agent')
+      .preload('pieces')
       .preload('attempts', (attemptQuery) => {
         attemptQuery.preload('agent').orderBy('createdAt', 'desc')
       })
@@ -36,6 +39,35 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
    */
   async saveKycDocument(kycDocument: KycDocument): Promise<KycDocument> {
     return kycDocument.save()
+  }
+
+  /**
+   * Écrit le dossier et ses pièces dans une seule transaction.
+   *
+   * Une pièce déjà présente pour le même rôle voit sa clé et sa référence remplacées.
+   *
+   * @param {KycDocument} kycDocument - Dossier à écrire.
+   * @param {DocumentPieceInput[]} pieces - Pièces à rattacher.
+   * @return {Promise<KycDocument>} Le dossier écrit.
+   */
+  async saveWithPieces(
+    kycDocument: KycDocument,
+    pieces: DocumentPieceInput[]
+  ): Promise<KycDocument> {
+    return db.transaction(async (trx) => {
+      kycDocument.useTransaction(trx)
+      await kycDocument.save()
+
+      for (const piece of pieces) {
+        await DocumentPiece.updateOrCreate(
+          { kycDocumentId: kycDocument.id, pieceType: piece.pieceType },
+          { fileKey: piece.fileKey, reference: piece.reference },
+          { client: trx }
+        )
+      }
+
+      return kycDocument
+    })
   }
 
   /**
@@ -192,19 +224,15 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
   /**
    * Fetches the most recent attempt for the specified user and document type.
    *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {string} [documentType] - Restreint la recherche à un type de pièce ; omis, la dernière
-   *   tentative du porteur est rendue quel que soit le type.
-   * @return {Promise<any | null>} A promise that resolves to the most recent attempt object or null if no attempts are found.
+   * @param {number} kycDocumentId - Dossier concerné.
+   * @return {Promise<any | null>} La tentative au numéro le plus élevé, ou `null` si le dossier n'en
+   *   a aucune.
    */
-  async findLastAttempt(userId: string, documentType?: string): Promise<any | null> {
-    const query = KycAttemp.query().where('userId', userId)
-
-    if (documentType) {
-      query.where('documentType', documentType)
-    }
-
-    return query.orderBy('attemptNumber', 'desc').first()
+  async findLastAttempt(kycDocumentId: number): Promise<any | null> {
+    return KycAttemp.query()
+      .where('kycDocumentId', kycDocumentId)
+      .orderBy('attemptNumber', 'desc')
+      .first()
   }
 
   /**
