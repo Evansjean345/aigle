@@ -1,7 +1,7 @@
 ---
 status: draft
-etape: 2
-lot: -
+etape: 4
+lot: K2
 derniere_maj: 2026-08-10
 ---
 
@@ -110,7 +110,7 @@ Validé le 2026-08-10.
 
 | Lot | Contenu | Dépend de | Statut |
 | --- | ------- | --------- | ------ |
-| K1  | **Socle « vérification de compte »** — `kyc_documents` devient le dossier ancré `account_id` + `owner_type` ; les pièces passent en table fille typée ; les recto/verso/selfie existants y sont migrés. Le KYC identité fonctionne à l'identique de bout en bout | — | design en cours |
+| K1  | **Socle « vérification de compte »** — `kyc_documents` devient le dossier ancré `account_id` + `owner_type` ; les pièces passent en table fille typée ; les recto/verso/selfie existants y sont migrés. Le KYC identité fonctionne à l'identique de bout en bout | — | **design terminé** |
 | K2  | **Le dossier KYB dans le core** — types de pièces RCCM/DFE, règle de complétude par segment, soumission par compte org, service de vérification, events | K1 | à faire |
 | K3  | **Revue et palier** — la revue admin couvre les dossiers org ; l'approbation pousse le niveau 0 → 2 (`AccountService.setLevel`) et miroite `organisation.level` | K2 | à faire |
 | K4  | **Présentations** — soumission owner côté `aiglebusiness` (`kyb:submit` / `kyb:view`), onglet KYB du back-office `aiglesend` | K3 | à faire |
@@ -206,9 +206,63 @@ gagnent des champs sans en perdre. `ownerType` réutilise l'enum `AccountOwnerTy
 **Baselines à ne pas dégrader** : `tsc` 57 erreurs, `depcruise` 0 erreur, 584 tests passés / 5 échecs
 préexistants (Kyc ×2, ProviderErrorService, DeviceService).
 
+### Flux de données — validé le 2026-08-10
+
+Le chemin du KYC identité est fonctionnellement identique.
+
+1. `POST /kyc` — le contrôleur valide le payload et passe `usersUid` comme `accountId`.
+2. `SubmitKycDocumentUsecase` charge le dossier par `findByAccountId` et refuse une soumission si le
+   dossier est `APPROVED` ou `PENDING`.
+3. Upload des fichiers vers `FileStorageService` — les chemins de stockage restent identiques *en
+   valeur*, puisque `accountId == usersUid`.
+4. Le dossier est écrit avec `ownerType = user`, puis les pièces en `upsert` sur
+   `(kyc_document_id, piece_type)`.
+5. La tentative est numérotée par dossier.
+6. L'audit et l'event `KycDocumentSubmitted` sont inchangés et portent toujours `userId`.
+
+En lecture back-office, `findAll` et `findById` préchargent les pièces en plus de l'agent, du
+porteur et des tentatives ; `toKycDocumentResult` les projette dans `pieces[]`.
+
+### Gestion des erreurs — validée le 2026-08-10
+
+Les trois exceptions existantes gardent leur sémantique : `KycDocumentNotFoundException`,
+`KycAlreadySubmittedException`, `MissingKycDocumentsException` — règle passeport comprise (pas de
+verso attendu).
+
+Un seul cas nouveau : une écriture de pièce qui échoue ne doit pas laisser un dossier `PENDING` sans
+pièces. L'atomicité revient au **repository qui écrit** dossier et pièces, conformément à
+`transaction-portee-par-le-service` — ni au use case, ni à la présentation.
+
+Le fichier orphelin dans le stockage en cas d'échec base après upload existe déjà aujourd'hui ; K1
+ne l'aggrave pas et ne le traite pas.
+
+### Tests — validés le 2026-08-10
+
+**À adapter** : `tests/unit/kyc/submit_kyc_document.spec.ts`,
+`tests/unit/kyc/process_kyc_document.spec.ts`, `tests/functional/kyc/`.
+
+**Nouveaux** :
+
+- la soumission crée N pièces typées et n'écrit plus les trois colonnes ;
+- une resoumission remplace les pièces sans les dupliquer (unicité `(dossier, piece_type)`) ;
+- un passeport produit `RECTO` + `SELFIE`, sans `VERSO` ;
+- `findByAccountId` retrouve le dossier d'un compte utilisateur par l'invariant β ;
+- le `Result` expose `pieces[]`, `accountId` et `ownerType` tout en gardant `user` ;
+- un échec d'écriture de pièce ne laisse aucun dossier orphelin.
+
+Les 2 échecs KYC préexistants sont **hors périmètre** : K1 ne prétend pas les corriger.
+
+### Risques & repli — validés le 2026-08-10
+
+- **U1** (volume de `kyc_documents`) reste ouverte et se mesure avant d'écrire la migration.
+- **U4** (nom de la table `kyc_documents`) se tranche en fin de K1.
+- **Repli** : D5 conserve les trois colonnes, donc le backfill des pièces est rejouable sans perte.
+
+**Design de K1 complet.**
+
 ---
 
 ## Prochaine session
 
-Étape 4 (design) sur le lot K1, sections restantes : « Flux de données », « Gestion des erreurs »,
-« Tests », « Risques & inconnues ».
+Étape 4 (design) sur le lot **K2** — le dossier KYB dans le core : types de pièces RCCM/DFE, règle
+de complétude par segment, soumission par compte d'organisation, service de vérification et events.
