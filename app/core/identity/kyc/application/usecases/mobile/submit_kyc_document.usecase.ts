@@ -3,7 +3,7 @@ import { inject } from '@adonisjs/core'
 import {
   KycDocumentRequestDto,
   KycDocumentResponseDto,
-} from '#core/identity/kyc/application/dto/kyc.dto'
+} from '#core/identity/kyc/application/dtos/kyc.dto'
 import FileStorageService from '#shared/infrastructure/services/file_storage_service'
 import { DocumentPieceType, KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'

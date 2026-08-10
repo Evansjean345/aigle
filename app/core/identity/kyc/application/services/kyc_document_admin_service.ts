@@ -15,7 +15,7 @@ import {
   type KycDocumentResult,
   type PaginatedKycDocumentsResult,
   type KycStatsResult,
-} from '#core/identity/kyc/application/dtos/kyc_document_admin.dto'
+} from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
 
 /**
  * Revue des documents KYC par l'administration.

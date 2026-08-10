@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import { v4 as uuidv4 } from 'uuid'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import DocumentPiece from '#core/identity/kyc/domain/models/document_piece'
-import { toKycDocumentResult } from '#core/identity/kyc/application/dtos/kyc_document_admin.dto'
+import { toKycDocumentResult } from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
 import {
   DocumentPieceType,
   KycDocumentStatus,

@@ -10,7 +10,7 @@ import {
   type CreateKycLevelCommand,
   type UpdateKycLevelCommand,
   type KycLevelResult,
-} from '#core/identity/kyc/application/dtos/kyc_level_admin.dto'
+} from '#core/identity/kyc/application/dtos/admin/admin_kyc_level.dto'
 
 /**
  * Gestion des niveaux KYC et de leurs plafonds.

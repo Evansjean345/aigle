@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import KycDocumentAdminService from '#core/identity/kyc/application/services/kyc_document_admin_service'
-import { AdminKycListDto } from '#core/identity/kyc/application/dto/kyc.dto'
-import type { ListKycDocumentsFilters } from '#core/identity/kyc/application/dtos/kyc_document_admin.dto'
+import { AdminKycListDto } from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
+import type { ListKycDocumentsFilters } from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
 
 /**
  * Liste les documents KYC soumis, pour la revue.

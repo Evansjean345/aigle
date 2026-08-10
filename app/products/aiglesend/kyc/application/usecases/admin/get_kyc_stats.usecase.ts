@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import KycDocumentAdminService from '#core/identity/kyc/application/services/kyc_document_admin_service'
-import { KycStatsDto } from '#core/identity/kyc/application/dto/kyc.dto'
+import { KycStatsDto } from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
 
 /**
  * Compteurs de la revue KYC.
