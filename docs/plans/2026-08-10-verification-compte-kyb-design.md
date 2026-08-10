@@ -1,7 +1,7 @@
 ---
 status: draft
 etape: 4
-lot: K3
+lot: K4
 derniere_maj: 2026-08-10
 ---
 
@@ -85,6 +85,8 @@ Relevé du code au 2026-08-10 (les points marqués ✏️ corrigent ou précisen
 | D11 | `valid_until` reste **porté par le dossier**, pas par la pièce | Validité par pièce | Le renouvellement d'un RCCM ou d'un DFE entraîne une resoumission du dossier entier ; une validité par pièce n'aurait pas de consommateur | 2026-08-10 |
 | D12 | La **référence** (numéro RCCM / DFE) est **obligatoire à la soumission**, non vide, **sans contrainte de format** | Fichier seul ; saisie par le gestionnaire à la revue ; validation par regex du format OHADA | Le numéro est la clé de requête vers un registre officiel : sans champ structuré, aucune vérification automatique n'est possible plus tard. Le déclarer à la soumission préserve l'écart déclaré/lu comme signal de fraude, que la saisie par le gestionnaire supprimerait. Pas de regex : un format OHADA mal deviné rejetterait des entreprises légitimes sans recours | 2026-08-10 |
 | D13 | **Soumission progressive pour l'entreprise.** Le dossier est une machine à états portée par `kyc_documents.status` : `in_submission` tant qu'une pièce requise manque, `pending` dès que la dernière arrive. `next_action` nomme la pièce attendue. Le catalogue (D9) porte, par segment, les pièces requises **et le mode** — `particulier` atomique, `enterprise` progressif | Refuser toute soumission incomplète ; envoi explicite en revue par le propriétaire ; fenêtre de correction après complétude | Une entreprise n'a pas toujours son DFE le jour où elle a son RCCM. `IN_SUBMISSION` et `KycDocumentNextAction` sont **déjà déclarés et inutilisés** dans `kyc_enum.ts` — l'échafaudage attendait ce cas. Le passage automatique évite qu'un dossier complet dorme parce que personne n'a cliqué. Le mode atomique préserve à l'identique le chemin KYC identité | 2026-08-10 |
+| D15 | L'approbation d'un dossier d'organisation monte le compte via un **listener core dédié**, `SyncAccountLevelOnVerificationProcessed`, symétrique de celui du KYC | Poussée synchrone depuis le service de revue ; généraliser `OnUserKycStatusUpdate` | La chaîne KYC existante transite par le modèle `User`, qu'une organisation n'a pas. Un listener jumeau garde une seule mécanique — l'event — pour les deux cas, sans faire traiter des comptes sans utilisateur par un listener d'`identity/user` | 2026-08-10 |
+| D16 | Le garde-fou contre « dossier approuvé, compte resté au niveau 0 » est **l'écart rendu visible au back-office** : statut du dossier et niveau du compte affichés côte à côte, échecs du listener journalisés | Vérification après coup par le service ; montée synchrone | La vérification après coup redonnerait au service la connaissance de l'effet de son event, que D15 découple, et peut courir avant le listener. La montée synchrone reviendrait à l'approche écartée en D15 | 2026-08-10 |
 | D14 | **Le refus porte sur le dossier**, pas sur la pièce ; le motif nomme la pièce en cause | Statut par pièce ; refus global avec liste de pièces à reprendre | La soumission progressive (D13) donne déjà le résultat pratique : l'entreprise redépose le seul DFE, le RCCM en place ne bouge pas. Un statut par pièce obligerait l'historique des tentatives à suivre le grain de la pièce | 2026-08-10 |
 
 ### Conséquences de D1
@@ -117,7 +119,7 @@ Validé le 2026-08-10.
 | --- | ------- | --------- | ------ |
 | K1  | **Socle « vérification de compte »** — `kyc_documents` devient le dossier ancré `account_id` + `owner_type` ; les pièces passent en table fille typée ; les recto/verso/selfie existants y sont migrés. Le KYC identité fonctionne à l'identique de bout en bout | — | **design terminé** |
 | K2  | **Le dossier KYB dans le core** — types de pièces RCCM/DFE, règle de complétude par segment, soumission par compte org, service de vérification, events | K1 | **design terminé** |
-| K3  | **Revue et palier** — la revue admin couvre les dossiers org ; l'approbation pousse le niveau 0 → 2 (`AccountService.setLevel`) et miroite `organisation.level` | K2 | à faire |
+| K3  | **Revue et palier** — la revue admin couvre les dossiers org ; l'approbation pousse le niveau 0 → 2 (`AccountService.setLevel`) et miroite `organisation.level` | K2 | **design terminé** |
 | K4  | **Présentations** — soumission owner côté `aiglebusiness` (`kyb:submit` / `kyb:view`), onglet KYB du back-office `aiglesend` | K3 | à faire |
 
 Découpage validé le 2026-08-10 (alternatives écartées : 3 lots avec K1 fondu dans K2 — trop large,
@@ -406,7 +408,69 @@ ensuite sans rien recalculer.
 
 ---
 
+## Lot K3 — Revue et palier
+
+### Architecture — validée le 2026-08-10
+
+#### Ce qui existe et ne peut pas être réutilisé tel quel
+
+La chaîne d'approbation du KYC passe par le modèle `User` :
+
+```
+KycDocumentAdminService.process
+  └─ event KycDocumentProcessed(userId)
+       └─ OnUserKycStatusUpdate  →  UpdateUserKycStatus(userId, VERIFIED, niveau 2)
+            └─ event UserKycStatusUpdated
+                 └─ SyncAccountLevelOnKycUpdated  →  AccountService.setLevel(userId, 2)
+```
+
+Une organisation n'a pas de `User`. D'où D15.
+
+#### Le core
+
+- `KycDocumentProcessed` gagne `accountId` et `ownerType` ; `userId` devient nullable — même
+  changement que l'event de soumission en K2.
+- **Nouveau listener** `SyncAccountLevelOnVerificationProcessed`, dans
+  `core/identity/account/application/listeners/` à côté de son jumeau : ne retient que
+  `ownerType = organisation` et `status = APPROVED`, puis appelle
+  `AccountService.setLevel(accountId, levelAfterApproval(segment))`.
+- **Mapping `levelAfterApproval(segment)`** dans `core/identity/kyc/domain`, à côté du catalogue de
+  complétude : `enterprise → 2`. Un refus ne touche pas au niveau, le compte reste à 0.
+- `OnUserKycStatusUpdate` **ignore** les dossiers d'organisation — sans cette garde il appellerait
+  `UpdateUserKycStatus` avec un `userId` nul.
+- `KycDocumentAdminService` : le shim `findByUser` (D8) est retiré ; la file de revue devient
+  filtrable par `ownerType` et le `Result` porte `accountId` et `ownerType`. Le core ne résout aucun
+  libellé de propriétaire (D7).
+
+#### Le produit `aiglebusiness`
+
+Un listener produit écoute le même event et miroite `organisation.level = LEVEL_2` — produit → core
+par event, autorisé.
+
+### Gestion des erreurs — validée le 2026-08-10
+
+| Cas | Réponse |
+| --- | --- |
+| Compte disparu à l'approbation | `AccountService.setLevel` est déjà no-op sur compte inconnu |
+| Dossier approuvé, listener en échec | **Le risque du lot** : l'entreprise resterait bloquée au niveau 0 en silence. Garde-fou D16 — le back-office affiche statut du dossier et niveau du compte côte à côte, et les échecs du listener sont journalisés |
+| Approbation d'un dossier déjà approuvé | Sans effet : `setLevel` est idempotent |
+
+### Tests — validés le 2026-08-10
+
+- approbation d'un dossier d'organisation → `account.level` passe à 2 et `organisation.level` à
+  `LEVEL_2` ;
+- refus → niveau inchangé, le compte reste à 0 ;
+- approbation d'un dossier utilisateur → la chaîne existante est inchangée et le listener
+  organisation ne se déclenche pas ;
+- `OnUserKycStatusUpdate` ne s'exécute jamais avec un `userId` nul ;
+- la file de revue liste les deux natures de dossier et se filtre par `ownerType` ;
+- une entreprise passée au niveau 2 obtient bien des limites illimitées via `getStanding`.
+
+**Design de K3 complet.**
+
+---
+
 ## Prochaine session
 
-Étape 4 (design) sur le lot **K3** — revue et palier : la revue admin couvre les dossiers
-d'organisation, et l'approbation pousse le compte du niveau 0 au niveau 2.
+Étape 4 (design) sur le lot **K4** — les présentations : soumission owner côté `aiglebusiness`
+(`kyb:submit` / `kyb:view`, permissions déjà déclarées), et onglet KYB du back-office.
