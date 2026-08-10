@@ -129,7 +129,14 @@ Chaque remarque : un niveau, un titre, la date, le contexte (où/quoi), pourquoi
   - **⚠️ Le KYB VIT DANS LE CORE, pas dans le produit business** (imposé par l'invariant `core-ne-depend-pas-du-produit`) : le palier du compte (core/money) dérive de la vérification → si le KYB était dans le produit, core→produit = **violation**. La feature `core/identity/kyc` passe donc de « KYC identité » à **« vérification de compte »** : elle gère les documents d'identité (compte user) ET entreprise/RCCM/DFE (compte org), distingués par `ownerType`/type de doc. Elle **réutilise** soumission + revue admin (`process_kyc_document`) + paliers (`kyc_level`) + events. **Le core ne connaît JAMAIS le modèle `Organisation`** : il travaille sur `account_id` + `ownerType` + métadonnées de doc (RCCM/DFE = champs, pas une relation business). Le produit business garde une **présentation mince** (soumission owner) qui appelle le **service core de vérification** (produit→core par service).
 - **Esquisse** : ajouter le niveau (+ résolution des limites) au compte (`accounts.tier` ou table `account_tier` reliant niveau→limites, réutilisable pour user KYC & org KYB) ; une **vérification par compte** (documents + status, type selon ownerType) ; migrer les lookups argent `userId` → `accountId` ; définir les limites d'un compte marchand (KYB → paliers business).
 - **Pourquoi différé** : transverse (identity/money/business), money-critical, et **le checkout MVP n'en a pas besoin** (un marchand qui *reçoit* n'a pas de limite bloquante ; les gardes actuelles sautent proprement le marchand). Naturellement couplé à [[R4]] (endgame D8 account-centrique).
-- **Statut** : décidé (design) — à implémenter après le sous-lot 4 (checkout) & mass-paiement, groupé avec R4.
+- **Statut** : **requalifiée le 2026-08-10** — la partie « palier porté par le compte » est **livrée**
+  (refactor account-centric : `accounts.segment` / `accounts.level`, `AccountStandingService`, grille
+  `(segment, level)`). La partie **KYB** est passée en conception : voir
+  [`2026-08-10-verification-compte-kyb-design.md`](2026-08-10-verification-compte-kyb-design.md),
+  design **approuvé**, lots K1 à K4, implémentation à venir. Deux relevés corrigent cette fiche :
+  `kyc_documents.account_id` **existe déjà et est backfillé** (la migration annoncée est livrée), et
+  le KYB ne concerne **que l'entreprise** — le marchand n'en passe pas (D1). R5 sera close à la
+  livraison de K4.
 
 ## Remarques
 

@@ -1,7 +1,7 @@
 ---
-status: draft
-etape: 4
-lot: K4
+status: approved
+etape: 6
+lot: K1 (implémentation)
 derniere_maj: 2026-08-10
 ---
 
@@ -11,8 +11,10 @@ Origine : `docs/plans/2026-08-05-kyb-prompt.md` (prompt de reprise), remarque **
 `docs/plans/remarques-a-brainstormer.md`.
 
 **Mode : large projet** — le chantier touche `core/identity/kyc`, `core/identity/account`, le produit
-`aiglebusiness` (soumission owner), le produit `aiglesend` (revue back-office), le schéma
-(`kyc_documents`, `kyc_level`) et une grille de paliers à compléter.
+`aiglebusiness` (soumission owner **et** revue back-office, cf. D7) et le schéma (`kyc_documents`,
+`kyc_attemps`, nouvelle table `document_pieces`).
+
+La grille `kyc_level`, elle, n'est **pas** touchée : D1 l'a rendue inutile à compléter.
 
 ---
 
@@ -87,6 +89,7 @@ Relevé du code au 2026-08-10 (les points marqués ✏️ corrigent ou précisen
 | D13 | **Soumission progressive pour l'entreprise.** Le dossier est une machine à états portée par `kyc_documents.status` : `in_submission` tant qu'une pièce requise manque, `pending` dès que la dernière arrive. `next_action` nomme la pièce attendue. Le catalogue (D9) porte, par segment, les pièces requises **et le mode** — `particulier` atomique, `enterprise` progressif | Refuser toute soumission incomplète ; envoi explicite en revue par le propriétaire ; fenêtre de correction après complétude | Une entreprise n'a pas toujours son DFE le jour où elle a son RCCM. `IN_SUBMISSION` et `KycDocumentNextAction` sont **déjà déclarés et inutilisés** dans `kyc_enum.ts` — l'échafaudage attendait ce cas. Le passage automatique évite qu'un dossier complet dorme parce que personne n'a cliqué. Le mode atomique préserve à l'identique le chemin KYC identité | 2026-08-10 |
 | D15 | L'approbation d'un dossier d'organisation monte le compte via un **listener core dédié**, `SyncAccountLevelOnVerificationProcessed`, symétrique de celui du KYC | Poussée synchrone depuis le service de revue ; généraliser `OnUserKycStatusUpdate` | La chaîne KYC existante transite par le modèle `User`, qu'une organisation n'a pas. Un listener jumeau garde une seule mécanique — l'event — pour les deux cas, sans faire traiter des comptes sans utilisateur par un listener d'`identity/user` | 2026-08-10 |
 | D16 | Le garde-fou contre « dossier approuvé, compte resté au niveau 0 » est **l'écart rendu visible au back-office** : statut du dossier et niveau du compte affichés côte à côte, échecs du listener journalisés | Vérification après coup par le service ; montée synchrone | La vérification après coup redonnerait au service la connaissance de l'effet de son event, que D15 découple, et peut courir avant le listener. La montée synchrone reviendrait à l'approche écartée en D15 | 2026-08-10 |
+| D17 | La revue KYB reçoit son **groupe de droits back-office dédié**, `organisations.kyb.*` (`read` / `approve` / `reject`), et non les droits `kyc_documents.*` existants | Réutiliser `kyc_documents.*` ; ne séparer que la consultation | Approuver un KYB fait passer une entreprise de « bloquée » à « plafonds illimités ». Réutiliser `kyc_documents.approve` donnerait ce pouvoir à tout agent habilité à valider une carte d'identité. La séparation `read` / `approve` / `reject` reprend la forme et la raison déjà écrites dans `KYC_PERMISSIONS` | 2026-08-10 |
 | D14 | **Le refus porte sur le dossier**, pas sur la pièce ; le motif nomme la pièce en cause | Statut par pièce ; refus global avec liste de pièces à reprendre | La soumission progressive (D13) donne déjà le résultat pratique : l'entreprise redépose le seul DFE, le RCCM en place ne bouge pas. Un statut par pièce obligerait l'historique des tentatives à suivre le grain de la pièce | 2026-08-10 |
 
 ### Conséquences de D1
@@ -120,7 +123,7 @@ Validé le 2026-08-10.
 | K1  | **Socle « vérification de compte »** — `kyc_documents` devient le dossier ancré `account_id` + `owner_type` ; les pièces passent en table fille typée ; les recto/verso/selfie existants y sont migrés. Le KYC identité fonctionne à l'identique de bout en bout | — | **design terminé** |
 | K2  | **Le dossier KYB dans le core** — types de pièces RCCM/DFE, règle de complétude par segment, soumission par compte org, service de vérification, events | K1 | **design terminé** |
 | K3  | **Revue et palier** — la revue admin couvre les dossiers org ; l'approbation pousse le niveau 0 → 2 (`AccountService.setLevel`) et miroite `organisation.level` | K2 | **design terminé** |
-| K4  | **Présentations** — soumission owner côté `aiglebusiness` (`kyb:submit` / `kyb:view`), onglet KYB du back-office `aiglesend` | K3 | à faire |
+| K4  | **Présentations** — soumission owner côté `aiglebusiness` (`kyb:submit` / `kyb:view`), onglet KYB du back-office `aiglesend` | K3 | **design terminé** |
 
 Découpage validé le 2026-08-10 (alternatives écartées : 3 lots avec K1 fondu dans K2 — trop large,
 une régression KYC serait dure à isoler ; 5 lots avec K3 scindé en revue puis palier).
@@ -470,7 +473,120 @@ par event, autorisé.
 
 ---
 
-## Prochaine session
+## Lot K4 — Les présentations
 
-Étape 4 (design) sur le lot **K4** — les présentations : soumission owner côté `aiglebusiness`
-(`kyb:submit` / `kyb:view`, permissions déjà déclarées), et onglet KYB du back-office.
+### Architecture — validée le 2026-08-10
+
+K4 ne porte **aucune règle métier** : toute la règle vit dans le core (K2 et K3). Les contrôleurs
+valident, résolvent le compte, appellent, projettent.
+
+#### Résolution du compte
+
+`AccountService` gagne `getAccountId(ownerType, ownerRef): Promise<string | null>`. Le produit ne
+suppose jamais `accountId == organisationId`, même si la dérivation le vérifie aujourd'hui.
+
+#### Client owner — `aiglebusiness`
+
+Un `kyb_routes.ts` calqué sur `funding_request_routes.ts`, avec la même chaîne de middlewares,
+`requireEnterprise` compris — un marchand est refusé à la porte (D1).
+
+| Route | Garde |
+| --- | --- |
+| `POST business/organisations/:organisationId/kyb/pieces` | `BUSINESS_PERMISSION.kybSubmit` |
+| `GET business/organisations/:organisationId/kyb` — état, pièces présentes, `nextAction`, `missingPieces` | `BUSINESS_PERMISSION.kybView` |
+
+Les deux permissions sont **déjà déclarées** depuis le chantier RBAC ; K4 est le premier à les
+consommer.
+
+#### Admin — `aiglebusiness` (D7)
+
+L'onglet KYB rejoint `admin_organisation_routes.ts` :
+
+| Route | Rôle |
+| --- | --- |
+| `GET admin/organisations/:organisationId/kyb` | Dossier, pièces **et niveau du compte côte à côte** — c'est là que vit le garde-fou D16 |
+| `POST admin/organisations/:organisationId/kyb/decision` | Approbation ou refus, via le service core de revue |
+
+Swagger est mis à jour dans le même lot, selon la convention du dépôt.
+
+### RBAC — validé le 2026-08-10
+
+Deux catalogues distincts sont en jeu, et ils ne se rejoignent pas.
+
+#### Côté organisation — rien à déclarer
+
+Une organisation est provisionnée avec un seul rôle système, `OWNER`, à qui
+`seedForNewOrganisation` attribue `allPermissionSlugs()`. `kyb:submit` et `kyb:view` sont donc **déjà
+les siennes**, et les autres rôles se composent depuis le catalogue par l'owner. K4 **consomme** ces
+deux permissions, il n'en déclare aucune.
+
+Les niveaux de sensibilité en place sont conservés : `kyb:submit` reste `sensitive: false` — c'est
+une saisie, dont l'effet est verrouillé derrière la revue — et `kyb:view` reste `sensitive: true`,
+puisqu'il expose les pièces légales de l'entreprise.
+
+#### Côté back-office — un groupe dédié (D17)
+
+`ORGANISATION_KYB_PERMISSIONS` rejoint
+`aiglebusiness/organisation/presentation/admin/permissions.config.ts`, sur la forme de
+`KYC_PERMISSIONS` :
+
+| Slug | Rôle | `sensitive` |
+| --- | --- | --- |
+| `organisations.kyb.read` | Consulter le dossier de vérification d'une entreprise et ses pièces | `true` |
+| `organisations.kyb.approve` | Approuver — fait passer l'entreprise du niveau 0 aux plafonds illimités | `true` |
+| `organisations.kyb.reject` | Refuser avec motif et demander une nouvelle soumission | `true` |
+
+Séparer `approve` de `reject` reprend la raison déjà écrite dans `KYC_PERMISSIONS` : un agent peut
+être habilité à rejeter une pièce non conforme sans pouvoir valider.
+
+`organisations.kyb.read` garde le `GET`, `approve` et `reject` gardent le `POST` de décision selon
+le sens de la décision portée.
+
+#### Tests RBAC
+
+- 403 sur le `GET` admin sans `organisations.kyb.read` ;
+- 403 sur une approbation avec `organisations.kyb.reject` seul, et symétriquement ;
+- un agent porteur de `kyc_documents.approve` **seul** ne peut pas approuver un KYB — c'est la
+  garantie de D17 ;
+- l'owner d'une organisation fraîchement créée peut soumettre et consulter sans configuration.
+
+### Tests — validés le 2026-08-10
+
+- 403 sans `kyb:submit`, 403 sans `kyb:view` ;
+- refus sur une organisation marchande (`requireEnterprise`) ;
+- dépôt RCCM puis DFE de bout en bout, le dossier passant `in_submission` → `pending` ;
+- approbation admin → niveau 2 visible sur le compte ;
+- 404 cross-organisation.
+
+**Design de K4 complet.**
+
+---
+
+## Hors scope de ce chantier
+
+- **Compléter la grille `kyc_level`** — D1 la rend inutile : aucun palier ne manque.
+- **Vérification automatique auprès d'un registre** (RCCM OHADA). D12 pose le champ structuré qui la
+  rendra possible ; le chantier ne l'implémente pas.
+- **Validité par pièce** (D11) et **statut par pièce** (D14).
+- **Drop des colonnes `document_recto_url` / `verso` / `selfie`** (D5) — après stabilisation, hors
+  de ce chantier.
+- **Renommage de `kyc_documents`** (U4) — à trancher en fin de K1, hors chemin critique.
+- **KYB du marchand** (D1) — il n'en a pas.
+
+## Inconnues restantes
+
+| # | Inconnue | Résolution |
+| --- | --- | --- |
+| U4 | Le nom `kyc_documents` pour une table qui n'est plus spécifique au KYC | En fin de K1, une fois le rayon d'impact réel connu |
+
+---
+
+## Clôture
+
+Design **approuvé le 2026-08-10**, étapes 0 à 5 du processus de brainstorming parcourues.
+Code re-vérifié à l'approbation : aucun commit sur `app/` ni `database/` pendant la session.
+
+Le RBAC a été traité en fin de session, à la demande de l'utilisateur, comme une section de K4
+(D17) — extension de périmètre assumée plutôt qu'absorbée en silence.
+
+Prochaine étape : `writing-plans` sur le **lot K1**, le seul qui ne dépend d'aucun autre.

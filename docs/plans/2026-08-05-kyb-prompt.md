@@ -1,6 +1,13 @@
 # Prompt de reprise — Vérification d'entreprise (KYB)
 
-> À coller tel quel au démarrage d'une nouvelle session.
+> **Consommé le 2026-08-10.** Le brainstorming a eu lieu et le design est approuvé :
+> [`2026-08-10-verification-compte-kyb-design.md`](2026-08-10-verification-compte-kyb-design.md),
+> lots K1 à K4. Ce prompt est conservé comme trace du point de départ — ne pas le rejouer.
+>
+> Trois de ses relevés ont été corrigés par le code : `kyc_documents.account_id` **existe déjà et
+> est backfillé**, le back-office des organisations vit dans `aiglebusiness` (pas `aiglesend`), et
+> la grille `kyc_level` n'a **aucun palier manquant** une fois acté que seule l'entreprise passe un
+> KYB.
 
 ---
 
