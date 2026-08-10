@@ -61,6 +61,7 @@ export default class AccountStandingService {
     return {
       accountId: account.accountId,
       ownerType: account.ownerType,
+      ownerRef: account.ownerRef,
       segment: (account.segment ?? AccountSegment.PARTICULIER) as AccountSegment,
       status: account.status,
     }

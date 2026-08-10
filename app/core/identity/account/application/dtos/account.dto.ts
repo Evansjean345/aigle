@@ -22,6 +22,8 @@ export interface OpenAccountCommand {
 export interface AccountDescriptionResult {
   accountId: string
   ownerType: AccountOwnerType
+  /** Identifiant du propriétaire dans son propre contexte : `users_uid` ou `organisation_id`. */
+  ownerRef: string
   segment: AccountSegment
   status: AccountStatus
 }

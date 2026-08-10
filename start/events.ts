@@ -65,6 +65,10 @@ const SyncAccountStatusOnUserStateChanged = () =>
   import('#core/identity/account/application/listeners/sync_account_status_on_user_state_changed')
 const SyncAccountLevelOnKycUpdated = () =>
   import('#core/identity/account/application/listeners/sync_account_level_on_kyc_updated')
+const SyncAccountLevelOnVerificationProcessed = () =>
+  import('#core/identity/account/application/listeners/sync_account_level_on_verification_processed')
+const MirrorOrganisationLevelOnVerificationProcessed = () =>
+  import('#aiglebusiness/organisation/application/listeners/mirror_organisation_level_on_verification_processed')
 const HandleTransactionFailure = () =>
   import('#core/money/risk/application/listeners/handle_transaction_failure')
 const TransferItemSettledListener = () =>
@@ -107,7 +111,12 @@ emitter.listen(KycDocumentSubmitted, [
   OnKycDocumentSubmittedNotification,
   OnKycSubmittedAdminBroadcast,
 ])
-emitter.listen(KycDocumentProcessed, [OnUserKycStatusUpdate, OnKycProcessedAdminBroadcast])
+emitter.listen(KycDocumentProcessed, [
+  OnUserKycStatusUpdate,
+  OnKycProcessedAdminBroadcast,
+  SyncAccountLevelOnVerificationProcessed,
+  MirrorOrganisationLevelOnVerificationProcessed,
+])
 emitter.listen(UserKycStatusUpdated, [
   OnKycDocumentProcessedNotification,
   SyncAccountLevelOnKycUpdated,

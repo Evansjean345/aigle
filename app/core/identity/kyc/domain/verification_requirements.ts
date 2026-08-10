@@ -13,10 +13,18 @@ export interface RequiredPiece {
   requiresReference: boolean
 }
 
-/** Ce qu'un segment doit fournir, et comment. */
+/** Ce qu'un segment doit fournir, comment, et ce que le dossier approuvé lui ouvre. */
 export interface VerificationRequirements {
   pieces: RequiredPiece[]
   mode: SubmissionMode
+  /**
+   * Niveau atteint quand ce dossier est approuvé. `null` quand le segment ne passe aucune
+   * vérification.
+   *
+   * Le niveau doit exister en code avant d'exister en base : c'est ici qu'il prend son sens, pas
+   * dans la grille des plafonds, que l'administration ajuste.
+   */
+  grantsLevel: number | null
 }
 
 /** Une pièce telle qu'elle a été reçue, réduite à ce qui décide de la complétude. */
@@ -57,11 +65,12 @@ export function requirementsFor(
     return {
       pieces: [numberedPiece(DocumentPieceType.RCCM), numberedPiece(DocumentPieceType.DFE)],
       mode: SubmissionMode.PROGRESSIVE,
+      grantsLevel: 2,
     }
   }
 
   if (segment === AccountSegment.MARCHAND) {
-    return { pieces: [], mode: SubmissionMode.ATOMIC }
+    return { pieces: [], mode: SubmissionMode.ATOMIC, grantsLevel: null }
   }
 
   const pieces = [identityPiece(DocumentPieceType.RECTO)]
@@ -72,7 +81,7 @@ export function requirementsFor(
 
   pieces.push(identityPiece(DocumentPieceType.SELFIE))
 
-  return { pieces, mode: SubmissionMode.ATOMIC }
+  return { pieces, mode: SubmissionMode.ATOMIC, grantsLevel: 2 }
 }
 
 /**

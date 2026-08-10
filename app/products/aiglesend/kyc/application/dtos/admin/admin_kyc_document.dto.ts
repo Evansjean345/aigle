@@ -1,7 +1,4 @@
-import type {
-  KycDocumentResult,
-  KycStatsResult,
-} from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
+import type { KycDocumentResult } from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
 
 /**
  * Vues du back-office pour les dossiers de vérification d'identité.

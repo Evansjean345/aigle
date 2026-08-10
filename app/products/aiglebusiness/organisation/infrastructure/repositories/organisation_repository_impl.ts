@@ -1,3 +1,4 @@
+import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import Organisation from '#aiglebusiness/organisation/domain/models/organisation'
@@ -113,6 +114,23 @@ export default class OrganisationRepositoryImpl implements OrganisationRepositor
     if (trx) {
       return organisation.useTransaction(trx).save()
     }
+
+    return organisation.save()
+  }
+
+  /**
+   * Fixe le niveau d'une organisation.
+   *
+   * @param {string} organisationId - Identifiant public de l'organisation.
+   * @param {OrganisationLevel} level - Nouveau niveau.
+   * @returns {Promise<Organisation>} L'organisation dans son nouvel état.
+   */
+  async updateLevel(organisationId: string, level: OrganisationLevel): Promise<Organisation> {
+    const organisation = await Organisation.query()
+      .where('organisation_id', organisationId)
+      .firstOrFail()
+
+    organisation.level = level
 
     return organisation.save()
   }

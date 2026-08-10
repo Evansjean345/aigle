@@ -4,6 +4,8 @@
  * Façonnent la réponse HTTP servie par `aiglesend` : le core rend un `Result`, le produit décide de
  * ce qu'il expose.
  */
+import { type KycLevelResult } from '#core/identity/kyc/application/dtos/admin/admin_kyc_level.dto'
+import { type KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
 
 export class CreateKycLevelDto {
   declare level: KycLevelState

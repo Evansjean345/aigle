@@ -62,16 +62,6 @@ export default class IdentityReviewService {
   }
 
   /**
-   * Charge le dossier courant d'un utilisateur.
-   *
-   * @param {string} userId - Identifiant public de l'utilisateur.
-   * @returns {Promise<KycDocumentResult | null>} Le dossier, ou `null` s'il n'en a pas soumis.
-   */
-  async findByUser(userId: string): Promise<KycDocumentResult | null> {
-    return this.findByAccountId(userId)
-  }
-
-  /**
    * Charge le dossier de vérification d'un compte, images signées comprises.
    *
    * @param {string} accountId - Compte porteur du dossier.

@@ -1,3 +1,4 @@
+import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import type Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 import { type OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import type {
@@ -88,6 +89,15 @@ export default abstract class OrganisationRepository {
     status: OrganisationStatus,
     trx?: TransactionClientContract
   ): Promise<Organisation>
+
+  /**
+   * Fixe le niveau d'une organisation.
+   *
+   * @param {string} organisationId - Identifiant public de l'organisation.
+   * @param {OrganisationLevel} level - Nouveau niveau.
+   * @returns {Promise<Organisation>} L'organisation dans son nouvel état.
+   */
+  abstract updateLevel(organisationId: string, level: OrganisationLevel): Promise<Organisation>
 
   /**
    * Compte les organisations par statut, par type et sur la journée, pour le bandeau admin.

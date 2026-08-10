@@ -16,7 +16,7 @@ export default class GetUserKycDocumentUseCase {
    * @returns {Promise<AdminKycListDto | null>} Le document, ou `null` s'il n'en a pas soumis.
    */
   async execute(userId: string): Promise<AdminKycListDto | null> {
-    const document = await this.kycDocumentService.findByUser(userId)
+    const document = await this.kycDocumentService.findByAccountId(userId)
 
     return document ? AdminKycListDto.fromResult(document) : null
   }
