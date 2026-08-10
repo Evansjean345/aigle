@@ -52,7 +52,12 @@ test.group('Kyc | revue des documents', () => {
 
     const service = new KycDocumentAdminService(mockRepo)
 
-    await service.process({ documentId: 1, status: KycDocumentStatus.APPROVED, comment: 'Bon document', agentId: 1 })
+    await service.process({
+      documentId: 1,
+      status: KycDocumentStatus.APPROVED,
+      comment: 'Bon document',
+      agentId: 1,
+    })
 
     assert.equal(savedDoc?.status, KycDocumentStatus.APPROVED)
     assert.equal(savedDoc?.comment, 'Bon document')
@@ -87,7 +92,12 @@ test.group('Kyc | revue des documents', () => {
 
     const service = new KycDocumentAdminService(mockRepo)
 
-    await service.process({ documentId: 1, status: KycDocumentStatus.REJECTED, comment: 'Photo floue', agentId: 1 })
+    await service.process({
+      documentId: 1,
+      status: KycDocumentStatus.REJECTED,
+      comment: 'Photo floue',
+      agentId: 1,
+    })
 
     assert.equal(savedDoc?.status, KycDocumentStatus.REJECTED)
     assert.equal(savedAttempt?.status, KycDocumentStatus.REJECTED)

@@ -5,14 +5,15 @@ import {
   KycDocumentResponseDto,
 } from '#core/identity/kyc/application/dto/kyc.dto'
 import FileStorageService from '#shared/infrastructure/services/file_storage_service'
-import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
+import { DocumentPieceType, KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
+import type { DocumentPieceInput } from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import KycDocumentSubmitted from '#core/identity/kyc/application/events/kyc_document_submitted'
 import { KycAttemp } from '#core/identity/kyc/domain/models/kyc_attemp'
 import KycAlreadySubmittedException from '#core/identity/kyc/domain/exceptions/kyc_already_submitted_exception'
 import MissingKycDocumentsException from '#core/identity/kyc/domain/exceptions/missing_kyc_documents_exception'
 
-import KycDocumentNotFoundException from '#core/identity/kyc/domain/exceptions/kyc_document_not_found_exception'
 import kycLog from '#shared/infrastructure/logging/kyc_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import emitter from '@adonisjs/core/services/emitter'
@@ -57,7 +58,7 @@ export default class SubmitKycDocumentUsecase {
     }
 
     try {
-      const { rectoUrl, versoUrl, selfiUrl } = await this.uploadDocumentFiles(
+      const pieces = await this.uploadDocumentPieces(
         kycDocument.documentRectoUrl,
         kycDocument.documentVersoUrl,
         kycDocument.documentsSelfieUrl,
@@ -65,37 +66,25 @@ export default class SubmitKycDocumentUsecase {
         kycDocument.documentType
       )
 
-      if (existingKyc) {
-        existingKyc.documentType = kycDocument.documentType
-        existingKyc.documentRectoUrl = rectoUrl
-        existingKyc.documentVersoUrl = versoUrl
-        existingKyc.selfieUrl = selfiUrl
-        existingKyc.status = KycDocumentStatus.PENDING
-        existingKyc.comment = undefined
-        existingKyc.agentId = null
+      const document = existingKyc ?? new KycDocument()
 
-        await this.kycDocumentRepository.saveKycDocument(existingKyc)
-      } else {
-        const newKycDocument = new KycDocument()
+      document.accountId = userId
+      document.userId = userId
+      document.ownerType = AccountOwnerType.USER
+      document.documentType = kycDocument.documentType
+      document.status = KycDocumentStatus.PENDING
+      document.comment = undefined
+      document.agentId = null
 
-        newKycDocument.userId = userId
-        newKycDocument.documentType = kycDocument.documentType
-        newKycDocument.documentRectoUrl = rectoUrl
-        newKycDocument.documentVersoUrl = versoUrl
-        newKycDocument.selfieUrl = selfiUrl
-        newKycDocument.status = KycDocumentStatus.PENDING
-        newKycDocument.agentId = null
-
-        await this.kycDocumentRepository.saveKycDocument(newKycDocument)
-      }
-
-      const currentKyc = existingKyc || (await this.kycDocumentRepository.findByAccountId(userId))
-      if (!currentKyc) throw new KycDocumentNotFoundException()
+      const currentKyc = await this.kycDocumentRepository.saveWithPieces(document, pieces)
 
       // Enregistrement de la tentative dans l'historique
       const lastAttempt = await this.kycDocumentRepository.findLastAttempt(currentKyc.id)
 
       const attemptNumber = (lastAttempt?.attemptNumber || 0) + 1
+
+      const keyOf = (pieceType: DocumentPieceType) =>
+        pieces.find((piece) => piece.pieceType === pieceType)?.fileKey
 
       const newAttempt = new KycAttemp()
       newAttempt.userId = userId
@@ -103,9 +92,9 @@ export default class SubmitKycDocumentUsecase {
 
       newAttempt.kycDocumentId = currentKyc.id
       newAttempt.documentType = kycDocument.documentType
-      newAttempt.documentRectoUrl = rectoUrl
-      newAttempt.documentVersoUrl = versoUrl
-      newAttempt.selfieUrl = selfiUrl
+      newAttempt.documentRectoUrl = keyOf(DocumentPieceType.RECTO)
+      newAttempt.documentVersoUrl = keyOf(DocumentPieceType.VERSO)
+      newAttempt.selfieUrl = keyOf(DocumentPieceType.SELFIE)
       newAttempt.attemptNumber = attemptNumber
       newAttempt.status = KycDocumentStatus.PENDING
       newAttempt.agentId = null
@@ -170,23 +159,26 @@ export default class SubmitKycDocumentUsecase {
   }
 
   /**
-   * Uploads the provided document files (front side, back side, and selfie) to the file storage service specific to the user's ID.
+   * Dépose les fichiers sur le stockage privé et en compose les pièces du dossier.
    *
-   * @param {any} recto - The file representing the front side of the ID document.
-   * @param {any} verso - The file representing the back side of the ID document.
-   * @param {any} selfie - The file representing the user's selfie image.
-   * @param {string} userId - The unique identifier of the user for whom the files are being uploaded.
-   * @param {string} documentType - The type of document being uploaded.
-   * @return {Promise<{rectoUrl: string, versoUrl: string, selfiUrl: string}>} A promise that resolves to an object containing the URLs of the uploaded files.
-   * @throws {Exception} If any of the required files (recto, verso, or selfie) are missing based on the document type.
+   * Chaque pièce porte la clé de l'objet déposé : la consultation passe par une URL signée générée à
+   * la lecture. Un passeport n'a pas de verso.
+   *
+   * @param {any} recto - Fichier du recto de la pièce.
+   * @param {any} verso - Fichier du verso, absent pour un passeport.
+   * @param {any} selfie - Photo du porteur.
+   * @param {string} accountId - Compte auquel le dossier se rattache.
+   * @param {string} documentType - Nature de la pièce d'identité.
+   * @return {Promise<DocumentPieceInput[]>} Les pièces à écrire.
+   * @throws {MissingKycDocumentsException} Un fichier requis manque.
    */
-  private async uploadDocumentFiles(
+  private async uploadDocumentPieces(
     recto: any,
     verso: any,
     selfie: any,
-    userId: string,
+    accountId: string,
     documentType: string
-  ): Promise<{ rectoUrl: string; versoUrl: string; selfiUrl: string }> {
+  ): Promise<DocumentPieceInput[]> {
     const isPassport = documentType === 'PASSPORT'
 
     if (!recto || (!isPassport && !verso) || !selfie) {
@@ -196,16 +188,26 @@ export default class SubmitKycDocumentUsecase {
       throw new MissingKycDocumentsException(message)
     }
 
-    const uploadPromises = [
-      await this.fileStorageService.uploadFile(recto, `kyc_documents/${userId}`),
-      verso
-        ? await this.fileStorageService.uploadFile(verso, `kyc_documents/${userId}`)
-        : await Promise.resolve(''),
-      await this.fileStorageService.uploadFile(selfie, `kyc_selfies/${userId}`),
+    const documentFolder = `kyc_documents/${accountId}`
+    const pieces: DocumentPieceInput[] = [
+      {
+        pieceType: DocumentPieceType.RECTO,
+        fileKey: await this.fileStorageService.uploadPrivateFile(recto, documentFolder),
+      },
     ]
 
-    const [rectoUrl, versoUrl, selfiUrl] = await Promise.all(uploadPromises)
+    if (verso) {
+      pieces.push({
+        pieceType: DocumentPieceType.VERSO,
+        fileKey: await this.fileStorageService.uploadPrivateFile(verso, documentFolder),
+      })
+    }
 
-    return { rectoUrl, versoUrl, selfiUrl }
+    pieces.push({
+      pieceType: DocumentPieceType.SELFIE,
+      fileKey: await this.fileStorageService.uploadPrivateFile(selfie, `kyc_selfies/${accountId}`),
+    })
+
+    return pieces
   }
 }

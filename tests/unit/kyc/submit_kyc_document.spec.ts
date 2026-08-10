@@ -1,32 +1,78 @@
 import { test } from '@japa/runner'
 import { v4 as uuidv4 } from 'uuid'
 import SubmitKycDocumentUsecase from '#core/identity/kyc/application/usecases/mobile/submit_kyc_document.usecase'
-import type KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
-import type FileStorageService from '#shared/infrastructure/services/file_storage_service'
-import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
-import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
+import InMemoryKycDocumentRepository from '#tests/fakes/kyc/in_memory_kyc_document_repository'
+import {
+  DocumentPieceType,
+  KycDocumentStatus,
+  KycDocumentType,
+} from '#core/identity/kyc/domain/enum/kyc_enum'
+import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import KycAlreadySubmittedException from '#core/identity/kyc/domain/exceptions/kyc_already_submitted_exception'
 import MissingKycDocumentsException from '#core/identity/kyc/domain/exceptions/missing_kyc_documents_exception'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
+import emitter from '@adonisjs/core/services/emitter'
 
-test.group('Kyc | Submit Use Case', () => {
+/**
+ * Double du stockage de fichiers.
+ *
+ * `FileStorageService` est une classe concrète et non un port : ce double en reproduit la surface
+ * publique sans la déclarer implémentée, et compte les dépôts pour distinguer le bucket privé du
+ * public. Le port viendra dans son propre changement.
+ */
+class StorageSpy {
+  publicUploads: string[] = []
+  privateUploads: string[] = []
+
+  async uploadFile(_file: any, destinationPath: string): Promise<string> {
+    const url = `http://public.test/${destinationPath}/${this.publicUploads.length + 1}.jpg`
+    this.publicUploads.push(url)
+
+    return url
+  }
+
+  async uploadPrivateFile(_file: any, destinationPath: string): Promise<string> {
+    const key = `${destinationPath}/${this.privateUploads.length + 1}.jpg`
+    this.privateUploads.push(key)
+
+    return key
+  }
+
+  async signedUrl(key: string): Promise<string> {
+    return `http://signed.test/${key}?expires=900`
+  }
+}
+
+/** Dossier déjà déposé, dans l'état donné. */
+function existingDocument(accountId: string, status: KycDocumentStatus): KycDocument {
+  const document = new KycDocument()
+  document.id = 1
+  document.accountId = accountId
+  document.userId = accountId
+  document.ownerType = AccountOwnerType.USER
+  document.documentType = KycDocumentType.CNI
+  document.status = status
+
+  return document
+}
+
+/** Use case câblé sur un dépôt en mémoire et un stockage espionné. */
+function makeUsecase(seed: KycDocument[] = []) {
+  const repository = new InMemoryKycDocumentRepository(seed)
+  const storage = new StorageSpy()
+
+  return { usecase: new SubmitKycDocumentUsecase(repository, storage), repository, storage }
+}
+
+test.group('Kyc | Submit Use Case', (group) => {
+  group.each.setup(() => {
+    emitter.fake()
+    return () => emitter.restore()
+  })
+
   test('devrait empêcher une soumission si un KYC est déjà APPROVED', async ({ assert }) => {
     const userId = uuidv4()
-
-    const mockRepo = {
-      findByAccountId: async () => ({ status: KycDocumentStatus.APPROVED }) as KycDocument,
-      saveKycDocument: async (doc: any) => doc,
-      findAll: async () => ({}) as any,
-      getStats: async () => ({}) as any,
-      findById: async () => null,
-      findLastAttempt: async () => null,
-      saveAttempt: async () => {},
-    } as unknown as KycDocumentRepository
-
-    const mockStorage = {
-      uploadFile: async () => 'http://fake-url.com/file.jpg',
-    } as unknown as FileStorageService
-
-    const usecase = new SubmitKycDocumentUsecase(mockRepo, mockStorage)
+    const { usecase } = makeUsecase([existingDocument(userId, KycDocumentStatus.APPROVED)])
 
     await assert.rejects(
       () =>
@@ -42,22 +88,7 @@ test.group('Kyc | Submit Use Case', () => {
 
   test('devrait empêcher une soumission si un KYC est déjà PENDING', async ({ assert }) => {
     const userId = uuidv4()
-
-    const mockRepo = {
-      findByAccountId: async () => ({ status: KycDocumentStatus.PENDING }) as KycDocument,
-      saveKycDocument: async (doc: any) => doc,
-      findAll: async () => ({}) as any,
-      getStats: async () => ({}) as any,
-      findById: async () => null,
-      findLastAttempt: async () => null,
-      saveAttempt: async () => {},
-    } as unknown as KycDocumentRepository
-
-    const mockStorage = {
-      uploadFile: async () => 'http://fake-url.com/file.jpg',
-    } as unknown as FileStorageService
-
-    const usecase = new SubmitKycDocumentUsecase(mockRepo, mockStorage)
+    const { usecase } = makeUsecase([existingDocument(userId, KycDocumentStatus.PENDING)])
 
     await assert.rejects(
       () =>
@@ -75,22 +106,7 @@ test.group('Kyc | Submit Use Case', () => {
     assert,
   }) => {
     const userId = uuidv4()
-
-    const mockRepo = {
-      findByAccountId: async () => null,
-      saveKycDocument: async (doc: any) => doc,
-      findAll: async () => ({}) as any,
-      getStats: async () => ({}) as any,
-      findById: async () => null,
-      findLastAttempt: async () => null,
-      saveAttempt: async () => {},
-    } as unknown as KycDocumentRepository
-
-    const mockStorage = {
-      uploadFile: async () => 'http://fake-url.com/file.jpg',
-    } as unknown as FileStorageService
-
-    const usecase = new SubmitKycDocumentUsecase(mockRepo, mockStorage)
+    const { usecase } = makeUsecase()
 
     await assert.rejects(
       () =>
@@ -106,25 +122,7 @@ test.group('Kyc | Submit Use Case', () => {
 
   test("devrait réussir la soumission si c'est le premier dépôt", async ({ assert }) => {
     const userId = uuidv4()
-
-    const mockRepo = {
-      findByAccountId: async () => null,
-      saveKycDocument: async (doc: any) => {
-        doc.id = 1
-        return doc
-      },
-      findAll: async () => ({}) as any,
-      getStats: async () => ({}) as any,
-      findById: async () => null,
-      findLastAttempt: async () => null,
-      saveAttempt: async () => {},
-    } as unknown as KycDocumentRepository
-
-    const mockStorage = {
-      uploadFile: async () => 'http://fake-url.com/file.jpg',
-    } as unknown as FileStorageService
-
-    const usecase = new SubmitKycDocumentUsecase(mockRepo, mockStorage)
+    const { usecase } = makeUsecase()
 
     const result = await usecase.execute(userId, {
       documentType: KycDocumentType.PASSPORT,
@@ -134,5 +132,95 @@ test.group('Kyc | Submit Use Case', () => {
     })
 
     assert.equal(result.message, 'Documents Kyc soumis avec succès 📄')
+  })
+
+  test('une CNI produit trois pièces typées', async ({ assert }) => {
+    const userId = uuidv4()
+    const { usecase, repository } = makeUsecase()
+
+    await usecase.execute(userId, {
+      documentType: KycDocumentType.CNI,
+      documentRectoUrl: { extname: 'jpg' } as any,
+      documentVersoUrl: { extname: 'jpg' } as any,
+      documentsSelfieUrl: { extname: 'jpg' } as any,
+    })
+
+    assert.sameMembers(
+      repository.pieces.map((piece) => piece.pieceType),
+      [DocumentPieceType.RECTO, DocumentPieceType.VERSO, DocumentPieceType.SELFIE]
+    )
+  })
+
+  test('un passeport produit deux pièces, sans verso', async ({ assert }) => {
+    const userId = uuidv4()
+    const { usecase, repository } = makeUsecase()
+
+    await usecase.execute(userId, {
+      documentType: KycDocumentType.PASSPORT,
+      documentRectoUrl: { extname: 'jpg' } as any,
+      documentVersoUrl: null as any,
+      documentsSelfieUrl: { extname: 'jpg' } as any,
+    })
+
+    assert.sameMembers(
+      repository.pieces.map((piece) => piece.pieceType),
+      [DocumentPieceType.RECTO, DocumentPieceType.SELFIE]
+    )
+  })
+
+  test('les pièces sont déposées sur le stockage privé, jamais le public', async ({ assert }) => {
+    const userId = uuidv4()
+    const { usecase, repository, storage } = makeUsecase()
+
+    await usecase.execute(userId, {
+      documentType: KycDocumentType.CNI,
+      documentRectoUrl: { extname: 'jpg' } as any,
+      documentVersoUrl: { extname: 'jpg' } as any,
+      documentsSelfieUrl: { extname: 'jpg' } as any,
+    })
+
+    assert.lengthOf(storage.publicUploads, 0)
+    assert.lengthOf(storage.privateUploads, 3)
+    assert.isTrue(repository.pieces.every((piece) => !piece.fileKey.startsWith('http')))
+  })
+
+  test('le dossier est ancré sur le compte et ses colonnes d’URL restent vides', async ({
+    assert,
+  }) => {
+    const userId = uuidv4()
+    const { usecase, repository } = makeUsecase()
+
+    await usecase.execute(userId, {
+      documentType: KycDocumentType.CNI,
+      documentRectoUrl: { extname: 'jpg' } as any,
+      documentVersoUrl: { extname: 'jpg' } as any,
+      documentsSelfieUrl: { extname: 'jpg' } as any,
+    })
+
+    const document = await repository.findByAccountId(userId)
+
+    assert.isNotNull(document)
+    assert.equal(document!.ownerType, AccountOwnerType.USER)
+    assert.equal(document!.status, KycDocumentStatus.PENDING)
+    assert.isUndefined(document!.documentRectoUrl)
+    assert.isUndefined(document!.documentVersoUrl)
+    assert.isUndefined(document!.selfieUrl)
+  })
+
+  test('une resoumission après refus réutilise le dossier existant', async ({ assert }) => {
+    const userId = uuidv4()
+    const { usecase, repository } = makeUsecase([
+      existingDocument(userId, KycDocumentStatus.REJECTED),
+    ])
+
+    await usecase.execute(userId, {
+      documentType: KycDocumentType.CNI,
+      documentRectoUrl: { extname: 'jpg' } as any,
+      documentVersoUrl: { extname: 'jpg' } as any,
+      documentsSelfieUrl: { extname: 'jpg' } as any,
+    })
+
+    assert.lengthOf(repository.documents, 1)
+    assert.equal(repository.documents[0].status, KycDocumentStatus.PENDING)
   })
 })
