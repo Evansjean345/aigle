@@ -16,6 +16,18 @@ export enum KycLevelState {
   KYC_VERIFIED = 2,
 }
 
+/**
+ * Rôle d'une pièce dans un dossier de vérification.
+ *
+ * `RECTO`, `VERSO` et `SELFIE` composent un dossier d'identité ; le dossier d'organisation reçoit
+ * ses propres rôles.
+ */
+export enum DocumentPieceType {
+  RECTO = 'RECTO',
+  VERSO = 'VERSO',
+  SELFIE = 'SELFIE',
+}
+
 export enum KycDocumentNextAction {
   DOCUMENT = 'DOCUMENT',
   SELFIE = 'SELFIE',

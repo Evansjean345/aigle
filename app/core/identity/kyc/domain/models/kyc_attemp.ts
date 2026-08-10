@@ -12,10 +12,13 @@ export class KycAttemp extends BaseModel {
   declare id: number
 
   @column()
+  declare accountId: string
+
+  @column()
   declare userId: string
 
   @column()
-  declare documentType: KycDocumentType
+  declare documentType?: KycDocumentType
 
   @column()
   declare documentRectoUrl?: string

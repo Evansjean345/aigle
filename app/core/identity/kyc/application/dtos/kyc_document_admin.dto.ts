@@ -59,7 +59,8 @@ export interface KycDocumentOwnerRef {
 export interface KycDocumentResult {
   id: number
   userId: string
-  documentType: string
+  /** Absent d'un dossier d'organisation, qui ne porte pas de pièce d'identité. */
+  documentType?: string
   documentRectoUrl?: string
   documentVersoUrl?: string
   selfieUrl?: string

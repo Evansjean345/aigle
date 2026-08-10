@@ -48,7 +48,7 @@ export default abstract class KycDocumentRepository {
   /**
    * Get last attempt for a user and document type
    */
-  abstract findLastAttempt(userId: string, documentType: string): Promise<any | null>
+  abstract findLastAttempt(userId: string, documentType?: string): Promise<any | null>
 
   /**
    * Save a KYC attempt

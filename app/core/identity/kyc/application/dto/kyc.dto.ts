@@ -20,7 +20,7 @@ export interface KycDocumentResponseDto {
 export class AdminKycListDto {
   declare id: number
   declare userId: string
-  declare documentType: string
+  declare documentType?: string
   declare documentRectoUrl?: string
   declare documentVersoUrl?: string
   declare selfieUrl?: string

@@ -3,9 +3,22 @@ import { DateTime } from 'luxon'
 import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import { KycAttemp } from '#core/identity/kyc/domain/models/kyc_attemp'
+import DocumentPiece from '#core/identity/kyc/domain/models/document_piece'
 import User from '#core/identity/user/domain/models/user'
 import Admin from '#core/team/domain/models/admin'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 
+/**
+ * Dossier de vérification d'un compte.
+ *
+ * `ownerType` en distingue les deux natures : pièces d'identité pour un compte utilisateur,
+ * documents d'entreprise pour un compte d'organisation. `documentType` ne qualifie que le premier
+ * cas.
+ *
+ * Les pièces vivent dans `document_pieces`. Les colonnes `documentRectoUrl`, `documentVersoUrl` et
+ * `selfieUrl` ne sont plus écrites : elles portent les dossiers antérieurs à la bascule et sont lues
+ * en repli quand le dossier n'a aucune pièce.
+ */
 export default class KycDocument extends BaseModel {
   static table = 'kyc_documents'
 
@@ -13,10 +26,16 @@ export default class KycDocument extends BaseModel {
   declare id: number
 
   @column()
+  declare accountId: string
+
+  @column()
+  declare ownerType: AccountOwnerType
+
+  @column()
   declare userId: string
 
   @column()
-  declare documentType: KycDocumentType
+  declare documentType?: KycDocumentType
 
   @column()
   declare documentRectoUrl?: string
@@ -56,6 +75,12 @@ export default class KycDocument extends BaseModel {
     localKey: 'id',
   })
   declare attempts: HasMany<typeof KycAttemp>
+
+  @hasMany(() => DocumentPiece, {
+    foreignKey: 'kycDocumentId',
+    localKey: 'id',
+  })
+  declare pieces: HasMany<typeof DocumentPiece>
 
   @belongsTo(() => User, {
     foreignKey: 'userId',

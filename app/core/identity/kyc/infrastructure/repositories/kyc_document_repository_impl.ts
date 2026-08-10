@@ -193,15 +193,18 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
    * Fetches the most recent attempt for the specified user and document type.
    *
    * @param {string} userId - The unique identifier of the user.
-   * @param {string} documentType - The type of document associated with the attempt.
+   * @param {string} [documentType] - Restreint la recherche à un type de pièce ; omis, la dernière
+   *   tentative du porteur est rendue quel que soit le type.
    * @return {Promise<any | null>} A promise that resolves to the most recent attempt object or null if no attempts are found.
    */
-  async findLastAttempt(userId: string, documentType: string): Promise<any | null> {
-    return KycAttemp.query()
-      .where('userId', userId)
-      .where('documentType', documentType)
-      .orderBy('attemptNumber', 'desc')
-      .first()
+  async findLastAttempt(userId: string, documentType?: string): Promise<any | null> {
+    const query = KycAttemp.query().where('userId', userId)
+
+    if (documentType) {
+      query.where('documentType', documentType)
+    }
+
+    return query.orderBy('attemptNumber', 'desc').first()
   }
 
   /**
