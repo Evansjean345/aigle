@@ -78,6 +78,8 @@ Relevé du code au 2026-08-10 (les points marqués ✏️ corrigent ou précisen
 | D5  | Les colonnes `document_recto_url` / `document_verso_url` / `selfie_url` sont **conservées et cessent d'être écrites** | Drop dans K1 ; double écriture pendant K1 | Convention déjà suivie par le dépôt (`add_account_id_to_kyc_documents`, R4/`users_uid`) : un backfill incomplet sur des documents KYC réels reste rattrapable, sans le coût d'une double représentation | 2026-08-10 |
 | D5  | Les colonnes `document_recto_url` / `document_verso_url` / `selfie_url` sont **conservées et cessent d'être écrites** | Drop dans K1 ; double écriture pendant K1 | Convention déjà suivie par le dépôt (`add_account_id_to_kyc_documents`, R4/`users_uid`) : un backfill incomplet sur des documents KYC réels reste rattrapable, sans le coût d'une double représentation | 2026-08-10 |
 | D6  | La table des pièces s'appelle **`document_pieces`**, le modèle `DocumentPiece`, l'enum `DocumentPieceType` | `kyc_document_pieces` | Le KYC est **un cas** de la vérification de compte, pas son préfixe : préfixer les pièces par `kyc` graverait dans le schéma la lecture que ce chantier abandonne | 2026-08-10 |
+| D7  | **L'onglet KYB du back-office vit dans `products/aiglebusiness`**, pas dans `aiglesend` | Onglet KYB dans le back-office `aiglesend/kyc` | Le back-office des organisations est déjà dans `aiglebusiness/organisation/presentation/admin/`. Chaque produit joint le libellé de son propre propriétaire ; le core n'en résout aucun (résout **U3**) | 2026-08-10 |
+| D8  | `KycDocumentAdminService` garde un **shim `findByUser(userId)`** qui délègue à `findByAccountId`, retiré en K3 | Migrer le produit dès K1 ; garder les deux entrées durablement | K1 doit rester invisible : migrer le produit changerait le contrat HTTP du back-office dans le lot censé ne rien changer. L'invariant β (`account_id == usersUid`) rend le shim exact, pas approximatif | 2026-08-10 |
 | D4  | **Un dossier de vérification commun** (`kyc_documents` ancré `account_id` + `owner_type`) et **une table de pièces typées** ; les recto/verso/selfie du KYC identité migrent en pièces | Table KYB séparée ; réemploi des colonnes existantes (recto = RCCM) | La prémisse du chantier est que `kyc` *devient* la vérification de compte : une table séparée ferait coexister deux formes de dossier, et le réemploi de colonnes fermerait D2 dès la troisième pièce | 2026-08-10 |
 
 ### Conséquences de D1
@@ -170,8 +172,43 @@ pièce, elle, ne porte que son rôle : `RECTO`, `VERSO`, `SELFIE` — puis `RCCM
 
 Aucun type de pièce KYB, aucune route nouvelle, aucun effet sur les paliers, aucun drop de colonne.
 
+### Impact sur l'existant — validé le 2026-08-10
+
+**Onze fichiers du core, aucun fichier produit.**
+
+| Fichier | Changement |
+| --- | --- |
+| `domain/models/kyc_document.ts` | `+accountId`, `+ownerType`, `hasMany(pieces)` |
+| `domain/models/kyc_attemp.ts` | `+accountId` |
+| `domain/models/document_piece.ts` | **nouveau** |
+| `domain/enum/kyc_enum.ts` | `+DocumentPieceType` |
+| `domain/interfaces/kyc_document_repository.ts` | `findByAccountId`, écriture des pièces |
+| `infrastructure/repositories/kyc_document_repository_impl.ts` | requêtes sur `account_id`, `preload('pieces')` |
+| `application/services/kyc_document_admin_service.ts` | parle `accountId`, garde le shim `findByUser` (D8) |
+| `application/usecases/mobile/submit_kyc_document.usecase.ts` | écrit des pièces au lieu des colonnes |
+| `application/dtos/kyc_document_admin.dto.ts` | `+accountId`, `+ownerType`, `+pieces[]` |
+| `presentation/mobile/controllers/kyc_submittion_controller.ts` | passe `usersUid` comme `accountId` |
+| `database/migrations/…` | les trois migrations du schéma ci-dessus |
+
+**Rétrocompatibilité.** Le `POST` mobile garde son contrat de payload ; les réponses du back-office
+gagnent des champs sans en perdre. `ownerType` réutilise l'enum `AccountOwnerType` de
+`core/identity/account` — vocabulaire de domaine, importable à travers une frontière (règle 5).
+
+**Risques de régression.**
+
+1. *Backfill de pièces incomplet* — les images deviendraient invisibles au back-office alors que
+   D5 conserve la donnée en colonne. Garde-fou : la migration compare le nombre de pièces créées au
+   nombre d'URL non vides et échoue si l'écart n'est pas nul.
+2. *Renumérotation des tentatives* — la numérotation passe de `(user_id, document_type)` au dossier.
+   Un utilisateur ayant soumis deux types de pièce pourrait produire un `attempt_number` en doublon
+   dans l'historique. Sans effet fonctionnel, à constater plutôt qu'à corriger.
+
+**Baselines à ne pas dégrader** : `tsc` 57 erreurs, `depcruise` 0 erreur, 584 tests passés / 5 échecs
+préexistants (Kyc ×2, ProviderErrorService, DeviceService).
+
 ---
 
 ## Prochaine session
 
-Étape 4 (design) sur le lot K1, section « Impact sur l'existant » — U3 y sera tranchée.
+Étape 4 (design) sur le lot K1, sections restantes : « Flux de données », « Gestion des erreurs »,
+« Tests », « Risques & inconnues ».
