@@ -1,7 +1,7 @@
 # Gestion des organisations dans l'espace admin — Design
 
 **Date** : 2026-07-30
-**Statut** : O1, O2 et O4 livrés · O3 à faire
+**Statut** : livré — O1 à O4
 
 ---
 
