@@ -9,7 +9,7 @@ import {
 } from '#core/identity/device/application/dto/admin_device.dto'
 
 /**
- * Fiche d'une installation, avec les autres installations du même téléphone.
+ * Fiche d'une ligne d'appareil, avec les autres lignes du même téléphone.
  *
  * Le back-office regarde un matériel, mais la table en tient une ligne par application : sans ce
  * rapprochement, un même téléphone y apparaît comme deux appareils sans lien.
@@ -25,8 +25,8 @@ export default class GetDeviceDetailsUseCase {
   /**
    * Exécute la lecture.
    *
-   * @param {string} deviceId - Installation consultée.
-   * @returns {Promise<AdminDeviceDetailDto>} La fiche, ses liaisons et ses installations jumelles.
+   * @param {string} deviceId - Ligne consultée.
+   * @returns {Promise<AdminDeviceDetailDto>} La fiche, ses liaisons et ses lignes jumelles.
    * @throws {DeviceNotFoundException} Identifiant inconnu.
    */
   async execute(deviceId: string): Promise<AdminDeviceDetailDto> {
@@ -39,15 +39,10 @@ export default class GetDeviceDetailsUseCase {
     const associations = await this.userDeviceRepository.findAllByDeviceIdWithUser(deviceId)
     const siblings = await this.deviceService.findSiblingInstallations(deviceId)
 
-    const siblingViews = await Promise.all(
-      siblings.map(async (sibling) =>
-        AdminDeviceSiblingDto.from(
-          sibling,
-          await this.userDeviceRepository.findActiveByDeviceId(sibling.id)
-        )
-      )
+    return AdminDeviceDetailDto.fromDevice(
+      device,
+      associations,
+      siblings.map(AdminDeviceSiblingDto.from)
     )
-
-    return AdminDeviceDetailDto.fromDevice(device, associations, siblingViews)
   }
 }

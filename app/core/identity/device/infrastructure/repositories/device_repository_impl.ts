@@ -19,6 +19,9 @@ export default class DeviceRepositoryImpl implements DeviceRepository {
       .select('devices.*')
       .withCount('sessions', (q) => q.as('account_count'))
       .withAggregate('sessions', (q) => q.max('last_seen_at').as('last_activity'))
+      // Une ligne `devices` n'appartient qu'à une app — son empreinte intègre le bundle. Un
+      // agrégat sur la relation déjà jointe suffit donc à la nommer, sans requête de plus.
+      .withAggregate('sessions', (q) => q.max('app').as('app'))
 
     // Filtres sur le device hardware
     if (filters.isEmulator !== undefined) {
@@ -114,7 +117,11 @@ export default class DeviceRepositoryImpl implements DeviceRepository {
   }
 
   async findAllByHardwareKey(hardwareKey: string): Promise<Device[]> {
-    return Device.query().where('hardwareKey', hardwareKey).orderBy('createdAt', 'asc')
+    return Device.query()
+      .where('hardwareKey', hardwareKey)
+      // Une ligne `devices` n'appartient qu'à une app : un agrégat la nomme sans requête de plus.
+      .withAggregate('sessions', (q) => q.max('app').as('app'))
+      .orderBy('createdAt', 'asc')
   }
 
   async findByDeviceUid(deviceUid: string): Promise<Device | null> {

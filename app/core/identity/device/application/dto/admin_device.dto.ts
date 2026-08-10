@@ -17,6 +17,15 @@ export class AdminDeviceListItemDto {
   declare isRooted: boolean
   /** Solidité de l'empreinte. `null` sur les installations antérieures à sa déclaration. */
   declare identity: string | null
+  /**
+   * Ce qui rattache cette installation à un téléphone physique.
+   *
+   * Deux lignes partageant cette valeur sont le même appareil, vu par deux applications. `null`
+   * quand la plateforme n'a rien fourni : la ligne ne se rattache alors à rien.
+   */
+  declare hardwareKey: string | null
+  /** App dont relève cette ligne. Une ligne `devices` est un téléphone pour une application. */
+  declare app: string | null
   declare createdAt: string
   declare accountCount: number
   declare lastActivity: string | null
@@ -24,6 +33,8 @@ export class AdminDeviceListItemDto {
   static fromDevice(device: Device): AdminDeviceListItemDto {
     const dto = new AdminDeviceListItemDto()
     dto.id = device.id
+    dto.hardwareKey = device.hardwareKey ?? null
+    dto.app = device.$extras.app ?? null
     dto.fingerprintHash = device.fingerprintHash
     dto.deviceUid = device.deviceUid
     dto.platform = device.platform
@@ -97,23 +108,15 @@ export class AdminDeviceAssociationDto {
  */
 export class AdminDeviceSiblingDto {
   declare id: string
-  /** Apps portées par cette installation, d'après ses liaisons actives. */
-  declare apps: string[]
+  declare app: string | null
   declare appVersion?: string
   declare identity: string | null
   declare createdAt: string
 
-  /**
-   * Construit la vue depuis l'installation et ses liaisons actives.
-   *
-   * @param {Device} device - Installation jumelle.
-   * @param {UserDevice[]} links - Ses liaisons actives.
-   * @returns {AdminDeviceSiblingDto} La vue destinée au back-office.
-   */
-  static from(device: Device, links: UserDevice[]): AdminDeviceSiblingDto {
+  static from(device: Device): AdminDeviceSiblingDto {
     const dto = new AdminDeviceSiblingDto()
     dto.id = device.id
-    dto.apps = [...new Set(links.map((link) => link.app))]
+    dto.app = device.$extras.app ?? null
     dto.appVersion = device.appVersion
     dto.identity = device.identity ?? null
     dto.createdAt = device.createdAt.toISO()!

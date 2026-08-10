@@ -70,7 +70,6 @@ export default class DeviceService {
         brand: userDevice.device?.brand ?? null,
         model: userDevice.device?.model ?? null,
         platform: userDevice.device?.platform ?? null,
-        // Celle de cette liaison ; le matériel ne retient que la dernière app enregistrée.
         appVersion: userDevice.appVersion ?? userDevice.device?.appVersion ?? null,
         status: userDevice.status,
         isPrimary: Boolean(userDevice.isPrimary),
@@ -139,7 +138,6 @@ export default class DeviceService {
     }
 
     const installations = await this.deviceRepository.findAllByHardwareKey(device.hardwareKey)
-
     return installations.filter((installation) => installation.id !== device.id)
   }
 

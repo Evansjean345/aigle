@@ -639,7 +639,7 @@ test.group('Back-office | fiche d’une installation', (group) => {
     assert.equal(detail.identity, DeviceIdentity.STRONG)
     assert.lengthOf(detail.siblings, 1)
     assert.equal(detail.siblings[0].id, businessLink.deviceId)
-    assert.deepEqual(detail.siblings[0].apps, [AppName.AIGLEBUSINESS])
+    assert.equal(detail.siblings[0].app, AppName.AIGLEBUSINESS)
   })
 
   test('une installation sans jumelle porte une liste vide', async ({ assert }) => {
