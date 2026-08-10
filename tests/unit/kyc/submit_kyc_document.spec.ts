@@ -13,6 +13,9 @@ import MissingKycDocumentsException from '#core/identity/kyc/domain/exceptions/m
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import emitter from '@adonisjs/core/services/emitter'
 import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
+import AccountVerificationService from '#core/identity/kyc/application/services/account_verification_service'
+import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
 
 /** Dossier déjà déposé, dans l'état donné. */
 function existingDocument(accountId: string, status: KycDocumentStatus): KycDocument {
@@ -27,12 +30,25 @@ function existingDocument(accountId: string, status: KycDocumentStatus): KycDocu
   return document
 }
 
-/** Use case câblé sur un dépôt en mémoire et un stockage espionné. */
+/** Décrit tout compte comme un compte utilisateur particulier. */
+const accounts = {
+  async describe(accountId: string) {
+    return {
+      accountId,
+      ownerType: AccountOwnerType.USER,
+      segment: AccountSegment.PARTICULIER,
+      status: AccountStatus.ACTIVE,
+    }
+  },
+}
+
+/** Use case câblé sur le service de vérification, lui-même en mémoire. */
 function makeUsecase(seed: KycDocument[] = []) {
   const repository = new InMemoryKycDocumentRepository(seed)
   const storage = new InMemoryFileStorage()
+  const verification = new AccountVerificationService(repository, storage, accounts as any)
 
-  return { usecase: new SubmitKycDocumentUsecase(repository, storage), repository, storage }
+  return { usecase: new SubmitKycDocumentUsecase(verification), repository, storage }
 }
 
 test.group('Kyc | Submit Use Case', (group) => {
