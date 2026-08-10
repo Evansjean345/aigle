@@ -86,7 +86,34 @@ Relevé du code au 2026-08-10 (les points marqués ✏️ corrigent ou précisen
 
 ---
 
+## Objectif
+
+> On construit la **vérification d'entreprise dans le core** — `core/identity/kyc` devient la
+> vérification *de compte* : une entreprise dépose un dossier de pièces typées (RCCM, DFE),
+> l'administration le revoit, et l'approbation fait passer son compte du niveau 0 (bloqué) au
+> niveau 2 (illimité). C'est réussi si une entreprise fraîchement créée ne peut rien mouvementer,
+> dépose son dossier depuis `aiglebusiness`, et devient opérationnelle à l'instant de l'approbation
+> en back-office — sans que le core connaisse jamais le modèle `Organisation`.
+
+Validé le 2026-08-10.
+
+---
+
+## Découpage
+
+| Lot | Contenu | Dépend de | Statut |
+| --- | ------- | --------- | ------ |
+| K1  | **Socle account-anchored** — `kyc_documents` bascule sur `account_id` (colonne déjà présente et backfillée), le port et les services parlent `accountId` + `ownerType`. Zéro changement fonctionnel visible | — | design en cours |
+| K2  | **Le dossier KYB dans le core** — pièces typées, soumission par compte org, service de vérification, event | K1 | à faire |
+| K3  | **Revue et palier** — la revue admin couvre les dossiers org ; l'approbation pousse le niveau 0 → 2 (`AccountService.setLevel`) et miroite `organisation.level` | K2 | à faire |
+| K4  | **Présentations** — soumission owner côté `aiglebusiness` (`kyb:submit` / `kyb:view`), onglet KYB du back-office `aiglesend` | K3 | à faire |
+
+Découpage validé le 2026-08-10 (alternatives écartées : 3 lots avec K1 fondu dans K2 — trop large,
+une régression KYC serait dure à isoler ; 5 lots avec K3 scindé en revue puis palier).
+
+---
+
 ## Prochaine session
 
-Étape 2 (clarifier l'idée) — D1 et D2 tranchées. En cours : validation de l'énoncé d'objectif et du
-découpage en lots.
+Étape 3 (approches) sur le lot K1 — la question ouverte est l'arbitrage « où vit la revue ? » posé
+par le prompt de reprise.
