@@ -1,6 +1,7 @@
 import type KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import type { DocumentPieceInput } from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
+import DocumentPiece from '#core/identity/kyc/domain/models/document_piece'
 import type { KycAttemp } from '#core/identity/kyc/domain/models/kyc_attemp'
 import { type KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 
@@ -22,7 +23,34 @@ export default class InMemoryKycDocumentRepository implements KycDocumentReposit
   }
 
   async findByAccountId(accountId: string): Promise<KycDocument | null> {
-    return this.documents.find((document) => document.accountId === accountId) ?? null
+    const document = this.documents.find((one) => one.accountId === accountId) ?? null
+
+    if (document) this.attachPieces(document)
+
+    return document
+  }
+
+  /**
+   * Rattache au dossier les pièces retenues, comme le ferait un `preload`.
+   *
+   * Sans effet tant qu'aucune pièce n'a été écrite : un dossier pré-alimenté par un test garde
+   * celles qu'il porte déjà.
+   */
+  private attachPieces(kycDocument: KycDocument): void {
+    if (this.pieces.length === 0) return
+
+    kycDocument.$setRelated(
+      'pieces',
+      this.pieces.map((piece) => {
+        const attached = new DocumentPiece()
+        attached.kycDocumentId = kycDocument.id
+        attached.pieceType = piece.pieceType
+        attached.fileKey = piece.fileKey
+        attached.reference = piece.reference
+
+        return attached
+      }) as any
+    )
   }
 
   async saveKycDocument(kycDocument: KycDocument): Promise<KycDocument> {
@@ -31,12 +59,24 @@ export default class InMemoryKycDocumentRepository implements KycDocumentReposit
     return kycDocument
   }
 
+  /**
+   * Écrit le dossier et remplace, rôle par rôle, les pièces reçues.
+   *
+   * Reproduit l'unicité `(dossier, type)` du vrai dépôt : une pièce déjà présente pour le même rôle
+   * voit sa clé remplacée, les autres restent.
+   */
   async saveWithPieces(
     kycDocument: KycDocument,
     pieces: DocumentPieceInput[]
   ): Promise<KycDocument> {
     this.upsert(kycDocument)
-    this.pieces = pieces
+
+    const kept = this.pieces.filter(
+      (held) => !pieces.some((incoming) => incoming.pieceType === held.pieceType)
+    )
+
+    this.pieces = [...kept, ...pieces]
+    this.attachPieces(kycDocument)
 
     return kycDocument
   }

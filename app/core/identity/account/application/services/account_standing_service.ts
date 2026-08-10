@@ -3,7 +3,10 @@ import AccountRepository from '#core/identity/account/domain/interfaces/account_
 import KycLevelDirectoryService from '#core/identity/kyc/application/services/kyc_level_directory_service'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
 import { type AccountStatus } from '#core/identity/account/domain/enums/account_status'
-import { type AccountStandingResult } from '#core/identity/account/application/dtos/account.dto'
+import {
+  type AccountDescriptionResult,
+  type AccountStandingResult,
+} from '#core/identity/account/application/dtos/account.dto'
 import AccountNotFoundException from '#core/identity/account/domain/exceptions/account_not_found_exception'
 import AccountLimitsNotConfiguredException from '#core/identity/account/domain/exceptions/account_limits_not_configured_exception'
 
@@ -41,6 +44,26 @@ export default class AccountStandingService {
     }
 
     return account.status
+  }
+
+  /**
+   * Décrit un compte sans résoudre ses limites.
+   *
+   * @param {string} accountId - Compte cible.
+   * @returns {Promise<AccountDescriptionResult | null>} La description, ou `null` si le compte
+   *   n'existe pas.
+   */
+  async describe(accountId: string): Promise<AccountDescriptionResult | null> {
+    const account = await this.accountRepository.findByAccountId(accountId)
+
+    if (!account) return null
+
+    return {
+      accountId: account.accountId,
+      ownerType: account.ownerType,
+      segment: (account.segment ?? AccountSegment.PARTICULIER) as AccountSegment,
+      status: account.status,
+    }
   }
 
   /**

@@ -16,6 +16,16 @@ export interface OpenAccountCommand {
   level: number
 }
 
+// ── Result (output service — read port `describe`) ──────────────────
+
+/** Nature d'un compte : son propriétaire, son segment et son statut, sans ses limites. */
+export interface AccountDescriptionResult {
+  accountId: string
+  ownerType: AccountOwnerType
+  segment: AccountSegment
+  status: AccountStatus
+}
+
 // ── Result (output service — read port `getStanding`) ───────────────
 
 /**
