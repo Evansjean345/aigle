@@ -5,10 +5,17 @@ import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/en
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import KycDocumentNotFoundException from '#core/identity/kyc/domain/exceptions/kyc_document_not_found_exception'
 import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
+import emitter from '@adonisjs/core/services/emitter'
 
 const storage = new InMemoryFileStorage()
 
-test.group('Kyc | revue des documents', () => {
+test.group('Kyc | revue des documents', (group) => {
+  group.each.setup(() => {
+    emitter.fake()
+    return () => emitter.restore()
+  })
+
   test("devrait lever une exception si le document n'existe pas", async ({ assert }) => {
     const mockRepo = {
       findById: async () => null,
@@ -32,6 +39,8 @@ test.group('Kyc | revue des documents', () => {
     const kycDoc = new KycDocument()
     kycDoc.id = 1
     kycDoc.userId = 'user-123'
+    kycDoc.accountId = 'user-123'
+    kycDoc.ownerType = AccountOwnerType.USER
     kycDoc.documentType = KycDocumentType.CNI
     kycDoc.status = KycDocumentStatus.PENDING
 
@@ -72,6 +81,8 @@ test.group('Kyc | revue des documents', () => {
     const kycDoc = new KycDocument()
     kycDoc.id = 1
     kycDoc.userId = 'user-123'
+    kycDoc.accountId = 'user-123'
+    kycDoc.ownerType = AccountOwnerType.USER
     kycDoc.documentType = KycDocumentType.CNI
     kycDoc.status = KycDocumentStatus.PENDING
 

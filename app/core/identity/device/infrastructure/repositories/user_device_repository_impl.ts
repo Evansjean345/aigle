@@ -23,10 +23,7 @@ export default class UserDeviceRepositoryImpl implements UserDeviceRepository {
       .first()
   }
 
-  async findActiveByUserAndDeviceAllApps(
-    userId: string,
-    deviceId: string
-  ): Promise<UserDevice[]> {
+  async findActiveByUserAndDeviceAllApps(userId: string, deviceId: string): Promise<UserDevice[]> {
     return UserDevice.query()
       .where('userId', userId)
       .where('deviceId', deviceId)

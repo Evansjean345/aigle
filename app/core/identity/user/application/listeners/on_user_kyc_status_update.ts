@@ -4,6 +4,7 @@ import KycDocumentProcessed from '#core/identity/kyc/application/events/kyc_docu
 import { KycDocumentStatus, KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { UserKycStatus } from '#core/identity/user/domain/enum'
 import UpdateUserKycStatus from '#core/identity/user/application/use_cases/update_user_kyc_status'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 
 /**
  * Represents a handler for updates in KYC (Know Your Customer) status when a related event is triggered.
@@ -18,20 +19,26 @@ export default class OnUserKycStatusUpdate {
   constructor(private readonly updateUserKycStatus: UpdateUserKycStatus) {}
 
   /**
-   * Handles the event when a KYC document is submitted for review.
-   * Updates the user's KYC status to PENDING_IN_REVIEW if the document status is PENDING.'
-   * @param event
+   * Reporte l'état d'un dossier de vérification sur le KYC de son porteur.
+   *
+   * N'agit que sur les dossiers d'utilisateur : une organisation n'a pas de KYC à mettre à jour.
+   *
+   * @param {KycDocumentSubmitted | KycDocumentProcessed} event - Soumission ou décision de revue.
    */
   async handle(event: KycDocumentSubmitted | KycDocumentProcessed) {
+    if (event.ownerType !== AccountOwnerType.USER) return
+
+    const userId = event.userId as string
+
     if (event instanceof KycDocumentSubmitted) {
       if (event.status === KycDocumentStatus.PENDING) {
         await this.updateUserKycStatus.execute(
-          event.userId,
+          userId,
           UserKycStatus.PENDING_IN_REVIEW,
           undefined,
           undefined,
           {
-            actorId: event.userId,
+            actorId: userId,
             actorType: 'User',
             ipAddress: event.auditContext?.ipAddress ?? null,
             userAgent: event.auditContext?.userAgent ?? null,
@@ -51,7 +58,7 @@ export default class OnUserKycStatusUpdate {
       const kycLevel =
         event.status === KycDocumentStatus.APPROVED ? KycLevelState.KYC_VERIFIED : undefined
 
-      await this.updateUserKycStatus.execute(event.userId, newUserStatus, kycLevel, event.comment, {
+      await this.updateUserKycStatus.execute(userId, newUserStatus, kycLevel, event.comment, {
         actorType: 'Admin',
         ipAddress: event.auditContext?.ipAddress ?? null,
         userAgent: event.auditContext?.userAgent ?? null,

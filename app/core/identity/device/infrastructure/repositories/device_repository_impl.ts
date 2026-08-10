@@ -117,11 +117,13 @@ export default class DeviceRepositoryImpl implements DeviceRepository {
   }
 
   async findAllByHardwareKey(hardwareKey: string): Promise<Device[]> {
-    return Device.query()
-      .where('hardwareKey', hardwareKey)
-      // Une ligne `devices` n'appartient qu'à une app : un agrégat la nomme sans requête de plus.
-      .withAggregate('sessions', (q) => q.max('app').as('app'))
-      .orderBy('createdAt', 'asc')
+    return (
+      Device.query()
+        .where('hardwareKey', hardwareKey)
+        // Une ligne `devices` n'appartient qu'à une app : un agrégat la nomme sans requête de plus.
+        .withAggregate('sessions', (q) => q.max('app').as('app'))
+        .orderBy('createdAt', 'asc')
+    )
   }
 
   async findByDeviceUid(deviceUid: string): Promise<Device | null> {

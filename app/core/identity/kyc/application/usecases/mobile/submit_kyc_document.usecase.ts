@@ -6,7 +6,6 @@ import {
 import AccountVerificationService from '#core/identity/kyc/application/services/account_verification_service'
 import type { SubmitPieceCommand } from '#core/identity/kyc/application/dtos/account_verification.dto'
 import { DocumentPieceType, KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
-import KycDocumentSubmitted from '#core/identity/kyc/application/events/kyc_document_submitted'
 import IncompleteVerificationFileException from '#core/identity/kyc/domain/exceptions/incomplete_verification_file_exception'
 import MissingKycDocumentsException from '#core/identity/kyc/domain/exceptions/missing_kyc_documents_exception'
 import kycLog from '#shared/infrastructure/logging/kyc_log'
@@ -44,6 +43,12 @@ export default class SubmitKycDocumentUsecase {
         accountId: userId,
         documentType: kycDocument.documentType,
         pieces: this.toPieces(kycDocument),
+        auditContext: {
+          ipAddress: kycDocument.ipAddress ?? null,
+          userAgent: kycDocument.userAgent ?? null,
+          requestId: kycDocument.requestId ?? null,
+          geoLocation: kycDocument.geoLocation,
+        },
       })
 
       kycLog.info(
@@ -73,13 +78,6 @@ export default class SubmitKycDocumentUsecase {
           },
         })
         .catch((_) => {})
-
-      await KycDocumentSubmitted.dispatch(userId, KycDocumentStatus.PENDING, {
-        ipAddress: kycDocument.ipAddress ?? null,
-        userAgent: kycDocument.userAgent ?? null,
-        requestId: kycDocument.requestId ?? null,
-        geoLocation: kycDocument.geoLocation,
-      })
 
       return { message: 'Documents Kyc soumis avec succès 📄' }
     } catch (error) {

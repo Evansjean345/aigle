@@ -1,4 +1,5 @@
 import type { DocumentPieceType, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
+import type { KycAuditContext } from '#core/identity/kyc/application/events/kyc_document_submitted'
 
 // ── Command (input service) ─────────────────────────────────────────
 
@@ -15,6 +16,7 @@ export interface SubmitVerificationCommand {
   pieces: SubmitPieceCommand[]
   /** Nature de la pièce d'identité, pour un compte utilisateur. */
   documentType?: KycDocumentType
+  auditContext?: KycAuditContext
 }
 
 // ── Result (output service) ─────────────────────────────────────────

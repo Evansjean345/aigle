@@ -26,6 +26,7 @@ import type {
   SubmitVerificationCommand,
   SubmitVerificationResult,
 } from '#core/identity/kyc/application/dtos/account_verification.dto'
+import KycDocumentSubmitted from '#core/identity/kyc/application/events/kyc_document_submitted'
 
 /** Dossiers déjà arbitrés ou en attente de l'être : une nouvelle pièce ne s'y ajoute pas. */
 const CLOSED_TO_SUBMISSION = [KycDocumentStatus.PENDING, KycDocumentStatus.APPROVED]
@@ -111,7 +112,17 @@ export default class AccountVerificationService {
       await this.uploadPieces(command)
     )
 
-    if (complete) await this.recordAttempt(saved, command)
+    if (complete) {
+      await this.recordAttempt(saved, command)
+
+      await KycDocumentSubmitted.dispatch(
+        command.accountId,
+        account.ownerType,
+        account.ownerType === AccountOwnerType.USER ? command.accountId : null,
+        KycDocumentStatus.PENDING,
+        command.auditContext
+      )
+    }
 
     return {
       status: saved.status,

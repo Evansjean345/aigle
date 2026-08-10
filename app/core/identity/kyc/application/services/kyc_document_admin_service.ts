@@ -8,6 +8,7 @@ import kycLog from '#shared/infrastructure/logging/kyc_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 import FileStorageService from '#shared/infrastructure/services/file_storage_service'
 import { DocumentPieceType } from '#core/identity/kyc/domain/enum/kyc_enum'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import {
   toKycDocumentResult,
   type ListKycDocumentsFilters,
@@ -193,7 +194,9 @@ export default class KycDocumentAdminService {
       )
 
       await KycDocumentProcessed.dispatch(
-        kycDocument.userId,
+        kycDocument.accountId,
+        kycDocument.ownerType,
+        kycDocument.ownerType === AccountOwnerType.USER ? kycDocument.userId : null,
         command.status,
         command.comment,
         command.auditContext
