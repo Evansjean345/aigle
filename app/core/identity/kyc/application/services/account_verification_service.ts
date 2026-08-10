@@ -14,6 +14,7 @@ import {
   SubmissionMode,
   missingPieces,
   requirementsFor,
+  type SubmittedPiece,
 } from '#core/identity/kyc/domain/verification_requirements'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import AccountNotFoundException from '#core/identity/account/domain/exceptions/account_not_found_exception'
@@ -119,7 +120,13 @@ export default class AccountVerificationService {
     }
   }
 
-  /** Refuse toute pièce que le dossier n'attend pas. */
+  /**
+   * Vérifie que chaque pièce déposée figure au catalogue du dossier.
+   *
+   * @param {SubmitVerificationCommand} command - Dépôt à contrôler.
+   * @param {{ pieceType: DocumentPieceType }[]} expected - Pièces que le dossier attend.
+   * @throws {UnknownPieceTypeException} Une pièce déposée n'est pas attendue.
+   */
   private assertPiecesAreExpected(
     command: SubmitVerificationCommand,
     expected: { pieceType: DocumentPieceType }[]
@@ -131,15 +138,27 @@ export default class AccountVerificationService {
     }
   }
 
-  /** Pièces déjà rattachées au dossier, avec la présence de leur référence. */
-  private heldPieces(document: KycDocument | null) {
+  /**
+   * Rend les pièces déjà rattachées au dossier, réduites à ce qui décide de la complétude.
+   *
+   * @param {KycDocument | null} document - Dossier existant, ou `null` s'il n'y en a pas encore.
+   * @returns {SubmittedPiece[]} Les rôles présents et la présence de leur référence.
+   */
+  private heldPieces(document: KycDocument | null): SubmittedPiece[] {
     return (document?.pieces ?? []).map((piece) => ({
       pieceType: piece.pieceType,
       hasReference: Boolean(piece.reference?.trim()),
     }))
   }
 
-  /** Dépose les fichiers sur le stockage privé et en compose les pièces à écrire. */
+  /**
+   * Dépose les fichiers sur le stockage privé et en compose les pièces à écrire.
+   *
+   * Une référence vide n'est pas persistée : elle vaut absence.
+   *
+   * @param {SubmitVerificationCommand} command - Compte visé et pièces déposées.
+   * @returns {Promise<DocumentPieceInput[]>} Les pièces, portant la clé de l'objet déposé.
+   */
   private async uploadPieces(command: SubmitVerificationCommand): Promise<DocumentPieceInput[]> {
     const pieces: DocumentPieceInput[] = []
 
@@ -157,7 +176,13 @@ export default class AccountVerificationService {
     return pieces
   }
 
-  /** Inscrit la soumission à l'historique, une fois le dossier complet. */
+  /**
+   * Inscrit la soumission à l'historique du dossier, numérotée à la suite de la précédente.
+   *
+   * @param {KycDocument} document - Dossier devenu complet.
+   * @param {SubmitVerificationCommand} command - Dépôt à l'origine de la complétude.
+   * @returns {Promise<void>} Résolue quand la tentative est écrite.
+   */
   private async recordAttempt(
     document: KycDocument,
     command: SubmitVerificationCommand

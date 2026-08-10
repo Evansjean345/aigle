@@ -61,7 +61,11 @@ export default class LegacyPiecesRepositoryImpl implements LegacyPiecesRepositor
     }))
   }
 
-  /** Restreint aux lignes dont au moins une des trois colonnes porte une valeur. */
+  /**
+   * Restreint la requête aux lignes dont au moins une des trois colonnes porte une valeur.
+   *
+   * @param {ReturnType<typeof db.from>} query - Requête à contraindre, modifiée sur place.
+   */
   private whereAnyUrlPresent(query: ReturnType<typeof db.from>): void {
     query.where((builder) => {
       for (const column of URL_COLUMNS) {

@@ -56,7 +56,14 @@ export default class DocumentInspectLegacyPieces extends BaseCommand {
     await this.reportStorage(storage, keys)
   }
 
-  /** Parcourt une table par lots et agrège ce qu'elle contient. */
+  /**
+   * Parcourt une table par lots et agrège ce qu'elle contient.
+   *
+   * @param {LegacyPiecesRepository} repository - Dépôt de lecture.
+   * @param {LegacySource} source - Table balayée.
+   * @param {string[]} keys - Collecteur des clés dérivées, alimenté au fil du parcours.
+   * @returns {Promise<Findings>} Comptes, formes rencontrées et anomalies.
+   */
   private async scan(
     repository: LegacyPiecesRepository,
     source: LegacySource,
@@ -107,7 +114,11 @@ export default class DocumentInspectLegacyPieces extends BaseCommand {
     return findings
   }
 
-  /** Rend ce que la base contient. */
+  /**
+   * Rend au terminal ce que la base contient, table par table.
+   *
+   * @param {Map<LegacySource, Findings>} perSource - Ce que le balayage a relevé.
+   */
   private reportDatabase(perSource: Map<LegacySource, Findings>): void {
     this.logger.info('— Base —')
 
@@ -131,7 +142,16 @@ export default class DocumentInspectLegacyPieces extends BaseCommand {
     }
   }
 
-  /** Sonde le stockage et rend l'état des objets. */
+  /**
+   * Sonde le stockage et rend l'état des objets.
+   *
+   * Interrompt le rapport et positionne un code de sortie non nul si le stockage ne répond pas :
+   * une panne de transport ne se lit pas comme un inventaire de fichiers absents.
+   *
+   * @param {FileStorageService} storage - Accès au stockage.
+   * @param {string[]} keys - Clés dérivées des URL rencontrées, doublons compris.
+   * @returns {Promise<void>} Résolue quand le rapport est rendu.
+   */
   private async reportStorage(storage: FileStorageService, keys: string[]): Promise<void> {
     const unique = [...new Set(keys)]
     const limit = this.all ? unique.length : Math.min(this.sample || DEFAULT_SAMPLE, unique.length)
