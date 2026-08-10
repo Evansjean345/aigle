@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import KycDocumentAdminService from '#core/identity/kyc/application/services/kyc_document_admin_service'
+import IdentityReviewService from '#core/identity/kyc/application/services/identity_review_service'
 import { AdminKycListDto } from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
 import type { ListKycDocumentsFilters } from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
 
@@ -8,7 +8,7 @@ import type { ListKycDocumentsFilters } from '#core/identity/kyc/application/dto
  */
 @inject()
 export default class GetAllKycDocumentsUseCase {
-  constructor(private readonly kycDocumentService: KycDocumentAdminService) {}
+  constructor(private readonly kycDocumentService: IdentityReviewService) {}
 
   /**
    * Exécute la lecture.

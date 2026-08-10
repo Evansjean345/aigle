@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import DocumentPiece from '#core/identity/kyc/domain/models/document_piece'
 import InMemoryKycDocumentRepository from '#tests/fakes/kyc/in_memory_kyc_document_repository'
-import KycDocumentAdminService from '#core/identity/kyc/application/services/kyc_document_admin_service'
+import IdentityReviewService from '#core/identity/kyc/application/services/identity_review_service'
 import {
   DocumentPieceType,
   KycDocumentStatus,
@@ -64,7 +64,7 @@ test.group('Kyc | Détail d’un dossier', () => {
   function makeService(seed: KycDocument[]) {
     const repository = new InMemoryKycDocumentRepository(seed)
     const storage = new InMemoryFileStorage()
-    const service = new KycDocumentAdminService(repository, storage)
+    const service = new IdentityReviewService(repository, storage)
 
     return { service, storage }
   }

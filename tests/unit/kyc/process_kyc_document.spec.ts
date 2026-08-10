@@ -1,14 +1,11 @@
 import { test } from '@japa/runner'
-import KycDocumentAdminService from '#core/identity/kyc/application/services/kyc_document_admin_service'
+import VerificationDecisionService from '#core/identity/kyc/application/services/verification_decision_service'
 import type KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import KycDocumentNotFoundException from '#core/identity/kyc/domain/exceptions/kyc_document_not_found_exception'
-import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import emitter from '@adonisjs/core/services/emitter'
-
-const storage = new InMemoryFileStorage()
 
 test.group('Kyc | revue des documents', (group) => {
   group.each.setup(() => {
@@ -27,7 +24,7 @@ test.group('Kyc | revue des documents', (group) => {
       saveAttempt: async () => {},
     } as unknown as KycDocumentRepository
 
-    const service = new KycDocumentAdminService(mockRepo, storage)
+    const service = new VerificationDecisionService(mockRepo)
 
     await assert.rejects(
       () => service.process({ documentId: 1, status: KycDocumentStatus.APPROVED, agentId: 1 }),
@@ -62,7 +59,7 @@ test.group('Kyc | revue des documents', (group) => {
       },
     } as unknown as KycDocumentRepository
 
-    const service = new KycDocumentAdminService(mockRepo, storage)
+    const service = new VerificationDecisionService(mockRepo)
 
     await service.process({
       documentId: 1,
@@ -104,7 +101,7 @@ test.group('Kyc | revue des documents', (group) => {
       },
     } as unknown as KycDocumentRepository
 
-    const service = new KycDocumentAdminService(mockRepo, storage)
+    const service = new VerificationDecisionService(mockRepo)
 
     await service.process({
       documentId: 1,

@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import KycDocumentAdminService from '#core/identity/kyc/application/services/kyc_document_admin_service'
+import IdentityReviewService from '#core/identity/kyc/application/services/identity_review_service'
 import { KycStatsDto } from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
 
 /**
@@ -7,7 +7,7 @@ import { KycStatsDto } from '#core/identity/kyc/application/dtos/admin/admin_kyc
  */
 @inject()
 export default class GetKycStatsUseCase {
-  constructor(private readonly kycDocumentService: KycDocumentAdminService) {}
+  constructor(private readonly kycDocumentService: IdentityReviewService) {}
 
   /**
    * Exécute la lecture.

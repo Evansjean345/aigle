@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import KycDocumentAdminService from '#core/identity/kyc/application/services/kyc_document_admin_service'
+import VerificationDecisionService from '#core/identity/kyc/application/services/verification_decision_service'
 import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import type { KycAuditContext } from '#core/identity/kyc/application/events/kyc_document_submitted'
 
@@ -8,7 +8,7 @@ import type { KycAuditContext } from '#core/identity/kyc/application/events/kyc_
  */
 @inject()
 export default class ProcessKycDocumentUseCase {
-  constructor(private readonly kycDocumentService: KycDocumentAdminService) {}
+  constructor(private readonly kycDocumentService: VerificationDecisionService) {}
 
   /**
    * Exécute la décision.
