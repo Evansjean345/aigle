@@ -72,10 +72,21 @@ Relevé du code au 2026-08-10 (les points marqués ✏️ corrigent ou précisen
 | #   | Décision | Alternatives écartées | Raison | Date |
 | --- | -------- | --------------------- | ------ | ---- |
 | D0  | Le KYB vit dans le core (`core/identity/kyc` devient « vérification de compte »), documents ancrés `account_id` | KYB dans `products/aiglebusiness` | Acté avec l'utilisateur avant ce design (R5) : le palier du compte dérive de la vérification, un KYB produit créerait `core → produit` | 2026-07-10 |
+| D1  | **Seule l'entreprise passe un KYB**, de son niveau 0 (bloqué) au niveau 2 (illimité). Le marchand n'en a pas | Marchand 1 → 2 ; marchand 0 → 1 | Le marchand encaisse dès sa création et le restera ; ajouter une revue bloquante ou un palier marchand supplémentaire n'apporte rien au produit | 2026-08-10 |
+| D2  | Le dossier porte des **pièces typées en liste**, seuls RCCM et DFE au départ | Colonnes fixes recto/verso/selfie comme le KYC identité | D'autres pièces sont attendues plus tard ; des colonnes fixes imposeraient une migration à chaque ajout | 2026-08-10 |
+
+### Conséquences de D1
+
+- **La grille `kyc_level` n'a aucune ligne à ajouter.** `enterprise` 0 et 2 existent déjà au seeder.
+  `enterprise` niveau 1, annoncé comme manquant dans le prompt de reprise, n'a pas d'emploi ; les
+  niveaux `marchand` 0 et 2 non plus.
+- Le commentaire de `organisation_account_type.ts` (« MARCHAND : KYB par photo du lieu → LEVEL_1
+  après approbation ») est **périmé** et sera corrigé.
+- `OrganisationLevel.LEVEL_1` reste le niveau de croisière du marchand ; aucune vérification n'y mène.
 
 ---
 
 ## Prochaine session
 
-Étape 2 (clarifier l'idée) en cours — première question posée : quels paliers existent pour une
-organisation et ce qu'ils autorisent.
+Étape 2 (clarifier l'idée) — D1 et D2 tranchées. En cours : validation de l'énoncé d'objectif et du
+découpage en lots.
