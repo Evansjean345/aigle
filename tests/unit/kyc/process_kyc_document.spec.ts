@@ -5,6 +5,13 @@ import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/en
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import KycDocumentNotFoundException from '#core/identity/kyc/domain/exceptions/kyc_document_not_found_exception'
 
+/** Le service signe les pièces à la lecture ; la revue n'en dépend pas. */
+const storage = {
+  uploadFile: async () => '',
+  uploadPrivateFile: async () => '',
+  signedUrl: async (key: string) => `https://signed.test/${key}`,
+}
+
 test.group('Kyc | revue des documents', () => {
   test("devrait lever une exception si le document n'existe pas", async ({ assert }) => {
     const mockRepo = {
@@ -17,7 +24,7 @@ test.group('Kyc | revue des documents', () => {
       saveAttempt: async () => {},
     } as unknown as KycDocumentRepository
 
-    const service = new KycDocumentAdminService(mockRepo)
+    const service = new KycDocumentAdminService(mockRepo, storage)
 
     await assert.rejects(
       () => service.process({ documentId: 1, status: KycDocumentStatus.APPROVED, agentId: 1 }),
@@ -50,7 +57,7 @@ test.group('Kyc | revue des documents', () => {
       },
     } as unknown as KycDocumentRepository
 
-    const service = new KycDocumentAdminService(mockRepo)
+    const service = new KycDocumentAdminService(mockRepo, storage)
 
     await service.process({
       documentId: 1,
@@ -90,7 +97,7 @@ test.group('Kyc | revue des documents', () => {
       },
     } as unknown as KycDocumentRepository
 
-    const service = new KycDocumentAdminService(mockRepo)
+    const service = new KycDocumentAdminService(mockRepo, storage)
 
     await service.process({
       documentId: 1,

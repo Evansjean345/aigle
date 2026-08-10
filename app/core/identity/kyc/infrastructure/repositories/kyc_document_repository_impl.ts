@@ -25,9 +25,7 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
       .preload('attempts', (attemptQuery) => {
         attemptQuery.preload('agent').orderBy('createdAt', 'desc')
       })
-      .preload('user', (userQuery) => {
-        userQuery.preload('wallet')
-      })
+      .preload('user')
       .first()
   }
 
@@ -212,9 +210,7 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
     return KycDocument.query()
       .where('id', id)
       .preload('agent')
-      .preload('user', (userQuery) => {
-        userQuery.preload('wallet')
-      })
+      .preload('user')
       .preload('attempts', (attemptQuery) => {
         attemptQuery.preload('agent').orderBy('createdAt', 'desc')
       })

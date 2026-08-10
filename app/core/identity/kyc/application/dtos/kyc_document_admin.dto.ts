@@ -1,5 +1,5 @@
 import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
-import { type KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
+import { DocumentPieceType, type KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import type { KycAuditContext } from '#core/identity/kyc/application/events/kyc_document_submitted'
 
 /**
@@ -55,12 +55,31 @@ export interface KycDocumentOwnerRef {
   phone: string
 }
 
+/**
+ * Pièce d'un dossier, telle qu'elle franchit la frontière.
+ *
+ * `fileKey` est une clé de stockage privé, à signer avant d'être servie — sauf pour les dossiers
+ * antérieurs à la bascule, dont `isPublicUrl` signale que la valeur est déjà une URL consultable.
+ * La signature a lieu au détail d'un dossier, jamais en liste.
+ */
+export interface KycDocumentPieceResult {
+  pieceType: string
+  fileKey: string
+  reference?: string
+  isPublicUrl: boolean
+  /** URL consultable, renseignée au détail d'un dossier et absente en liste. */
+  url?: string
+}
+
 /** Document KYC projeté hors du contexte identity, relations comprises. */
 export interface KycDocumentResult {
   id: number
+  accountId: string
+  ownerType: string
   userId: string
   /** Absent d'un dossier d'organisation, qui ne porte pas de pièce d'identité. */
   documentType?: string
+  pieces?: KycDocumentPieceResult[]
   documentRectoUrl?: string
   documentVersoUrl?: string
   selfieUrl?: string
@@ -99,10 +118,45 @@ export interface KycStatsResult {
   }
 }
 
+/**
+ * Rend les pièces d'un dossier, quelle que soit la génération à laquelle il appartient.
+ *
+ * Un dossier écrit depuis la bascule porte ses pièces en relation. Les dossiers antérieurs n'en ont
+ * aucune : leurs trois colonnes sont converties ici, et nulle part ailleurs, pour que la forme lue
+ * par les appelants ne dépende pas de la date de dépôt.
+ */
+const toPieceResults = (kyc: KycDocument): KycDocumentPieceResult[] => {
+  if (kyc.pieces?.length) {
+    return kyc.pieces.map((piece) => ({
+      pieceType: piece.pieceType,
+      fileKey: piece.fileKey,
+      reference: piece.reference,
+      isPublicUrl: false,
+    }))
+  }
+
+  const legacy: [DocumentPieceType, string | undefined][] = [
+    [DocumentPieceType.RECTO, kyc.documentRectoUrl],
+    [DocumentPieceType.VERSO, kyc.documentVersoUrl],
+    [DocumentPieceType.SELFIE, kyc.selfieUrl],
+  ]
+
+  return legacy
+    .filter(([, url]) => Boolean(url))
+    .map(([pieceType, url]) => ({
+      pieceType,
+      fileKey: url as string,
+      isPublicUrl: true,
+    }))
+}
+
 export const toKycDocumentResult = (kyc: KycDocument): KycDocumentResult => ({
   id: kyc.id,
+  accountId: kyc.accountId,
+  ownerType: kyc.ownerType,
   userId: kyc.userId,
   documentType: kyc.documentType,
+  pieces: toPieceResults(kyc),
   documentRectoUrl: kyc.documentRectoUrl,
   documentVersoUrl: kyc.documentVersoUrl,
   selfieUrl: kyc.selfieUrl,
