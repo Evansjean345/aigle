@@ -82,6 +82,7 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
       documentType?: string
       userId?: string
       search?: string
+      ownerType?: string
       startDate?: string
       endDate?: string
     }
@@ -90,6 +91,10 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
 
     if (filters?.status) {
       query.where('status', filters.status)
+    }
+
+    if (filters?.ownerType) {
+      query.where('owner_type', filters.ownerType)
     }
 
     if (filters?.documentType) {

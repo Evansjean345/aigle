@@ -17,6 +17,8 @@ export interface ListKycDocumentsFilters {
   documentType?: string
   userId?: string
   search?: string
+  /** Restreint la file à une nature de dossier : pièces d'identité ou dossiers d'organisation. */
+  ownerType?: string
   startDate?: string
   endDate?: string
 }
