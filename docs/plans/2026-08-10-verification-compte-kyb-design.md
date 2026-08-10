@@ -80,6 +80,9 @@ Relevé du code au 2026-08-10 (les points marqués ✏️ corrigent ou précisen
 | D6  | La table des pièces s'appelle **`document_pieces`**, le modèle `DocumentPiece`, l'enum `DocumentPieceType` | `kyc_document_pieces` | Le KYC est **un cas** de la vérification de compte, pas son préfixe : préfixer les pièces par `kyc` graverait dans le schéma la lecture que ce chantier abandonne | 2026-08-10 |
 | D7  | **L'onglet KYB du back-office vit dans `products/aiglebusiness`**, pas dans `aiglesend` | Onglet KYB dans le back-office `aiglesend/kyc` | Le back-office des organisations est déjà dans `aiglebusiness/organisation/presentation/admin/`. Chaque produit joint le libellé de son propre propriétaire ; le core n'en résout aucun (résout **U3**) | 2026-08-10 |
 | D8  | `KycDocumentAdminService` garde un **shim `findByUser(userId)`** qui délègue à `findByAccountId`, retiré en K3 | Migrer le produit dès K1 ; garder les deux entrées durablement | K1 doit rester invisible : migrer le produit changerait le contrat HTTP du back-office dans le lot censé ne rien changer. L'invariant β (`account_id == usersUid`) rend le shim exact, pas approximatif | 2026-08-10 |
+| D9  | La règle de complétude d'un dossier vit dans un **catalogue en code**, dans `core/identity/kyc/domain` | Table de configuration en base ; règle portée par le validator HTTP de chaque produit | Deux entrées aujourd'hui : une table coûterait repository, cache et écran d'administration pour rien. La porter côté produit sortirait du core une règle qui détermine une montée de palier | 2026-08-10 |
+| D10 | `SubmitKycDocumentUsecase` **délègue** à `AccountVerificationService` — un seul moteur de soumission pour KYC et KYB | Deux chemins distincts ; unification différée à un lot dédié | C'est le patron déjà en place côté revue (`ProcessKycDocumentUseCase` → `KycDocumentAdminService`). Deux orchestrations sur le même stockage laisseraient la règle de complétude diverger | 2026-08-10 |
+| D11 | `valid_until` reste **porté par le dossier**, pas par la pièce | Validité par pièce | Le renouvellement d'un RCCM ou d'un DFE entraîne une resoumission du dossier entier ; une validité par pièce n'aurait pas de consommateur | 2026-08-10 |
 | D4  | **Un dossier de vérification commun** (`kyc_documents` ancré `account_id` + `owner_type`) et **une table de pièces typées** ; les recto/verso/selfie du KYC identité migrent en pièces | Table KYB séparée ; réemploi des colonnes existantes (recto = RCCM) | La prémisse du chantier est que `kyc` *devient* la vérification de compte : une table séparée ferait coexister deux formes de dossier, et le réemploi de colonnes fermerait D2 dès la troisième pièce | 2026-08-10 |
 
 ### Conséquences de D1
@@ -262,7 +265,47 @@ Les 2 échecs KYC préexistants sont **hors périmètre** : K1 ne prétend pas l
 
 ---
 
+## Lot K2 — Le dossier KYB dans le core
+
+### Architecture — validée le 2026-08-10
+
+Le dossier KYB ne crée aucune structure : c'est un dossier du socle K1 avec
+`ownerType = organisation`, `documentType = null`, et des pièces `RCCM` et `DFE` portant chacune son
+`fileUrl` et sa `reference` — le numéro d'immatriculation.
+
+#### Domaine
+
+- `DocumentPieceType` gagne `RCCM` et `DFE`.
+- Un **catalogue de complétude** `requiredPieces(segment, documentType?)` : `enterprise` exige
+  `RCCM` + `DFE` ; `particulier` exige `RECTO` + `SELFIE`, plus `VERSO` hors passeport.
+- Exception `IncompleteVerificationFileException`.
+
+#### Application
+
+`AccountVerificationService` porte la soumission pour **n'importe quel compte** :
+
+1. lit `ownerType` et `segment` du compte via le service `account` — `identity/kyc` consommant
+   `identity/account`, franchissement intra-contexte, autorisé ;
+2. applique le catalogue de complétude ;
+3. téléverse les fichiers, écrit dossier et pièces dans une transaction portée par le repository ;
+4. émet l'event ;
+5. rend un `Result` — statut et pièces manquantes le cas échéant, jamais le modèle.
+
+`SubmitKycDocumentUsecase` est réduit à un appel à ce service (D10).
+
+#### Events
+
+`KycDocumentSubmitted` gagne `accountId` et `ownerType` ; `userId` devient nullable pour un dossier
+d'organisation. Les deux listeners de diffusion admin doivent tolérer cette absence.
+
+#### Hors périmètre de K2
+
+Aucune route, aucune présentation, aucun effet sur les paliers — la revue et la montée de niveau
+sont K3, les présentations K4.
+
+---
+
 ## Prochaine session
 
-Étape 4 (design) sur le lot **K2** — le dossier KYB dans le core : types de pièces RCCM/DFE, règle
-de complétude par segment, soumission par compte d'organisation, service de vérification et events.
+Étape 4 (design) sur le lot K2, sections restantes : « Impact sur l'existant », « Flux de données »,
+« Gestion des erreurs », « Tests ».
