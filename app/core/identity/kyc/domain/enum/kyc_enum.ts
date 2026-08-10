@@ -26,6 +26,8 @@ export enum DocumentPieceType {
   RECTO = 'RECTO',
   VERSO = 'VERSO',
   SELFIE = 'SELFIE',
+  RCCM = 'RCCM',
+  DFE = 'DFE',
 }
 
 export enum KycDocumentNextAction {
