@@ -152,6 +152,44 @@ Deux pièges rencontrés en le vérifiant, à retenir :
 
 ---
 
+## ID-D7 — Android passe par l'App Set ID, pas par un keystore partagé
+
+`ANDROID_ID` est cloisonné par **clé de signature** depuis Android 8, et EAS en génère une par
+projet : il ne peut pas rapprocher deux apps. Deux voies s'ouvraient.
+
+**Partager le keystore** aurait suffi, mais lie la sécurité des deux applications : une clé
+compromise permet de publier des mises à jour frauduleuses pour AigleSend **et** AigleBusiness.
+Google recommande une clé par application pour cette raison. Sur une plateforme financière, le
+cloisonnement vaut mieux que le confort.
+
+Plus décisif encore : avec **Play App Signing**, la clé que détient EAS n'est qu'une clé de
+téléversement — Google re-signe avec la sienne. Partager le keystore n'aurait donc rien changé en
+production, seulement pour les APK distribués hors Play.
+
+**L'App Set ID** est le mécanisme qu'Android prévoit exactement pour ça : même identifiant pour
+toutes les apps d'un même compte Play, sans partage de clé. `expo-application` ne l'expose pas, d'où
+un **module natif local** — `modules/app-set-id`, dupliqué dans les deux apps, leurs dépôts étant
+séparés et leurs SDK différents.
+
+Deux décisions dans ce module :
+
+- **N'exploiter l'identifiant qu'en portée `developer`.** Google décide seul de cette portée ; en
+  portée `app`, la valeur ne vaut que pour une application et ne rapprocherait rien. Le module
+  remonte donc la portée en plus de l'identifiant, et la façade écarte tout ce qui n'est pas
+  `developer` — déclarer une valeur trompeuse serait pire que ne rien déclarer.
+- **`requireOptionalNativeModule`, jamais `requireNativeModule`.** Le second lève **au chargement du
+  fichier**, ce qui casse par cascade tout ce qui l'importe, jusqu'aux routes. Constaté en
+  développement sur un binaire antérieur au module ; le même scénario en production — une mise à
+  jour OTA livrée à une version installée plus ancienne — rendrait l'app inutilisable, sans
+  correctif possible à distance puisque le correctif serait lui aussi du JS refusant de se charger.
+
+**Reste inconnu, et ne peut pas être levé localement** : la portée réelle. `SCOPE_DEVELOPER` suppose
+que les services Google Play rattachent les deux apps à un compte éditeur, ce qu'une installation
+locale ne permet jamais. Un émulateur rend `app` quelle que soit la configuration réelle. Seules
+deux installations **depuis le Play Store** — piste de test interne suffit — donneront le verdict.
+
+---
+
 ## ID-D5 — La correction de collision ne dépend pas de la corrélation
 
 Deux chantiers de nature différente vivent dans ce design, et ils ne doivent pas s'attendre :
@@ -166,9 +204,8 @@ Deux chantiers de nature différente vivent dans ce design, et ils ne doivent pa
 
 **Vérifié le 2026-08-05** : même équipe Apple `QTH3897N4K` pour les deux apps, et corrélation iOS
 obtenue une fois le nommage aligné (ID-D6) — une seule `hardware_key` pour deux installations.
-Android reste ouvert : `ANDROID_ID` est cloisonné par clé de signature, et EAS en génère une par
-projet. Il faudra y trancher entre keystore partagé et App Set ID natif, `expo-application`
-n'exposant pas ce dernier.
+Android est tranché en ID-D7 — App Set ID par module natif — mais sa portée réelle reste suspendue à
+une installation depuis le Play Store.
 
 ---
 
