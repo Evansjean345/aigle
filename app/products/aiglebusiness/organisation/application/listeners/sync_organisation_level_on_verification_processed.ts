@@ -8,8 +8,8 @@ import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/orga
 import { requirementsFor } from '#core/identity/kyc/domain/verification_requirements'
 import errorLog from '#shared/infrastructure/logging/error_log'
 
-/** Ce que porte l'organisation quand son compte atteint un niveau. */
-const LEVEL_MIRROR: Record<number, OrganisationLevel> = {
+/** Niveau d'organisation correspondant au niveau du compte. */
+const ORGANISATION_LEVELS: Record<number, OrganisationLevel> = {
   0: OrganisationLevel.LEVEL_0,
   1: OrganisationLevel.LEVEL_1,
   2: OrganisationLevel.LEVEL_2,
@@ -18,11 +18,11 @@ const LEVEL_MIRROR: Record<number, OrganisationLevel> = {
 /**
  * Reporte sur l'organisation le niveau atteint par son compte à l'approbation de son dossier.
  *
- * Le compte est la source : c'est lui que la validation des mouvements lit. Ce miroir sert
- * l'affichage business, qui parle en `OrganisationLevel`.
+ * Le compte est la source : c'est lui que la validation des mouvements lit. L'organisation en porte
+ * une copie pour l'affichage business, qui parle en `OrganisationLevel`.
  */
 @inject()
-export default class MirrorOrganisationLevelOnVerificationProcessed {
+export default class SyncOrganisationLevelOnVerificationProcessed {
   constructor(
     private readonly organisationRepository: OrganisationRepository,
     private readonly accountStandingService: AccountStandingService
@@ -32,7 +32,7 @@ export default class MirrorOrganisationLevelOnVerificationProcessed {
    * Recopie le niveau du compte sur l'organisation.
    *
    * @param {KycDocumentProcessed} event - Décision de revue.
-   * @returns {Promise<void>} Résolue quand le miroir est posé, ou d'emblée s'il n'y a rien à poser.
+   * @returns {Promise<void>} Résolue quand le niveau est reporté, ou d'emblée s'il n'y a rien à reporter.
    */
   async handle(event: KycDocumentProcessed): Promise<void> {
     if (event.ownerType !== AccountOwnerType.ORGANISATION) return
@@ -43,7 +43,7 @@ export default class MirrorOrganisationLevelOnVerificationProcessed {
     if (!account) return
 
     const { grantsLevel } = requirementsFor(account.segment)
-    const mirrored = grantsLevel === null ? null : LEVEL_MIRROR[grantsLevel]
+    const mirrored = grantsLevel === null ? null : ORGANISATION_LEVELS[grantsLevel]
 
     if (!mirrored) return
 
@@ -51,7 +51,7 @@ export default class MirrorOrganisationLevelOnVerificationProcessed {
       await this.organisationRepository.updateLevel(account.ownerRef, mirrored)
     } catch (error) {
       errorLog.error(
-        'ORGANISATION_LEVEL_MIRROR_ERROR',
+        'ORGANISATION_LEVEL_SYNC_ERROR',
         { account_id: event.accountId, error: (error as Error).message },
         "Impossible de reporter le niveau sur l'organisation"
       )
