@@ -10,29 +10,7 @@ import {
   KycDocumentType,
 } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
-
-/** Ne signe que ce qu'on lui donne, pour que le test voie ce qui a été signé. */
-class StorageSpy {
-  signed: string[] = []
-
-  async uploadFile(): Promise<string> {
-    return ''
-  }
-
-  async uploadPrivateFile(): Promise<string> {
-    return ''
-  }
-
-  async signedUrl(key: string): Promise<string> {
-    this.signed.push(key)
-
-    return `https://signed.test/${key}`
-  }
-
-  async probeObject(): Promise<{ state: 'present'; visibility: string }> {
-    return { state: 'present', visibility: 'private' }
-  }
-}
+import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
 
 /**
  * Caractérise la photo de profil servie à l'application mobile.
@@ -78,7 +56,7 @@ test.group('Kyc | Photo de vérification', () => {
   }
 
   function makeService(seed: KycDocument[]) {
-    const storage = new StorageSpy()
+    const storage = new InMemoryFileStorage()
     const service = new VerificationPictureService(new InMemoryKycDocumentRepository(seed), storage)
 
     return { service, storage }

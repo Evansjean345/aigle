@@ -4,14 +4,9 @@ import type KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc
 import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import KycDocumentNotFoundException from '#core/identity/kyc/domain/exceptions/kyc_document_not_found_exception'
+import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
 
-/** Le service signe les pièces à la lecture ; la revue n'en dépend pas. */
-const storage = {
-  uploadFile: async () => '',
-  uploadPrivateFile: async () => '',
-  signedUrl: async (key: string) => `https://signed.test/${key}`,
-  probeObject: async () => ({ state: 'present' as const, visibility: 'private' }),
-}
+const storage = new InMemoryFileStorage()
 
 test.group('Kyc | revue des documents', () => {
   test("devrait lever une exception si le document n'existe pas", async ({ assert }) => {

@@ -12,40 +12,7 @@ import KycAlreadySubmittedException from '#core/identity/kyc/domain/exceptions/k
 import MissingKycDocumentsException from '#core/identity/kyc/domain/exceptions/missing_kyc_documents_exception'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import emitter from '@adonisjs/core/services/emitter'
-
-/**
- * Double du stockage de fichiers.
- *
- * `FileStorageService` est une classe concrète et non un port : ce double en reproduit la surface
- * publique sans la déclarer implémentée, et compte les dépôts pour distinguer le bucket privé du
- * public. Le port viendra dans son propre changement.
- */
-class StorageSpy {
-  publicUploads: string[] = []
-  privateUploads: string[] = []
-
-  async uploadFile(_file: any, destinationPath: string): Promise<string> {
-    const url = `http://public.test/${destinationPath}/${this.publicUploads.length + 1}.jpg`
-    this.publicUploads.push(url)
-
-    return url
-  }
-
-  async uploadPrivateFile(_file: any, destinationPath: string): Promise<string> {
-    const key = `${destinationPath}/${this.privateUploads.length + 1}.jpg`
-    this.privateUploads.push(key)
-
-    return key
-  }
-
-  async signedUrl(key: string): Promise<string> {
-    return `http://signed.test/${key}?expires=900`
-  }
-
-  async probeObject(): Promise<{ state: 'present'; visibility: string }> {
-    return { state: 'present', visibility: 'private' }
-  }
-}
+import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
 
 /** Dossier déjà déposé, dans l'état donné. */
 function existingDocument(accountId: string, status: KycDocumentStatus): KycDocument {
@@ -63,7 +30,7 @@ function existingDocument(accountId: string, status: KycDocumentStatus): KycDocu
 /** Use case câblé sur un dépôt en mémoire et un stockage espionné. */
 function makeUsecase(seed: KycDocument[] = []) {
   const repository = new InMemoryKycDocumentRepository(seed)
-  const storage = new StorageSpy()
+  const storage = new InMemoryFileStorage()
 
   return { usecase: new SubmitKycDocumentUsecase(repository, storage), repository, storage }
 }

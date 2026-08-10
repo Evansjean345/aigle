@@ -10,29 +10,7 @@ import {
   KycDocumentType,
 } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
-
-/** Signe en préfixant la clé, pour que le test reconnaisse ce qui a été signé. */
-class StorageSpy {
-  signed: string[] = []
-
-  async uploadFile(_file: any, destinationPath: string): Promise<string> {
-    return `http://public.test/${destinationPath}.jpg`
-  }
-
-  async uploadPrivateFile(_file: any, destinationPath: string): Promise<string> {
-    return `${destinationPath}.jpg`
-  }
-
-  async signedUrl(key: string): Promise<string> {
-    this.signed.push(key)
-
-    return `https://signed.test/${key}`
-  }
-
-  async probeObject(): Promise<{ state: 'present'; visibility: string }> {
-    return { state: 'present', visibility: 'private' }
-  }
-}
+import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
 
 /**
  * Caractérise la lecture du détail d'un dossier par le back-office.
@@ -85,7 +63,7 @@ test.group('Kyc | Détail d’un dossier', () => {
 
   function makeService(seed: KycDocument[]) {
     const repository = new InMemoryKycDocumentRepository(seed)
-    const storage = new StorageSpy()
+    const storage = new InMemoryFileStorage()
     const service = new KycDocumentAdminService(repository, storage)
 
     return { service, storage }
