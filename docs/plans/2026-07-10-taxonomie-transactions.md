@@ -1,8 +1,10 @@
 ---
 type: design
-statut: brainstorming bouclé — implémentation en cours
-derniere_maj: 2026-07-10
-session_courante: implémentation
+statut: livré
+derniere_maj: 2026-08-05
+session_courante: —
+# Constaté le 2026-08-05 : `TransactionDisplayService` en place, `display`/`counterparty` présents
+# dans les DTO mobile et admin ainsi que dans docs/swagger/transactions.yaml (lot D1).
 ---
 
 # Taxonomie & structuration des transactions

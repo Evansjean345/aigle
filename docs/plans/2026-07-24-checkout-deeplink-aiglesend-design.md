@@ -1,5 +1,6 @@
 ---
-status: approved
+status: livré
+# Constaté le 2026-08-05 : la feature `core/money/checkout` est en place (initiation et statut).
 etape: 6
 lot: -
 derniere_maj: 2026-07-25

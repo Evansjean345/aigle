@@ -1,5 +1,7 @@
 ---
-status: approved
+status: livré
+# Constaté le 2026-08-05 : `AppName`, le middleware `requireApp` et les flux d'authentification par
+# app sont en place.
 etape: 6
 lot: "1-2"
 derniere_maj: 2026-07-08

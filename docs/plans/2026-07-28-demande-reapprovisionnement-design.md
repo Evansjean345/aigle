@@ -1,5 +1,6 @@
 ---
-status: approved
+status: livré
+# Constaté le 2026-08-05 : la feature `funding` est en place, couverte par trois suites de tests.
 etape: 6
 lot: MVP clos — F1 à F5 livrés (API + espace admin). F6 et F7 reportés, voir Découpage.
 derniere_maj: 2026-07-30

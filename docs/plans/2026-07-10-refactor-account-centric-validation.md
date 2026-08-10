@@ -1,9 +1,15 @@
 ---
 type: design
-statut: brainstorming TERMINÉ — prêt à implémenter (sur feu vert)
-derniere_maj: 2026-07-10
+statut: livré — É0 à É5, hors retrait de `wallet.user` (suivi en R4)
+derniere_maj: 2026-08-05
 session_courante: —
-prochaine_action: É0 — fichiers créés ; l'utilisateur lance migrations + seeder, puis É1
+prochaine_action: rien ici — le reliquat d'É5 est tracé en R4 (endgame D8)
+# Constaté le 2026-08-05 : `Account` relocalisé en `core/identity/account` (É1),
+# `AccountStandingService` et `AccountService` en place (É2), `PartyValidator` consommé par les
+# handlers external_in/out/e2e (É3, É4). É5 partiellement fait : `AccountValidationService` ne porte
+# plus que `validateDevice` et `verifyPinForUser` — la validation statut/wallet en est bien sortie —
+# mais `wallet.user` subsiste dans trois handlers d'initiation. Ce reliquat est R4, explicitement
+# différé à l'endgame D8, et n'appartient plus à ce design.
 ---
 
 # Refactor account-centric — validation ancrée sur le Compte (+ R5)

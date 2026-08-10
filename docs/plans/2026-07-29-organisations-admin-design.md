@@ -1,5 +1,5 @@
 ---
-status: draft
+status: remplacé par 2026-07-30-organisations-admin-design.md
 etape: 1
 lot: -
 derniere_maj: 2026-07-29

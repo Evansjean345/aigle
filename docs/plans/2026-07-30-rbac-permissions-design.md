@@ -1,5 +1,5 @@
 ---
-status: approved
+status: livré — L1 à L7
 etape: 5
 lot: — (tous livrés)
 lots_approuves: L1, L2, L3, L4a, L4b, L5, L6, L7

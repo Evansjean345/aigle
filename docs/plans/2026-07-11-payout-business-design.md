@@ -1,9 +1,13 @@
 ---
 type: design
-statut: approved (Lots 1 et 2 livrés ; Lot 3 supervision admin — conception close, décisions L3-D1→L3-D3)
-derniere_maj: 2026-07-30
-session_courante: S8 (Lot 3 : supervision admin du paiement en masse)
-lot: 3 — supervision admin du paiement en masse
+statut: livré — Lots 1, 2 et 3
+derniere_maj: 2026-08-05
+session_courante: —
+lot: —
+# Constaté le 2026-08-05 : le Lot 3 est en place — `admin_mass_transfers_controller`, ses routes,
+# son fichier de permissions, `AdminMassTransferDto` et `AdminTransferDto`, documentés dans
+# docs/swagger/mass-transfers.yaml. Le statut décrivait encore la conception comme close mais non
+# implémentée.
 ---
 
 # Paiement business — transfert unique + paiement en masse (payout)

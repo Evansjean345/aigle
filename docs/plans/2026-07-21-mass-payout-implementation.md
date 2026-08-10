@@ -1,7 +1,10 @@
 ---
 type: implementation-plan
-statut: prêt
-derniere_maj: 2026-07-21
+statut: livré
+derniere_maj: 2026-08-05
+# Constaté le 2026-08-05 : `core/money/transfer` (modèles TransferBatch/TransferItem) et le module
+# produit `aiglebusiness/transfer/mass` sont en place, couverts par transfer_flow et
+# transfer_settlement_flow.
 lot: 2 — paiement en masse (mass-transfer) MVP
 design: docs/plans/2026-07-11-payout-business-design.md (registre L2-D1→L2-D28)
 reference: docs/systeme-paiement-masse.md

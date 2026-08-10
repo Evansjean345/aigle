@@ -1,5 +1,6 @@
 ---
-status: approved
+status: livré
+# Constaté le 2026-08-05 : `AdminAuthService` et ses gardes de tentatives sont en place.
 etape: 6
 lot: -
 derniere_maj: 2026-07-09

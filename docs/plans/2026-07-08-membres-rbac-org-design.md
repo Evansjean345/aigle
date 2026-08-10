@@ -1,8 +1,11 @@
 ---
-status: in-review
+status: livré
 etape: 4
 lot: D
-derniere_maj: 2026-07-08
+derniere_maj: 2026-08-05
+# Constaté le 2026-08-05 : feature `aiglebusiness/membership` en place (use cases `members/` et
+# `roles/`), couverte par member_management_flow, membership_flow et role_management_flow. Le statut
+# `in-review` datait d'avant la livraison.
 ---
 
 # Membres & RBAC par organisation — Design (Lot 6, sous-lot 3)
