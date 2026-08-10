@@ -28,6 +28,10 @@ class StorageSpy {
 
     return `https://signed.test/${key}`
   }
+
+  async probeObject(): Promise<{ state: 'present'; visibility: string }> {
+    return { state: 'present', visibility: 'private' }
+  }
 }
 
 /**

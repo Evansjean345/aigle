@@ -41,6 +41,10 @@ class StorageSpy {
   async signedUrl(key: string): Promise<string> {
     return `http://signed.test/${key}?expires=900`
   }
+
+  async probeObject(): Promise<{ state: 'present'; visibility: string }> {
+    return { state: 'present', visibility: 'private' }
+  }
 }
 
 /** Dossier déjà déposé, dans l'état donné. */

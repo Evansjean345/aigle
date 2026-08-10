@@ -10,6 +10,7 @@ const storage = {
   uploadFile: async () => '',
   uploadPrivateFile: async () => '',
   signedUrl: async (key: string) => `https://signed.test/${key}`,
+  probeObject: async () => ({ state: 'present' as const, visibility: 'private' }),
 }
 
 test.group('Kyc | revue des documents', () => {

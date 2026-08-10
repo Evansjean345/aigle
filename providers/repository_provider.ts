@@ -39,6 +39,8 @@ import ServiceProviderMethodRepositoryImpl from '#core/catalog/catalogs/infrastr
 import CompanyContactRepository from '#core/catalog/catalogs/domain/interfaces/company_contact_repository'
 import CompanyContactRepositoryImpl from '#core/catalog/catalogs/infrastructure/repositories/company_contact_repository_impl'
 import KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
+import LegacyPiecesRepository from '#core/identity/kyc/domain/interfaces/legacy_pieces_repository'
+import LegacyPiecesRepositoryImpl from '#core/identity/kyc/infrastructure/repositories/legacy_pieces_repository_impl'
 import KycDocumentRepositoryImpl from '#core/identity/kyc/infrastructure/repositories/kyc_document_repository_impl'
 import KycLevelRepository from '#core/identity/kyc/domain/interfaces/kyc_level_repository'
 import KycLevelRepositoryImpl from '#core/identity/kyc/infrastructure/repositories/kyc_level_repository_impl'
@@ -113,6 +115,7 @@ export default class RepositoryProvider {
       [AppVersionRepository, AppVersionRepositoryImpl],
       [AppVersionCache, AppVersionCacheService],
       [KycDocumentRepository, KycDocumentRepositoryImpl],
+      [LegacyPiecesRepository, LegacyPiecesRepositoryImpl],
       [KycLevelRepository, KycLevelRepositoryImpl],
       [ResetPasswordTokenProvider, RedisResetPasswordTokenProvider],
       [SlidingWindowCounter, RedisSlidingWindowCounter],
