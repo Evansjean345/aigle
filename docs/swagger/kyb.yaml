@@ -1,0 +1,103 @@
+openapi: 3.0.3
+info:
+  title: Vérification d'entreprise (KYB)
+  version: '1.0'
+
+paths:
+  /api/business/organisations/{organisationId}/kyb/pieces:
+    post:
+      tags: [Business - Vérification]
+      summary: Déposer une pièce au dossier de vérification
+      description: >
+        Une pièce par requête. L'entreprise dépose ce qu'elle a, quand elle l'a : le dossier reste en
+        constitution tant qu'une pièce requise manque, et n'entre en revue qu'une fois complet.
+        Réservé aux organisations de type entreprise.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: organisationId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [pieceType, reference, document]
+              properties:
+                pieceType:
+                  type: string
+                  enum: [RCCM, DFE]
+                reference:
+                  type: string
+                  description: Numéro porté par la pièce. Sans lui, le dossier reste incomplet.
+                  example: CI-ABJ-2020-B-12345
+                document:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Pièce déposée
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KybSubmission' }
+        '400':
+          description: Pièce hors catalogue, ou compte ne passant aucune vérification
+        '403':
+          description: Permission kyb:submit absente, ou organisation non entreprise
+
+  /api/business/organisations/{organisationId}/kyb:
+    get:
+      tags: [Business - Vérification]
+      summary: Consulter l'état du dossier
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: organisationId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: État du dossier
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/KybFile' }
+        '403':
+          description: Permission kyb:view absente
+
+components:
+  schemas:
+    KybSubmission:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [in_submission, pending]
+        nextAction:
+          type: string
+          description: Pièce attendue ensuite, ou IN_REVIEW quand le dossier est complet.
+        missingPieces:
+          type: array
+          items: { type: string }
+
+    KybFile:
+      type: object
+      properties:
+        status:
+          type: string
+          nullable: true
+          enum: [in_submission, pending, approved, rejected]
+        nextAction:
+          type: string
+          nullable: true
+        submittedPieces:
+          type: array
+          items:
+            type: object
+            properties:
+              pieceType: { type: string }
+              reference: { type: string }
+        missingPieces:
+          type: array
+          items: { type: string }

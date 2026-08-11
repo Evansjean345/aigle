@@ -7,6 +7,7 @@ import adminCollectionAccountRoutes from '#aiglebusiness/funding/presentation/ad
 import adminFundingRequestRoutes from '#aiglebusiness/funding/presentation/admin/routes/funding_request_routes'
 import adminMassTransferRoutes from '#aiglebusiness/transfer/mass/presentation/admin/routes/admin_mass_transfer_routes'
 import adminOrganisationRoutes from '#aiglebusiness/organisation/presentation/admin/routes/admin_organisation_routes'
+import adminKybRoutes from '#aiglebusiness/kyb/presentation/admin/routes/kyb_admin_routes'
 import adminKycRoutes from '#aiglesend/kyc/presentation/admin/routes/kyc_routes'
 import adminAppVersionRoutes from '#core/identity/device/presentation/admin/routes/app_version_routes'
 import adminDeviceRoutes from '#core/identity/device/presentation/admin/routes/admin_device_routes'
@@ -27,6 +28,7 @@ router
     router.group(adminFundingRequestRoutes)
     router.group(adminMassTransferRoutes)
     router.group(adminOrganisationRoutes)
+    router.group(adminKybRoutes)
     router.group(adminKycRoutes)
     router.group(adminDeviceRoutes)
     router.group(adminAppVersionRoutes)

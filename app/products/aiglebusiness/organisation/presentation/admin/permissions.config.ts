@@ -95,3 +95,35 @@ export const ORGANISATION_WALLET_PERMISSIONS = definePermissions({
     sensitive: true,
   },
 })
+
+/**
+ * Permissions du back-office sur la vérification des entreprises.
+ *
+ * Approuver un dossier fait passer une entreprise de bloquée à plafonds illimités : ce droit est
+ * distinct de la consultation, et distinct du refus. Habiliter au KYB ne revient pas à habiliter à
+ * la vérification d'identité, qui relève d'une autre compétence.
+ */
+export const ORGANISATION_KYB_PERMISSIONS = definePermissions({
+  read: {
+    slug: 'organisations.kyb.read',
+    name: "Consulter le dossier de vérification d'une entreprise",
+    description: "Ouvrir le dossier KYB d'une organisation, ses pièces et le niveau de son compte.",
+    sensitive: true,
+  },
+
+  approve: {
+    slug: 'organisations.kyb.approve',
+    name: "Approuver la vérification d'une entreprise",
+    description:
+      "Valider le dossier, ce qui porte l'entreprise à son palier et lève les plafonds qui bloquaient ses mouvements.",
+    sensitive: true,
+  },
+
+  reject: {
+    slug: 'organisations.kyb.reject',
+    name: "Refuser la vérification d'une entreprise",
+    description:
+      'Rejeter le dossier avec motif et demander une nouvelle soumission. Le niveau reste inchangé.',
+    sensitive: true,
+  },
+})
