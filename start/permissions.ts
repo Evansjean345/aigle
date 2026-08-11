@@ -41,6 +41,7 @@ import {
   ORGANISATION_MEMBER_PERMISSIONS,
   ORGANISATION_ROLE_PERMISSIONS,
   ORGANISATION_WALLET_PERMISSIONS,
+  ORGANISATION_KYB_PERMISSIONS,
 } from '#aiglebusiness/organisation/presentation/admin/permissions.config'
 import { MASS_TRANSFER_PERMISSIONS } from '#aiglebusiness/transfer/mass/presentation/admin/permissions.config'
 
@@ -84,5 +85,6 @@ export const ADMIN_PERMISSION_CATALOG = collectPermissions([
   ORGANISATION_MEMBER_PERMISSIONS,
   ORGANISATION_ROLE_PERMISSIONS,
   ORGANISATION_WALLET_PERMISSIONS,
+  ORGANISATION_KYB_PERMISSIONS,
   MASS_TRANSFER_PERMISSIONS,
 ])

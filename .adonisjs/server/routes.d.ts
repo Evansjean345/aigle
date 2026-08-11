@@ -89,6 +89,10 @@ export type ScannedRoutes = {
     'admin_organisations.resume_provisioning_now': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.freeze_wallet': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.unfreeze_wallet': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'kyb_admin.index': { paramsTuple?: []; params?: {} }
+    'kyb_admin.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'kyb_admin.approve': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'kyb_admin.reject': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyc_level.index': { paramsTuple?: []; params?: {} }
     'kyc_level.store': { paramsTuple?: []; params?: {} }
     'kyc_level.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -260,6 +264,8 @@ export type ScannedRoutes = {
     'admin_organisations.members': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.roles': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.wallet_stats': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'kyb_admin.index': { paramsTuple?: []; params?: {} }
+    'kyb_admin.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyc_level.index': { paramsTuple?: []; params?: {} }
     'kyc.index': { paramsTuple?: []; params?: {} }
     'kyc.stats': { paramsTuple?: []; params?: {} }
@@ -361,6 +367,8 @@ export type ScannedRoutes = {
     'admin_organisations.members': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.roles': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.wallet_stats': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'kyb_admin.index': { paramsTuple?: []; params?: {} }
+    'kyb_admin.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyc_level.index': { paramsTuple?: []; params?: {} }
     'kyc.index': { paramsTuple?: []; params?: {} }
     'kyc.stats': { paramsTuple?: []; params?: {} }
@@ -433,6 +441,8 @@ export type ScannedRoutes = {
     'admin_funding_requests.confirm': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'admin_funding_requests.reject': { paramsTuple: [ParamValue]; params: {'reference': ParamValue} }
     'admin_organisations.resume_provisioning_now': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'kyb_admin.approve': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
+    'kyb_admin.reject': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyc_level.store': { paramsTuple?: []; params?: {} }
     'kyc.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_app_version.store': { paramsTuple?: []; params?: {} }
