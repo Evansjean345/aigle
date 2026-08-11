@@ -1,11 +1,9 @@
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
+import { makeOrganisation } from '#tests/factories/organisation_factory'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
-import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
-import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import ListOrganisationsForAdminUseCase from '#aiglebusiness/organisation/application/use_cases/admin/list_organisations.use_case'
 import GetOrganisationForAdminUseCase from '#aiglebusiness/organisation/application/use_cases/admin/get_organisation.use_case'
 import SearchOrganisationsForAdminUseCase from '#aiglebusiness/organisation/application/use_cases/admin/search_organisations.use_case'
@@ -30,20 +28,6 @@ import { FundingRequestStatus } from '#aiglebusiness/funding/domain/enums/fundin
  * Elles traversent toutes les organisations, sans rattachement à un propriétaire : c'est ce qui les
  * rend utiles au back-office, et impropres au chemin client.
  */
-
-async function makeOrganisation(overrides: Partial<Organisation> = {}): Promise<Organisation> {
-  const organisation = new Organisation()
-  organisation.organisationId = randomUUID()
-  organisation.ownerUserId = randomUUID()
-  organisation.name = `Org ${randomUUID().slice(0, 8)}`
-  organisation.accountType = OrganisationAccountType.MARCHAND
-  organisation.level = OrganisationLevel.LEVEL_1
-  organisation.status = OrganisationStatus.ACTIVE
-  organisation.payableCode = null
-  Object.assign(organisation, overrides)
-
-  return organisation.save()
-}
 
 test.group('Organisation | lectures admin', (group) => {
   group.each.setup(async () => {
@@ -266,7 +250,7 @@ test.group('Organisation | lectures admin', (group) => {
     assert.instanceOf(error, OrganisationNotFoundException)
   })
 
-  test("la file de réapprovisionnement se restreint à une organisation", async ({ assert }) => {
+  test('la file de réapprovisionnement se restreint à une organisation', async ({ assert }) => {
     const service = await app.container.make(FundingRequestReviewService)
     const orgA = await makeOrganisation()
     const orgB = await makeOrganisation()
@@ -286,7 +270,9 @@ test.group('Organisation | lectures admin', (group) => {
     const a = await demande(orgA.organisationId)
     const b = await demande(orgB.organisationId)
 
-    const refs = (await service.listForReview(undefined, orgA.organisationId)).map((r) => r.reference)
+    const refs = (await service.listForReview(undefined, orgA.organisationId)).map(
+      (r) => r.reference
+    )
 
     assert.include(refs, a.reference)
     assert.notInclude(refs, b.reference)
@@ -341,7 +327,7 @@ test.group('Organisation | lectures admin', (group) => {
 
     const command = {
       organisationId: organisation.organisationId,
-      reason: "Instruction close, aucune irrégularité retenue",
+      reason: 'Instruction close, aucune irrégularité retenue',
       adminId: 1,
     }
 
@@ -352,7 +338,7 @@ test.group('Organisation | lectures admin', (group) => {
     assert.isTrue((await aliases.resolve(code))!.active)
   })
 
-  test("une organisation sans QR ne peut pas être basculée", async ({ assert }) => {
+  test('une organisation sans QR ne peut pas être basculée', async ({ assert }) => {
     const useCase = await app.container.make(SetPayableStatusForAdminUseCase)
     const organisation = await makeOrganisation()
 
@@ -361,7 +347,7 @@ test.group('Organisation | lectures admin', (group) => {
       .execute({
         organisationId: organisation.organisationId,
         active: false,
-        reason: "Motif suffisamment long pour passer la validation",
+        reason: 'Motif suffisamment long pour passer la validation',
         adminId: 1,
       })
       .catch((raised: unknown) => raised)
@@ -384,15 +370,12 @@ test.group('Organisation | lectures admin', (group) => {
     assert.isTrue((await fiche.execute(avecQr.organisationId)).payableActive)
   })
 
-  test("les rôles résolvent leurs permissions contre le catalogue", async ({ assert }) => {
+  test('les rôles résolvent leurs permissions contre le catalogue', async ({ assert }) => {
     const useCase = await app.container.make(ListOrganisationRolesForAdminUseCase)
     const membership = await app.container.make(MembershipService)
     const organisation = await makeOrganisation()
 
-    await membership.seedForNewOrganisation(
-      organisation.organisationId,
-      organisation.ownerUserId
-    )
+    await membership.seedForNewOrganisation(organisation.organisationId, organisation.ownerUserId)
 
     const roles = await useCase.execute(organisation.organisationId)
     const owner = roles.find((role) => role.slug === 'owner')

@@ -1,12 +1,10 @@
 import { test } from '@japa/runner'
-import { randomUUID } from 'node:crypto'
+import { makeOrgWallet } from '#tests/factories/wallet_factory'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import { QueueManager } from '@adonisjs/queue'
 import Transaction from '#core/money/transactions/domain/models/transaction'
-import Wallet from '#core/money/wallet/domain/models/wallet'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
-import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
 import { Hub2WebhookNormalizer } from '#core/money/webhooks/application/normalizers/hub2_webhook_normalizer'
 import SettleProviderWebhookUseCase from '#core/money/webhooks/application/use_cases/settle_provider_webhook.use_case'
 import InitiateTransferUseCase from '#aiglebusiness/transfer/application/use_cases/initiate_transfer.use_case'
@@ -39,19 +37,6 @@ function transferDto(): TransferRequestDto {
 }
 
 /** Crée un wallet d'organisation ACTIF (compte org sans user) au solde voulu. */
-async function makeOrgWallet(balance: number): Promise<{ orgId: string; wallet: Wallet }> {
-  const orgId = randomUUID()
-  const wallet = new Wallet()
-  wallet.accountId = orgId
-  wallet.userId = null as unknown as string
-  wallet.balance = balance
-  wallet.currencySymbol = 'XOF'
-  wallet.qrcodeToken = randomUUID()
-  wallet.status = WalletStatus.Active
-  await wallet.save()
-  return { orgId, wallet }
-}
-
 /** Webhook Hub2 transfer normalisé. */
 function transferWebhook(reference: string, ok: boolean) {
   return Hub2WebhookNormalizer.normalize(ok ? 'transfer.succeeded' : 'transfer.failed', {
@@ -83,7 +68,7 @@ test.group('Transfert business | settlement', (group) => {
   test('succès : transaction TRANSFERT → SUCCESS, wallet org inchangé (déjà débité)', async ({
     assert,
   }) => {
-    const { orgId, wallet } = await makeOrgWallet(100000)
+    const { accountId: orgId, wallet } = await makeOrgWallet(100000)
 
     const useCase = await app.container.make(InitiateTransferUseCase)
     await useCase.execute(transferDto(), actor, orgId, 'idem-transfer-ok')
@@ -104,7 +89,7 @@ test.group('Transfert business | settlement', (group) => {
   test('échec : transaction TRANSFERT → REFUNDED + refund (compte org recrédité)', async ({
     assert,
   }) => {
-    const { orgId, wallet } = await makeOrgWallet(100000)
+    const { accountId: orgId, wallet } = await makeOrgWallet(100000)
 
     const useCase = await app.container.make(InitiateTransferUseCase)
     await useCase.execute(transferDto(), actor, orgId, 'idem-transfer-ko')

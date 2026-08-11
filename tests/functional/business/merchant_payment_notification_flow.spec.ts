@@ -1,10 +1,8 @@
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
+import { createOrganisation } from '#tests/factories/organisation_factory'
 import db from '@adonisjs/lucid/services/db'
-import app from '@adonisjs/core/services/app'
-import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
-import { UserKycStatus } from '#core/identity/user/domain/enum'
 import OnMerchantPaymentReceivedNotification from '#aiglebusiness/organisation/application/listeners/on_merchant_payment_received_notification'
 import WalletToWalletTransactionNotification from '#core/notifications/application/listeners/on_wallet_to_wallet_transaction_notification'
 import WalletToWalletTransactionCompleted from '#core/money/transactions/application/events/wallet_to_wallet_transaction_completed'
@@ -85,14 +83,11 @@ function p2pEvent(): WalletToWalletTransactionCompleted {
 }
 
 async function makeOrg(ownerUserId: string): Promise<string> {
-  const useCase = await app.container.make(CreateOrganisationUseCase)
-  const org = await useCase.execute({
+  return createOrganisation({
     ownerUserId,
-    ownerKycStatus: UserKycStatus.VERIFIED,
     name: 'Boutique Ali',
     accountType: OrganisationAccountType.MARCHAND,
   })
-  return org.organisationId
 }
 
 test.group('Notification paiement marchand | marchand (produit)', (group) => {

@@ -1,11 +1,11 @@
 import { test } from '@japa/runner'
+import { makeUser } from '#tests/helpers/auth_test_helpers'
+import { createOrganisation } from '#tests/factories/organisation_factory'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import emitter from '@adonisjs/core/services/emitter'
 import User from '#core/identity/user/domain/models/user'
-import { UserKycStatus, UserStatus } from '#core/identity/user/domain/enum'
-import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/create_role.use_case'
 import UpdateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/update_role.use_case'
@@ -30,26 +30,7 @@ async function createOrg(
   ownerUserId: string,
   accountType: OrganisationAccountType = OrganisationAccountType.ENTERPRISE
 ): Promise<string> {
-  const useCase = await app.container.make(CreateOrganisationUseCase)
-  const org = await useCase.execute({
-    ownerUserId,
-    ownerKycStatus: UserKycStatus.VERIFIED,
-    name: 'Org Test',
-    accountType,
-  })
-  return org.organisationId
-}
-
-async function makeUser(): Promise<User> {
-  const user = new User()
-  user.countryId = 52
-  user.firstname = 'Test'
-  user.lastname = 'User'
-  user.phone = `225${Math.floor(1_00_000_000 + Math.random() * 8_99_999_999)}`
-  user.status = UserStatus.ACTIVE
-  user.accountType = 'freemium'
-  await user.save()
-  return user
+  return createOrganisation({ ownerUserId, name: 'Org Test', accountType })
 }
 
 test.group('Business roles | use cases', (group) => {

@@ -1,4 +1,6 @@
 import { test } from '@japa/runner'
+import { makeUser } from '#tests/helpers/auth_test_helpers'
+import { createOrganisation } from '#tests/factories/organisation_factory'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
@@ -6,11 +8,9 @@ import { QueueManager } from '@adonisjs/queue'
 import User from '#core/identity/user/domain/models/user'
 import Wallet from '#core/money/wallet/domain/models/wallet'
 import Transaction from '#core/money/transactions/domain/models/transaction'
-import { UserKycStatus, UserStatus } from '#core/identity/user/domain/enum'
 import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
-import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/create_role.use_case'
 import OrganisationMember from '#aiglebusiness/membership/domain/models/organisation_member'
@@ -25,28 +25,13 @@ import { swapGuards, swapProviderGateway } from '#tests/functional/payments-flow
  * la permission → `403`. La garde argent (`PartyValidator`/limites) et le provider sont neutralisés.
  */
 
-async function makeUser(): Promise<User> {
-  const user = new User()
-  user.countryId = 52
-  user.firstname = 'Test'
-  user.lastname = 'User'
-  user.phone = `225${Math.floor(1_00_000_000 + Math.random() * 8_99_999_999)}`
-  user.status = UserStatus.ACTIVE
-  user.accountType = 'freemium'
-  await user.save()
-  return user
-}
-
 async function createOrg(ownerUserId: string): Promise<string> {
-  const useCase = await app.container.make(CreateOrganisationUseCase)
-  const org = await useCase.execute({
+  // Marchand : un marchand PEUT décaisser (pas de restriction par segment).
+  return createOrganisation({
     ownerUserId,
-    ownerKycStatus: UserKycStatus.VERIFIED,
-    // Marchand : un marchand PEUT décaisser (pas de restriction par segment).
     name: 'Boutique Ali',
     accountType: OrganisationAccountType.MARCHAND,
   })
-  return org.organisationId
 }
 
 /** Bearer d'un MEMBRE (≠ owner) doté des permissions données, sur l'app aiglebusiness. */

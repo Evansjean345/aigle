@@ -1,9 +1,7 @@
 import { test } from '@japa/runner'
-import { randomUUID } from 'node:crypto'
+import { makeOrgWallet } from '#tests/factories/wallet_factory'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import Wallet from '#core/money/wallet/domain/models/wallet'
-import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
 import TransferBatch from '#core/money/transfer/domain/models/transfer_batch'
 import TransferItem from '#core/money/transfer/domain/models/transfer_item'
 import { TransferBatchStatus } from '#core/money/transfer/domain/enums/transfer_batch_status'
@@ -20,19 +18,6 @@ import type { InitiateMassTransferCommand } from '#core/money/transfer/applicati
  * (`pending_approval`) + N items (`queued`), le tout atomique et **sans** réseau provider. (La façade
  * HTTP produit + le gate enterprise sont couverts en B9.)
  */
-
-async function makeOrgWallet(balance: number): Promise<{ orgId: string; wallet: Wallet }> {
-  const orgId = randomUUID()
-  const wallet = new Wallet()
-  wallet.accountId = orgId
-  wallet.userId = null as unknown as string
-  wallet.balance = balance
-  wallet.currencySymbol = 'XOF'
-  wallet.qrcodeToken = randomUUID()
-  wallet.status = WalletStatus.Active
-  await wallet.save()
-  return { orgId, wallet }
-}
 
 function command(orgId: string, idempotencyKey?: string): InitiateMassTransferCommand {
   return {
@@ -72,7 +57,7 @@ test.group('Transfer | initiation mass (service core) — B3', (group) => {
   })
 
   test('initiate : lot pending_approval + N items queued, fonds réservés', async ({ assert }) => {
-    const { orgId, wallet } = await makeOrgWallet(100000)
+    const { accountId: orgId, wallet } = await makeOrgWallet(100000)
 
     const svc = await app.container.make(TransferBatchService)
     const res = await svc.initiate(command(orgId, 'idem-1'))
@@ -102,7 +87,7 @@ test.group('Transfer | initiation mass (service core) — B3', (group) => {
   test('idempotence requête : rejeu même clé → même lot, pas de double réserve', async ({
     assert,
   }) => {
-    const { orgId, wallet } = await makeOrgWallet(100000)
+    const { accountId: orgId, wallet } = await makeOrgWallet(100000)
 
     const svc = await app.container.make(TransferBatchService)
     const first = await svc.initiate(command(orgId, 'idem-2'))
@@ -118,7 +103,7 @@ test.group('Transfer | initiation mass (service core) — B3', (group) => {
   })
 
   test('solde insuffisant → InsufficientFunds, aucun lot créé', async ({ assert }) => {
-    const { orgId, wallet } = await makeOrgWallet(1000)
+    const { accountId: orgId, wallet } = await makeOrgWallet(1000)
 
     const svc = await app.container.make(TransferBatchService)
     await assert.rejects(() => svc.initiate(command(orgId, 'idem-3')))

@@ -4,10 +4,11 @@ import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import User from '#core/identity/user/domain/models/user'
-import { UserKycStatus, UserStatus } from '#core/identity/user/domain/enum'
+import { UserKycStatus } from '#core/identity/user/domain/enum'
+import { makeUser } from '#tests/helpers/auth_test_helpers'
+import { createOrganisation } from '#tests/factories/organisation_factory'
 import OtpVerificationService from '#core/identity/otp/application/services/otp_verification_service'
 import NotificationService from '#core/notifications/application/services/notification_service'
-import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/create_role.use_case'
 import DeleteRoleUseCase from '#aiglebusiness/membership/application/use_cases/roles/delete_role.use_case'
@@ -33,27 +34,15 @@ import { OWNER_ROLE_SLUG } from '#aiglebusiness/membership/domain/system_roles'
  */
 
 async function createOrg(ownerUserId: string): Promise<string> {
-  const useCase = await app.container.make(CreateOrganisationUseCase)
-  const org = await useCase.execute({
+  return createOrganisation({
     ownerUserId,
-    ownerKycStatus: UserKycStatus.VERIFIED,
     name: 'Org Test',
     accountType: OrganisationAccountType.ENTERPRISE,
   })
-  return org.organisationId
 }
 
-async function makeUser(kyc: UserKycStatus = UserKycStatus.VERIFIED): Promise<User> {
-  const user = new User()
-  user.countryId = 52
-  user.firstname = 'Invited'
-  user.lastname = 'Member'
-  user.phone = `225${Math.floor(1_00_000_000 + Math.random() * 8_99_999_999)}`
-  user.status = UserStatus.ACTIVE
-  user.accountType = 'freemium'
-  user.kycStatus = kyc
-  await user.save()
-  return user
+async function makeMember(kyc: UserKycStatus = UserKycStatus.VERIFIED): Promise<User> {
+  return makeUser({ firstname: 'Invited', lastname: 'Member', kycStatus: kyc })
 }
 
 /** Neutralise l'envoi SMS (canal core) — on ne teste pas MTarget ici. */
@@ -93,7 +82,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('inviter : user KYC-vérifié → membre PENDING avec token', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
 
     const result = await invite.execute({ organisationId, phone: invitee.phone, roleId })
@@ -111,7 +100,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('inviter : numéro saisi en format local (07…) résolu vers 225…', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     invitee.phone = '2250712345678' // stocké en forme normalisée
     await invitee.save()
     const invite = await app.container.make(InviteMemberUseCase)
@@ -135,7 +124,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('inviter : user non KYC-vérifié → 403', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeUser(UserKycStatus.PENDING_IN_REVIEW)
+    const invitee = await makeMember(UserKycStatus.PENDING_IN_REVIEW)
     const invite = await app.container.make(InviteMemberUseCase)
 
     await assert.rejects(() => invite.execute({ organisationId, phone: invitee.phone, roleId }))
@@ -143,7 +132,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('inviter : roleId hors organisation → 404', async ({ assert }) => {
     const { organisationId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
 
     await assert.rejects(() =>
@@ -153,7 +142,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('inviter deux fois un membre ACTIVE → 409', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
     const accept = await app.container.make(AcceptInvitationUseCase)
 
@@ -169,7 +158,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('ré-inviter un membre REMOVED → réactive la même ligne en PENDING', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
     const accept = await app.container.make(AcceptInvitationUseCase)
     const remove = await app.container.make(RemoveMemberUseCase)
@@ -192,7 +181,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('accepter : token + OTP → membre ACTIVE, token effacé', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
     const accept = await app.container.make(AcceptInvitationUseCase)
 
@@ -214,7 +203,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('accepter : token expiré → 410', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
     const accept = await app.container.make(AcceptInvitationUseCase)
 
@@ -230,7 +219,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
     assert,
   }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
     const getInvitation = await app.container.make(GetInvitationUseCase)
 
@@ -246,7 +235,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('changer le rôle d’un membre ; OWNER protégé', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
     const accept = await app.container.make(AcceptInvitationUseCase)
     const changeRole = await app.container.make(ChangeMemberRoleUseCase)
@@ -276,7 +265,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('inviter avec le rôle OWNER (système) → refusé, aucune ligne créée', async ({ assert }) => {
     const { organisationId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const ownerRole = await OrganisationRole.query()
       .where('organisation_id', organisationId)
       .where('slug', OWNER_ROLE_SLUG)
@@ -296,7 +285,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('promouvoir un membre vers le rôle OWNER (système) → refusé', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
     const accept = await app.container.make(AcceptInvitationUseCase)
     const changeRole = await app.container.make(ChangeMemberRoleUseCase)
@@ -327,7 +316,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
     const remove = await app.container.make(RemoveMemberUseCase)
 
     // PENDING → supprimé
-    const pendingUser = await makeUser()
+    const pendingUser = await makeMember()
     await invite.execute({ organisationId, phone: pendingUser.phone, roleId })
     const pendingRow = await OrganisationMember.query()
       .where('user_id', pendingUser.usersUid)
@@ -336,7 +325,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
     assert.isNull(await OrganisationMember.find(pendingRow.id))
 
     // ACTIVE → REMOVED
-    const activeUser = await makeUser()
+    const activeUser = await makeMember()
     await invite.execute({ organisationId, phone: activeUser.phone, roleId })
     const activeRow = await OrganisationMember.query()
       .where('user_id', activeUser.usersUid)
@@ -352,8 +341,8 @@ test.group('Business members | invitation & lifecycle', (group) => {
     const invite = await app.container.make(InviteMemberUseCase)
     const list = await app.container.make(ListMembersUseCase)
 
-    const u1 = await makeUser()
-    const u2 = await makeUser()
+    const u1 = await makeMember()
+    const u2 = await makeMember()
     await invite.execute({ organisationId, phone: u1.phone, roleId })
     await invite.execute({ organisationId, phone: u2.phone, roleId })
 
@@ -391,7 +380,7 @@ test.group('Business members | correctifs RBAC', (group) => {
       name: 'Lecture',
       permissionSlugs: ['wallet:view'],
     })
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
     const accept = await app.container.make(AcceptInvitationUseCase)
 
@@ -414,7 +403,7 @@ test.group('Business members | correctifs RBAC', (group) => {
       name: 'Lecture',
       permissionSlugs: ['wallet:view'],
     })
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
     const accept = await app.container.make(AcceptInvitationUseCase)
     const remove = await app.container.make(RemoveMemberUseCase)
@@ -436,7 +425,7 @@ test.group('Business members | correctifs RBAC', (group) => {
       name: 'Occupé',
       permissionSlugs: ['wallet:view'],
     })
-    const invitee = await makeUser()
+    const invitee = await makeMember()
     const invite = await app.container.make(InviteMemberUseCase)
     const accept = await app.container.make(AcceptInvitationUseCase)
 

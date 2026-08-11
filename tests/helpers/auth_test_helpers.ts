@@ -1,7 +1,7 @@
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
 import User from '#core/identity/user/domain/models/user'
-import { UserStatus } from '#core/identity/user/domain/enum'
+import { UserKycStatus, UserStatus } from '#core/identity/user/domain/enum'
 import { type AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
 import NotificationService from '#core/notifications/application/services/notification_service'
 import OtpVerificationService from '#core/identity/otp/application/services/otp_verification_service'
@@ -37,17 +37,21 @@ export const DEVICE_BODY = {
 interface MakeUserOptions {
   pincode?: string
   status?: UserStatus
+  kycStatus?: UserKycStatus
+  firstname?: string
+  lastname?: string
 }
 
 /** Crée un user actif (phone `225…`). Le PIN brut est hashé par le mixin d'auth au save. */
 export async function makeUser(options: MakeUserOptions = {}): Promise<User> {
   const user = new User()
   user.countryId = CI_COUNTRY_ID
-  user.firstname = 'Test'
-  user.lastname = 'User'
+  user.firstname = options.firstname ?? 'Test'
+  user.lastname = options.lastname ?? 'User'
   user.phone = `225${Math.floor(1_00_000_000 + Math.random() * 8_99_999_999)}`
   user.status = options.status ?? UserStatus.ACTIVE
   user.accountType = 'freemium'
+  if (options.kycStatus) user.kycStatus = options.kycStatus
   if (options.pincode) user.pincode = options.pincode
   await user.save()
   return user

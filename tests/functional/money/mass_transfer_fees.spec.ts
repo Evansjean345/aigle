@@ -1,9 +1,8 @@
 import { test } from '@japa/runner'
+import { makeOrgWallet } from '#tests/factories/wallet_factory'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import Wallet from '#core/money/wallet/domain/models/wallet'
-import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
 import TransferBatch from '#core/money/transfer/domain/models/transfer_batch'
 import TransferItem from '#core/money/transfer/domain/models/transfer_item'
 import TransferBatchService from '#core/money/transfer/application/services/transfer_batch_service'
@@ -34,19 +33,6 @@ class FakeFeeResolver {
     }
     return { amount, fees: FEE_PER_ITEM, total: amount + FEE_PER_ITEM }
   }
-}
-
-async function makeOrgWallet(balance: number): Promise<{ orgId: string; wallet: Wallet }> {
-  const orgId = randomUUID()
-  const wallet = new Wallet()
-  wallet.accountId = orgId
-  wallet.userId = null as unknown as string
-  wallet.balance = balance
-  wallet.currencySymbol = 'XOF'
-  wallet.qrcodeToken = randomUUID()
-  wallet.status = WalletStatus.Active
-  await wallet.save()
-  return { orgId, wallet }
 }
 
 function command(orgId: string, key?: string): InitiateMassTransferCommand {
@@ -83,7 +69,7 @@ test.group('Transfer | frais du paiement en masse — B10', (group) => {
   test('initiation : hold = Σ(montant + frais), frais figés sur chaque item', async ({
     assert,
   }) => {
-    const { orgId, wallet } = await makeOrgWallet(100000)
+    const { accountId: orgId, wallet } = await makeOrgWallet(100000)
 
     const svc = await app.container.make(TransferBatchService)
     const res = await svc.initiate(command(orgId, `idem-${randomUUID()}`))
@@ -104,7 +90,7 @@ test.group('Transfer | frais du paiement en masse — B10', (group) => {
   })
 
   test('bénéficiaire non tarifable → tout le lot rejeté, aucun hold posé', async ({ assert }) => {
-    const { orgId, wallet } = await makeOrgWallet(100000)
+    const { accountId: orgId, wallet } = await makeOrgWallet(100000)
     fees.shouldFail = true
 
     const svc = await app.container.make(TransferBatchService)
@@ -120,7 +106,7 @@ test.group('Transfer | frais du paiement en masse — B10', (group) => {
     assert,
   }) => {
     // 60 000 de montants + 300 de frais > 60 100 disponibles.
-    const { orgId, wallet } = await makeOrgWallet(60100)
+    const { accountId: orgId, wallet } = await makeOrgWallet(60100)
 
     const svc = await app.container.make(TransferBatchService)
     await assert.rejects(() => svc.initiate(command(orgId, `idem-${randomUUID()}`)))

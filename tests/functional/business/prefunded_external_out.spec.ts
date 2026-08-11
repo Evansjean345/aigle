@@ -1,14 +1,12 @@
 import { test } from '@japa/runner'
-import { randomUUID } from 'node:crypto'
+import { makeOrgWallet } from '#tests/factories/wallet_factory'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import { QueueManager } from '@adonisjs/queue'
 import Transaction from '#core/money/transactions/domain/models/transaction'
 import Ledger from '#core/money/ledger/domain/models/ledger'
-import Wallet from '#core/money/wallet/domain/models/wallet'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
-import { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
 import ExternalOutHandler from '#core/money/money_movement/application/services/movements/initiation/external_out_handler'
 import {
   reloadBalance,
@@ -31,19 +29,6 @@ import type { ExternalOutCommand } from '#core/money/money_movement/domain/types
  */
 
 /** Crée un wallet d'organisation ACTIF (compte org sans user) au solde voulu. */
-async function makeOrgWallet(balance: number): Promise<{ orgId: string; wallet: Wallet }> {
-  const orgId = randomUUID()
-  const wallet = new Wallet()
-  wallet.accountId = orgId
-  wallet.userId = null as unknown as string
-  wallet.balance = balance
-  wallet.currencySymbol = 'XOF'
-  wallet.qrcodeToken = randomUUID()
-  wallet.status = WalletStatus.Active
-  await wallet.save()
-  return { orgId, wallet }
-}
-
 function prefundedCommand(orgId: string): ExternalOutCommand {
   return {
     idempotencyKey: 'prefunded-item-1',
@@ -86,7 +71,7 @@ test.group('Engine | initiateExternalOut prefunded (B1)', (group) => {
   test('prefunded → wallet NON débité, mais transaction PENDING créée + provider appelé', async ({
     assert,
   }) => {
-    const { orgId, wallet } = await makeOrgWallet(100000)
+    const { accountId: orgId, wallet } = await makeOrgWallet(100000)
 
     const useCase = await app.container.make(ExternalOutHandler)
     const res = await useCase.handle(prefundedCommand(orgId))
@@ -109,7 +94,7 @@ test.group('Engine | initiateExternalOut prefunded (B1)', (group) => {
   })
 
   test('non prefunded (défaut) → wallet débité (garde-fou de non-régression)', async ({ assert }) => {
-    const { orgId, wallet } = await makeOrgWallet(100000)
+    const { accountId: orgId, wallet } = await makeOrgWallet(100000)
 
     const cmd = prefundedCommand(orgId)
     cmd.prefunded = false
