@@ -2,25 +2,10 @@ import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import Permission from '#core/team/domain/models/permission'
+import { syncAdminPermissions } from '#tests/factories/admin_factory'
 import PermissionCatalogDiffService from '#core/team/application/services/permission_catalog_diff_service'
 import PermissionsCheck from '../../../commands/rbac/permissions_check.js'
 import { ADMIN_PERMISSION_CATALOG } from '#start/permissions'
-
-/**
- * Écrit en base toutes les permissions du catalogue, telles que déclarées.
- *
- * @returns {Promise<void>} Résout quand la base est alignée.
- */
-async function seedCatalog(): Promise<void> {
-  await Permission.updateOrCreateMany(
-    'slug',
-    ADMIN_PERMISSION_CATALOG.map((definition) => ({
-      slug: definition.slug,
-      name: definition.name,
-      description: definition.description,
-    }))
-  )
-}
 
 /**
  * Exécute la commande de vérification.
@@ -61,8 +46,7 @@ test.group('Team | diff catalogue / base', (group) => {
   })
 
   test('ne signale rien quand la base est alignée', async ({ assert }) => {
-    await Permission.query().delete()
-    await seedCatalog()
+    await syncAdminPermissions()
     const service = await app.container.make(PermissionCatalogDiffService)
 
     const diff = await service.compare(ADMIN_PERMISSION_CATALOG)
@@ -73,8 +57,7 @@ test.group('Team | diff catalogue / base', (group) => {
   })
 
   test('signale un libellé divergent sans le confondre avec une absence', async ({ assert }) => {
-    await Permission.query().delete()
-    await seedCatalog()
+    await syncAdminPermissions()
     const [first] = ADMIN_PERMISSION_CATALOG
     await Permission.query().where('slug', first.slug).update({ name: 'Libellé dérivé' })
 
@@ -87,8 +70,7 @@ test.group('Team | diff catalogue / base', (group) => {
   })
 
   test('signale une permission en base hors catalogue', async ({ assert }) => {
-    await Permission.query().delete()
-    await seedCatalog()
+    await syncAdminPermissions()
     await Permission.create({
       slug: 'heritage.read',
       name: 'Permission héritée',
@@ -120,8 +102,7 @@ test.group('Team | permissions:check', (group) => {
   })
 
   test('réussit quand la base porte tout le catalogue', async ({ assert }) => {
-    await Permission.query().delete()
-    await seedCatalog()
+    await syncAdminPermissions()
 
     assert.equal(await runCheck(), 0)
   })
@@ -135,8 +116,7 @@ test.group('Team | permissions:check', (group) => {
   })
 
   test('tolère une permission hors catalogue', async ({ assert }) => {
-    await Permission.query().delete()
-    await seedCatalog()
+    await syncAdminPermissions()
     await Permission.create({
       slug: 'heritage.read',
       name: 'Permission héritée',
@@ -147,8 +127,7 @@ test.group('Team | permissions:check', (group) => {
   })
 
   test('échoue sur une permission hors catalogue en mode strict', async ({ assert }) => {
-    await Permission.query().delete()
-    await seedCatalog()
+    await syncAdminPermissions()
     await Permission.create({
       slug: 'heritage.read',
       name: 'Permission héritée',
@@ -159,8 +138,7 @@ test.group('Team | permissions:check', (group) => {
   })
 
   test('un libellé divergent ne fait pas échouer', async ({ assert }) => {
-    await Permission.query().delete()
-    await seedCatalog()
+    await syncAdminPermissions()
     const [first] = ADMIN_PERMISSION_CATALOG
     await Permission.query().where('slug', first.slug).update({ name: 'Libellé dérivé' })
 
