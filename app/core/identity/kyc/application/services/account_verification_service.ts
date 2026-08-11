@@ -54,7 +54,7 @@ export default class AccountVerificationService {
    *   encore attendues.
    * @throws {AccountNotFoundException} Compte inconnu.
    * @throws {VerificationNotApplicableException} Le segment du compte ne passe aucune vérification.
-   * @throws {KycAlreadySubmittedException} Un dossier est déjà en revue ou approuvé.
+   * @throws {KycAlreadySubmittedException} Un dossier est déjà en revue ou approuvée.
    * @throws {UnknownPieceTypeException} Une pièce déposée n'est pas attendue par ce dossier.
    * @throws {IncompleteVerificationFileException} Lot incomplet, en mode atomique.
    */

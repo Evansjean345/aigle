@@ -86,6 +86,8 @@ export interface KycDocumentResult {
   documentVersoUrl?: string
   selfieUrl?: string
   status: string
+  /** Rôle attendu ensuite, ou `IN_REVIEW` quand le dossier est complet. */
+  nextAction?: string
   comment?: string
   validUntil?: string
   createdAt: string
@@ -163,6 +165,7 @@ export const toKycDocumentResult = (kyc: KycDocument): KycDocumentResult => ({
   documentVersoUrl: kyc.documentVersoUrl,
   selfieUrl: kyc.selfieUrl,
   status: kyc.status,
+  nextAction: kyc.nextAction,
   comment: kyc.comment,
   validUntil: kyc.validUntil?.toISODate() ?? undefined,
   createdAt: kyc.createdAt?.toISO() || kyc.createdAt?.toString() || '',

@@ -20,6 +20,7 @@ import businessTransactionsRoutes from '#aiglebusiness/transactions/presentation
 import businessTransferRoutes from '#aiglebusiness/transfer/presentation/client/routes/business_transfer_routes'
 import clientCollectionAccountRoutes from '#aiglebusiness/funding/presentation/client/routes/collection_account_routes'
 import clientFundingRequestRoutes from '#aiglebusiness/funding/presentation/client/routes/funding_request_routes'
+import clientKybRoutes from '#aiglebusiness/kyb/presentation/client/routes/kyb_routes'
 import massTransferRoutes from '#aiglebusiness/transfer/mass/presentation/client/routes/mass_transfer_routes'
 import businessDeviceRoutes from '#aiglebusiness/device/presentation/client/routes/business_device_routes'
 import businessCatalogRoutes from '#aiglebusiness/catalog/presentation/client/routes/business_catalog_routes'
@@ -47,6 +48,7 @@ router
     router.group(massTransferRoutes)
     router.group(clientCollectionAccountRoutes)
     router.group(clientFundingRequestRoutes)
+    router.group(clientKybRoutes)
     router.group(businessDeviceRoutes)
     router.group(businessCatalogRoutes)
     router.group(payableAliasRoutes)

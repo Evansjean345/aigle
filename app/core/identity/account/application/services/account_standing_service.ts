@@ -1,5 +1,6 @@
 import { inject } from '@adonisjs/core'
 import AccountRepository from '#core/identity/account/domain/interfaces/account_repository'
+import { type AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import KycLevelDirectoryService from '#core/identity/kyc/application/services/kyc_level_directory_service'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
 import { type AccountStatus } from '#core/identity/account/domain/enums/account_status'
@@ -44,6 +45,22 @@ export default class AccountStandingService {
     }
 
     return account.status
+  }
+
+  /**
+   * Retrouve l'identifiant du compte d'un propriétaire.
+   *
+   * Un produit connaît son organisation ou son utilisateur, pas le compte qui le porte : c'est cette
+   * lecture qui fait le lien.
+   *
+   * @param {AccountOwnerType} ownerType - Nature du propriétaire.
+   * @param {string} ownerRef - Identifiant du propriétaire dans son contexte.
+   * @returns {Promise<string | null>} L'identifiant du compte, ou `null` s'il n'en existe pas.
+   */
+  async findAccountId(ownerType: AccountOwnerType, ownerRef: string): Promise<string | null> {
+    const account = await this.accountRepository.findByOwner(ownerType, ownerRef)
+
+    return account?.accountId ?? null
   }
 
   /**
