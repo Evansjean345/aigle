@@ -17,16 +17,10 @@ const adminKycRoutes = () => {
             .get('/', [KycLevelController, 'index'])
             .use(middleware.permission([KYC_LEVEL_PERMISSIONS.list]))
 
-          router
-            .post('/', [KycLevelController, 'store'])
-            .use(middleware.permission([KYC_LEVEL_PERMISSIONS.manage]))
-
+          // Ni création ni suppression : un palier porte une signification qui doit exister en
+          // code avant d'exister en base. L'administration n'ajuste que les montants.
           router
             .put('/:id', [KycLevelController, 'update'])
-            .use(middleware.permission([KYC_LEVEL_PERMISSIONS.manage]))
-
-          router
-            .delete('/:id', [KycLevelController, 'destroy'])
             .use(middleware.permission([KYC_LEVEL_PERMISSIONS.manage]))
         })
         .prefix('/levels')

@@ -5,8 +5,8 @@ import { AuditResult } from '#core/audit/domain/enums'
 import {
   KycLevelResponseDto,
   UpdateKycLevelDto,
+  type AdminAuditContext,
 } from '#aiglesend/kyc/application/dtos/admin/admin_kyc_level.dto'
-import type { AdminAuditContext } from '#aiglesend/kyc/application/usecases/admin/create_kyc_level.usecase'
 
 /**
  * Met à jour un niveau KYC depuis le back-office.
@@ -18,12 +18,11 @@ export default class UpdateKycLevelUseCase {
   /**
    * Exécute la mise à jour.
    *
-   * @param {number} id - Niveau visé.
-   * @param {UpdateKycLevelDto} data - Champs à modifier.
+   * @param {number} id - Palier visé.
+   * @param {UpdateKycLevelDto} data - Montants à modifier.
    * @param {AdminAuditContext} [auditContext] - Auteur et contexte de la requête.
-   * @returns {Promise<KycLevelResponseDto>} Le niveau mis à jour.
-   * @throws {KycLevelNotFoundException} Niveau inconnu.
-   * @throws {KycLevelAlreadyExistsException} Le rang demandé est déjà pris.
+   * @returns {Promise<KycLevelResponseDto>} Le palier ajusté.
+   * @throws {KycLevelNotFoundException} Palier inconnu.
    */
   async execute(
     id: number,

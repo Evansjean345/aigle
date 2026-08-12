@@ -58,17 +58,4 @@ export default class KycLevelRepositoryImpl implements KycLevelRepository {
   async save(kycLevel: KycLevel): Promise<KycLevel> {
     return kycLevel.save()
   }
-
-  /**
-   * Deletes the specified KycLevel entry.
-   *
-   * @param {KycLevel} kycLevel - The KycLevel instance to be deleted.
-   * @return {Promise<void>} A promise that resolves when the deletion is complete.
-   */
-  async delete(kycLevel: KycLevel): Promise<void> {
-    // La garde « des comptes y sont rattachés » vit dans `KycLevelService` : c'est une règle
-    // métier, pas une contrainte de persistance. La dédoubler ici donnait deux messages et deux
-    // codes d'erreur pour un même refus.
-    await kycLevel.delete()
-  }
 }

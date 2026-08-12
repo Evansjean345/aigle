@@ -37,22 +37,6 @@ export default class AccountRepositoryImpl implements AccountRepository {
     return Account.query().whereIn('account_id', accountIds)
   }
 
-  /**
-   * Compte les comptes rattachés à un couple `(segment, level)`.
-   *
-   * @param {string} segment - Segment cherché.
-   * @param {number} level - Palier cherché.
-   * @returns {Promise<number>} Le nombre de comptes rattachés.
-   */
-  async countBySegmentAndLevel(segment: string, level: number): Promise<number> {
-    const result = await Account.query()
-      .where('segment', segment)
-      .andWhere('level', level)
-      .count('* as total')
-
-    return Number((result[0] as any).$extras.total ?? 0)
-  }
-
   async create(data: Partial<Account>, trx?: TransactionClientContract): Promise<Account> {
     const account = new Account()
     Object.assign(account, data)

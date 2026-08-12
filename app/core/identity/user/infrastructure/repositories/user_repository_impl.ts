@@ -188,12 +188,6 @@ export default class UserRepositoryIml implements UserRepository {
     }
   }
 
-  async countByKycLevel(level: number): Promise<number> {
-    const result = await User.query().where('kyc_level', level).count('* as total')
-
-    return Number(result[0].$extras.total)
-  }
-
   async findWithAdminDetails(userId: string): Promise<User | null> {
     return User.query()
       .where('usersUid', userId)

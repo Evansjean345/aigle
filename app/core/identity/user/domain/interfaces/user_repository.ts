@@ -94,14 +94,6 @@ export default abstract class UserRepository {
   abstract getStats(startDate?: string, endDate?: string): Promise<Record<string, number>>
 
   /**
-   * Compte les utilisateurs rattachés à un niveau KYC.
-   *
-   * @param {number} level - Niveau KYC.
-   * @returns {Promise<number>} Le nombre de comptes concernés.
-   */
-  abstract countByKycLevel(level: number): Promise<number>
-
-  /**
    * Charge un utilisateur avec tout ce qu'affiche sa fiche d'administration : pays, numéros de
    * débit et leur opérateur, appareils encore liés et leur matériel, niveau KYC.
    *

@@ -31,9 +31,4 @@ export default abstract class KycLevelRepository {
    * Enregistre ou met à jour un niveau KYC
    */
   abstract save(kycLevel: KycLevel): Promise<KycLevel>
-
-  /**
-   * Supprime un niveau KYC
-   */
-  abstract delete(kycLevel: KycLevel): Promise<void>
 }

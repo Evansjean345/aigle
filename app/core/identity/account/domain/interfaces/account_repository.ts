@@ -31,13 +31,6 @@ export default abstract class AccountRepository {
   abstract findByAccountIds(accountIds: string[]): Promise<Account[]>
 
   /**
-   * Compte les comptes rattachés à un couple `(segment, level)`.
-   *
-   * Sert les gardes qui refusent de retirer un palier encore occupé.
-   */
-  abstract countBySegmentAndLevel(segment: string, level: number): Promise<number>
-
-  /**
    * Crée et persiste un compte.
    */
   abstract create(data: Partial<Account>, trx?: TransactionClientContract): Promise<Account>
