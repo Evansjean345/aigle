@@ -145,7 +145,10 @@ const toPieceResults = (kyc: KycDocument): KycDocumentPieceResult[] =>
     isPublicUrl: Boolean(piece.isPublicUrl),
   }))
 
-export const toKycDocumentResult = (kyc: KycDocument): KycDocumentResult => ({
+export const toKycDocumentResult = (
+  kyc: KycDocument,
+  options?: { ownerLevel?: number | null }
+): KycDocumentResult => ({
   id: kyc.id,
   accountId: kyc.accountId,
   ownerType: kyc.ownerType,
@@ -184,7 +187,7 @@ export const toKycDocumentResult = (kyc: KycDocument): KycDocumentResult => ({
         firstname: kyc.user.firstname,
         lastname: kyc.user.lastname,
         usersUid: kyc.user.usersUid,
-        kycLevel: kyc.user.kycLevel,
+        kycLevel: options?.ownerLevel ?? 0,
         kycStatus: kyc.user.kycStatus,
         phone: kyc.user.phone,
         status: kyc.user.status,

@@ -2,7 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import GetUserTransactionsUseCase from '#core/money/transactions/application/use_cases/get_user_transactions.use_case'
 import GetUserTransactionDetailsUseCase from '#core/money/transactions/application/use_cases/get_user_transaction_details.use_case'
-import GetTransactionQuotasUseCase from '#core/money/transactions/application/use_cases/get_transaction_quotas_use_case'
+import GetAccountQuotasUseCase from '#core/money/transactions/application/use_cases/get_account_quotas.use_case'
 
 /**
  * MobileTransactionsController is responsible for handling operations related
@@ -15,12 +15,12 @@ export default class MobileTransactionsController {
    *
    * @param {GetUserTransactionsUseCase} getUserTransactions - Use case for retrieving user transactions.
    * @param {GetUserTransactionDetailsUseCase} getUserTransactionDetails - Use case for retrieving details of a specific user transaction.
-   * @param {GetUserTransactionsUseCase} getTransactionQuotasUseCase - Use case for retrieving transaction quotas.
+   * @param {GetAccountQuotasUseCase} getAccountQuotas - Use case for retrieving transaction quotas.
    */
   constructor(
     private readonly getUserTransactions: GetUserTransactionsUseCase,
     private readonly getUserTransactionDetails: GetUserTransactionDetailsUseCase,
-    private readonly getTransactionQuotasUseCase: GetTransactionQuotasUseCase
+    private readonly getAccountQuotas: GetAccountQuotasUseCase
   ) {}
 
   /**
@@ -90,8 +90,10 @@ export default class MobileTransactionsController {
    * @return {Promise<void>} A Promise that resolves when the quota data is retrieved and sent in the response.
    */
   async getTransactionQuota({ response, auth }: HttpContext): Promise<void> {
-    const user = auth.user!
-    const result = await this.getTransactionQuotasUseCase.execute(user)
-    return response.ok(result)
+    // Invariant β : pour un compte utilisateur, `accountId` vaut `usersUid`.
+    const quotas = await this.getAccountQuotas.execute(auth.user!.usersUid)
+
+    // `kycLevel` est conservé le temps que l'app suive : elle le lit encore.
+    return response.ok({ ...quotas, kycLevel: quotas.level })
   }
 }

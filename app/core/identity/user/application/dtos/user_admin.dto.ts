@@ -51,7 +51,8 @@ export interface UserListItemResult {
   status: UserStatus
   createdAt: DateTime<boolean>
   transactionVolume: {
-    monthly_limit: number
+    /** `null` = illimité, ce que la grille exprime par une absence de plafond. */
+    monthly_limit: number | null
     monthly: number
   }
   kyc: UserKycRef
@@ -187,7 +188,12 @@ const countryOf = (user: User): UserCountryRef => ({
 
 export const toUserListItemResult = (
   user: User,
-  options?: { monthlyVolume: number; profilePic?: string | null }
+  options?: {
+    monthlyVolume: number
+    profilePic?: string | null
+    monthlyLimit?: number | null
+    level?: number
+  }
 ): UserListItemResult => ({
   usersUid: user.usersUid,
   fullname: fullnameOf(user),
@@ -197,11 +203,11 @@ export const toUserListItemResult = (
   status: user.status,
   createdAt: user.createdAt,
   transactionVolume: {
-    monthly_limit: user.keyLevel?.monthlyLimit || 0,
+    monthly_limit: options?.monthlyLimit ?? null,
     monthly: options?.monthlyVolume ?? 0,
   },
   kyc: {
-    level: user.keyLevel?.level || 0,
+    level: options?.level ?? 0,
     status: user.kycStatus,
     documentType: user.kycDocument?.documentType ?? null,
     documentStatus: user.kycDocument?.status ?? null,
@@ -214,7 +220,7 @@ export const toUserListItemResult = (
 
 export const toUserSearchResult = (
   user: User,
-  options?: { profilePic?: string | null }
+  options?: { profilePic?: string | null; level?: number }
 ): UserSearchResult => ({
   usersUid: user.usersUid,
   fullname: fullnameOf(user),
@@ -222,7 +228,7 @@ export const toUserSearchResult = (
   profilePic: options?.profilePic ?? null,
   country: countryOf(user),
   kyc: {
-    level: user.keyLevel?.level || 0,
+    level: options?.level ?? 0,
     status: user.kycStatus,
   },
   status: user.status,
@@ -230,7 +236,7 @@ export const toUserSearchResult = (
 
 export const toUserDetailsResult = (
   user: User,
-  options?: { profilePic?: string | null }
+  options?: { profilePic?: string | null; level?: number }
 ): UserDetailsResult => ({
   usersUid: user.usersUid,
   firstname: user.firstname,
@@ -247,7 +253,7 @@ export const toUserDetailsResult = (
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
   kyc: {
-    level: user.keyLevel?.level || 0,
+    level: options?.level ?? 0,
     status: user.kycStatus,
     documentType: user.kycDocument?.documentType ?? null,
     documentStatus: user.kycDocument?.status ?? null,

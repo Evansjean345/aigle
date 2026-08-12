@@ -17,8 +17,6 @@ import Wallet from '#core/money/wallet/domain/models/wallet'
 import Country from '#core/catalog/country/domain/models/country'
 import Transaction from '#core/money/transactions/domain/models/transaction'
 import { uniqueID } from '#shared/utils/utiles'
-import KycLevel from '#core/identity/kyc/domain/models/kyc_level'
-import { KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { UserKycStatus, UserStatus } from '#core/identity/user/domain/enum'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import UserDevice from '#core/identity/device/domain/models/user_device'
@@ -78,9 +76,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare pincode: string
 
   @column()
-  declare kycLevel: KycLevelState
-
-  @column()
   declare kycStatus: UserKycStatus
 
   @column()
@@ -122,12 +117,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
     foreignKey: 'countryId',
   })
   declare country: BelongsTo<typeof Country>
-
-  @belongsTo(() => KycLevel, {
-    foreignKey: 'kycLevel',
-    localKey: 'level',
-  })
-  declare keyLevel: BelongsTo<typeof KycLevel>
 
   @hasOne(() => KycDocument, {
     foreignKey: 'userId',

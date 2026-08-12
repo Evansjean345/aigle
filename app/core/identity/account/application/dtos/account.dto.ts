@@ -18,13 +18,15 @@ export interface OpenAccountCommand {
 
 // ── Result (output service — read port `describe`) ──────────────────
 
-/** Nature d'un compte : son propriétaire, son segment et son statut, sans ses limites. */
+/** Nature d'un compte : son propriétaire, son segment, son palier et son statut, sans ses limites. */
 export interface AccountDescriptionResult {
   accountId: string
   ownerType: AccountOwnerType
   /** Identifiant du propriétaire dans son propre contexte : `users_uid` ou `organisation_id`. */
   ownerRef: string
   segment: AccountSegment
+  /** Palier du compte. `null` sur un compte que le remplissage n'a pas atteint. */
+  level: number | null
   status: AccountStatus
 }
 

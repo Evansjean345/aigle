@@ -1,8 +1,6 @@
-import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 import { KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
-import User from '#core/identity/user/domain/models/user'
-import type { HasMany } from '@adonisjs/lucid/types/relations'
 
 export default class KycLevel extends BaseModel {
   static table = 'kyc_level'
@@ -44,10 +42,4 @@ export default class KycLevel extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
-
-  @hasMany(() => User, {
-    foreignKey: 'kycLevel',
-    localKey: 'level',
-  })
-  declare users: HasMany<typeof User>
 }

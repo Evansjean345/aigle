@@ -11,6 +11,7 @@ import {
 } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
+import InMemoryAccountStanding from '#tests/fakes/account/in_memory_account_standing'
 
 /**
  * Caractérise la lecture du détail d'un dossier par le back-office.
@@ -74,7 +75,8 @@ test.group('Kyc | Détail d’un dossier', () => {
   function makeService(seed: KycDocument[]) {
     const repository = new InMemoryKycDocumentRepository(seed)
     const storage = new InMemoryFileStorage()
-    const service = new IdentityReviewService(repository, storage)
+    const standing = new InMemoryAccountStanding()
+    const service = new IdentityReviewService(repository, storage, standing as never)
 
     return { service, storage }
   }

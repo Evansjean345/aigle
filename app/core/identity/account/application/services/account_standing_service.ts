@@ -1,5 +1,6 @@
 import { inject } from '@adonisjs/core'
 import AccountRepository from '#core/identity/account/domain/interfaces/account_repository'
+import type Account from '#core/identity/account/domain/models/account'
 import { type AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import KycLevelDirectoryService from '#core/identity/kyc/application/services/kyc_level_directory_service'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
@@ -80,6 +81,7 @@ export default class AccountStandingService {
       ownerType: account.ownerType,
       ownerRef: account.ownerRef,
       segment: (account.segment ?? AccountSegment.PARTICULIER) as AccountSegment,
+      level: account.level,
       status: account.status,
     }
   }
@@ -102,6 +104,45 @@ export default class AccountStandingService {
       throw new AccountNotFoundException()
     }
 
+    return this.standingOf(account)
+  }
+
+  /**
+   * Résout le standing de plusieurs comptes, en une lecture.
+   *
+   * Sert les listes du back-office. La grille étant en cache, seules les lectures de comptes
+   * coûtent — et elles tiennent en une requête.
+   *
+   * @param {string[]} accountIds - Comptes cherchés.
+   * @returns {Promise<Map<string, AccountStandingResult>>} Le standing par compte, comptes absents
+   *   ou sans grille configurée simplement omis.
+   */
+  async getStandings(accountIds: string[]): Promise<Map<string, AccountStandingResult>> {
+    const accounts = await this.accountRepository.findByAccountIds(accountIds)
+
+    const resolved = await Promise.all(
+      accounts.map(async (account) => {
+        try {
+          return [account.accountId, await this.standingOf(account)] as const
+        } catch {
+          // Une grille absente ne doit pas faire échouer toute une page : la ligne perd ses
+          // plafonds, les autres restent lisibles.
+          return null
+        }
+      })
+    )
+
+    return new Map(resolved.filter((entry): entry is [string, AccountStandingResult] => !!entry))
+  }
+
+  /**
+   * Compose le standing d'un compte déjà chargé.
+   *
+   * @param {Account} account - Compte lu.
+   * @returns {Promise<AccountStandingResult>} Segment, niveau, statut et limites.
+   * @throws {AccountLimitsNotConfiguredException} Le couple `(segment, level)` est absent.
+   */
+  private async standingOf(account: Account): Promise<AccountStandingResult> {
     const segment = (account.segment ?? AccountSegment.PARTICULIER) as AccountSegment
     const level = account.level ?? 0
 

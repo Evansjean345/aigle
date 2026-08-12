@@ -8,6 +8,7 @@ import TransactionRepository from '#core/money/transactions/domain/interfaces/tr
 import { UserStatus } from '#core/identity/user/domain/enum'
 import UserStateChanged from '#core/identity/user/application/events/user_state_changed'
 import VerificationPictureService from '#core/identity/kyc/application/services/verification_picture_service'
+import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
 import {
   toUserListItemResult,
   toUserSearchResult,
@@ -30,7 +31,8 @@ export default class UserAdminService {
     private readonly userRepository: UserRepository,
     private readonly transactionVolumeCache: TransactionVolumeCache,
     private readonly transactionRepository: TransactionRepository,
-    private readonly verificationPictureService: VerificationPictureService
+    private readonly verificationPictureService: VerificationPictureService,
+    private readonly accountStanding: AccountStandingService
   ) {}
 
   /**
@@ -53,7 +55,7 @@ export default class UserAdminService {
     const paginated = await this.userRepository.paginate(
       page,
       perPage,
-      ['wallet', 'keyLevel', 'kycDocument', 'country'],
+      ['wallet', 'kycDocument', 'country'],
       search,
       startDate,
       endDate
@@ -65,12 +67,17 @@ export default class UserAdminService {
     const volumes = await this.transactionVolumeCache.getMonthlyVolumesForUsers(userIds, since)
 
     const selfies = await this.verificationPictureService.selfieUrlsFor(userIds)
+    // Le plafond vient du compte, jamais de `users.kyc_level` : la grille se résout par
+    // `(segment, level)`, et une jointure sur le seul niveau rendrait une ligne arbitraire.
+    const standings = await this.accountStanding.getStandings(userIds)
 
     return {
       data: items.map((user) =>
         toUserListItemResult(user, {
           monthlyVolume: volumes[user.usersUid] || 0,
           profilePic: selfies.get(user.usersUid) ?? null,
+          monthlyLimit: standings.get(user.usersUid)?.limits.monthly ?? null,
+          level: standings.get(user.usersUid)?.level ?? 0,
         })
       ),
       meta: {
@@ -93,17 +100,23 @@ export default class UserAdminService {
     const paginated = await this.userRepository.paginate(
       1,
       6,
-      ['kycDocument', 'country', 'keyLevel'],
+      ['kycDocument', 'country'],
       search
     )
 
     const users = paginated.all()
-    const selfies = await this.verificationPictureService.selfieUrlsFor(
-      users.map((user) => user.usersUid)
-    )
+    const userIds = users.map((user) => user.usersUid)
+
+    const [selfies, standings] = await Promise.all([
+      this.verificationPictureService.selfieUrlsFor(userIds),
+      this.accountStanding.getStandings(userIds),
+    ])
 
     return users.map((user) =>
-      toUserSearchResult(user, { profilePic: selfies.get(user.usersUid) ?? null })
+      toUserSearchResult(user, {
+        profilePic: selfies.get(user.usersUid) ?? null,
+        level: standings.get(user.usersUid)?.level ?? 0,
+      })
     )
   }
 
@@ -118,9 +131,12 @@ export default class UserAdminService {
 
     if (!user) return null
 
-    return toUserDetailsResult(user, {
-      profilePic: await this.verificationPictureService.selfieUrlFor(user.usersUid),
-    })
+    const [profilePic, standing] = await Promise.all([
+      this.verificationPictureService.selfieUrlFor(user.usersUid),
+      this.accountStanding.getStanding(user.usersUid),
+    ])
+
+    return toUserDetailsResult(user, { profilePic, level: standing.level })
   }
 
   /**
@@ -148,14 +164,15 @@ export default class UserAdminService {
       throw new Exception('Utilisateur non trouvé', { status: 404 })
     }
 
-    await Promise.all([user.load('wallet'), user.load('keyLevel')])
+    await user.load('wallet')
 
     const wallet = user.wallet
-    const kycLevel = user.keyLevel
 
-    if (!wallet || !kycLevel) {
-      throw new Exception('Données de portefeuille ou de limites KYC manquantes', { status: 404 })
+    if (!wallet) {
+      throw new Exception('Données de portefeuille manquantes', { status: 404 })
     }
+
+    const { limits } = await this.accountStanding.getStanding(user.usersUid)
 
     const [todayVolume, monthVolume] = await Promise.all([
       this.transactionVolumeCache.getDailyVolume(user.usersUid),
@@ -175,10 +192,10 @@ export default class UserAdminService {
         balance: wallet.balance,
         currency: wallet.currencySymbol || 'FCFA',
         status: wallet.status,
-        limitPerTransaction: kycLevel.singleLimit,
-        limitDaily: kycLevel.dailyLimit,
-        limitMonthly: kycLevel.monthlyLimit,
-        balanceLimit: kycLevel.balanceLimit,
+        limitPerTransaction: limits.single,
+        limitDaily: limits.daily,
+        limitMonthly: limits.monthly,
+        balanceLimit: limits.balance,
       },
       activity: {
         todayTxCount,

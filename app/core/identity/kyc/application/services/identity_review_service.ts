@@ -1,6 +1,8 @@
 import { inject } from '@adonisjs/core'
 import KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import FileStorageService from '#shared/infrastructure/services/file_storage_service'
+import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
+import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import { DocumentPieceType } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import {
@@ -22,7 +24,8 @@ import {
 export default class IdentityReviewService {
   constructor(
     private readonly kycDocumentRepository: KycDocumentRepository,
-    private readonly fileStorageService: FileStorageService
+    private readonly fileStorageService: FileStorageService,
+    private readonly accountStanding: AccountStandingService
   ) {}
 
   /**
@@ -43,8 +46,18 @@ export default class IdentityReviewService {
       ownerType: AccountOwnerType.USER,
     })
 
+    const documents = paginated.all()
+    // Le palier du porteur vient du compte : `users.kyc_level` n'est plus lu.
+    const standings = await this.accountStanding.getStandings(
+      documents.map((document: KycDocument) => document.accountId)
+    )
+
     return {
-      data: paginated.all().map(toKycDocumentResult),
+      data: documents.map((document: KycDocument) =>
+        toKycDocumentResult(document, {
+          ownerLevel: standings.get(document.accountId)?.level ?? null,
+        })
+      ),
       meta: paginated.getMeta(),
     }
   }
@@ -58,7 +71,11 @@ export default class IdentityReviewService {
   async findById(id: number): Promise<KycDocumentResult | null> {
     const document = await this.kycDocumentRepository.findById(id)
 
-    return document ? this.withSignedPieces(toKycDocumentResult(document)) : null
+    if (!document) return null
+
+    const account = await this.accountStanding.describe(document.accountId)
+
+    return this.withSignedPieces(toKycDocumentResult(document, { ownerLevel: account?.level }))
   }
 
   /**
@@ -70,7 +87,11 @@ export default class IdentityReviewService {
   async findByAccountId(accountId: string): Promise<KycDocumentResult | null> {
     const document = await this.kycDocumentRepository.findByAccountId(accountId)
 
-    return document ? this.withSignedPieces(toKycDocumentResult(document)) : null
+    if (!document) return null
+
+    const account = await this.accountStanding.describe(document.accountId)
+
+    return this.withSignedPieces(toKycDocumentResult(document, { ownerLevel: account?.level }))
   }
 
   /**

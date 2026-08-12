@@ -204,7 +204,6 @@ export default class UserRepositoryIml implements UserRepository {
       .preload('userDevices', (query) => {
         query.whereNull('unlinkedAt').preload('device')
       })
-      .preload('keyLevel')
       .first()
   }
 }

@@ -88,8 +88,8 @@ test.group('Push-sync du compte | statut & niveau', (group) => {
     const user = await createUserWithAccount()
     const updateKyc = await app.container.make(UpdateUserKycStatus)
 
-    // Vérification sans niveau explicite : le use case relève user.kycLevel, l'event porte le
-    // niveau résultant, le listener synchronise le compte.
+    // Vérification sans niveau explicite : le use case déduit le palier du statut, l'event le
+    // porte, le listener le pose sur le compte. Rien ne transite plus par une colonne de `users`.
     await updateKyc.execute(user.usersUid, UserKycStatus.VERIFIED)
 
     const account = await reloadAccount(user.usersUid)

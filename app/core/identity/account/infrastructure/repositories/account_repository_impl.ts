@@ -25,6 +25,34 @@ export default class AccountRepositoryImpl implements AccountRepository {
     return await Account.query({ client: trx }).where('account_id', accountId).first()
   }
 
+  /**
+   * Retrouve plusieurs comptes par leurs `accountId`, en une requête.
+   *
+   * @param {string[]} accountIds - Comptes cherchés.
+   * @returns {Promise<Account[]>} Les comptes trouvés, les absents étant simplement omis.
+   */
+  async findByAccountIds(accountIds: string[]): Promise<Account[]> {
+    if (accountIds.length === 0) return []
+
+    return Account.query().whereIn('account_id', accountIds)
+  }
+
+  /**
+   * Compte les comptes rattachés à un couple `(segment, level)`.
+   *
+   * @param {string} segment - Segment cherché.
+   * @param {number} level - Palier cherché.
+   * @returns {Promise<number>} Le nombre de comptes rattachés.
+   */
+  async countBySegmentAndLevel(segment: string, level: number): Promise<number> {
+    const result = await Account.query()
+      .where('segment', segment)
+      .andWhere('level', level)
+      .count('* as total')
+
+    return Number((result[0] as any).$extras.total ?? 0)
+  }
+
   async create(data: Partial<Account>, trx?: TransactionClientContract): Promise<Account> {
     const account = new Account()
     Object.assign(account, data)

@@ -14,6 +14,7 @@ import AccountBlockedException from '#core/identity/authentication/domain/except
 import UserOtpAttemptGuard from '#core/identity/authentication/application/services/user_otp_attempt_guard'
 import IssueAppTokenService from '#core/identity/authentication/application/services/issue_app_token_service'
 import VerificationPictureService from '#core/identity/kyc/application/services/verification_picture_service'
+import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import OtpLockedException from '#core/identity/otp/domain/exceptions/otp_locked_exception'
 import securityLog from '#shared/infrastructure/logging/security_log'
@@ -33,6 +34,8 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
    * @param {DeviceService} deviceService - The service used for managing device-related operations.
    * @param {UserOtpAttemptGuard} otpAttemptGuard
    * @param issueAppTokenService
+   * @param verificationPictureService
+   * @param accountStanding
    */
   constructor(
     private readonly userRepository: UserRepository,
@@ -41,7 +44,8 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
     private readonly deviceService: DeviceService,
     private readonly otpAttemptGuard: UserOtpAttemptGuard,
     private readonly issueAppTokenService: IssueAppTokenService,
-    private readonly verificationPictureService: VerificationPictureService
+    private readonly verificationPictureService: VerificationPictureService,
+    private readonly accountStanding: AccountStandingService
   ) {}
 
   /**
@@ -178,9 +182,17 @@ export default class VerifyAndAuthenticateUserAccountUseCase {
       await user.load('wallet')
       await user.load('kycDocument')
 
-      const selfieUrl = await this.verificationPictureService.selfieUrlFor(user.usersUid)
+      const [selfieUrl, account] = await Promise.all([
+        this.verificationPictureService.selfieUrlFor(user.usersUid),
+        this.accountStanding.describe(user.usersUid),
+      ])
 
-      return AuthenticatedProfileAndTokenResponseDto.from(user, tokenValue, selfieUrl)
+      return AuthenticatedProfileAndTokenResponseDto.from(
+        user,
+        tokenValue,
+        selfieUrl,
+        account?.level ?? null
+      )
     } catch (error) {
       errorLog.error(
         'AUTH_EXECUTE_ERROR',

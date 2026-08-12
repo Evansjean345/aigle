@@ -3,6 +3,7 @@ import { inject } from '@adonisjs/core'
 import { UserKycStatus } from '#core/identity/user/domain/enum'
 import { KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
 import TransactionVolumeCache from '#core/money/transactions/domain/interfaces/transaction_volume_cache'
+import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
 import UserKycStatusUpdated from '#core/identity/user/application/events/user_kyc_status_updated'
 import UserAccountNotFoundException from '#core/identity/authentication/domain/exceptions/user_account_not_found_exception'
 import appLog from '#shared/infrastructure/logging/app_log'
@@ -29,7 +30,8 @@ export default class UpdateUserKycStatus {
    */
   constructor(
     private userRepository: UserRepository,
-    private readonly transactionVolumeCache: TransactionVolumeCache
+    private readonly transactionVolumeCache: TransactionVolumeCache,
+    private readonly accountStanding: AccountStandingService
   ) {}
 
   /**
@@ -67,22 +69,22 @@ export default class UpdateUserKycStatus {
     }
 
     const previousStatus = user.kycStatus
-    const previousLevel = user.kycLevel
+    // Le palier se lit sur le compte, seule source de vérité — plus sur la copie portée par `users`.
+    const previousLevel = (await this.accountStanding.describe(userId))?.level ?? null
 
     try {
       user.kycStatus = status
 
-      if (kycLevel) {
-        user.kycLevel = kycLevel
-      }
+      // Le niveau ne transite plus par une colonne de `users` : il voyage dans l'événement, que
+      // `SyncAccountLevelOnKycUpdated` pose sur le compte.
+      const targetLevel = status === UserKycStatus.VERIFIED ? KycLevelState.KYC_VERIFIED : kycLevel
 
       if (status === UserKycStatus.VERIFIED) {
-        user.kycLevel = KycLevelState.KYC_VERIFIED
         await this.transactionVolumeCache.clearVolume(user.usersUid)
       }
 
       await this.userRepository.save(user)
-      await UserKycStatusUpdated.dispatch(userId, status, user.kycLevel, comment)
+      await UserKycStatusUpdated.dispatch(userId, status, targetLevel, comment)
 
       emitter
         .emit('activity:audit', {
@@ -100,7 +102,7 @@ export default class UpdateUserKycStatus {
             fromStatus: previousStatus ?? null,
             toStatus: status,
             fromLevel: previousLevel ?? null,
-            toLevel: user.kycLevel ?? null,
+            toLevel: targetLevel ?? previousLevel,
             comment: comment ?? null,
             geoCountry: auditContext?.geoLocation?.countryCode ?? null,
             geoCity: auditContext?.geoLocation?.city ?? null,

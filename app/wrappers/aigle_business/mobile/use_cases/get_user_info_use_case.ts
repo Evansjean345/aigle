@@ -2,6 +2,7 @@ import CountryRepository from '#core/catalog/country/domain/interfaces/country_r
 import { inject } from '@adonisjs/core'
 import User from '#core/identity/user/domain/models/user'
 import { concartPhoneNumber } from '#shared/utils/utiles'
+import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
 
 export interface UserInfoDto {
   users_uid: string
@@ -23,7 +24,10 @@ export default class GetUserInfoUseCase {
    *
    * @param {CountryRepository} countryRepository - The repository used for accessing and managing country data.
    */
-  constructor(private readonly countryRepository: CountryRepository) {}
+  constructor(
+    private readonly countryRepository: CountryRepository,
+    private readonly accountStanding: AccountStandingService
+  ) {}
   /**
    * Retourne les informations d'un utilisateur AigleSend à partir
    * de son numéro brut + country_id.
@@ -42,12 +46,16 @@ export default class GetUserInfoUseCase {
 
     if (!user) return null
 
+    // Le palier vient du compte : `users.kyc_level` n'est plus la source de vérité.
+    const account = await this.accountStanding.describe(user.usersUid)
+    const accountLevel = account?.level
+
     return {
       users_uid: user.usersUid,
       firstname: user.firstname,
       lastname: user.lastname,
       phone: user.phone,
-      kyc_level: user.kycLevel,
+      kyc_level: accountLevel ?? 0,
       kyc_status: user.kycStatus,
       account_type: user.accountType,
       status: user.status,

@@ -23,7 +23,11 @@ export class AuthenticatedProfileResponseDto {
    *   l'appelant : un selfie récent vit sur le stockage privé et demande une signature, que ce DTO
    *   ne peut pas produire.
    */
-  static fromModel(user: User, selfieUrl: string | null = null): AuthenticatedProfileResponseDto {
+  static fromModel(
+    user: User,
+    selfieUrl: string | null = null,
+    level: number | null = null
+  ): AuthenticatedProfileResponseDto {
     const response = new AuthenticatedProfileResponseDto()
     response.id = user.usersUid
     response.firstname = user.firstname
@@ -35,7 +39,7 @@ export class AuthenticatedProfileResponseDto {
       user.kycStatus === UserKycStatus.VERIFIED ? selfieUrl || user.pictureUrl || '' : ''
     response.status = user.status
     response.kycStatus = user.kycStatus
-    response.kycLevel = user.kycLevel
+    response.kycLevel = level ?? 0
     response.country = {
       id: user.country.id,
       name: user.country.name,
@@ -64,14 +68,16 @@ export class AuthenticatedProfileAndTokenResponseDto {
    * @param {User} user - Utilisateur authentifié.
    * @param {string} token - Jeton d'accès.
    * @param {string | null} [selfieUrl] - Adresse consultable du selfie, résolue par l'appelant.
+   * @param {number | null} [level] - Palier du compte, résolu par l'appelant.
    */
   static from(
     user: User,
     token: string,
-    selfieUrl: string | null = null
+    selfieUrl: string | null = null,
+    level: number | null = null
   ): AuthenticatedProfileAndTokenResponseDto {
     const dto = new AuthenticatedProfileAndTokenResponseDto()
-    dto.user = AuthenticatedProfileResponseDto.fromModel(user, selfieUrl)
+    dto.user = AuthenticatedProfileResponseDto.fromModel(user, selfieUrl, level)
     dto.token = token
     dto.type = 'Bearer'
     return dto

@@ -9,6 +9,7 @@ import InvalidResetTokenException from '#core/identity/authentication/domain/exc
 import { AuthenticatedProfileAndTokenResponseDto } from '#core/identity/authentication/application/dtos/profile.dto'
 import IssueAppTokenService from '#core/identity/authentication/application/services/issue_app_token_service'
 import VerificationPictureService from '#core/identity/kyc/application/services/verification_picture_service'
+import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
@@ -22,13 +23,16 @@ export default class ResetPasswordUseCase {
    * @param {CountryRepository} countryRepository - The repository responsible for managing country data.
    * @param {ResetPasswordTokenProvider} resetPasswordTokenProvider - The provider responsible for handling reset password tokens.
    * @param issueAppTokenService
+   * @param verificationPictureService
+   * @param accountStanding
    */
   constructor(
     protected userRepository: UserRepository,
     protected countryRepository: CountryRepository,
     protected resetPasswordTokenProvider: ResetPasswordTokenProvider,
     protected issueAppTokenService: IssueAppTokenService,
-    protected verificationPictureService: VerificationPictureService
+    protected verificationPictureService: VerificationPictureService,
+    protected accountStanding: AccountStandingService
   ) {}
 
   /**
@@ -84,8 +88,16 @@ export default class ResetPasswordUseCase {
       })
       .catch(() => {})
 
-    const selfieUrl = await this.verificationPictureService.selfieUrlFor(user.usersUid)
+    const [selfieUrl, account] = await Promise.all([
+      this.verificationPictureService.selfieUrlFor(user.usersUid),
+      this.accountStanding.describe(user.usersUid),
+    ])
 
-    return AuthenticatedProfileAndTokenResponseDto.from(user, tokenValue, selfieUrl)
+    return AuthenticatedProfileAndTokenResponseDto.from(
+      user,
+      tokenValue,
+      selfieUrl,
+      account?.level ?? null
+    )
   }
 }
