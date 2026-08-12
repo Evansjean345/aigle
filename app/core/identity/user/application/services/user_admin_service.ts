@@ -7,6 +7,7 @@ import TransactionVolumeCache from '#core/money/transactions/domain/interfaces/t
 import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
 import { UserStatus } from '#core/identity/user/domain/enum'
 import UserStateChanged from '#core/identity/user/application/events/user_state_changed'
+import VerificationPictureService from '#core/identity/kyc/application/services/verification_picture_service'
 import {
   toUserListItemResult,
   toUserSearchResult,
@@ -28,7 +29,8 @@ export default class UserAdminService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly transactionVolumeCache: TransactionVolumeCache,
-    private readonly transactionRepository: TransactionRepository
+    private readonly transactionRepository: TransactionRepository,
+    private readonly verificationPictureService: VerificationPictureService
   ) {}
 
   /**
@@ -62,9 +64,14 @@ export default class UserAdminService {
     const since = startDate ? DateTime.fromISO(startDate) : undefined
     const volumes = await this.transactionVolumeCache.getMonthlyVolumesForUsers(userIds, since)
 
+    const selfies = await this.verificationPictureService.selfieUrlsFor(userIds)
+
     return {
       data: items.map((user) =>
-        toUserListItemResult(user, { monthlyVolume: volumes[user.usersUid] || 0 })
+        toUserListItemResult(user, {
+          monthlyVolume: volumes[user.usersUid] || 0,
+          profilePic: selfies.get(user.usersUid) ?? null,
+        })
       ),
       meta: {
         total: paginated.total,
@@ -90,7 +97,14 @@ export default class UserAdminService {
       search
     )
 
-    return paginated.all().map(toUserSearchResult)
+    const users = paginated.all()
+    const selfies = await this.verificationPictureService.selfieUrlsFor(
+      users.map((user) => user.usersUid)
+    )
+
+    return users.map((user) =>
+      toUserSearchResult(user, { profilePic: selfies.get(user.usersUid) ?? null })
+    )
   }
 
   /**
@@ -102,7 +116,11 @@ export default class UserAdminService {
   async findDetails(userId: string): Promise<UserDetailsResult | null> {
     const user = await this.userRepository.findWithAdminDetails(userId)
 
-    return user ? toUserDetailsResult(user) : null
+    if (!user) return null
+
+    return toUserDetailsResult(user, {
+      profilePic: await this.verificationPictureService.selfieUrlFor(user.usersUid),
+    })
   }
 
   /**

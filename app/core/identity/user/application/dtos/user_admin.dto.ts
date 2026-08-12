@@ -187,13 +187,13 @@ const countryOf = (user: User): UserCountryRef => ({
 
 export const toUserListItemResult = (
   user: User,
-  options?: { monthlyVolume: number }
+  options?: { monthlyVolume: number; profilePic?: string | null }
 ): UserListItemResult => ({
   usersUid: user.usersUid,
   fullname: fullnameOf(user),
   phone: user.phone,
   country: countryOf(user),
-  profilePic: user.kycDocument?.selfieUrl || null,
+  profilePic: options?.profilePic ?? null,
   status: user.status,
   createdAt: user.createdAt,
   transactionVolume: {
@@ -212,11 +212,14 @@ export const toUserListItemResult = (
   },
 })
 
-export const toUserSearchResult = (user: User): UserSearchResult => ({
+export const toUserSearchResult = (
+  user: User,
+  options?: { profilePic?: string | null }
+): UserSearchResult => ({
   usersUid: user.usersUid,
   fullname: fullnameOf(user),
   phone: user.phone,
-  profilePic: user.kycDocument?.selfieUrl || null,
+  profilePic: options?.profilePic ?? null,
   country: countryOf(user),
   kyc: {
     level: user.keyLevel?.level || 0,
@@ -225,7 +228,10 @@ export const toUserSearchResult = (user: User): UserSearchResult => ({
   status: user.status,
 })
 
-export const toUserDetailsResult = (user: User): UserDetailsResult => ({
+export const toUserDetailsResult = (
+  user: User,
+  options?: { profilePic?: string | null }
+): UserDetailsResult => ({
   usersUid: user.usersUid,
   firstname: user.firstname,
   lastname: user.lastname,
@@ -236,7 +242,7 @@ export const toUserDetailsResult = (user: User): UserDetailsResult => ({
   accountNumber: user.accountNumber,
   accountType: user.accountType,
   country: countryOf(user),
-  profilePic: user.kycDocument?.selfieUrl || null,
+  profilePic: options?.profilePic ?? null,
   status: user.status,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,

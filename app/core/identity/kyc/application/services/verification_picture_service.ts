@@ -32,10 +32,33 @@ export default class VerificationPictureService {
 
     const selfie = document.pieces?.find((piece) => piece.pieceType === DocumentPieceType.SELFIE)
 
-    if (selfie) {
-      return this.fileStorageService.signedUrl(selfie.fileKey)
-    }
+    if (!selfie) return document.selfieUrl ?? null
 
-    return document.selfieUrl ?? null
+    // Une pièce reprise porte encore une URL : la signer produirait une adresse invalide.
+    return selfie.isPublicUrl ? selfie.fileKey : this.fileStorageService.signedUrl(selfie.fileKey)
+  }
+
+  /**
+   * Rend l'adresse consultable du selfie de plusieurs comptes, en une lecture.
+   *
+   * Sert les listes du back-office : appeler `selfieUrlFor` par ligne ferait un N+1 sur chaque page.
+   *
+   * @param {string[]} accountIds - Comptes dont on cherche le selfie.
+   * @returns {Promise<Map<string, string>>} L'adresse par compte, comptes sans selfie omis.
+   */
+  async selfieUrlsFor(accountIds: string[]): Promise<Map<string, string>> {
+    const selfies = await this.kycDocumentRepository.findSelfiePiecesByAccountIds(accountIds)
+
+    const resolved = await Promise.all(
+      [...selfies].map(async ([accountId, selfie]) => {
+        const url = selfie.isPublicUrl
+          ? selfie.fileKey
+          : await this.fileStorageService.signedUrl(selfie.fileKey)
+
+        return [accountId, url] as const
+      })
+    )
+
+    return new Map(resolved)
   }
 }
