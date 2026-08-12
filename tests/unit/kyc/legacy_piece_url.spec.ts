@@ -1,5 +1,9 @@
 import { test } from '@japa/runner'
-import { deriveStorageKey, urlPrefix } from '#core/identity/kyc/domain/legacy_piece_url'
+import {
+  deriveStorageKey,
+  isReprisableLegacyValue,
+  urlPrefix,
+} from '#core/identity/kyc/domain/legacy_piece_url'
 
 /**
  * Caractérise la lecture des URL héritées.
@@ -68,5 +72,67 @@ test.group('Reprise | URL héritée', () => {
     assert.equal(urlPrefix('pas-une-url'), '(non analysable)')
     assert.equal(urlPrefix(''), '(vide)')
     assert.equal(urlPrefix(undefined), '(vide)')
+  })
+
+  test('une URL du bucket attendu, sous un dossier de dépôt, est reprenable', async ({ assert }) => {
+    assert.isTrue(
+      isReprisableLegacyValue(
+        'https://mon-bucket.s3.amazonaws.com/kyc_documents/abc/x.jpg',
+        'mon-bucket'
+      )
+    )
+    assert.isTrue(
+      isReprisableLegacyValue(
+        'https://mon-bucket.s3.eu-west-3.amazonaws.com/kyc_selfies/abc/s.jpg',
+        'mon-bucket'
+      )
+    )
+    assert.isTrue(
+      isReprisableLegacyValue(
+        'https://s3.eu-west-3.amazonaws.com/mon-bucket/kyc_documents/abc/x.jpg',
+        'mon-bucket'
+      )
+    )
+  })
+
+  test('une valeur déjà sous forme de clé reste reprenable', async ({ assert }) => {
+    assert.isTrue(isReprisableLegacyValue('kyc_documents/abc/x.jpg', 'mon-bucket'))
+    assert.isTrue(isReprisableLegacyValue('kyc_selfies/abc/s.jpg', 'mon-bucket'))
+  })
+
+  test('une URL étrangère n’est pas reprenable, même si elle se dérive', async ({ assert }) => {
+    // Le cas qui a motivé D12 : la dérivation réussit, la provenance n'est pas prouvée.
+    const placeholder = 'https://placehold.co/900x620/e2e8f0/475569.png?text=RCCM'
+
+    assert.isNotNull(deriveStorageKey(placeholder))
+    assert.isFalse(isReprisableLegacyValue(placeholder, 'mon-bucket'))
+  })
+
+  test('un autre bucket n’est pas reprenable', async ({ assert }) => {
+    assert.isFalse(
+      isReprisableLegacyValue(
+        'https://autre-bucket.s3.amazonaws.com/kyc_documents/abc/x.jpg',
+        'mon-bucket'
+      )
+    )
+    assert.isFalse(
+      isReprisableLegacyValue(
+        'https://s3.amazonaws.com/autre-bucket/kyc_documents/abc/x.jpg',
+        'mon-bucket'
+      )
+    )
+  })
+
+  test('un dossier hors dépôt n’est pas reprenable', async ({ assert }) => {
+    assert.isFalse(
+      isReprisableLegacyValue('https://mon-bucket.s3.amazonaws.com/factures/abc/x.pdf', 'mon-bucket')
+    )
+    assert.isFalse(isReprisableLegacyValue('factures/abc/x.pdf', 'mon-bucket'))
+  })
+
+  test('une valeur vide ou un bucket absent ne sont jamais reprenables', async ({ assert }) => {
+    assert.isFalse(isReprisableLegacyValue(undefined, 'mon-bucket'))
+    assert.isFalse(isReprisableLegacyValue('   ', 'mon-bucket'))
+    assert.isFalse(isReprisableLegacyValue('kyc_documents/abc/x.jpg', ''))
   })
 })

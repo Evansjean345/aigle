@@ -46,6 +46,7 @@ test.group('Kyc | Détail d’un dossier', () => {
     return document
   }
 
+  /** Dossier repris : ses pièces portent encore une URL, signalée par `isPublicUrl`. */
   function legacyDocument(accountId: string): KycDocument {
     const document = new KycDocument()
     document.id = 2
@@ -54,9 +55,18 @@ test.group('Kyc | Détail d’un dossier', () => {
     document.ownerType = AccountOwnerType.USER
     document.documentType = KycDocumentType.CNI
     document.status = KycDocumentStatus.APPROVED
-    document.documentRectoUrl = 'https://public.example/recto.jpg'
-    document.selfieUrl = 'https://public.example/selfie.jpg'
-    document.$setRelated('pieces', [])
+
+    document.$setRelated(
+      'pieces',
+      [DocumentPieceType.RECTO, DocumentPieceType.SELFIE].map((pieceType) => {
+        const piece = new DocumentPiece()
+        piece.pieceType = pieceType
+        piece.fileKey = `https://public.example/${pieceType.toLowerCase()}.jpg`
+        piece.isPublicUrl = true
+
+        return piece
+      })
+    )
 
     return document
   }
@@ -89,7 +99,7 @@ test.group('Kyc | Détail d’un dossier', () => {
     assert.isTrue(detail!.pieces!.every((piece) => piece.url!.startsWith('https://signed.test/')))
   })
 
-  test('un dossier antérieur garde ses URL publiques, sans signature', async ({ assert }) => {
+  test('une pièce reprise garde son URL publique, sans signature', async ({ assert }) => {
     const { service, storage } = makeService([legacyDocument(uuidv4())])
 
     const detail = await service.findById(2)

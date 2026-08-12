@@ -1,5 +1,5 @@
 import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
-import { DocumentPieceType, type KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
+import type { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import type { KycAuditContext } from '#core/identity/kyc/application/events/kyc_document_submitted'
 
 /**
@@ -103,12 +103,20 @@ export interface PaginatedKycDocumentsResult {
   meta: Record<string, unknown>
 }
 
-/** Compteurs de la revue KYC. */
+/**
+ * Compteurs de la revue KYC.
+ *
+ * Ne portent que les dossiers de personnes : ceux d'organisation relèvent de l'écran KYB. Les
+ * quatre statuts somment au total — un dossier en constitution est compté, sans quoi le total
+ * dépasserait la somme de ses parts.
+ */
 export interface KycStatsResult {
   total: number
   pending: number
   verified: number
   rejected: number
+  /** Dossier commencé dont une pièce requise manque encore. */
+  inSubmission: number
   byDocumentType: {
     CNI: number
     PASSPORT: number
@@ -129,30 +137,13 @@ export interface KycStatsResult {
  * aucune : leurs trois colonnes sont converties ici, et nulle part ailleurs, pour que la forme lue
  * par les appelants ne dépende pas de la date de dépôt.
  */
-const toPieceResults = (kyc: KycDocument): KycDocumentPieceResult[] => {
-  if (kyc.pieces?.length) {
-    return kyc.pieces.map((piece) => ({
-      pieceType: piece.pieceType,
-      fileKey: piece.fileKey,
-      reference: piece.reference,
-      isPublicUrl: false,
-    }))
-  }
-
-  const legacy: [DocumentPieceType, string | undefined][] = [
-    [DocumentPieceType.RECTO, kyc.documentRectoUrl],
-    [DocumentPieceType.VERSO, kyc.documentVersoUrl],
-    [DocumentPieceType.SELFIE, kyc.selfieUrl],
-  ]
-
-  return legacy
-    .filter(([, url]) => Boolean(url))
-    .map(([pieceType, url]) => ({
-      pieceType,
-      fileKey: url as string,
-      isPublicUrl: true,
-    }))
-}
+const toPieceResults = (kyc: KycDocument): KycDocumentPieceResult[] =>
+  (kyc.pieces ?? []).map((piece) => ({
+    pieceType: piece.pieceType,
+    fileKey: piece.fileKey,
+    reference: piece.reference,
+    isPublicUrl: Boolean(piece.isPublicUrl),
+  }))
 
 export const toKycDocumentResult = (kyc: KycDocument): KycDocumentResult => ({
   id: kyc.id,

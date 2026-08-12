@@ -55,6 +55,74 @@ export function deriveStorageKey(value?: string, hints: StorageHints = {}): stri
   return key.length > 0 ? key : null
 }
 
+/** Dossiers sous lesquels `uploadFile` déposait. Rien d'autre ne vient de ce chemin. */
+const LEGACY_PREFIXES = ['kyc_documents', 'kyc_selfies']
+
+/** Vrai si l'hôte désigne le bucket attendu, en style *virtual-hosted*. */
+function isBucketHost(host: string, bucket: string): boolean {
+  return new RegExp(`^${escapeForRegExp(bucket)}\\.s3(\\.[a-z0-9-]+)?\\.amazonaws\\.com$`).test(
+    host
+  )
+}
+
+/** Vrai si l'hôte est un point d'entrée S3 en style *path*, le bucket étant alors dans le chemin. */
+function isPathStyleHost(host: string): boolean {
+  return /^s3(\.[a-z0-9-]+)?\.amazonaws\.com$/.test(host)
+}
+
+/** Neutralise ce qu'un nom de bucket pourrait contenir de significatif pour une expression. */
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Dit si une valeur héritée peut être reprise, c'est-à-dire si sa provenance est prouvée.
+ *
+ * Deux conditions, toutes deux nécessaires : l'objet vient du **bucket exact**, et il est déposé
+ * sous l'un des dossiers de `uploadFile`. Sans cette garde, une URL étrangère se dériverait quand
+ * même en clé — `https://placehold.co/900x620/x.png` donne `900x620/x.png` — et la reprise
+ * inventerait des clés pointant vers rien tout en vidant les colonnes d'origine.
+ *
+ * Une valeur déjà sous forme de clé est acceptée si elle porte l'un des dossiers attendus : la
+ * reprise doit rester rejouable sur des lignes déjà converties.
+ *
+ * @param {string} [value] - URL stockée, ou clé déjà convertie.
+ * @param {string} bucket - Nom exact du bucket de dépôt.
+ * @returns {boolean} `true` si la valeur peut être reprise sans risque.
+ */
+export function isReprisableLegacyValue(value: string | undefined, bucket: string): boolean {
+  if (!value?.trim() || !bucket) return false
+
+  const raw = value.trim()
+
+  if (!raw.includes('://')) {
+    return LEGACY_PREFIXES.some((prefix) => raw.replace(/^\/+/, '').startsWith(`${prefix}/`))
+  }
+
+  let parsed: URL
+
+  try {
+    parsed = new URL(raw)
+  } catch {
+    return false
+  }
+
+  const segments = decodeURIComponent(parsed.pathname)
+    .replace(/^\/+/, '')
+    .split('/')
+    .filter(Boolean)
+
+  if (isBucketHost(parsed.host, bucket)) {
+    return LEGACY_PREFIXES.includes(segments[0] ?? '')
+  }
+
+  if (isPathStyleHost(parsed.host)) {
+    return segments[0] === bucket && LEGACY_PREFIXES.includes(segments[1] ?? '')
+  }
+
+  return false
+}
+
 /**
  * Rend la forme d'une URL — hôte et premier segment — sans rien qui permette d'atteindre la pièce.
  *

@@ -45,8 +45,11 @@ test.group('Kyc | Projection du dossier', () => {
     return document
   }
 
-  /** Dossier antérieur à la bascule : aucune pièce, trois colonnes d'URL. */
-  function legacyDocument(accountId: string): KycDocument {
+  /**
+   * Dossier repris d'un dépôt public : ses pièces sont dans `document_pieces`, mais portent encore
+   * une URL au lieu d'une clé, ce que `isPublicUrl` signale.
+   */
+  function legacyDocument(accountId: string, roles = ['RECTO', 'VERSO', 'SELFIE']): KycDocument {
     const document = new KycDocument()
     document.id = 2
     document.accountId = accountId
@@ -54,11 +57,18 @@ test.group('Kyc | Projection du dossier', () => {
     document.ownerType = AccountOwnerType.USER
     document.documentType = KycDocumentType.CNI
     document.status = KycDocumentStatus.APPROVED
-    document.documentRectoUrl = 'https://public.example/recto.jpg'
-    document.documentVersoUrl = 'https://public.example/verso.jpg'
-    document.selfieUrl = 'https://public.example/selfie.jpg'
 
-    document.$setRelated('pieces', [])
+    document.$setRelated(
+      'pieces',
+      roles.map((role) => {
+        const piece = new DocumentPiece()
+        piece.pieceType = role as DocumentPieceType
+        piece.fileKey = `https://public.example/${role.toLowerCase()}.jpg`
+        piece.isPublicUrl = true
+
+        return piece
+      })
+    )
 
     return document
   }
@@ -76,7 +86,7 @@ test.group('Kyc | Projection du dossier', () => {
     )
   })
 
-  test('un dossier antérieur projette ses colonnes sous la même forme', async ({ assert }) => {
+  test('un dossier repris projette ses pièces sous la même forme', async ({ assert }) => {
     const result = toKycDocumentResult(legacyDocument(uuidv4()))
 
     assert.sameMembers(
@@ -97,10 +107,9 @@ test.group('Kyc | Projection du dossier', () => {
     assert.isTrue(recent.pieces!.every((piece) => !piece.isPublicUrl))
   })
 
-  test('un passeport hérité ne projette pas de verso vide', async ({ assert }) => {
-    const document = legacyDocument(uuidv4())
+  test('un passeport repris ne projette pas de verso vide', async ({ assert }) => {
+    const document = legacyDocument(uuidv4(), ['RECTO', 'SELFIE'])
     document.documentType = KycDocumentType.PASSPORT
-    document.documentVersoUrl = undefined
 
     const result = toKycDocumentResult(document)
 
