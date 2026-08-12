@@ -3,6 +3,7 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
 import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 
 /**
  * Compte — pivot d'appartenance entre un propriétaire (user ou organisation) et son wallet.
@@ -32,6 +33,14 @@ export default class Account extends BaseModel {
 
   @column()
   declare segment: AccountSegment | null
+
+  /**
+   * Jeu de pièces attendu du compte.
+   *
+   * Nul pour un compte antérieur à la colonne : les lecteurs se replient alors sur `IDENTITE`.
+   */
+  @column()
+  declare verificationProfile: VerificationProfile | null
 
   @column()
   declare level: number | null

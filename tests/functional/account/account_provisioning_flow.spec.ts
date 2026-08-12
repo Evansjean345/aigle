@@ -8,6 +8,7 @@ import Account from '#core/identity/account/domain/models/account'
 import Wallet from '#core/money/wallet/domain/models/wallet'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import AccountService from '#core/identity/account/application/services/account_service'
 import WalletService from '#core/money/wallet/application/services/wallet_service'
 import TransactionService from '#core/money/transactions/application/services/transaction_service'
@@ -50,7 +51,14 @@ async function openAccountFor(ownerType: AccountOwnerType, ownerRef: string): Pr
   const accountService = await app.container.make(AccountService)
   const segment =
     ownerType === AccountOwnerType.USER ? AccountSegment.PARTICULIER : AccountSegment.MARCHAND
-  const account = await accountService.openAccount({ ownerType, ownerRef, segment, level: 1 })
+  const verificationProfile =
+    ownerType === AccountOwnerType.USER ? VerificationProfile.IDENTITE : VerificationProfile.NONE
+  const account = await accountService.openAccount({
+    ownerType,
+    ownerRef,
+    segment,
+    verificationProfile,
+  })
   return account.accountId
 }
 

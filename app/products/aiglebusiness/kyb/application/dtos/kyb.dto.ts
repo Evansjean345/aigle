@@ -1,6 +1,6 @@
 import { type DocumentPieceType } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { missingPieces, requirementsFor } from '#core/identity/kyc/domain/verification_requirements'
-import type { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import type { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import type { KycAuditContext } from '#core/identity/kyc/application/events/kyc_document_submitted'
 import type { KycDocumentResult } from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
 
@@ -41,12 +41,12 @@ export class KybFileResponseDto {
    * Un compte sans dossier attend sa première pièce : le statut est nul et la prochaine action est
    * la première pièce du catalogue.
    *
-   * @param {AccountSegment} segment - Segment du compte, qui détermine les pièces attendues.
+   * @param {VerificationProfile} profile - Jeu de pièces attendu du compte.
    * @param {KycDocumentResult | null} document - Dossier existant, ou `null`.
    * @returns {KybFileResponseDto} L'état consultable.
    */
   static fromDocument(
-    segment: AccountSegment,
+    profile: VerificationProfile,
     document: KycDocumentResult | null
   ): KybFileResponseDto {
     const dto = new KybFileResponseDto()
@@ -57,10 +57,10 @@ export class KybFileResponseDto {
     }))
 
     dto.status = document?.status ?? null
-    dto.nextAction = document?.nextAction ?? requirementsFor(segment).pieces[0]?.pieceType ?? null
+    dto.nextAction = document?.nextAction ?? requirementsFor(profile).pieces[0]?.pieceType ?? null
     dto.submittedPieces = submitted
     dto.missingPieces = missingPieces(
-      segment,
+      profile,
       undefined,
       submitted.map((piece) => ({
         pieceType: piece.pieceType as DocumentPieceType,

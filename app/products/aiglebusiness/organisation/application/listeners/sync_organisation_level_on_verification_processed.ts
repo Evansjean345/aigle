@@ -42,7 +42,7 @@ export default class SyncOrganisationLevelOnVerificationProcessed {
 
     if (!account) return
 
-    const { grantsLevel } = requirementsFor(account.segment)
+    const { grantsLevel } = requirementsFor(account.verificationProfile)
     const mirrored = grantsLevel === null ? null : ORGANISATION_LEVELS[grantsLevel]
 
     if (!mirrored) return

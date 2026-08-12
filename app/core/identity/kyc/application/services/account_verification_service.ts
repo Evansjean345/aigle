@@ -63,7 +63,7 @@ export default class AccountVerificationService {
 
     if (!account) throw new AccountNotFoundException()
 
-    const requirements = requirementsFor(account.segment, command.documentType)
+    const requirements = requirementsFor(account.verificationProfile, command.documentType)
 
     if (requirements.pieces.length === 0) throw new VerificationNotApplicableException()
 
@@ -81,7 +81,7 @@ export default class AccountVerificationService {
       hasReference: Boolean(piece.reference?.trim()),
     }))
 
-    const missing = missingPieces(account.segment, command.documentType, [
+    const missing = missingPieces(account.verificationProfile, command.documentType, [
       ...alreadyHeld.filter((held) => !incoming.some((one) => one.pieceType === held.pieceType)),
       ...incoming,
     ])

@@ -4,6 +4,7 @@ import AccountRepository from '#core/identity/account/domain/interfaces/account_
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { type AccountStatus } from '#core/identity/account/domain/enums/account_status'
 import { type OpenAccountCommand } from '#core/identity/account/application/dtos/account.dto'
+import { requirementsFor } from '#core/identity/kyc/domain/verification_requirements'
 import type Account from '#core/identity/account/domain/models/account'
 import AccountOpened from '#core/identity/account/application/events/account_opened'
 
@@ -28,6 +29,9 @@ export default class AccountService {
   /**
    * Ouvre (idempotent) le compte du propriétaire. N'écrase pas le segment/niveau d'un compte
    * existant (le niveau peut avoir été relevé par la vérification).
+   *
+   * Le niveau de départ vient du profil de vérification : l'appelant nomme ce qu'il attend du
+   * compte, le core en déduit d'où celui-ci part.
    */
   async openAccount(
     command: OpenAccountCommand,
@@ -47,7 +51,8 @@ export default class AccountService {
           ownerType: command.ownerType,
           ownerRef: command.ownerRef,
           segment: command.segment,
-          level: command.level,
+          verificationProfile: command.verificationProfile,
+          level: requirementsFor(command.verificationProfile).startsAtLevel,
         },
         trx
       ))

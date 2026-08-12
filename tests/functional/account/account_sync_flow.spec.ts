@@ -9,6 +9,7 @@ import { AccountOwnerType } from '#core/identity/account/domain/enums/account_ow
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
 import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
 import { KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import AccountService from '#core/identity/account/application/services/account_service'
 import ChangeUserStateUseCase from '#aiglesend/user/application/use_cases/admin/change_user_state_use_case'
 import UpdateUserKycStatus from '#core/identity/user/application/use_cases/update_user_kyc_status'
@@ -42,7 +43,7 @@ async function createUserWithAccount(): Promise<User> {
     ownerType: AccountOwnerType.USER,
     ownerRef: user.usersUid,
     segment: AccountSegment.PARTICULIER,
-    level: KycLevelState.NOT_VERIFY,
+    verificationProfile: VerificationProfile.IDENTITE,
   })
   return user
 }

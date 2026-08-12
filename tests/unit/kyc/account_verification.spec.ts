@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import emitter from '@adonisjs/core/services/emitter'
 import AccountVerificationService from '#core/identity/kyc/application/services/account_verification_service'
 import InMemoryKycDocumentRepository from '#tests/fakes/kyc/in_memory_kyc_document_repository'
-import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
+import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import {
   DocumentPieceType,
   KycDocumentNextAction,
@@ -11,6 +11,7 @@ import {
 } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
 import IncompleteVerificationFileException from '#core/identity/kyc/domain/exceptions/incomplete_verification_file_exception'
 import VerificationNotApplicableException from '#core/identity/kyc/domain/exceptions/verification_not_applicable_exception'
@@ -18,20 +19,28 @@ import KycAlreadySubmittedException from '#core/identity/kyc/domain/exceptions/k
 import UnknownPieceTypeException from '#core/identity/kyc/domain/exceptions/unknown_piece_type_exception'
 import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
 
+/** Segment cohérent avec le profil : la soumission ne le lit pas, la description le porte. */
+const SEGMENT_OF: Record<VerificationProfile, AccountSegment> = {
+  [VerificationProfile.IDENTITE]: AccountSegment.PARTICULIER,
+  [VerificationProfile.IMMATRICULATION]: AccountSegment.ENTERPRISE,
+  [VerificationProfile.NONE]: AccountSegment.MARCHAND,
+}
+
 /** Décrit le compte demandé, sans jamais résoudre de limites. */
 class AccountDirectoryStub {
-  constructor(private readonly segment: AccountSegment | null) {}
+  constructor(private readonly profile: VerificationProfile | null) {}
 
   async describe(accountId: string) {
-    if (!this.segment) return null
+    if (!this.profile) return null
 
     return {
       accountId,
       ownerType:
-        this.segment === AccountSegment.PARTICULIER
+        this.profile === VerificationProfile.IDENTITE
           ? AccountOwnerType.USER
           : AccountOwnerType.ORGANISATION,
-      segment: this.segment,
+      segment: SEGMENT_OF[this.profile],
+      verificationProfile: this.profile,
       status: AccountStatus.ACTIVE,
     }
   }
@@ -51,13 +60,13 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
     return () => emitter.restore()
   })
 
-  function makeService(segment: AccountSegment | null, seed: KycDocument[] = []) {
+  function makeService(profile: VerificationProfile | null, seed: KycDocument[] = []) {
     const repository = new InMemoryKycDocumentRepository(seed)
     const storage = new InMemoryFileStorage()
     const service = new AccountVerificationService(
       repository,
       storage as any,
-      new AccountDirectoryStub(segment) as any
+      new AccountDirectoryStub(profile) as any
     )
 
     return { service, repository, storage }
@@ -65,7 +74,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
 
   test('le RCCM seul laisse le dossier en constitution', async ({ assert }) => {
     const accountId = uuidv4()
-    const { service, repository } = makeService(AccountSegment.ENTERPRISE)
+    const { service, repository } = makeService(VerificationProfile.IMMATRICULATION)
 
     const result = await service.submit({
       accountId,
@@ -85,7 +94,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
 
   test('un dossier en constitution n’entre pas dans la file de revue', async ({ assert }) => {
     const accountId = uuidv4()
-    const { service, repository } = makeService(AccountSegment.ENTERPRISE)
+    const { service, repository } = makeService(VerificationProfile.IMMATRICULATION)
 
     await service.submit({
       accountId,
@@ -99,7 +108,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
 
   test('le DFE qui arrive ensuite fait partir le dossier en revue', async ({ assert }) => {
     const accountId = uuidv4()
-    const { service, repository } = makeService(AccountSegment.ENTERPRISE)
+    const { service, repository } = makeService(VerificationProfile.IMMATRICULATION)
 
     await service.submit({
       accountId,
@@ -121,7 +130,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
 
   test('le RCCM déjà déposé n’est pas retouché par l’arrivée du DFE', async ({ assert }) => {
     const accountId = uuidv4()
-    const { service, repository } = makeService(AccountSegment.ENTERPRISE)
+    const { service, repository } = makeService(VerificationProfile.IMMATRICULATION)
 
     await service.submit({
       accountId,
@@ -141,7 +150,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
 
   test('une pièce numérotée sans son numéro ne complète pas le dossier', async ({ assert }) => {
     const accountId = uuidv4()
-    const { service } = makeService(AccountSegment.ENTERPRISE)
+    const { service } = makeService(VerificationProfile.IMMATRICULATION)
 
     const result = await service.submit({
       accountId,
@@ -156,7 +165,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
   })
 
   test('un compte marchand ne soumet pas de dossier', async ({ assert }) => {
-    const { service } = makeService(AccountSegment.MARCHAND)
+    const { service } = makeService(VerificationProfile.NONE)
 
     await assert.rejects(
       () =>
@@ -169,7 +178,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
   })
 
   test('une pièce hors catalogue est refusée', async ({ assert }) => {
-    const { service } = makeService(AccountSegment.ENTERPRISE)
+    const { service } = makeService(VerificationProfile.IMMATRICULATION)
 
     await assert.rejects(
       () =>
@@ -182,7 +191,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
   })
 
   test('un dossier de particulier incomplet est refusé d’emblée', async ({ assert }) => {
-    const { service } = makeService(AccountSegment.PARTICULIER)
+    const { service } = makeService(VerificationProfile.IDENTITE)
 
     await assert.rejects(
       () =>
@@ -197,7 +206,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
 
   test('un dossier déjà en revue refuse une nouvelle soumission', async ({ assert }) => {
     const accountId = uuidv4()
-    const { service } = makeService(AccountSegment.ENTERPRISE)
+    const { service } = makeService(VerificationProfile.IMMATRICULATION)
 
     await service.submit({
       accountId,
@@ -229,7 +238,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
   })
 
   test('les pièces partent sur le stockage privé', async ({ assert }) => {
-    const { service, storage } = makeService(AccountSegment.ENTERPRISE)
+    const { service, storage } = makeService(VerificationProfile.IMMATRICULATION)
 
     await service.submit({
       accountId: uuidv4(),
@@ -244,7 +253,7 @@ test.group('Kyc | Soumission d’un dossier', (group) => {
 
   test('la tentative n’est enregistrée qu’à la complétude', async ({ assert }) => {
     const accountId = uuidv4()
-    const { service, repository } = makeService(AccountSegment.ENTERPRISE)
+    const { service, repository } = makeService(VerificationProfile.IMMATRICULATION)
 
     await service.submit({
       accountId,

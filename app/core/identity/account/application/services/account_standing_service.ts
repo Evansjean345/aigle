@@ -4,6 +4,7 @@ import type Account from '#core/identity/account/domain/models/account'
 import { type AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import KycLevelDirectoryService from '#core/identity/kyc/application/services/kyc_level_directory_service'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import { type AccountStatus } from '#core/identity/account/domain/enums/account_status'
 import {
   type AccountDescriptionResult,
@@ -81,6 +82,9 @@ export default class AccountStandingService {
       ownerType: account.ownerType,
       ownerRef: account.ownerRef,
       segment: (account.segment ?? AccountSegment.PARTICULIER) as AccountSegment,
+      // Un compte antérieur à la colonne se replie sur le profil le plus exigeant : lui en
+      // attribuer un moins strict le dispenserait de vérification.
+      verificationProfile: account.verificationProfile ?? VerificationProfile.IDENTITE,
       level: account.level,
       status: account.status,
     }

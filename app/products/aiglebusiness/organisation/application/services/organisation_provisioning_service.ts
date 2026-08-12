@@ -6,6 +6,7 @@ import PayableAliasService from '#core/qr/application/services/payable_alias_ser
 import MembershipService from '#aiglebusiness/membership/application/services/membership_service'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import OrganisationNotFoundException from '#aiglebusiness/organisation/domain/exceptions/organisation_not_found_exception'
 import type Organisation from '#aiglebusiness/organisation/domain/models/organisation'
@@ -49,7 +50,9 @@ export default class OrganisationProvisioningService {
       ownerType: AccountOwnerType.ORGANISATION,
       ownerRef: organisation.organisationId,
       segment: isMerchant ? AccountSegment.MARCHAND : AccountSegment.ENTERPRISE,
-      level: isMerchant ? 1 : 0,
+      verificationProfile: isMerchant
+        ? VerificationProfile.NONE
+        : VerificationProfile.IMMATRICULATION,
     })
 
     const payableCode = await this.payableAliasService.register(

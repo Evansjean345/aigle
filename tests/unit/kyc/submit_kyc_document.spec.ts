@@ -15,6 +15,7 @@ import emitter from '@adonisjs/core/services/emitter'
 import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
 import AccountVerificationService from '#core/identity/kyc/application/services/account_verification_service'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
 
 /** Dossier déjà déposé, dans l'état donné. */
@@ -37,6 +38,7 @@ const accounts = {
       accountId,
       ownerType: AccountOwnerType.USER,
       segment: AccountSegment.PARTICULIER,
+      verificationProfile: VerificationProfile.IDENTITE,
       status: AccountStatus.ACTIVE,
     }
   },

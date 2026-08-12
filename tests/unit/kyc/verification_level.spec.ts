@@ -6,10 +6,11 @@ import KycDocumentProcessed from '#core/identity/kyc/application/events/kyc_docu
 import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
 
 /** Retient les niveaux posés, et décrit le compte demandé. */
-function accountsFor(segment: AccountSegment) {
+function accountsFor(segment: AccountSegment, verificationProfile: VerificationProfile) {
   const applied: { accountId: string; level: number }[] = []
 
   return {
@@ -28,6 +29,7 @@ function accountsFor(segment: AccountSegment) {
               ? AccountOwnerType.USER
               : AccountOwnerType.ORGANISATION,
           segment,
+          verificationProfile,
           status: AccountStatus.ACTIVE,
         }
       },
@@ -47,16 +49,27 @@ function processed(
  * Caractérise le niveau qu'un compte atteint quand son dossier est approuvé.
  */
 test.group('Kyc | Palier ouvert par le catalogue', () => {
-  test('une entreprise approuvée vise le niveau 2', async ({ assert }) => {
-    assert.equal(requirementsFor(AccountSegment.ENTERPRISE).grantsLevel, 2)
+  test('un dossier d’immatriculation approuvé vise le niveau 2', async ({ assert }) => {
+    assert.equal(requirementsFor(VerificationProfile.IMMATRICULATION).grantsLevel, 2)
   })
 
-  test('un particulier approuvé vise le niveau 2', async ({ assert }) => {
-    assert.equal(requirementsFor(AccountSegment.PARTICULIER).grantsLevel, 2)
+  test('un dossier d’identité approuvé vise le niveau 2', async ({ assert }) => {
+    assert.equal(requirementsFor(VerificationProfile.IDENTITE).grantsLevel, 2)
   })
 
-  test('un marchand ne vise aucun niveau', async ({ assert }) => {
-    assert.isNull(requirementsFor(AccountSegment.MARCHAND).grantsLevel)
+  test('un profil sans pièce ne vise aucun niveau', async ({ assert }) => {
+    assert.isNull(requirementsFor(VerificationProfile.NONE).grantsLevel)
+  })
+
+  test('un compte à immatriculer part du niveau 0, les autres du niveau 1', async ({ assert }) => {
+    assert.equal(requirementsFor(VerificationProfile.IMMATRICULATION).startsAtLevel, 0)
+    assert.equal(requirementsFor(VerificationProfile.NONE).startsAtLevel, 1)
+    assert.equal(requirementsFor(VerificationProfile.IDENTITE).startsAtLevel, 1)
+  })
+
+  test('un profil hors catalogue est refusé', async ({ assert }) => {
+    // Un repli silencieux accorderait à un compte les exigences d'un autre.
+    assert.throws(() => requirementsFor('inexistant' as VerificationProfile))
   })
 })
 
@@ -69,7 +82,7 @@ test.group('Kyc | Palier ouvert par le catalogue', () => {
 test.group('Kyc | Montée de palier d’une organisation', () => {
   test('un dossier d’entreprise approuvé porte le compte au niveau 2', async ({ assert }) => {
     const accountId = uuidv4()
-    const accounts = accountsFor(AccountSegment.ENTERPRISE)
+    const accounts = accountsFor(AccountSegment.ENTERPRISE, VerificationProfile.IMMATRICULATION)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
       accounts.directory as any
@@ -83,7 +96,7 @@ test.group('Kyc | Montée de palier d’une organisation', () => {
   })
 
   test('un refus ne touche pas au niveau', async ({ assert }) => {
-    const accounts = accountsFor(AccountSegment.ENTERPRISE)
+    const accounts = accountsFor(AccountSegment.ENTERPRISE, VerificationProfile.IMMATRICULATION)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
       accounts.directory as any
@@ -97,7 +110,7 @@ test.group('Kyc | Montée de palier d’une organisation', () => {
   })
 
   test('un dossier d’identité n’emprunte pas cette route', async ({ assert }) => {
-    const accounts = accountsFor(AccountSegment.PARTICULIER)
+    const accounts = accountsFor(AccountSegment.PARTICULIER, VerificationProfile.IDENTITE)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
       accounts.directory as any
@@ -109,7 +122,7 @@ test.group('Kyc | Montée de palier d’une organisation', () => {
   })
 
   test('un compte marchand ne monte nulle part', async ({ assert }) => {
-    const accounts = accountsFor(AccountSegment.MARCHAND)
+    const accounts = accountsFor(AccountSegment.MARCHAND, VerificationProfile.NONE)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
       accounts.directory as any

@@ -5,7 +5,7 @@ import {
   requirementsFor,
 } from '#core/identity/kyc/domain/verification_requirements'
 import { DocumentPieceType, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
-import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 
 /**
  * Caractérise ce qu'un dossier doit contenir pour être complet.
@@ -14,8 +14,8 @@ import { AccountSegment } from '#core/identity/account/domain/enums/account_segm
  * pièces manquantes, le dossier n'atteint pas la file de revue.
  */
 test.group('Kyc | Catalogue de complétude', () => {
-  test('une entreprise doit son RCCM et son DFE', async ({ assert }) => {
-    const requirements = requirementsFor(AccountSegment.ENTERPRISE)
+  test('une immatriculation attend le RCCM et le DFE', async ({ assert }) => {
+    const requirements = requirementsFor(VerificationProfile.IMMATRICULATION)
 
     assert.sameMembers(
       requirements.pieces.map((piece) => piece.pieceType),
@@ -23,28 +23,31 @@ test.group('Kyc | Catalogue de complétude', () => {
     )
   })
 
-  test('une entreprise dépose ses pièces au fil de l’eau', async ({ assert }) => {
-    assert.equal(requirementsFor(AccountSegment.ENTERPRISE).mode, SubmissionMode.PROGRESSIVE)
+  test('une immatriculation se dépose au fil de l’eau', async ({ assert }) => {
+    assert.equal(
+      requirementsFor(VerificationProfile.IMMATRICULATION).mode,
+      SubmissionMode.PROGRESSIVE
+    )
   })
 
-  test('les pièces d’entreprise exigent une référence', async ({ assert }) => {
-    const requirements = requirementsFor(AccountSegment.ENTERPRISE)
+  test('les pièces d’immatriculation exigent une référence', async ({ assert }) => {
+    const requirements = requirementsFor(VerificationProfile.IMMATRICULATION)
 
     assert.isTrue(requirements.pieces.every((piece) => piece.requiresReference))
   })
 
-  test('un particulier dépose son dossier d’un seul coup', async ({ assert }) => {
-    assert.equal(requirementsFor(AccountSegment.PARTICULIER).mode, SubmissionMode.ATOMIC)
+  test('un dossier d’identité se dépose d’un seul coup', async ({ assert }) => {
+    assert.equal(requirementsFor(VerificationProfile.IDENTITE).mode, SubmissionMode.ATOMIC)
   })
 
   test('une pièce d’identité ne porte pas de référence', async ({ assert }) => {
-    const requirements = requirementsFor(AccountSegment.PARTICULIER, KycDocumentType.CNI)
+    const requirements = requirementsFor(VerificationProfile.IDENTITE, KycDocumentType.CNI)
 
     assert.isTrue(requirements.pieces.every((piece) => !piece.requiresReference))
   })
 
   test('une CNI demande recto, verso et selfie', async ({ assert }) => {
-    const requirements = requirementsFor(AccountSegment.PARTICULIER, KycDocumentType.CNI)
+    const requirements = requirementsFor(VerificationProfile.IDENTITE, KycDocumentType.CNI)
 
     assert.sameMembers(
       requirements.pieces.map((piece) => piece.pieceType),
@@ -53,7 +56,7 @@ test.group('Kyc | Catalogue de complétude', () => {
   })
 
   test('un passeport n’a pas de verso', async ({ assert }) => {
-    const requirements = requirementsFor(AccountSegment.PARTICULIER, KycDocumentType.PASSPORT)
+    const requirements = requirementsFor(VerificationProfile.IDENTITE, KycDocumentType.PASSPORT)
 
     assert.sameMembers(
       requirements.pieces.map((piece) => piece.pieceType),
@@ -61,12 +64,12 @@ test.group('Kyc | Catalogue de complétude', () => {
     )
   })
 
-  test('un marchand ne passe aucune vérification', async ({ assert }) => {
-    assert.isEmpty(requirementsFor(AccountSegment.MARCHAND).pieces)
+  test('un profil sans pièce ne passe aucune vérification', async ({ assert }) => {
+    assert.isEmpty(requirementsFor(VerificationProfile.NONE).pieces)
   })
 
   test('rien ne manque à un dossier complet', async ({ assert }) => {
-    const missing = missingPieces(AccountSegment.ENTERPRISE, undefined, [
+    const missing = missingPieces(VerificationProfile.IMMATRICULATION, undefined, [
       { pieceType: DocumentPieceType.RCCM, hasReference: true },
       { pieceType: DocumentPieceType.DFE, hasReference: true },
     ])
@@ -75,7 +78,7 @@ test.group('Kyc | Catalogue de complétude', () => {
   })
 
   test('la pièce absente est nommée', async ({ assert }) => {
-    const missing = missingPieces(AccountSegment.ENTERPRISE, undefined, [
+    const missing = missingPieces(VerificationProfile.IMMATRICULATION, undefined, [
       { pieceType: DocumentPieceType.RCCM, hasReference: true },
     ])
 
@@ -83,7 +86,7 @@ test.group('Kyc | Catalogue de complétude', () => {
   })
 
   test('une pièce sans sa référence compte comme absente', async ({ assert }) => {
-    const missing = missingPieces(AccountSegment.ENTERPRISE, undefined, [
+    const missing = missingPieces(VerificationProfile.IMMATRICULATION, undefined, [
       { pieceType: DocumentPieceType.RCCM, hasReference: true },
       { pieceType: DocumentPieceType.DFE, hasReference: false },
     ])
@@ -92,21 +95,21 @@ test.group('Kyc | Catalogue de complétude', () => {
   })
 
   test('une pièce hors catalogue ne rend pas le dossier complet', async ({ assert }) => {
-    const missing = missingPieces(AccountSegment.ENTERPRISE, undefined, [
+    const missing = missingPieces(VerificationProfile.IMMATRICULATION, undefined, [
       { pieceType: DocumentPieceType.SELFIE, hasReference: false },
     ])
 
     assert.sameMembers(missing, [DocumentPieceType.RCCM, DocumentPieceType.DFE])
   })
 
-  test('un dossier de particulier se mesure au type de sa pièce', async ({ assert }) => {
+  test('un dossier d’identité se mesure au type de sa pièce', async ({ assert }) => {
     const pieces = [
       { pieceType: DocumentPieceType.RECTO, hasReference: false },
       { pieceType: DocumentPieceType.SELFIE, hasReference: false },
     ]
 
-    assert.isEmpty(missingPieces(AccountSegment.PARTICULIER, KycDocumentType.PASSPORT, pieces))
-    assert.deepEqual(missingPieces(AccountSegment.PARTICULIER, KycDocumentType.CNI, pieces), [
+    assert.isEmpty(missingPieces(VerificationProfile.IDENTITE, KycDocumentType.PASSPORT, pieces))
+    assert.deepEqual(missingPieces(VerificationProfile.IDENTITE, KycDocumentType.CNI, pieces), [
       DocumentPieceType.VERSO,
     ])
   })

@@ -1,4 +1,5 @@
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 
 /**
  * Standing de compte en mémoire.
@@ -21,6 +22,7 @@ export default class InMemoryAccountStanding {
       ownerType: 'user',
       ownerRef: accountId,
       segment: AccountSegment.PARTICULIER,
+      verificationProfile: VerificationProfile.IDENTITE,
       level: this.level,
       status: 'active',
     }

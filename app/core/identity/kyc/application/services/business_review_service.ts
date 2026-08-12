@@ -88,7 +88,9 @@ export default class BusinessReviewService {
 
     const account = await this.accountRepository.findByAccountId(document.accountId)
     const accountLevel = account?.level ?? null
-    const expected = account?.segment ? requirementsFor(account.segment as any).grantsLevel : null
+    const expected = account?.verificationProfile
+      ? requirementsFor(account.verificationProfile).grantsLevel
+      : null
 
     return {
       document: await this.withSignedPieces(toKycDocumentResult(document)),

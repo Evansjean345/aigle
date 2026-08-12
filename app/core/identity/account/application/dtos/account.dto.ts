@@ -1,19 +1,21 @@
 import { type AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { type AccountSegment } from '#core/identity/account/domain/enums/account_segment'
 import { type AccountStatus } from '#core/identity/account/domain/enums/account_status'
+import { type VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 
 // ── Command (input service) ─────────────────────────────────────────
 
 /**
- * Ouverture (idempotente) d'un compte. Le **segment** + le **niveau** sont fournis par l'appelant
- * qui connaît la nature du propriétaire : identity (user → `particulier`) ou produit (org →
- * `marchand`/`enterprise`, produit→core par service).
+ * Ouverture (idempotente) d'un compte.
+ *
+ * L'appelant nomme le segment et le jeu de pièces attendu ; le niveau de départ s'en déduit et
+ * n'est pas fourni.
  */
 export interface OpenAccountCommand {
   ownerType: AccountOwnerType
   ownerRef: string
   segment: AccountSegment
-  level: number
+  verificationProfile: VerificationProfile
 }
 
 // ── Result (output service — read port `describe`) ──────────────────
@@ -25,6 +27,8 @@ export interface AccountDescriptionResult {
   /** Identifiant du propriétaire dans son propre contexte : `users_uid` ou `organisation_id`. */
   ownerRef: string
   segment: AccountSegment
+  /** Jeu de pièces attendu du compte. */
+  verificationProfile: VerificationProfile
   /** Palier du compte. `null` sur un compte que le remplissage n'a pas atteint. */
   level: number | null
   status: AccountStatus

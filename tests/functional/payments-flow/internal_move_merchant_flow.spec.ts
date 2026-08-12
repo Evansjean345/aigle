@@ -12,6 +12,7 @@ import MoneyMovementEngine from '#core/money/money_movement/domain/interfaces/mo
 import AccountService from '#core/identity/account/application/services/account_service'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import WalletService from '#core/money/wallet/application/services/wallet_service'
 import type { InternalMoveCommand } from '#core/money/money_movement/domain/types/money_movement_types'
 import { createUserWithWallet, reloadBalance, swapGuards } from './mocks/operations_fixtures.js'
@@ -37,7 +38,7 @@ async function makeMerchantAccount(): Promise<{ orgId: string; walletId: number 
     ownerType: AccountOwnerType.ORGANISATION,
     ownerRef: orgId,
     segment: AccountSegment.MARCHAND,
-    level: 1,
+    verificationProfile: VerificationProfile.NONE,
   })
 
   const wallet = await wallets.getByAccountId(orgId)

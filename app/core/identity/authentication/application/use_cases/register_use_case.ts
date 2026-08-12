@@ -3,7 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import AccountService from '#core/identity/account/application/services/account_service'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
-import { KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import {
   RegisterRequestDto,
   RegisterResponseDto,
@@ -106,7 +106,7 @@ export default class RegisterUseCase {
           ownerType: AccountOwnerType.USER,
           ownerRef: userCreated.usersUid,
           segment: AccountSegment.PARTICULIER,
-          level: KycLevelState.NOT_VERIFY,
+          verificationProfile: VerificationProfile.IDENTITE,
         },
         trx
       )

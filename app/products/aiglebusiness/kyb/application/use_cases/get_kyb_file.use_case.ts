@@ -35,7 +35,7 @@ export default class GetKybFileUseCase {
     if (!account) throw new AccountNotFoundException()
 
     return KybFileResponseDto.fromDocument(
-      account.segment,
+      account.verificationProfile,
       await this.reviewService.findByAccountId(accountId)
     )
   }

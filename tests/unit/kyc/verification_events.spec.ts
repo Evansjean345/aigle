@@ -9,31 +9,40 @@ import OnUserKycStatusUpdate from '#core/identity/user/application/listeners/on_
 import { DocumentPieceType, KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
 
 const file = () => ({ extname: 'jpg' })
 
-function accountsDescribing(segment: AccountSegment) {
+/** Segment cohérent avec le profil : la soumission ne le lit pas, la description le porte. */
+const SEGMENT_OF: Record<VerificationProfile, AccountSegment> = {
+  [VerificationProfile.IDENTITE]: AccountSegment.PARTICULIER,
+  [VerificationProfile.IMMATRICULATION]: AccountSegment.ENTERPRISE,
+  [VerificationProfile.NONE]: AccountSegment.MARCHAND,
+}
+
+function accountsDescribing(profile: VerificationProfile) {
   return {
     async describe(accountId: string) {
       return {
         accountId,
         ownerType:
-          segment === AccountSegment.PARTICULIER
+          profile === VerificationProfile.IDENTITE
             ? AccountOwnerType.USER
             : AccountOwnerType.ORGANISATION,
-        segment,
+        segment: SEGMENT_OF[profile],
+        verificationProfile: profile,
         status: AccountStatus.ACTIVE,
       }
     },
   }
 }
 
-function makeService(segment: AccountSegment) {
+function makeService(profile: VerificationProfile) {
   return new AccountVerificationService(
     new InMemoryKycDocumentRepository(),
     new InMemoryFileStorage(),
-    accountsDescribing(segment) as any
+    accountsDescribing(profile) as any
   )
 }
 
@@ -49,7 +58,7 @@ test.group('Kyc | Annonce de soumission', () => {
     const events = emitter.fake()
     const accountId = uuidv4()
 
-    await makeService(AccountSegment.ENTERPRISE).submit({
+    await makeService(VerificationProfile.IMMATRICULATION).submit({
       accountId,
       pieces: [
         { pieceType: DocumentPieceType.RCCM, file: file(), reference: 'CI-ABJ-2020-B-12345' },
@@ -72,7 +81,7 @@ test.group('Kyc | Annonce de soumission', () => {
   test('un dossier d’entreprise en constitution n’est pas annoncé', async ({ assert }) => {
     const events = emitter.fake()
 
-    await makeService(AccountSegment.ENTERPRISE).submit({
+    await makeService(VerificationProfile.IMMATRICULATION).submit({
       accountId: uuidv4(),
       pieces: [
         { pieceType: DocumentPieceType.RCCM, file: file(), reference: 'CI-ABJ-2020-B-12345' },
@@ -89,7 +98,7 @@ test.group('Kyc | Annonce de soumission', () => {
     const events = emitter.fake()
     const accountId = uuidv4()
 
-    await makeService(AccountSegment.PARTICULIER).submit({
+    await makeService(VerificationProfile.IDENTITE).submit({
       accountId,
       pieces: [
         { pieceType: DocumentPieceType.RECTO, file: file() },

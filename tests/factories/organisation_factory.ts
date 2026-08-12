@@ -9,17 +9,18 @@ import { UserKycStatus } from '#core/identity/user/domain/enum'
 import AccountService from '#core/identity/account/application/services/account_service'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 
-/** Segment et niveau de départ d'une organisation, selon son type. */
+/** Segment, profil de vérification et niveau de départ d'une organisation, selon son type. */
 const PROVISIONING = {
   [OrganisationAccountType.MARCHAND]: {
     segment: AccountSegment.MARCHAND,
-    level: 1,
+    verificationProfile: VerificationProfile.NONE,
     organisationLevel: OrganisationLevel.LEVEL_1,
   },
   [OrganisationAccountType.ENTERPRISE]: {
     segment: AccountSegment.ENTERPRISE,
-    level: 0,
+    verificationProfile: VerificationProfile.IMMATRICULATION,
     organisationLevel: OrganisationLevel.LEVEL_0,
   },
 } as const
@@ -92,14 +93,14 @@ export async function makeOrganisationWithAccount(
   overrides: Partial<Organisation> = {}
 ): Promise<{ organisation: Organisation; accountId: string }> {
   const organisation = await makeOrganisation(overrides)
-  const { segment, level } = PROVISIONING[organisation.accountType]
+  const { segment, verificationProfile } = PROVISIONING[organisation.accountType]
 
   const accounts = await app.container.make(AccountService)
   const account = await accounts.openAccount({
     ownerType: AccountOwnerType.ORGANISATION,
     ownerRef: organisation.organisationId,
     segment,
-    level,
+    verificationProfile,
   })
 
   return { organisation, accountId: account.accountId }

@@ -37,7 +37,7 @@ export default class SyncAccountLevelOnVerificationProcessed {
 
     if (!account) return
 
-    const { grantsLevel } = requirementsFor(account.segment)
+    const { grantsLevel } = requirementsFor(account.verificationProfile)
 
     if (grantsLevel === null) return
 

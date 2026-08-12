@@ -17,6 +17,7 @@ import Provider from '#core/catalog/catalogs/domain/models/provider'
 import AccountService from '#core/identity/account/application/services/account_service'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
 import WalletService from '#core/money/wallet/application/services/wallet_service'
 import InitiateCheckoutUseCase from '#core/money/checkout/application/use_cases/initiate_checkout.use_case'
@@ -78,7 +79,7 @@ async function makeMerchant(): Promise<{ orgId: string; code: string; walletId: 
     ownerType: AccountOwnerType.ORGANISATION,
     ownerRef: orgId,
     segment: AccountSegment.MARCHAND,
-    level: 1,
+    verificationProfile: VerificationProfile.NONE,
   })
   const code = await aliases.register(orgId, 'Boutique Ali')
   const wallet = await wallets.getByAccountId(orgId)
