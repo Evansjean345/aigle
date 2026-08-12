@@ -5,25 +5,15 @@
  * classe concrète d'infrastructure, pas un port. TypeScript vérifie la conformité structurellement à
  * l'injection — une méthode ajoutée au service casse donc la compilation ici, en un seul endroit.
  *
- * Retient ce qui a été déposé et signé, pour qu'un test puisse vérifier qu'une pièce n'a pas pris le
- * chemin du bucket public.
+ * Retient ce qui a été déposé et signé. Le chemin public n'existe plus : il n'y a donc plus rien à
+ * vérifier de ce côté — la garantie est devenue structurelle.
  */
 export default class InMemoryFileStorage {
-  /** URL rendues par le chemin public — doit rester vide pour toute pièce de vérification. */
-  publicUploads: string[] = []
-
   /** Clés rendues par le chemin privé. */
   privateUploads: string[] = []
 
   /** Clés effectivement signées, dans l'ordre. */
   signed: string[] = []
-
-  async uploadFile(_file: any, destinationPath: string): Promise<string> {
-    const url = `http://public.test/${destinationPath}/${this.publicUploads.length + 1}.jpg`
-    this.publicUploads.push(url)
-
-    return url
-  }
 
   async uploadPrivateFile(_file: any, destinationPath: string): Promise<string> {
     const key = `${destinationPath}/${this.privateUploads.length + 1}.jpg`

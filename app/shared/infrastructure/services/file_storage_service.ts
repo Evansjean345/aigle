@@ -45,19 +45,6 @@ function reasonOf(error: unknown): string {
 /** Dépôt et consultation des fichiers téléversés. */
 export default class FileStorageService {
   /**
-   * Dépose un fichier en accès public.
-   *
-   * @param {any} filePath - Fichier multipart à déposer.
-   * @param {string} destinationPath - Dossier de destination sur le disque.
-   * @returns {Promise<string>} URL publique et permanente du fichier.
-   */
-  async uploadFile(filePath: any, destinationPath: string): Promise<string> {
-    const key = `${destinationPath}/${crypto.randomUUID()}.${filePath.extname}`
-    await filePath.moveToDisk(key, 's3')
-    return filePath.meta.url
-  }
-
-  /**
    * Dépose un fichier en accès privé.
    *
    * Renvoie la clé de l'objet et non une URL : un objet privé se consulte par une URL signée

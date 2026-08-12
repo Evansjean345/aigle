@@ -166,7 +166,6 @@ test.group('Kyc | Submit Use Case', (group) => {
       documentsSelfieUrl: { extname: 'jpg' } as any,
     })
 
-    assert.lengthOf(storage.publicUploads, 0)
     assert.lengthOf(storage.privateUploads, 3)
     assert.isTrue(repository.pieces.every((piece) => !piece.fileKey.startsWith('http')))
   })
