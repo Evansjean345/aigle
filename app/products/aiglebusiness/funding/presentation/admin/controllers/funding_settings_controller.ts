@@ -2,6 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import FundingSettingsRepository from '#aiglebusiness/funding/domain/interfaces/funding_settings_repository'
 import { updateFundingSettingsValidator } from '#aiglebusiness/funding/presentation/admin/validators/funding_request_validators'
+import { AdminFundingSettingsResponseDTO } from '#aiglebusiness/funding/application/dtos/admin/admin_funding_settings.dto'
 import type Admin from '#core/team/domain/models/admin'
 
 /**
@@ -18,13 +19,7 @@ export default class AdminFundingSettingsController {
     const settings = await this.repository.find()
 
     return response.ok({
-      data: settings
-        ? {
-            doubleApprovalThreshold: Number(settings.doubleApprovalThreshold),
-            updatedByAdminId: settings.updatedByAdminId,
-            updatedAt: settings.updatedAt?.toISO() ?? null,
-          }
-        : null,
+      data: settings ? AdminFundingSettingsResponseDTO.fromSettings(settings) : null,
     })
   }
 
@@ -35,12 +30,6 @@ export default class AdminFundingSettingsController {
 
     const settings = await this.repository.saveThreshold(payload.doubleApprovalThreshold, admin.id)
 
-    return response.ok({
-      data: {
-        doubleApprovalThreshold: Number(settings.doubleApprovalThreshold),
-        updatedByAdminId: settings.updatedByAdminId,
-        updatedAt: settings.updatedAt?.toISO() ?? null,
-      },
-    })
+    return response.ok({ data: AdminFundingSettingsResponseDTO.fromSettings(settings) })
   }
 }

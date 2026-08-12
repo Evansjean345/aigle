@@ -14,7 +14,12 @@ export default class FundingSettings extends BaseModel {
   @column()
   declare doubleApprovalThreshold: number
 
-  /** Dernier gestionnaire à avoir modifié le seuil. */
+  /**
+   * Dernier gestionnaire à avoir modifié le seuil.
+   *
+   * Conservé en base mais absent de la réponse HTTP : c'est le journal d'audit qui restitue qui a
+   * modifié quoi, et le dupliquer ici donnerait une seconde version à tenir à jour.
+   */
   @column()
   declare updatedByAdminId: number | null
 

@@ -546,15 +546,15 @@ components:
         doubleApprovalThreshold:
           type: integer
           description: >
-            Montant déclaré au-delà duquel une demande exige deux valideurs distincts, en XOF entier.
-        updatedByAdminId:
-          type: integer
-          nullable: true
-          description: Dernier gestionnaire à avoir modifié le seuil. Nul si posé par le seeder.
+            Montant à partir duquel un versement déclaré exige deux gestionnaires distincts, en XOF
+            entier.
         updatedAt:
           type: string
           format: date-time
           nullable: true
+          description: >
+            Depuis quand le seuil s'applique. L'auteur de la modification n'est pas servi ici :
+            le journal d'audit le trace déjà.
 
     ApproveFundingRequest:
       type: object
