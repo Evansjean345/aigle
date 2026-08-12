@@ -95,9 +95,7 @@ export type ScannedRoutes = {
     'kyb_admin.approve': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyb_admin.reject': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyc_level.index': { paramsTuple?: []; params?: {} }
-    'kyc_level.store': { paramsTuple?: []; params?: {} }
     'kyc_level.update': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'kyc_level.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyc.index': { paramsTuple?: []; params?: {} }
     'kyc.stats': { paramsTuple?: []; params?: {} }
     'kyc.kyc_details': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -446,7 +444,6 @@ export type ScannedRoutes = {
     'admin_organisations.resume_provisioning_now': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyb_admin.approve': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyb_admin.reject': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'kyc_level.store': { paramsTuple?: []; params?: {} }
     'kyc.process': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_app_version.store': { paramsTuple?: []; params?: {} }
     'wallet_adjustment.execute': { paramsTuple?: []; params?: {} }
@@ -526,7 +523,6 @@ export type ScannedRoutes = {
     'payment_methods.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'providers.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'service_provider_methods.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
-    'kyc_level.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_device.revoke_device': { paramsTuple: [ParamValue,ParamValue]; params: {'userId': ParamValue,'deviceId': ParamValue} }
     'admin_app_version.destroy': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'device.revoke_device': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }

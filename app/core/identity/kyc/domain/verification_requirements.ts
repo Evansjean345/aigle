@@ -84,6 +84,59 @@ export function requirementsFor(
   return { pieces, mode: SubmissionMode.ATOMIC, grantsLevel: 2 }
 }
 
+/** Ce qu'un palier signifie, et comment un compte y accède. */
+export interface LevelMeaning {
+  /** Ce que le palier autorise, en une expression — « Identité vérifiée ». */
+  title: string
+  /** Comment un compte l'atteint — « Après approbation du dossier KYC ». */
+  reachedBy: string
+}
+
+/**
+ * Signification de chaque palier, par couple `(segment, level)`.
+ *
+ * Un palier n'est pas un rang abstrait : c'est un état de vérification qui décide de ce qu'un
+ * compte peut engager. Cette table est la source unique de cette signification — le back-office
+ * l'affiche, il ne l'invente pas. Sans elle, un gestionnaire ajusterait des montants sans savoir
+ * qui les subit ni pourquoi.
+ *
+ * Un couple absent d'ici est un palier qu'aucune règle ne prévoit.
+ */
+const LEVEL_MEANINGS: Record<string, LevelMeaning> = {
+  'particulier:1': {
+    title: 'Compte non vérifié',
+    reachedBy: "Attribué à l'inscription, avant toute vérification d'identité",
+  },
+  'particulier:2': {
+    title: 'Identité vérifiée',
+    reachedBy: "Après approbation de la pièce d'identité et du selfie",
+  },
+  'marchand:1': {
+    title: 'Encaissement ouvert',
+    reachedBy: 'Attribué à la création : un marchand ne passe aucune vérification',
+  },
+  'enterprise:0': {
+    title: 'En attente de vérification',
+    reachedBy: "Attribué à la création : les mouvements restent bloqués jusqu'à l'approbation",
+  },
+  'enterprise:2': {
+    title: 'Entreprise vérifiée',
+    reachedBy: 'Après approbation du RCCM et de la DFE',
+  },
+}
+
+/**
+ * Rend ce qu'un palier signifie.
+ *
+ * @param {string} segment - Segment du compte.
+ * @param {number} level - Rang du palier.
+ * @returns {LevelMeaning | null} La signification, ou `null` pour un couple qu'aucune règle ne
+ *   prévoit.
+ */
+export function meaningOfLevel(segment: string, level: number): LevelMeaning | null {
+  return LEVEL_MEANINGS[`${segment}:${level}`] ?? null
+}
+
 /**
  * Rend les pièces qui manquent encore à un dossier.
  *
