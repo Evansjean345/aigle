@@ -13,10 +13,7 @@ export interface UnknownKycLevelResult {
 }
 
 /**
- * Écart entre le catalogue et la grille.
- *
- * Aucune famille pour les montants divergents : ils sont réglés au back-office et le catalogue ne
- * les pose qu'à la création.
+ * Écart entre le catalogue et la grille. Les montants n'y entrent pas.
  */
 export interface KycLevelCatalogDiffResult {
   /** Déclarés au catalogue, absents de la base : aucun compte n'y résout de plafonds. */

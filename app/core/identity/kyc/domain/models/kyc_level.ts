@@ -8,8 +8,8 @@ export default class KycLevel extends BaseModel {
   declare id: number
 
   /**
-   * Segment du niveau (`particulier` | `marchand` | `enterprise`). Avec `level`, forme la clé
-   * `(segment, level)` → limites. Unifie KYC (particulier) et KYB (org).
+   * Segment du niveau (`particulier` | `organisation`). Avec `level`, forme la clé
+   * `(segment, level)` → limites.
    */
   @column()
   declare segment: string
@@ -23,7 +23,7 @@ export default class KycLevel extends BaseModel {
   @column()
   declare level: number
 
-  // Plafonds : `null` = ILLIMITÉ (ex. enterprise niveau 2), ignoré à la validation.
+  // Plafonds : `null` = ILLIMITÉ (ex. organisation niveau 2), ignoré à la validation.
   @column()
   declare singleLimit: number | null
 
@@ -35,12 +35,6 @@ export default class KycLevel extends BaseModel {
 
   @column()
   declare balanceLimit: number | null
-
-  @column()
-  declare isActive: boolean
-
-  @column()
-  declare isArchived: boolean
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

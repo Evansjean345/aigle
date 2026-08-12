@@ -25,7 +25,7 @@ export default class KycLevelDirectoryService {
    * Résout les **limites** d'un couple `(segment, level)`, depuis le cache sinon la base. Plafonds
    * `null` = illimité.
    *
-   * @param segment Segment du compte (`particulier` | `marchand` | `enterprise`).
+   * @param segment Segment du compte (`particulier` | `organisation`).
    * @param level Niveau du compte.
    * @return Les limites projetées, ou `null` si le couple n'existe pas dans le catalogue.
    */

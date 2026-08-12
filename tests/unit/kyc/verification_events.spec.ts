@@ -17,8 +17,8 @@ const file = () => ({ extname: 'jpg' })
 /** Segment cohérent avec le profil : la soumission ne le lit pas, la description le porte. */
 const SEGMENT_OF: Record<VerificationProfile, AccountSegment> = {
   [VerificationProfile.IDENTITE]: AccountSegment.PARTICULIER,
-  [VerificationProfile.IMMATRICULATION]: AccountSegment.ENTERPRISE,
-  [VerificationProfile.NONE]: AccountSegment.MARCHAND,
+  [VerificationProfile.IMMATRICULATION]: AccountSegment.ORGANISATION,
+  [VerificationProfile.NONE]: AccountSegment.ORGANISATION,
 }
 
 function accountsDescribing(profile: VerificationProfile) {

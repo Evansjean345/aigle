@@ -16,25 +16,16 @@ export interface KycLevelDefinition {
   title: string
   /** Comment un compte l'atteint — « Après approbation du dossier d'identité ». */
   reachedBy: string
-  /**
-   * Montants posés à la création du palier.
-   *
-   * `kyc:levels:sync` ne les réimpose jamais ensuite : les montants en vigueur sont ceux du
-   * back-office.
-   */
   defaults: KycLevelLimits
 }
 
 /**
  * Les paliers qui existent, et ce qu'ils signifient.
  *
- * Déclaration unique d'un palier : `kyc:levels:sync` la téléverse en base, et le back-office en
- * ajuste les montants sans décider ni de sa présence ni de son sens.
+ * `kyc:levels:sync` téléverse ce catalogue en base. Le back-office en ajuste les montants.
  *
- * Aucune description n'énumère les pièces attendues — `requirementsFor` les décrit déjà.
- *
- * ⚠️ Les montants sont provisoires : ils ne valent que comme point de départ à la création d'un
- * palier, les vraies limites se règlent au back-office.
+ * ⚠️ Les montants sont provisoires : ils ne valent qu'à la création d'un palier, les vraies limites
+ * se règlent au back-office.
  */
 export const KYC_LEVEL_CATALOG: readonly KycLevelDefinition[] = [
   {
@@ -62,7 +53,15 @@ export const KYC_LEVEL_CATALOG: readonly KycLevelDefinition[] = [
     },
   },
   {
-    segment: AccountSegment.MARCHAND,
+    segment: AccountSegment.ORGANISATION,
+    level: 0,
+    title: 'En attente de vérification',
+    reachedBy: "Attribué à la création : les mouvements restent bloqués jusqu'à l'approbation",
+    // Zéro et non `null` : le compte est bloqué tant que son dossier n'est pas approuvé.
+    defaults: { singleLimit: 0, dailyLimit: 0, monthlyLimit: 0, balanceLimit: 0 },
+  },
+  {
+    segment: AccountSegment.ORGANISATION,
     level: 1,
     title: 'Encaissement ouvert',
     reachedBy: 'Attribué à la création : un marchand ne passe aucune vérification',
@@ -74,15 +73,7 @@ export const KYC_LEVEL_CATALOG: readonly KycLevelDefinition[] = [
     },
   },
   {
-    segment: AccountSegment.ENTERPRISE,
-    level: 0,
-    title: 'En attente de vérification',
-    reachedBy: "Attribué à la création : les mouvements restent bloqués jusqu'à l'approbation",
-    // Zéro et non `null` : le compte est bloqué tant que son dossier n'est pas approuvé.
-    defaults: { singleLimit: 0, dailyLimit: 0, monthlyLimit: 0, balanceLimit: 0 },
-  },
-  {
-    segment: AccountSegment.ENTERPRISE,
+    segment: AccountSegment.ORGANISATION,
     level: 2,
     title: 'Entreprise vérifiée',
     reachedBy: "Après approbation du dossier d'entreprise",

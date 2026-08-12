@@ -49,7 +49,7 @@ export default class OrganisationProvisioningService {
     const account = await this.accountService.openAccount({
       ownerType: AccountOwnerType.ORGANISATION,
       ownerRef: organisation.organisationId,
-      segment: isMerchant ? AccountSegment.MARCHAND : AccountSegment.ENTERPRISE,
+      segment: AccountSegment.ORGANISATION,
       verificationProfile: isMerchant
         ? VerificationProfile.NONE
         : VerificationProfile.IMMATRICULATION,

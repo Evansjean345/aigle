@@ -78,7 +78,7 @@ async function makeMerchant(): Promise<{ orgId: string; code: string; walletId: 
   await accountService.openAccount({
     ownerType: AccountOwnerType.ORGANISATION,
     ownerRef: orgId,
-    segment: AccountSegment.MARCHAND,
+    segment: AccountSegment.ORGANISATION,
     verificationProfile: VerificationProfile.NONE,
   })
   const code = await aliases.register(orgId, 'Boutique Ali')

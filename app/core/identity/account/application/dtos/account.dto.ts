@@ -8,8 +8,7 @@ import { type VerificationProfile } from '#core/identity/kyc/domain/verification
 /**
  * Ouverture (idempotente) d'un compte.
  *
- * L'appelant nomme le segment et le jeu de pièces attendu ; le niveau de départ s'en déduit et
- * n'est pas fourni.
+ * Le niveau de départ n'est pas fourni : il se déduit du profil de vérification.
  */
 export interface OpenAccountCommand {
   ownerType: AccountOwnerType

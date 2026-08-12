@@ -82,8 +82,6 @@ export default class AccountStandingService {
       ownerType: account.ownerType,
       ownerRef: account.ownerRef,
       segment: (account.segment ?? AccountSegment.PARTICULIER) as AccountSegment,
-      // Un compte antérieur à la colonne se replie sur le profil le plus exigeant : lui en
-      // attribuer un moins strict le dispenserait de vérification.
       verificationProfile: account.verificationProfile ?? VerificationProfile.IDENTITE,
       level: account.level,
       status: account.status,

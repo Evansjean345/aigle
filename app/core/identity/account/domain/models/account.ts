@@ -34,11 +34,7 @@ export default class Account extends BaseModel {
   @column()
   declare segment: AccountSegment | null
 
-  /**
-   * Jeu de pièces attendu du compte.
-   *
-   * Nul pour un compte antérieur à la colonne : les lecteurs se replient alors sur `IDENTITE`.
-   */
+  /** Jeu de pièces attendu du compte. Nul avant le remplissage : les lecteurs prennent `IDENTITE`. */
   @column()
   declare verificationProfile: VerificationProfile | null
 

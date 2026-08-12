@@ -82,7 +82,7 @@ test.group('Kyc | Palier ouvert par le catalogue', () => {
 test.group('Kyc | Montée de palier d’une organisation', () => {
   test('un dossier d’entreprise approuvé porte le compte au niveau 2', async ({ assert }) => {
     const accountId = uuidv4()
-    const accounts = accountsFor(AccountSegment.ENTERPRISE, VerificationProfile.IMMATRICULATION)
+    const accounts = accountsFor(AccountSegment.ORGANISATION, VerificationProfile.IMMATRICULATION)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
       accounts.directory as any
@@ -96,7 +96,7 @@ test.group('Kyc | Montée de palier d’une organisation', () => {
   })
 
   test('un refus ne touche pas au niveau', async ({ assert }) => {
-    const accounts = accountsFor(AccountSegment.ENTERPRISE, VerificationProfile.IMMATRICULATION)
+    const accounts = accountsFor(AccountSegment.ORGANISATION, VerificationProfile.IMMATRICULATION)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
       accounts.directory as any
@@ -122,7 +122,7 @@ test.group('Kyc | Montée de palier d’une organisation', () => {
   })
 
   test('un compte marchand ne monte nulle part', async ({ assert }) => {
-    const accounts = accountsFor(AccountSegment.MARCHAND, VerificationProfile.NONE)
+    const accounts = accountsFor(AccountSegment.ORGANISATION, VerificationProfile.NONE)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
       accounts.directory as any

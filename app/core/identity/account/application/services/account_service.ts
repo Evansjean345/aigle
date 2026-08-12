@@ -30,8 +30,7 @@ export default class AccountService {
    * Ouvre (idempotent) le compte du propriétaire. N'écrase pas le segment/niveau d'un compte
    * existant (le niveau peut avoir été relevé par la vérification).
    *
-   * Le niveau de départ vient du profil de vérification : l'appelant nomme ce qu'il attend du
-   * compte, le core en déduit d'où celui-ci part.
+   * Le niveau de départ est celui du profil de vérification.
    */
   async openAccount(
     command: OpenAccountCommand,

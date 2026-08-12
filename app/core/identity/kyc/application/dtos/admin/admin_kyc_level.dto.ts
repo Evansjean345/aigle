@@ -45,8 +45,6 @@ export interface KycLevelResult {
   dailyLimit: number | null
   monthlyLimit: number | null
   balanceLimit: number | null
-  isActive: boolean
-  isArchived: boolean
   createdAt: string
   updatedAt: string
 }
@@ -63,8 +61,6 @@ export const toKycLevelResult = (kycLevel: KycLevel): KycLevelResult => ({
   dailyLimit: kycLevel.dailyLimit,
   monthlyLimit: kycLevel.monthlyLimit,
   balanceLimit: kycLevel.balanceLimit,
-  isActive: kycLevel.isActive,
-  isArchived: kycLevel.isArchived,
   createdAt: kycLevel.createdAt?.toISO() || '',
   updatedAt: kycLevel.updatedAt?.toISO() || '',
 })

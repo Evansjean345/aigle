@@ -14,12 +14,12 @@ import { VerificationProfile } from '#core/identity/kyc/domain/verification_prof
 /** Segment, profil de vérification et niveau de départ d'une organisation, selon son type. */
 const PROVISIONING = {
   [OrganisationAccountType.MARCHAND]: {
-    segment: AccountSegment.MARCHAND,
+    segment: AccountSegment.ORGANISATION,
     verificationProfile: VerificationProfile.NONE,
     organisationLevel: OrganisationLevel.LEVEL_1,
   },
   [OrganisationAccountType.ENTERPRISE]: {
-    segment: AccountSegment.ENTERPRISE,
+    segment: AccountSegment.ORGANISATION,
     verificationProfile: VerificationProfile.IMMATRICULATION,
     organisationLevel: OrganisationLevel.LEVEL_0,
   },

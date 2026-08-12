@@ -48,7 +48,7 @@ async function makeMerchant(): Promise<{ orgId: string; code: string; walletId: 
   await accountService.openAccount({
     ownerType: AccountOwnerType.ORGANISATION,
     ownerRef: orgId,
-    segment: AccountSegment.MARCHAND,
+    segment: AccountSegment.ORGANISATION,
     verificationProfile: VerificationProfile.NONE,
   })
   const code = await aliases.register(orgId, 'Boutique Ali')
@@ -172,8 +172,6 @@ async function seedLevel(
       dailyLimit: null,
       monthlyLimit: null,
       balanceLimit: limits.balance,
-      isActive: true,
-      isArchived: false,
     }
   )
 }
@@ -245,7 +243,7 @@ test.group('Paiement marchand | limites de réception (validation réelle)', (gr
     await cache.clear()
     // Payeur (particulier) généreux ; marchand (niveau 1) plafonné.
     await seedLevel(AccountSegment.PARTICULIER, 2, { single: 1_000_000, balance: 5_000_000 })
-    await seedLevel(AccountSegment.MARCHAND, 1, { single: 10_000, balance: 50_000 })
+    await seedLevel(AccountSegment.ORGANISATION, 1, { single: 10_000, balance: 50_000 })
     return async () => {
       await db.rollbackGlobalTransaction()
       await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
@@ -261,7 +259,7 @@ test.group('Paiement marchand | limites de réception (validation réelle)', (gr
     )
     const merchant = await makeAccountWithWallet(
       AccountOwnerType.ORGANISATION,
-      AccountSegment.MARCHAND,
+      AccountSegment.ORGANISATION,
       1,
       0
     )
@@ -287,7 +285,7 @@ test.group('Paiement marchand | limites de réception (validation réelle)', (gr
     )
     const merchant = await makeAccountWithWallet(
       AccountOwnerType.ORGANISATION,
-      AccountSegment.MARCHAND,
+      AccountSegment.ORGANISATION,
       1,
       0
     )

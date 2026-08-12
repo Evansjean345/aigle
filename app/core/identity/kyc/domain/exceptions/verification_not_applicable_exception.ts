@@ -1,10 +1,7 @@
 import { Exception } from '@adonisjs/core/exceptions'
 
 /**
- * Un dossier a été soumis pour un compte qui ne passe aucune vérification.
- *
- * C'est le cas d'un compte marchand : il encaisse dès sa création et n'a pas de KYB. Accepter le
- * dépôt laisserait un dossier que personne ne revoit jamais.
+ * Un dossier a été soumis pour un compte dont le profil n'attend aucune pièce.
  */
 export default class VerificationNotApplicableException extends Exception {
   static status = 400

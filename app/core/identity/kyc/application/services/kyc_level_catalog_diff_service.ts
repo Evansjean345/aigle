@@ -14,7 +14,7 @@ export default class KycLevelCatalogDiffService {
   /**
    * Constate l'écart entre un catalogue et la grille.
    *
-   * Les montants ne sont jamais comparés : le catalogue ne les pose qu'à la création d'un palier.
+   * Les montants ne sont jamais comparés.
    *
    * @param {readonly KycLevelDefinition[]} catalog - Les paliers déclarés en code.
    * @returns {Promise<KycLevelCatalogDiffResult>} Les paliers manquants en base et ceux qui y sont

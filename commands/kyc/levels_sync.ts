@@ -23,9 +23,8 @@ export default class KycLevelsSync extends BaseCommand {
   /**
    * Insère les paliers du catalogue absents de la base, avec leurs montants de création.
    *
-   * Ne met jamais à jour un palier existant : ses montants sont ceux du back-office. Ne supprime
-   * jamais : un palier retiré priverait de plafonds les comptes qui s'y trouvent, ceux présents en
-   * base et absents du catalogue sont seulement signalés.
+   * Ne met jamais à jour un palier existant, et ne supprime jamais : un palier présent en base et
+   * absent du catalogue est seulement signalé.
    *
    * @returns {Promise<void>} Résout quand l'insertion est écrite, ou après l'aperçu.
    */

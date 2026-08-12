@@ -27,7 +27,7 @@ function organisationAccount(organisationId: string, accountId: string): Account
   account.accountId = accountId
   account.ownerType = AccountOwnerType.ORGANISATION
   account.ownerRef = organisationId
-  account.segment = AccountSegment.ENTERPRISE
+  account.segment = AccountSegment.ORGANISATION
   account.status = AccountStatus.ACTIVE
 
   return account

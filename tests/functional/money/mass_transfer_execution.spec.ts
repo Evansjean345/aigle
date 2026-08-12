@@ -48,7 +48,7 @@ async function makeQueuedItem(
   account.accountId = orgId
   account.ownerType = AccountOwnerType.ORGANISATION
   account.ownerRef = orgId
-  account.segment = AccountSegment.ENTERPRISE
+  account.segment = AccountSegment.ORGANISATION
   account.level = 1
   account.status = AccountStatus.ACTIVE
   await account.save()

@@ -37,7 +37,7 @@ async function makeMerchantAccount(): Promise<{ orgId: string; walletId: number 
   await accountService.openAccount({
     ownerType: AccountOwnerType.ORGANISATION,
     ownerRef: orgId,
-    segment: AccountSegment.MARCHAND,
+    segment: AccountSegment.ORGANISATION,
     verificationProfile: VerificationProfile.NONE,
   })
 

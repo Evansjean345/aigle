@@ -1,10 +1,7 @@
 /**
- * Segment d'un compte — dimension qui, avec le `level`, résout ses limites (`kyc_level`).
- * Unifie KYC (particulier) et KYB (marchand / enterprise). Pour un compte org, le segment
- * reflète `OrganisationAccountType` (posé par le produit au provisioning).
+ * Segment d'un compte — avec le `level`, résout ses limites dans `kyc_level`.
  */
 export enum AccountSegment {
   PARTICULIER = 'particulier',
-  MARCHAND = 'marchand',
-  ENTERPRISE = 'enterprise',
+  ORGANISATION = 'organisation',
 }

@@ -41,7 +41,7 @@ export default class KycLevelRepositoryImpl implements KycLevelRepository {
   /**
    * Trouve la grille de limites d'un couple `(segment, level)`.
    *
-   * @param {string} segment - Segment du compte (`particulier` | `marchand` | `enterprise`).
+   * @param {string} segment - Segment du compte (`particulier` | `organisation`).
    * @param {number} level - Niveau du compte.
    * @return {Promise<KycLevel | null>} La ligne de limites, ou null si le couple n'existe pas.
    */

@@ -119,7 +119,7 @@ test.group('Kyc | Signification des paliers', () => {
   test('une signification dit ce que le palier autorise et comment on y accède', async ({
     assert,
   }) => {
-    const meaning = meaningOfLevel('enterprise', 0)
+    const meaning = meaningOfLevel('organisation', 0)
 
     assert.isNotNull(meaning)
     assert.isNotEmpty(meaning!.title)

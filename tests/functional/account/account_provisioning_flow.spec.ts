@@ -50,7 +50,7 @@ async function createUser(): Promise<User> {
 async function openAccountFor(ownerType: AccountOwnerType, ownerRef: string): Promise<string> {
   const accountService = await app.container.make(AccountService)
   const segment =
-    ownerType === AccountOwnerType.USER ? AccountSegment.PARTICULIER : AccountSegment.MARCHAND
+    ownerType === AccountOwnerType.USER ? AccountSegment.PARTICULIER : AccountSegment.ORGANISATION
   const verificationProfile =
     ownerType === AccountOwnerType.USER ? VerificationProfile.IDENTITE : VerificationProfile.NONE
   const account = await accountService.openAccount({

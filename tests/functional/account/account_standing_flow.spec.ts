@@ -14,9 +14,44 @@ import AccountStandingService from '#core/identity/account/application/services/
 /**
  * Caractérise le **read port** `AccountStandingService.getStanding` (refactor account-centric, É2a) :
  * il lit le **compte seul** (segment, niveau, statut synchronisés) et résout ses **limites** via
- * `(segment, level)` dans `kyc_level`. Les plafonds `null` = **illimité**. Couvre user (particulier)
- * et org (marchand limité / enterprise illimitée), et la synchro `setLevel`/`setStatus`.
+ * `(segment, level)` dans `kyc_level`. Les plafonds `null` = **illimité**. Couvre un particulier et
+ * une organisation selon son palier, et la synchro `setLevel`/`setStatus`.
  */
+
+/**
+ * Aucun segment ne survit hors de l'énumération.
+ *
+ * Un compte resté sur `marchand` ou `enterprise` ne résoudrait plus aucune ligne de la grille, et
+ * lèverait `AccountLimitsNotConfiguredException` au premier mouvement.
+ */
+test.group('Fondation account | Segments en base', () => {
+  test('aucun compte ne porte un segment fusionné', async ({ assert }) => {
+    const rows = await db
+      .from('accounts')
+      .select('segment')
+      .whereNotIn('segment', Object.values(AccountSegment))
+      .whereNotNull('segment')
+
+    assert.deepEqual(
+      rows.map((row) => row.segment),
+      [],
+      'segment(s) hors énumération — lancer la migration de fusion'
+    )
+  })
+
+  test('aucun palier ne porte un segment fusionné', async ({ assert }) => {
+    const rows = await db
+      .from('kyc_level')
+      .select('segment')
+      .whereNotIn('segment', Object.values(AccountSegment))
+
+    assert.deepEqual(
+      rows.map((row) => row.segment),
+      [],
+      'segment(s) hors énumération — lancer la migration de fusion'
+    )
+  })
+})
 
 /** Seede une ligne de limites `(segment, level)`. `null` = illimité. */
 async function seedLevel(
@@ -38,8 +73,6 @@ async function seedLevel(
       dailyLimit: limits.daily,
       monthlyLimit: limits.monthly,
       balanceLimit: limits.balance,
-      isActive: true,
-      isArchived: false,
     }
   )
 }
@@ -98,30 +131,38 @@ test.group('Standing du compte | getStanding', (group) => {
     assert.equal(result.limits.balance, 1_000_000)
   })
 
-  test('compte marchand : limité selon son niveau KYB', async ({ assert }) => {
-    await seedLevel(AccountSegment.MARCHAND, 1, {
+  test('organisation niveau 1 : limitée selon son palier', async ({ assert }) => {
+    await seedLevel(AccountSegment.ORGANISATION, 1, {
       single: 500_000,
       daily: 2_000_000,
       monthly: 20_000_000,
       balance: 5_000_000,
     })
-    const accountId = await makeAccount(AccountOwnerType.ORGANISATION, AccountSegment.MARCHAND, 1)
+    const accountId = await makeAccount(
+      AccountOwnerType.ORGANISATION,
+      AccountSegment.ORGANISATION,
+      1
+    )
 
     const standing = await app.container.make(AccountStandingService)
     const result = await standing.getStanding(accountId)
 
-    assert.equal(result.segment, AccountSegment.MARCHAND)
+    assert.equal(result.segment, AccountSegment.ORGANISATION)
     assert.equal(result.limits.single, 500_000)
   })
 
-  test('compte enterprise niveau 2 : plafonds null = illimité', async ({ assert }) => {
-    await seedLevel(AccountSegment.ENTERPRISE, 2, {
+  test('organisation niveau 2 : plafonds null = illimité', async ({ assert }) => {
+    await seedLevel(AccountSegment.ORGANISATION, 2, {
       single: null,
       daily: null,
       monthly: null,
       balance: null,
     })
-    const accountId = await makeAccount(AccountOwnerType.ORGANISATION, AccountSegment.ENTERPRISE, 2)
+    const accountId = await makeAccount(
+      AccountOwnerType.ORGANISATION,
+      AccountSegment.ORGANISATION,
+      2
+    )
 
     const standing = await app.container.make(AccountStandingService)
     const result = await standing.getStanding(accountId)
