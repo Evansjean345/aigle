@@ -106,7 +106,7 @@ test.group('Kyb admin | gardes de permission', (group) => {
     const response = await client
       .post(`${KYB_URL}/${id}/approve`)
       .bearerToken(token)
-      .json({ status: KycDocumentStatus.APPROVED })
+      .json({ comment: 'Pièces conformes, entreprise identifiée au registre.' })
 
     response.assertStatus(403)
   })
@@ -118,7 +118,7 @@ test.group('Kyb admin | gardes de permission', (group) => {
     const response = await client
       .post(`${KYB_URL}/${id}/reject`)
       .bearerToken(token)
-      .json({ status: KycDocumentStatus.REJECTED, comment: 'RCCM illisible' })
+      .json({ comment: 'RCCM illisible sur le numéro d’immatriculation.' })
 
     response.assertStatus(403)
   })
@@ -130,7 +130,7 @@ test.group('Kyb admin | gardes de permission', (group) => {
     const response = await client
       .post(`${KYB_URL}/${id}/approve`)
       .bearerToken(token)
-      .json({ status: KycDocumentStatus.APPROVED })
+      .json({ comment: 'Pièces conformes, entreprise identifiée au registre.' })
 
     response.assertStatus(204)
 
@@ -150,7 +150,7 @@ test.group('Kyb admin | gardes de permission', (group) => {
     const response = await client
       .post(`${KYB_URL}/${id}/reject`)
       .bearerToken(token)
-      .json({ status: KycDocumentStatus.REJECTED, comment: 'RCCM illisible' })
+      .json({ comment: 'RCCM illisible sur le numéro d’immatriculation.' })
 
     response.assertStatus(204)
 
@@ -168,11 +168,79 @@ test.group('Kyb admin | gardes de permission', (group) => {
     const response = await client
       .post(`${KYB_URL}/${id}/reject`)
       .bearerToken(token)
-      .json({ status: KycDocumentStatus.REJECTED })
+      .json({})
 
     response.assertStatus(422)
 
     const document = await KycDocument.findOrFail(id)
     assert.equal(document.status, KycDocumentStatus.PENDING)
+  })
+
+  test('une approbation sans motif est refusée : le motif vaut signature', async ({
+    client,
+    assert,
+  }) => {
+    const id = await seedFile()
+    const token = await makeAdminToken(await makeAdminRole([ORGANISATION_KYB_PERMISSIONS.approve]))
+
+    const response = await client.post(`${KYB_URL}/${id}/approve`).bearerToken(token).json({})
+
+    response.assertStatus(422)
+
+    const document = await KycDocument.findOrFail(id)
+    assert.equal(document.status, KycDocumentStatus.PENDING)
+  })
+
+  test('un motif trivial ne suffit pas', async ({ client }) => {
+    const id = await seedFile()
+    const token = await makeAdminToken(await makeAdminRole([ORGANISATION_KYB_PERMISSIONS.approve]))
+
+    const response = await client
+      .post(`${KYB_URL}/${id}/approve`)
+      .bearerToken(token)
+      .json({ comment: 'ok' })
+
+    response.assertStatus(422)
+  })
+
+  test('le corps ne peut plus contredire la route : /reject refuse, quoi qu’il porte', async ({
+    client,
+    assert,
+  }) => {
+    const id = await seedFile()
+    const token = await makeAdminToken(await makeAdminRole([ORGANISATION_KYB_PERMISSIONS.reject]))
+
+    // Le droit de refuser permettait d'approuver tant que la décision venait du corps.
+    const response = await client
+      .post(`${KYB_URL}/${id}/reject`)
+      .bearerToken(token)
+      .json({ status: KycDocumentStatus.APPROVED, comment: 'Tentative de contournement.' })
+
+    response.assertStatus(204)
+
+    const document = await KycDocument.findOrFail(id)
+    const account = await Account.query().where('account_id', document.accountId).firstOrFail()
+
+    assert.equal(document.status, KycDocumentStatus.REJECTED)
+    assert.equal(account.level, 0)
+  })
+
+  test('le corps ne peut plus contredire la route : /approve approuve, quoi qu’il porte', async ({
+    client,
+    assert,
+  }) => {
+    const id = await seedFile()
+    const token = await makeAdminToken(await makeAdminRole([ORGANISATION_KYB_PERMISSIONS.approve]))
+
+    const response = await client
+      .post(`${KYB_URL}/${id}/approve`)
+      .bearerToken(token)
+      .json({ status: KycDocumentStatus.REJECTED, comment: 'Tentative de contournement.' })
+
+    response.assertStatus(204)
+
+    const document = await KycDocument.findOrFail(id)
+
+    assert.equal(document.status, KycDocumentStatus.APPROVED)
   })
 })

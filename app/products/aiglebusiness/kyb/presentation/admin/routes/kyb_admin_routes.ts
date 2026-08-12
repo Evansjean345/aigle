@@ -18,17 +18,22 @@ const adminKybRoutes = () => {
         .get('/', [KybAdminController, 'index'])
         .use(middleware.permission([ORGANISATION_KYB_PERMISSIONS.read]))
 
+      // Avant `/:id`, sinon « stats » serait pris pour un identifiant de dossier.
+      router
+        .get('/stats', [KybAdminController, 'stats'])
+        .use(middleware.permission([ORGANISATION_KYB_PERMISSIONS.read]))
+
       router
         .get('/:id', [KybAdminController, 'show'])
         .use(middleware.permission([ORGANISATION_KYB_PERMISSIONS.read]))
 
       router
-        .post('/:id/approve', [KybAdminController, 'process'])
+        .post('/:id/approve', [KybAdminController, 'approve'])
         .as('kyb_admin.approve')
         .use(middleware.permission([ORGANISATION_KYB_PERMISSIONS.approve]))
 
       router
-        .post('/:id/reject', [KybAdminController, 'process'])
+        .post('/:id/reject', [KybAdminController, 'reject'])
         .as('kyb_admin.reject')
         .use(middleware.permission([ORGANISATION_KYB_PERMISSIONS.reject]))
     })

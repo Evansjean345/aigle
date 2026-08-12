@@ -1,23 +1,16 @@
 import vine from '@vinejs/vine'
 import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 
-/** Décisions qu'un gestionnaire peut appliquer à un dossier. */
-const DECISIONS = [KycDocumentStatus.APPROVED, KycDocumentStatus.REJECTED]
-
 /**
- * Décision de revue sur un dossier d'entreprise.
+ * Motif de la décision de revue.
  *
- * Le motif est obligatoire pour un refus : l'entreprise doit savoir quelle pièce reprendre.
+ * Requis et non trivial des deux côtés : un refus dit à l'entreprise quelle pièce reprendre, une
+ * approbation lève ses plafonds et vaut signature du gestionnaire. La décision elle-même vient de
+ * la route empruntée, jamais du corps.
  */
 export const processKybFileValidator = vine.create(
   vine.object({
-    status: vine.enum(DECISIONS),
-    comment: vine
-      .string()
-      .trim()
-      .minLength(1)
-      .optional()
-      .requiredWhen('status', '=', KycDocumentStatus.REJECTED),
+    comment: vine.string().trim().minLength(10).maxLength(500),
   })
 )
 
