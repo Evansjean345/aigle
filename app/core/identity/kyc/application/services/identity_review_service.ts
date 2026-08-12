@@ -79,7 +79,7 @@ export default class IdentityReviewService {
    * @returns {Promise<KycStatsResult>} Les compteurs par statut, type de pièce et journée.
    */
   async getStats(): Promise<KycStatsResult> {
-    return this.kycDocumentRepository.getStats()
+    return this.kycDocumentRepository.getStats(AccountOwnerType.USER)
   }
 
   /**

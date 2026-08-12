@@ -90,6 +90,35 @@ test.group('Kyc | File de revue', (group) => {
     assert.notInclude(ids, approved.id)
   })
 
+  test('les compteurs ignorent les dossiers d’entreprise', async ({ assert }) => {
+    await KycDocument.query().delete()
+
+    await seedDocument(AccountOwnerType.USER, KycDocumentStatus.PENDING)
+    await seedDocument(AccountOwnerType.ORGANISATION, KycDocumentStatus.PENDING)
+    await seedDocument(AccountOwnerType.ORGANISATION, KycDocumentStatus.APPROVED)
+
+    const stats = await repository.getStats(AccountOwnerType.USER)
+
+    // Sans filtre, la revue des identités affichait les dossiers d'entreprise dans ses compteurs.
+    assert.equal(stats.total, 1)
+    assert.equal(stats.pending, 1)
+    assert.equal(stats.verified, 0)
+  })
+
+  test('un dossier en constitution est compté, sinon le total ne somme pas', async ({ assert }) => {
+    await KycDocument.query().delete()
+
+    await seedDocument(AccountOwnerType.USER, KycDocumentStatus.IN_SUBMISSION)
+    await seedDocument(AccountOwnerType.USER, KycDocumentStatus.PENDING)
+    await seedDocument(AccountOwnerType.USER, KycDocumentStatus.APPROVED)
+    await seedDocument(AccountOwnerType.USER, KycDocumentStatus.REJECTED)
+
+    const stats = await repository.getStats(AccountOwnerType.USER)
+
+    assert.equal(stats.inSubmission, 1)
+    assert.equal(stats.total, stats.pending + stats.verified + stats.rejected + stats.inSubmission)
+  })
+
   // La recherche par porteur (`whereHas('user')`) est inutilisable : `kyc_documents.user_id` et
   // `users.users_uid` n'ont pas la même collation et MySQL refuse la jointure. Défaut antérieur à ce
   // lot, tracé en R15 — aucun test ne le couvre ici tant qu'il n'est pas corrigé.
