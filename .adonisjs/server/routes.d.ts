@@ -90,6 +90,7 @@ export type ScannedRoutes = {
     'admin_organisations.freeze_wallet': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.unfreeze_wallet': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyb_admin.index': { paramsTuple?: []; params?: {} }
+    'kyb_admin.stats': { paramsTuple?: []; params?: {} }
     'kyb_admin.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyb_admin.approve': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyb_admin.reject': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
@@ -265,6 +266,7 @@ export type ScannedRoutes = {
     'admin_organisations.roles': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.wallet_stats': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyb_admin.index': { paramsTuple?: []; params?: {} }
+    'kyb_admin.stats': { paramsTuple?: []; params?: {} }
     'kyb_admin.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyc_level.index': { paramsTuple?: []; params?: {} }
     'kyc.index': { paramsTuple?: []; params?: {} }
@@ -368,6 +370,7 @@ export type ScannedRoutes = {
     'admin_organisations.roles': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'admin_organisations.wallet_stats': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyb_admin.index': { paramsTuple?: []; params?: {} }
+    'kyb_admin.stats': { paramsTuple?: []; params?: {} }
     'kyb_admin.show': { paramsTuple: [ParamValue]; params: {'id': ParamValue} }
     'kyc_level.index': { paramsTuple?: []; params?: {} }
     'kyc.index': { paramsTuple?: []; params?: {} }

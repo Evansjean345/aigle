@@ -1,0 +1,373 @@
+paths:
+  /api/admin/kyb:
+    get:
+      tags: [Admin - Vérification entreprise]
+      summary: Lister les dossiers de vérification d'entreprise
+      description: >
+        File de revue des dossiers d'organisation. Ne ramène que les dossiers portés par un compte
+        d'organisation : les pièces d'identité relèvent de l'écran KYC, qui a ses propres droits.
+
+
+        Chaque dossier porte l'entreprise qui l'a déposé, composée par le produit : le core ne
+        connaît que le compte.
+
+
+        Les pièces ne sont pas signées en liste — `fileKey` est une clé de stockage privé, sans
+        `url`. Ouvrir le détail d'un dossier pour obtenir des liens consultables.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: query
+          name: status
+          required: false
+          description: Restreint la file à un statut de dossier.
+          schema:
+            type: string
+            enum: [pending, approved, rejected, in_submission]
+          example: pending
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: perPage
+          required: false
+          schema: { type: integer, minimum: 1, default: 20 }
+      responses:
+        '200':
+          description: Page de la file de revue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminKybDocument' }
+                  meta:
+                    type: object
+                    description: Métadonnées de pagination, telles que le paginateur les produit.
+              example:
+                data:
+                  - id: 412
+                    accountId: 9f1c4e2a-4b77-4f0e-9a3c-2b8d5e6f7a01
+                    ownerType: ORGANISATION
+                    organisation:
+                      organisationId: 9f1c4e2a-4b77-4f0e-9a3c-2b8d5e6f7a01
+                      name: Sahel Logistique SARL
+                      accountType: ENTERPRISE
+                    status: pending
+                    nextAction: IN_REVIEW
+                    createdAt: '2026-08-11T09:14:22.000+00:00'
+                    pieces:
+                      - pieceType: RCCM
+                        fileKey: kyb/9f1c4e2a/rccm-8a3f.jpg
+                        reference: CI-ABJ-2020-B-12345
+                        isPublicUrl: false
+                      - pieceType: DFE
+                        fileKey: kyb/9f1c4e2a/dfe-11c7.jpg
+                        reference: '1849271 T'
+                        isPublicUrl: false
+                meta:
+                  total: 1
+                  perPage: 20
+                  currentPage: 1
+                  lastPage: 1
+        '401':
+          description: Jeton absent ou invalide
+        '403':
+          description: Permission `organisations.kyb.read` absente
+        '422':
+          description: Paramètre de filtre invalide
+
+  /api/admin/kyb/stats:
+    get:
+      tags: [Admin - Vérification entreprise]
+      summary: Compter les dossiers de la file
+      description: >
+        Nombre de dossiers d'entreprise par statut. Ne compte que les dossiers d'organisation : les
+        pièces d'identité relèvent de l'écran KYC, qui tient ses propres compteurs.
+
+
+        Un seul appel agrégé — la file n'a pas à être parcourue statut par statut.
+      security: [{ BearerAuth: [] }]
+      responses:
+        '200':
+          description: Compteurs de la file
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminKybStats' }
+              example:
+                total: 5
+                pending: 1
+                inSubmission: 1
+                approved: 2
+                rejected: 1
+        '401':
+          description: Jeton absent ou invalide
+        '403':
+          description: Permission `organisations.kyb.read` absente
+
+  /api/admin/kyb/{id}:
+    get:
+      tags: [Admin - Vérification entreprise]
+      summary: Consulter un dossier d'entreprise
+      description: >
+        Rend le dossier, ses pièces signées et le niveau que porte réellement le compte.
+
+
+        `accountLevel` accompagne le dossier parce que la montée de palier suit l'approbation de
+        façon asynchrone. `levelMismatch` vaut `true` quand un dossier approuvé fait face à un
+        compte resté au niveau bloquant : le report n'a pas eu lieu et le cas demande une reprise.
+
+
+        Les URL de pièces sont signées et expirent — les régénérer en rouvrant le dossier plutôt
+        que les stocker.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: Identifiant du dossier.
+          schema: { type: integer }
+          example: 412
+      responses:
+        '200':
+          description: Dossier et état du compte
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminKybReview' }
+              example:
+                document:
+                  id: 412
+                  accountId: 9f1c4e2a-4b77-4f0e-9a3c-2b8d5e6f7a01
+                  ownerType: ORGANISATION
+                  organisation:
+                    organisationId: 9f1c4e2a-4b77-4f0e-9a3c-2b8d5e6f7a01
+                    name: Sahel Logistique SARL
+                    accountType: ENTERPRISE
+                  status: pending
+                  nextAction: IN_REVIEW
+                  createdAt: '2026-08-11T09:14:22.000+00:00'
+                  pieces:
+                    - pieceType: RCCM
+                      fileKey: kyb/9f1c4e2a/rccm-8a3f.jpg
+                      reference: CI-ABJ-2020-B-12345
+                      isPublicUrl: false
+                      url: https://s3.eu-west-3.amazonaws.com/aigle/kyb/9f1c4e2a/rccm-8a3f.jpg?X-Amz-Signature=...
+                    - pieceType: DFE
+                      fileKey: kyb/9f1c4e2a/dfe-11c7.jpg
+                      reference: '1849271 T'
+                      isPublicUrl: false
+                      url: https://s3.eu-west-3.amazonaws.com/aigle/kyb/9f1c4e2a/dfe-11c7.jpg?X-Amz-Signature=...
+                accountLevel: 0
+                levelMismatch: false
+        '401':
+          description: Jeton absent ou invalide
+        '403':
+          description: Permission `organisations.kyb.read` absente
+        '404':
+          description: Dossier inconnu
+
+  /api/admin/kyb/{id}/approve:
+    post:
+      tags: [Admin - Vérification entreprise]
+      summary: Approuver un dossier d'entreprise
+      description: >
+        Valide le dossier, ce qui porte le compte à son palier et lève les plafonds qui bloquaient
+        les mouvements de l'entreprise. La montée de niveau est déclenchée par un événement : elle
+        suit l'approbation sans la bloquer, et se relit sur le détail du dossier.
+
+
+        La décision vient de la route, jamais du corps : un corps qui la contredirait ferait
+        franchir une garde au nom d'une autre. Demande la permission `organisations.kyb.approve`,
+        distincte de `organisations.kyb.read` et de `organisations.kyb.reject`.
+
+
+        Le motif est obligatoire : il vaut signature du gestionnaire et reste à l'historique des
+        décisions, avec son auteur et le numéro de la tentative.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+          example: 412
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminKybDecision' }
+            example:
+              comment: Pièces conformes, entreprise identifiée au registre.
+      responses:
+        '204':
+          description: Décision appliquée, sans contenu
+        '401':
+          description: Jeton absent ou invalide
+        '403':
+          description: Permission `organisations.kyb.approve` absente
+        '404':
+          description: Dossier inconnu
+        '422':
+          description: Motif absent, plus court que 10 caractères ou plus long que 500
+
+  /api/admin/kyb/{id}/reject:
+    post:
+      tags: [Admin - Vérification entreprise]
+      summary: Refuser un dossier d'entreprise
+      description: >
+        Rejette le dossier avec motif et rouvre la soumission. Le niveau du compte reste inchangé.
+
+
+        Le motif est obligatoire : sans lui, l'entreprise ne sait pas quelle pièce reprendre. Il est
+        conservé sur le dossier et restitué au déposant.
+
+
+        Demande la permission `organisations.kyb.reject`, distincte de `organisations.kyb.approve` —
+        un gestionnaire peut être habilité à écarter un dossier incomplet sans pouvoir lever les
+        plafonds d'une entreprise.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+          example: 412
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AdminKybDecision' }
+            example:
+              comment: RCCM illisible, merci de redéposer une photo nette.
+      responses:
+        '204':
+          description: Décision appliquée, sans contenu
+        '401':
+          description: Jeton absent ou invalide
+        '403':
+          description: Permission `organisations.kyb.reject` absente
+        '404':
+          description: Dossier inconnu
+        '422':
+          description: Motif absent, plus court que 10 caractères ou plus long que 500
+
+components:
+  schemas:
+    AdminKybPiece:
+      type: object
+      description: >
+        Pièce d'un dossier. `fileKey` est une clé de stockage privé ; `url` n'est renseignée qu'au
+        détail d'un dossier, où elle est signée et temporaire.
+      properties:
+        pieceType:
+          type: string
+          enum: [RCCM, DFE]
+        fileKey:
+          type: string
+          example: kyb/9f1c4e2a/rccm-8a3f.jpg
+        reference:
+          type: string
+          description: Numéro porté par la pièce.
+          example: CI-ABJ-2020-B-12345
+        isPublicUrl:
+          type: boolean
+          description: >
+            Vrai pour un dossier antérieur à la bascule vers le stockage privé, dont `fileKey` est
+            déjà une URL consultable.
+        url:
+          type: string
+          description: URL signée, absente en liste.
+
+    AdminKybStats:
+      type: object
+      description: Nombre de dossiers d'entreprise par statut.
+      properties:
+        total: { type: integer, example: 5 }
+        pending: { type: integer, description: Dossiers complets en attente de revue, example: 1 }
+        inSubmission: { type: integer, description: Dossiers dont une pièce manque encore, example: 1 }
+        approved: { type: integer, example: 2 }
+        rejected: { type: integer, example: 1 }
+
+    AdminKybOrganisation:
+      type: object
+      nullable: true
+      description: >
+        Entreprise porteuse du dossier. Le core ne connaît que `accountId` : c'est le produit qui
+        nomme l'organisation, en composant les deux lectures. Nulle si l'organisation ne se
+        retrouve pas — le dossier reste consultable.
+      properties:
+        organisationId: { type: string, format: uuid }
+        name: { type: string, example: Sahel Logistique SARL }
+        accountType: { type: string, enum: [ENTERPRISE] }
+
+    AdminKybDocument:
+      type: object
+      properties:
+        id: { type: integer, example: 412 }
+        organisation: { $ref: '#/components/schemas/AdminKybOrganisation' }
+        accountId:
+          type: string
+          format: uuid
+          description: Compte d'organisation porteur du dossier.
+        ownerType:
+          type: string
+          enum: [ORGANISATION]
+        status:
+          type: string
+          enum: [pending, approved, rejected, in_submission]
+        nextAction:
+          type: string
+          description: Pièce attendue ensuite, ou `IN_REVIEW` quand le dossier est complet.
+        comment:
+          type: string
+          description: Motif de la dernière décision, renseigné après un refus.
+        createdAt:
+          type: string
+          format: date-time
+        pieces:
+          type: array
+          items: { $ref: '#/components/schemas/AdminKybPiece' }
+        agent:
+          type: object
+          description: Gestionnaire ayant traité le dossier.
+          properties:
+            id: { type: integer }
+            firstname: { type: string }
+            lastname: { type: string }
+            email: { type: string, format: email }
+        attempts:
+          type: array
+          description: Historique des décisions prises sur le dossier.
+          items: { type: object }
+
+    AdminKybReview:
+      type: object
+      properties:
+        document: { $ref: '#/components/schemas/AdminKybDocument' }
+        accountLevel:
+          type: integer
+          nullable: true
+          description: Niveau réel du compte au moment de la lecture.
+          example: 0
+        levelMismatch:
+          type: boolean
+          description: >
+            Vrai quand le dossier est approuvé mais que le compte n'a pas atteint son niveau : le
+            report de palier n'a pas eu lieu.
+
+    AdminKybDecision:
+      type: object
+      description: >
+        Corps d'une décision. La décision elle-même vient de la route empruntée — ce corps ne porte
+        que son motif.
+      required: [comment]
+      properties:
+        comment:
+          type: string
+          minLength: 10
+          maxLength: 500
+          description: >
+            Motif de la décision, requis des deux côtés : un refus dit à l'entreprise quelle pièce
+            reprendre, une approbation vaut signature du gestionnaire.
+          example: RCCM illisible, merci de redéposer une photo nette.

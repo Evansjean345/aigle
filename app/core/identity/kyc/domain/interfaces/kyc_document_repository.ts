@@ -11,6 +11,12 @@ export interface DocumentPieceInput {
   reference?: string
 }
 
+/** Selfie d'un compte, tel qu'il est stocké. */
+export interface SelfiePieceRef {
+  fileKey: string
+  isPublicUrl: boolean
+}
+
 export default abstract class KycDocumentRepository {
   /**
    * Charge le dossier de vérification d'un compte.
@@ -61,7 +67,7 @@ export default abstract class KycDocumentRepository {
   /**
    * Get KYC statistics
    */
-  abstract getStats(): Promise<any>
+  abstract getStats(ownerType?: string): Promise<any>
 
   /**
    * Find KYC document by ID
@@ -85,4 +91,25 @@ export default abstract class KycDocumentRepository {
    * Count KYC documents by status
    */
   abstract countByStatus(status: KycDocumentStatus): Promise<number>
+
+  /**
+   * Compte les dossiers d'une nature donnée, ventilés par statut.
+   *
+   * Une seule requête agrégée : compter statut par statut multiplierait les allers-retours pour un
+   * résultat que la base sait produire d'un coup.
+   *
+   * @param {string} ownerType - Nature des dossiers comptés (utilisateur ou organisation).
+   * @returns {Promise<Record<string, number>>} Le compte par statut, statuts absents omis.
+   */
+  abstract countByStatusForOwnerType(ownerType: string): Promise<Record<string, number>>
+
+  /**
+   * Rend le selfie de chaque compte demandé, en une requête.
+   *
+   * Sert les listes qui affichent une photo : les charger un par un ferait un N+1 sur chaque page.
+   *
+   * @param {string[]} accountIds - Comptes dont on cherche le selfie.
+   * @returns {Promise<Map<string, SelfiePieceRef>>} Le selfie par compte, comptes sans selfie omis.
+   */
+  abstract findSelfiePiecesByAccountIds(accountIds: string[]): Promise<Map<string, SelfiePieceRef>>
 }

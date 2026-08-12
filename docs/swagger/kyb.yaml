@@ -6,18 +6,18 @@ info:
 paths:
   /api/business/organisations/{organisationId}/kyb/pieces:
     post:
-      tags: [Business - Vérification]
+      tags: [Business - KYB]
       summary: Déposer une pièce au dossier de vérification
       description: >
         Une pièce par requête. L'entreprise dépose ce qu'elle a, quand elle l'a : le dossier reste en
         constitution tant qu'une pièce requise manque, et n'entre en revue qu'une fois complet.
         Réservé aux organisations de type entreprise.
-      security: [{ bearerAuth: [] }]
+      security: [{ BearerAuth: [] }]
       parameters:
-        - in: path
-          name: organisationId
-          required: true
-          schema: { type: string }
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+        - $ref: '#/components/parameters/OrganisationId'
       requestBody:
         required: true
         content:
@@ -43,28 +43,32 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/KybSubmission' }
         '400':
-          description: Pièce hors catalogue, ou compte ne passant aucune vérification
+          $ref: '#/components/responses/ChannelRequired'
+        '422':
+          description: Pièce hors catalogue, référence vide, ou fichier hors format
         '403':
           description: Permission kyb:submit absente, ou organisation non entreprise
 
   /api/business/organisations/{organisationId}/kyb:
     get:
-      tags: [Business - Vérification]
+      tags: [Business - KYB]
       summary: Consulter l'état du dossier
-      security: [{ bearerAuth: [] }]
+      security: [{ BearerAuth: [] }]
       parameters:
-        - in: path
-          name: organisationId
-          required: true
-          schema: { type: string }
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+        - $ref: '#/components/parameters/OrganisationId'
       responses:
         '200':
           description: État du dossier
           content:
             application/json:
               schema: { $ref: '#/components/schemas/KybFile' }
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
         '403':
-          description: Permission kyb:view absente
+          description: Permission kyb:view absente, ou organisation non entreprise
 
 components:
   schemas:

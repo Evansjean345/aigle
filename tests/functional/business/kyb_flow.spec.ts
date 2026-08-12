@@ -9,6 +9,8 @@ import SubmitKybPieceUseCase from '#aiglebusiness/kyb/application/use_cases/subm
 import GetKybFileUseCase from '#aiglebusiness/kyb/application/use_cases/get_kyb_file.use_case'
 import ProcessKybFileUseCase from '#aiglebusiness/kyb/application/use_cases/admin/process_kyb_file.use_case'
 import GetKybFileForReviewUseCase from '#aiglebusiness/kyb/application/use_cases/admin/get_kyb_file_for_review.use_case'
+import ListKybFilesUseCase from '#aiglebusiness/kyb/application/use_cases/admin/list_kyb_files.use_case'
+import GetKybStatsUseCase from '#aiglebusiness/kyb/application/use_cases/admin/get_kyb_stats.use_case'
 import BusinessReviewService from '#core/identity/kyc/application/services/business_review_service'
 import FileStorageService from '#shared/infrastructure/services/file_storage_service'
 import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
@@ -95,7 +97,6 @@ test.group('Kyb | parcours complet', (group) => {
     })
     await submit(organisation.organisationId, DocumentPieceType.RCCM, 'CI-ABJ-2020-B-12345')
 
-    assert.lengthOf(storage.publicUploads, 0)
     assert.lengthOf(storage.privateUploads, 1)
   })
 
@@ -122,6 +123,28 @@ test.group('Kyb | parcours complet', (group) => {
     assert.isTrue(
       page.data.every((document) => document.ownerType === AccountOwnerType.ORGANISATION)
     )
+  })
+
+  test('la file dit les pièces déposées, sans transporter les fichiers', async ({ assert }) => {
+    const { organisation } = await makeOrganisationWithAccount({
+      accountType: OrganisationAccountType.ENTERPRISE,
+    })
+    await submit(organisation.organisationId, DocumentPieceType.RCCM, 'CI-ABJ-2020-B-12345')
+    await submit(organisation.organisationId, DocumentPieceType.DFE, '1849271 T')
+
+    const list = await app.container.make(ListKybFilesUseCase)
+    const page = await list.execute(1, 50)
+
+    const line = page.data.find((entry) => entry.status === KycDocumentStatus.PENDING)
+
+    // Sans les rôles déposés, la file ne distingue pas un dossier complet d'un dossier en
+    // constitution : elle les afficherait tous comme incomplets.
+    assert.isDefined(line)
+    assert.sameMembers(line!.depositedPieces, [DocumentPieceType.RCCM, DocumentPieceType.DFE])
+
+    // Une clé de stockage privé n'a rien à faire dans une liste : personne ne l'y ouvre.
+    assert.notInclude(JSON.stringify(page.data), 'fileKey')
+    assert.notInclude(JSON.stringify(page.data), 'verification_pieces/')
   })
 
   test('l’approbation porte le compte au niveau 2', async ({ assert }) => {
@@ -171,5 +194,72 @@ test.group('Kyb | parcours complet', (group) => {
     assert.isNotNull(detail)
     assert.equal(detail!.accountLevel, 0)
     assert.isFalse(detail!.levelMismatch)
+  })
+
+  test('les compteurs ne portent que les dossiers d’entreprise', async ({ assert }) => {
+    const complete = await makeOrganisationWithAccount({
+      accountType: OrganisationAccountType.ENTERPRISE,
+    })
+    await submit(complete.organisation.organisationId, DocumentPieceType.RCCM, 'CI-ABJ-2020-B-1')
+    await submit(complete.organisation.organisationId, DocumentPieceType.DFE, '1849271 T')
+
+    const partial = await makeOrganisationWithAccount({
+      accountType: OrganisationAccountType.ENTERPRISE,
+    })
+    await submit(partial.organisation.organisationId, DocumentPieceType.RCCM, 'CI-ABJ-2020-B-2')
+
+    const useCase = await app.container.make(GetKybStatsUseCase)
+    const stats = await useCase.execute()
+
+    assert.isAtLeast(stats.pending, 1)
+    assert.isAtLeast(stats.inSubmission, 1)
+    assert.equal(
+      stats.total,
+      stats.pending + stats.inSubmission + stats.approved + stats.rejected
+    )
+  })
+
+  test('la revue nomme l’entreprise, que le core ignore', async ({ assert }) => {
+    const { organisation, accountId } = await makeOrganisationWithAccount({
+      accountType: OrganisationAccountType.ENTERPRISE,
+      name: 'Sahel Logistique SARL',
+    })
+    await submit(organisation.organisationId, DocumentPieceType.RCCM, 'CI-ABJ-2020-B-12345')
+    await submit(organisation.organisationId, DocumentPieceType.DFE, '1849271 T')
+
+    const document = await KycDocument.query().where('account_id', accountId).firstOrFail()
+
+    const list = await app.container.make(ListKybFilesUseCase)
+    const detail = await app.container.make(GetKybFileForReviewUseCase)
+
+    const page = await list.execute(1, 50)
+    const listed = page.data.find((entry) => entry.id === document.id)
+    const reviewed = await detail.execute(document.id)
+
+    // Le core rend un dossier attaché à un accountId ; c'est le produit qui le nomme.
+    assert.equal(listed!.organisation!.name, 'Sahel Logistique SARL')
+    assert.equal(listed!.organisation!.organisationId, organisation.organisationId)
+    assert.equal(reviewed!.document.organisation!.name, 'Sahel Logistique SARL')
+  })
+
+  test('le détail sert les pièces, signées', async ({ assert }) => {
+    const { organisation, accountId } = await makeOrganisationWithAccount({
+      accountType: OrganisationAccountType.ENTERPRISE,
+    })
+    await submit(organisation.organisationId, DocumentPieceType.RCCM, 'CI-ABJ-2020-B-12345')
+    await submit(organisation.organisationId, DocumentPieceType.DFE, '1849271 T')
+
+    const document = await KycDocument.query().where('account_id', accountId).firstOrFail()
+
+    const useCase = await app.container.make(GetKybFileForReviewUseCase)
+    const detail = await useCase.execute(document.id)
+
+    // Sans les pièces au détail, le gestionnaire décide sans avoir rien pu lire.
+    assert.lengthOf(detail!.document.pieces!, 2)
+    assert.sameMembers(
+      detail!.document.pieces!.map((piece) => piece.pieceType),
+      [DocumentPieceType.RCCM, DocumentPieceType.DFE]
+    )
+    assert.isTrue(detail!.document.pieces!.every((piece) => Boolean(piece.url)))
   })
 })

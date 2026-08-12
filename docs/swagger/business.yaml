@@ -1659,7 +1659,7 @@ paths:
 
         Les plus récemment vus d'abord.
       tags:
-        - Business - Appareils
+        - Business - Devices
       security:
         - BearerAuth: []
       parameters:
@@ -1696,7 +1696,7 @@ paths:
 
         Utilisable **depuis le web** : c'est le chemin quand le téléphone à retirer est perdu.
       tags:
-        - Business - Appareils
+        - Business - Devices
       security:
         - BearerAuth: []
       parameters:

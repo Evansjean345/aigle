@@ -101,6 +101,10 @@ const adminOptions: swaggerJsdoc.Options = {
       { name: 'Admin - Rôles', description: 'Gestion des rôles' },
       { name: 'Admin - Permissions', description: 'Gestion des permissions' },
       { name: 'Admin - Organisations', description: 'Consultation des organisations business' },
+      {
+        name: 'Admin - Vérification entreprise',
+        description: 'Revue des dossiers KYB : consultation, approbation, refus',
+      },
     ],
   },
   apis: [
@@ -116,6 +120,7 @@ const adminOptions: swaggerJsdoc.Options = {
     path.join(docsDir, 'funding.yaml'),
     path.join(docsDir, 'mass-transfers.yaml'),
     path.join(docsDir, 'organisations.yaml'),
+    path.join(docsDir, 'admin-kyb.yaml'),
   ],
 }
 
@@ -151,7 +156,11 @@ const aiglebusinessOptions: swaggerJsdoc.Options = {
       },
       { name: 'QR marchand', description: 'Résolution publique du QR marchand (page de paiement)' },
       {
-        name: 'Business - Vérification',
+        name: 'Business - Devices',
+        description: 'Appareils liés au compte business : liste, retrait, jeton push',
+      },
+      {
+        name: 'Business - KYB',
         description: 'Dossier KYB de l’entreprise : dépôt des pièces et état',
       },
       { name: 'Business - Santé', description: 'Liveness du module business' },

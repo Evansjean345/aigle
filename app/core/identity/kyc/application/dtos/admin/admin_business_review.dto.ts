@@ -13,3 +13,17 @@ export interface BusinessReviewResult {
   /** Vrai quand le dossier est approuvé mais que le compte n'a pas atteint son niveau. */
   levelMismatch: boolean
 }
+
+/**
+ * Compteurs de la file de revue des entreprises.
+ *
+ * Ne comptent que les dossiers d'organisation : les pièces d'identité relèvent de l'écran KYC, qui
+ * tient les siens.
+ */
+export interface BusinessReviewStatsResult {
+  total: number
+  pending: number
+  inSubmission: number
+  approved: number
+  rejected: number
+}

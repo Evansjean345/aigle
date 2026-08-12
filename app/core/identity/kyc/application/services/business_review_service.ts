@@ -11,7 +11,10 @@ import {
   type KycDocumentResult,
   type PaginatedKycDocumentsResult,
 } from '#core/identity/kyc/application/dtos/admin/admin_kyc_document.dto'
-import type { BusinessReviewResult } from '#core/identity/kyc/application/dtos/admin/admin_business_review.dto'
+import type {
+  BusinessReviewResult,
+  BusinessReviewStatsResult,
+} from '#core/identity/kyc/application/dtos/admin/admin_business_review.dto'
 
 /**
  * Consultation des dossiers d'entreprise.
@@ -48,6 +51,27 @@ export default class BusinessReviewService {
     return {
       data: paginated.all().map(toKycDocumentResult),
       meta: paginated.getMeta(),
+    }
+  }
+
+  /**
+   * Compte les dossiers d'entreprise, ventilés par statut.
+   *
+   * @returns {Promise<BusinessReviewStatsResult>} Les compteurs de la file.
+   */
+  async stats(): Promise<BusinessReviewStatsResult> {
+    const counts = await this.kycDocumentRepository.countByStatusForOwnerType(
+      AccountOwnerType.ORGANISATION
+    )
+
+    const countOf = (status: KycDocumentStatus) => counts[status] ?? 0
+
+    return {
+      total: Object.values(counts).reduce((sum, count) => sum + count, 0),
+      pending: countOf(KycDocumentStatus.PENDING),
+      inSubmission: countOf(KycDocumentStatus.IN_SUBMISSION),
+      approved: countOf(KycDocumentStatus.APPROVED),
+      rejected: countOf(KycDocumentStatus.REJECTED),
     }
   }
 

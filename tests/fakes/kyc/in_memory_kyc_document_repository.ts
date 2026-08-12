@@ -3,7 +3,7 @@ import type { DocumentPieceInput } from '#core/identity/kyc/domain/interfaces/ky
 import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import DocumentPiece from '#core/identity/kyc/domain/models/document_piece'
 import type { KycAttemp } from '#core/identity/kyc/domain/models/kyc_attemp'
-import { type KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
+import { DocumentPieceType, type KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 
 /**
  * Dépôt de dossiers en mémoire, pour les tests qui n'ont pas à toucher la base.
@@ -105,6 +105,39 @@ export default class InMemoryKycDocumentRepository implements KycDocumentReposit
 
   async countByStatus(status: KycDocumentStatus): Promise<number> {
     return this.documents.filter((document) => document.status === status).length
+  }
+
+  async findSelfiePiecesByAccountIds(
+    accountIds: string[]
+  ): Promise<Map<string, { fileKey: string; isPublicUrl: boolean }>> {
+    const wanted = new Set(accountIds)
+    const found = new Map<string, { fileKey: string; isPublicUrl: boolean }>()
+
+    for (const document of this.documents) {
+      if (!wanted.has(document.accountId)) continue
+
+      const selfie = document.pieces?.find(
+        (piece) => piece.pieceType === DocumentPieceType.SELFIE
+      )
+
+      if (selfie) {
+        found.set(document.accountId, {
+          fileKey: selfie.fileKey,
+          isPublicUrl: Boolean(selfie.isPublicUrl),
+        })
+      }
+    }
+
+    return found
+  }
+
+  async countByStatusForOwnerType(ownerType: string): Promise<Record<string, number>> {
+    return this.documents
+      .filter((document) => document.ownerType === ownerType)
+      .reduce<Record<string, number>>((counts, document) => {
+        counts[document.status] = (counts[document.status] ?? 0) + 1
+        return counts
+      }, {})
   }
 
   /** Range le dossier, en lui attribuant un identifiant s'il n'en a pas encore. */

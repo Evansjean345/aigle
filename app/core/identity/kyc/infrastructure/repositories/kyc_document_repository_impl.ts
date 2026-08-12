@@ -1,8 +1,15 @@
 import type KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
-import type { DocumentPieceInput } from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
+import type {
+  DocumentPieceInput,
+  SelfiePieceRef,
+} from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import DocumentPiece from '#core/identity/kyc/domain/models/document_piece'
-import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
+import {
+  DocumentPieceType,
+  KycDocumentStatus,
+  KycDocumentType,
+} from '#core/identity/kyc/domain/enum/kyc_enum'
 import db from '@adonisjs/lucid/services/db'
 import { KycAttemp } from '#core/identity/kyc/domain/models/kyc_attemp'
 
@@ -87,7 +94,7 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
       endDate?: string
     }
   ): Promise<any> {
-    const query = KycDocument.query().preload('user').preload('agent')
+    const query = KycDocument.query().preload('user').preload('agent').preload('pieces')
 
     if (filters?.status) {
       query.where('status', filters.status)
@@ -137,9 +144,10 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
    *   - `PASSPORT` (number): Count of documents with type "PASSPORT".
    *   - `PERMIT_CONDUIT` (number): Count of documents with type "PERMIT_CONDUIT".
    */
-  async getStats(): Promise<any> {
+  async getStats(ownerType?: string): Promise<any> {
     const [allTime, today] = await Promise.all([
       KycDocument.query()
+        .if(ownerType, (query) => query.where('owner_type', ownerType!))
         .select(
           db.raw('COUNT(*) as total'),
           db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pending`, [
@@ -150,6 +158,9 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
           ]),
           db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as rejected`, [
             KycDocumentStatus.REJECTED,
+          ]),
+          db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_submission`, [
+            KycDocumentStatus.IN_SUBMISSION,
           ]),
           db.raw(`SUM(CASE WHEN document_type = ? THEN 1 ELSE 0 END) as cni`, [
             KycDocumentType.CNI,
@@ -165,6 +176,9 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
 
       KycAttemp.query()
         .whereRaw('DATE(created_at) = CURDATE()')
+        .if(ownerType, (query) =>
+          query.whereHas('kycDocument', (document) => document.where('owner_type', ownerType!))
+        )
         .select(
           db.raw(`SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as today_submitted`, [
             KycDocumentStatus.PENDING,
@@ -191,6 +205,7 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
       pending: Number(extras.pending || 0),
       verified: Number(extras.approved || 0),
       rejected: Number(extras.rejected || 0),
+      inSubmission: Number(extras.in_submission || 0),
       byDocumentType: {
         CNI: Number(extras.cni || 0),
         PASSPORT: Number(extras.passport || 0),
@@ -216,6 +231,7 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
       .where('id', id)
       .preload('agent')
       .preload('user')
+      .preload('pieces')
       .preload('attempts', (attemptQuery) => {
         attemptQuery.preload('agent').orderBy('createdAt', 'desc')
       })
@@ -255,5 +271,51 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
   async countByStatus(status: KycDocumentStatus): Promise<number> {
     const result = await KycDocument.query().where('status', status).count('* as total').first()
     return Number((result as any)?.$extras?.total ?? 0)
+  }
+
+  /**
+   * Compte les dossiers d'une nature donnée, ventilés par statut.
+   *
+   * @param {string} ownerType - Nature des dossiers comptés.
+   * @returns {Promise<Record<string, number>>} Le compte par statut.
+   */
+  /**
+   * Rend le selfie de chaque compte demandé, en une requête.
+   *
+   * @param {string[]} accountIds - Comptes dont on cherche le selfie.
+   * @returns {Promise<Map<string, SelfiePieceRef>>} Le selfie par compte.
+   */
+  async findSelfiePiecesByAccountIds(accountIds: string[]): Promise<Map<string, SelfiePieceRef>> {
+    if (accountIds.length === 0) return new Map()
+
+    const rows = await db
+      .from('document_pieces')
+      .join('kyc_documents', 'kyc_documents.id', 'document_pieces.kyc_document_id')
+      .whereIn('kyc_documents.account_id', accountIds)
+      .andWhere('document_pieces.piece_type', DocumentPieceType.SELFIE)
+      .select(
+        'kyc_documents.account_id as account_id',
+        'document_pieces.file_key as file_key',
+        'document_pieces.is_public_url as is_public_url'
+      )
+
+    return new Map(
+      rows.map((row: Record<string, unknown>) => [
+        String(row.account_id),
+        { fileKey: String(row.file_key), isPublicUrl: Boolean(row.is_public_url) },
+      ])
+    )
+  }
+
+  async countByStatusForOwnerType(ownerType: string): Promise<Record<string, number>> {
+    const rows = await KycDocument.query()
+      .where('owner_type', ownerType)
+      .select('status')
+      .count('* as total')
+      .groupBy('status')
+
+    return Object.fromEntries(
+      rows.map((row) => [row.status, Number((row as any).$extras?.total ?? 0)])
+    )
   }
 }
