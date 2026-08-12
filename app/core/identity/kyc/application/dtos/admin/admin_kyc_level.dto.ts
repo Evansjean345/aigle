@@ -39,6 +39,8 @@ export interface UpdateKycLevelCommand {
  */
 export interface KycLevelResult {
   id: number
+  /** Grille à laquelle ce palier appartient : c'est `(segment, level)` qui l'identifie, pas `level`. */
+  segment: string
   level: number
   singleLimit: number | null
   dailyLimit: number | null
@@ -52,6 +54,7 @@ export interface KycLevelResult {
 
 export const toKycLevelResult = (kycLevel: KycLevel): KycLevelResult => ({
   id: kycLevel.id,
+  segment: kycLevel.segment,
   level: kycLevel.level,
   singleLimit: kycLevel.singleLimit,
   dailyLimit: kycLevel.dailyLimit,

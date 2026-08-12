@@ -2,7 +2,8 @@ import { inject } from '@adonisjs/core'
 import { Exception } from '@adonisjs/core/exceptions'
 import KycLevel from '#core/identity/kyc/domain/models/kyc_level'
 import KycLevelRepository from '#core/identity/kyc/domain/interfaces/kyc_level_repository'
-import UserRepository from '#core/identity/user/domain/interfaces/user_repository'
+import KycLevelCache from '#core/identity/kyc/application/interfaces/kyc_level_cache'
+import AccountRepository from '#core/identity/account/domain/interfaces/account_repository'
 import KycLevelNotFoundException from '#core/identity/kyc/domain/exceptions/kyc_level_not_found_exception'
 import KycLevelAlreadyExistsException from '#core/identity/kyc/domain/exceptions/kyc_level_already_exists_exception'
 import {
@@ -22,7 +23,8 @@ import {
 export default class KycLevelService {
   constructor(
     private readonly kycLevelRepository: KycLevelRepository,
-    private readonly userRepository: UserRepository
+    private readonly accountRepository: AccountRepository,
+    private readonly kycLevelCache: KycLevelCache
   ) {}
 
   /**
@@ -108,6 +110,11 @@ export default class KycLevelService {
 
     await this.kycLevelRepository.save(kycLevel)
 
+    // Le cache tient 24 h : sans cette invalidation, les comptes garderaient les anciens plafonds
+    // toute une journée. Les deux couples sont purgés — le niveau lui-même peut avoir changé.
+    await this.kycLevelCache.invalidate(before.segment, before.level)
+    await this.kycLevelCache.invalidate(kycLevel.segment, kycLevel.level)
+
     return { before, after: toKycLevelResult(kycLevel) }
   }
 
@@ -128,17 +135,23 @@ export default class KycLevelService {
       throw new KycLevelNotFoundException()
     }
 
-    const total = await this.userRepository.countByKycLevel(kycLevel.level)
+    // Compté sur `(segment, level)` : les paliers se recoupent d'un segment à l'autre, et compter
+    // par niveau seul bloquait la suppression à cause de comptes d'un autre segment.
+    const total = await this.accountRepository.countBySegmentAndLevel(
+      kycLevel.segment,
+      kycLevel.level
+    )
 
     if (total > 0) {
       throw new Exception(
-        `Impossible de supprimer ce niveau KYC : ${total} compte(s) utilisateur(s) y sont liés.`,
+        `Impossible de supprimer ce palier : ${total} compte(s) y sont rattaché(s).`,
         { status: 409, code: 'E_KYC_LEVEL_IN_USE' }
       )
     }
 
     const snapshot = toKycLevelResult(kycLevel)
     await this.kycLevelRepository.delete(kycLevel)
+    await this.kycLevelCache.invalidate(snapshot.segment, snapshot.level)
 
     return snapshot
   }

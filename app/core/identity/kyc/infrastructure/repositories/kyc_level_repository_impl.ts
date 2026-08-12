@@ -1,6 +1,5 @@
 import type KycLevelRepository from '#core/identity/kyc/domain/interfaces/kyc_level_repository'
 import KycLevel from '#core/identity/kyc/domain/models/kyc_level'
-import { Exception } from '@adonisjs/core/exceptions'
 
 /**
  * Implementation of the KycLevelRepository interface providing methods to interact with
@@ -67,19 +66,9 @@ export default class KycLevelRepositoryImpl implements KycLevelRepository {
    * @return {Promise<void>} A promise that resolves when the deletion is complete.
    */
   async delete(kycLevel: KycLevel): Promise<void> {
-    const query = await kycLevel.related('users').query().count('* as total')
-    const usersCount = query[0].$extras.total
-
-    if (usersCount > 0) {
-      throw new Exception(
-        'Vous ne pouvez pas supprimer ce niveau KYC car des utilisateurs y sont associés.',
-        {
-          status: 400,
-          code: 'E_CANNOT_DELETE_KYC_LEVEL',
-        }
-      )
-    }
-
+    // La garde « des comptes y sont rattachés » vit dans `KycLevelService` : c'est une règle
+    // métier, pas une contrainte de persistance. La dédoubler ici donnait deux messages et deux
+    // codes d'erreur pour un même refus.
     await kycLevel.delete()
   }
 }
