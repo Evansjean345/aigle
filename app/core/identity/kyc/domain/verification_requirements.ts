@@ -1,5 +1,6 @@
 import { DocumentPieceType, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { levelDefinitionOf } from '#core/identity/kyc/domain/kyc_level_catalog'
 
 /** Façon dont un dossier se constitue. */
 export enum SubmissionMode {
@@ -88,49 +89,12 @@ export function requirementsFor(
 export interface LevelMeaning {
   /** Ce que le palier autorise, en une expression — « Identité vérifiée ». */
   title: string
-  /** Comment un compte l'atteint — « Après approbation du dossier de vérification ». */
+  /** Comment un compte l'atteint — « Après approbation du dossier d'identité ». */
   reachedBy: string
 }
 
 /**
- * Signification de chaque palier, par couple `(segment, level)`.
- *
- * Un palier n'est pas un rang abstrait : c'est un état de vérification qui décide de ce qu'un
- * compte peut engager. Cette table est la source unique de cette signification — le back-office
- * l'affiche, il ne l'invente pas. Sans elle, un gestionnaire ajusterait des montants sans savoir
- * qui les subit ni pourquoi.
- *
- * Aucune description n'énumère les pièces attendues : elles sont déjà décrites par
- * `requirementsFor`, et les recopier ici obligerait à modifier deux endroits chaque fois qu'une
- * pièce s'ajoute — sans que rien ne signale l'oubli.
- *
- * Un couple absent d'ici est un palier qu'aucune règle ne prévoit.
- */
-const LEVEL_MEANINGS: Record<string, LevelMeaning> = {
-  'particulier:1': {
-    title: 'Compte non vérifié',
-    reachedBy: "Attribué à l'inscription, avant toute vérification d'identité",
-  },
-  'particulier:2': {
-    title: 'Identité vérifiée',
-    reachedBy: "Après approbation du dossier d'identité",
-  },
-  'marchand:1': {
-    title: 'Encaissement ouvert',
-    reachedBy: 'Attribué à la création : un marchand ne passe aucune vérification',
-  },
-  'enterprise:0': {
-    title: 'En attente de vérification',
-    reachedBy: "Attribué à la création : les mouvements restent bloqués jusqu'à l'approbation",
-  },
-  'enterprise:2': {
-    title: 'Entreprise vérifiée',
-    reachedBy: "Après approbation du dossier d'entreprise",
-  },
-}
-
-/**
- * Rend ce qu'un palier signifie.
+ * Rend ce qu'un palier signifie, d'après le catalogue.
  *
  * @param {string} segment - Segment du compte.
  * @param {number} level - Rang du palier.
@@ -138,7 +102,9 @@ const LEVEL_MEANINGS: Record<string, LevelMeaning> = {
  *   prévoit.
  */
 export function meaningOfLevel(segment: string, level: number): LevelMeaning | null {
-  return LEVEL_MEANINGS[`${segment}:${level}`] ?? null
+  const definition = levelDefinitionOf(segment, level)
+
+  return definition ? { title: definition.title, reachedBy: definition.reachedBy } : null
 }
 
 /**

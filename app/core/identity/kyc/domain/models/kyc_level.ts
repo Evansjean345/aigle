@@ -1,6 +1,5 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
-import { KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
 
 export default class KycLevel extends BaseModel {
   static table = 'kyc_level'
@@ -15,8 +14,14 @@ export default class KycLevel extends BaseModel {
   @column()
   declare segment: string
 
+  /**
+   * Rang du palier dans son segment.
+   *
+   * Un entier libre et non `KycLevelState` : la grille porte un niveau 0 — organisation dont le
+   * dossier n'est pas approuvé — que cet enum ne sait pas représenter.
+   */
   @column()
-  declare level: KycLevelState
+  declare level: number
 
   // Plafonds : `null` = ILLIMITÉ (ex. enterprise niveau 2), ignoré à la validation.
   @column()
