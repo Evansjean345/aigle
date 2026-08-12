@@ -88,7 +88,7 @@ export function requirementsFor(
 export interface LevelMeaning {
   /** Ce que le palier autorise, en une expression — « Identité vérifiée ». */
   title: string
-  /** Comment un compte l'atteint — « Après approbation du dossier KYC ». */
+  /** Comment un compte l'atteint — « Après approbation du dossier de vérification ». */
   reachedBy: string
 }
 
@@ -100,6 +100,10 @@ export interface LevelMeaning {
  * l'affiche, il ne l'invente pas. Sans elle, un gestionnaire ajusterait des montants sans savoir
  * qui les subit ni pourquoi.
  *
+ * Aucune description n'énumère les pièces attendues : elles sont déjà décrites par
+ * `requirementsFor`, et les recopier ici obligerait à modifier deux endroits chaque fois qu'une
+ * pièce s'ajoute — sans que rien ne signale l'oubli.
+ *
  * Un couple absent d'ici est un palier qu'aucune règle ne prévoit.
  */
 const LEVEL_MEANINGS: Record<string, LevelMeaning> = {
@@ -109,7 +113,7 @@ const LEVEL_MEANINGS: Record<string, LevelMeaning> = {
   },
   'particulier:2': {
     title: 'Identité vérifiée',
-    reachedBy: "Après approbation de la pièce d'identité et du selfie",
+    reachedBy: "Après approbation du dossier d'identité",
   },
   'marchand:1': {
     title: 'Encaissement ouvert',
@@ -121,7 +125,7 @@ const LEVEL_MEANINGS: Record<string, LevelMeaning> = {
   },
   'enterprise:2': {
     title: 'Entreprise vérifiée',
-    reachedBy: 'Après approbation du RCCM et de la DFE',
+    reachedBy: "Après approbation du dossier d'entreprise",
   },
 }
 
