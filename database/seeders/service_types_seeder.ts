@@ -6,7 +6,7 @@ export default class extends BaseSeeder {
     const serviceTypes = [
       { code: 'deposit', label: 'Dépôt' },
       { code: 'transfert', label: 'Transfert' },
-      { code: 'inter-reseau', label: 'Inter-réseaux' },
+      { code: 'inter_reseau', label: 'Inter-réseaux' },
       { code: 'topup', label: 'Airtime' },
       { code: 'checkout', label: 'Paiement marchand' },
     ]
