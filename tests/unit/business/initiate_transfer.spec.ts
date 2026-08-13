@@ -49,7 +49,7 @@ const payload: TransferRequestDto = {
   amount: 25000,
   phone: '+2250700000000',
   providerCode: 'wave',
-  paymentMethodCode: 'mobile_money',
+  paymentMethodCode: 'mobile-money',
 }
 
 test.group('InitiateTransferUseCase | transfert unique business', () => {
@@ -75,7 +75,7 @@ test.group('InitiateTransferUseCase | transfert unique business', () => {
       country: 'ci',
     })
     assert.equal(cmd.feeContext.serviceTypeCode, TransactionType.TRANSFERT)
-    assert.equal(cmd.feeContext.paymentMethodCode, 'mobile_money')
+    assert.equal(cmd.feeContext.paymentMethodCode, 'mobile-money')
     assert.equal(cmd.feeContext.providerFromCode, 'wave')
     assert.equal(cmd.feeContext.includeFees, false)
   })

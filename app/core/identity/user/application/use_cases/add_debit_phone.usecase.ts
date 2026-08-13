@@ -53,7 +53,7 @@ export default class AddDebitPhoneUseCase {
    * @param {string} [label] - An optional label to associate with the phone number for easier identification.
    * @param auditContext
    * @return {Promise<{message: string}>} A promise resolving to an object containing a message indicating the result of the operation.
-   * @throws {Exception} Throws an exception if the provider is not of type "mobile_money", if the user attempts to change
+   * @throws {Exception} Throws an exception if the provider is not of type "mobile-money", if the user attempts to change
    *                     a verified debit phone number before the minimum allowed days, if the phone number already
    *                     exists and is verified, or in other cases of invalid data or state.
    */
@@ -188,7 +188,7 @@ export default class AddDebitPhoneUseCase {
    *
    * @param {string} providerCode - The unique code of the provider to validate.
    * @return {Promise<Provider>} A promise that resolves to the provider if it is a mobile money provider.
-   * @throws {Exception} Throws an exception if the provider is not of type 'mobile_money', including details about the error and status code.
+   * @throws {Exception} Throws an exception if the provider is not of type 'mobile-money', including details about the error and status code.
    */
   private async ensureIsMobileMoneyProvider(providerCode: string): Promise<Provider> {
     const provider = await this.providerRepository.findByCode(providerCode)

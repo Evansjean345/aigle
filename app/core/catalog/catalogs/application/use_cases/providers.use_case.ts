@@ -11,7 +11,7 @@ import {
   ProviderListResponseDTO,
 } from '#core/catalog/catalogs/application/dtos/admin/admin_providers.dto'
 
-export const allowedProviderType: ProviderType[] = ['mobile_money', 'bank', 'wallet']
+export const allowedProviderType: ProviderType[] = ['mobile-money', 'bank', 'wallet']
 export const allowedProviderStatus: ProviderStatus[] = ['active', 'inactive']
 
 @inject()

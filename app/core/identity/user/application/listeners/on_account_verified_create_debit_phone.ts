@@ -12,7 +12,7 @@ export default class OnAccountVerifiedCreateDebitPhone {
   async handle(event: AccountVerified) {
     try {
       // Sans providerId, on ne peut pas créer automatiquement un numéro débiteur
-      // car chaque numéro doit être lié à un opérateur mobile_money
+      // car chaque numéro doit être lié à un opérateur mobile-money
       if (!event.providerId) {
         securityLog.info(
           'DEBIT_PHONE_AUTO_CREATE_SKIPPED',
