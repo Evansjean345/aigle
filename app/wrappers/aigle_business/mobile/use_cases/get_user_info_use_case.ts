@@ -3,6 +3,7 @@ import { inject } from '@adonisjs/core'
 import User from '#core/identity/user/domain/models/user'
 import { concartPhoneNumber } from '#shared/utils/utiles'
 import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
+import { statusOfFile } from '#core/identity/kyc/domain/verification_status'
 
 export interface UserInfoDto {
   users_uid: string
@@ -46,7 +47,8 @@ export default class GetUserInfoUseCase {
 
     if (!user) return null
 
-    // Le palier vient du compte : `users.kyc_level` n'est plus la source de vérité.
+    await user.load('kycDocument')
+
     const account = await this.accountStanding.describe(user.usersUid)
     const accountLevel = account?.level
 
@@ -56,7 +58,7 @@ export default class GetUserInfoUseCase {
       lastname: user.lastname,
       phone: user.phone,
       kyc_level: accountLevel ?? 0,
-      kyc_status: user.kycStatus,
+      kyc_status: statusOfFile(user.kycDocument),
       account_type: user.accountType,
       status: user.status,
       countryId: user.countryId,

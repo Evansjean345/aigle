@@ -5,7 +5,7 @@ import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enum
 import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
-import { UserKycStatus } from '#core/identity/user/domain/enum'
+import { AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
 import AccountService from '#core/identity/account/application/services/account_service'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
@@ -58,7 +58,7 @@ export interface CreateOrganisationOptions {
   ownerUserId?: string
   accountType?: OrganisationAccountType
   name?: string
-  ownerKycStatus?: UserKycStatus
+  ownerKycStatus?: AccountVerificationStatus
 }
 
 /**
@@ -75,7 +75,7 @@ export async function createOrganisation(options: CreateOrganisationOptions = {}
   const useCase = await app.container.make(CreateOrganisationUseCase)
   const organisation = await useCase.execute({
     ownerUserId: options.ownerUserId ?? randomUUID(),
-    ownerKycStatus: options.ownerKycStatus ?? UserKycStatus.VERIFIED,
+    ownerKycStatus: options.ownerKycStatus ?? AccountVerificationStatus.VERIFIED,
     name: options.name ?? 'Org Test',
     accountType: options.accountType ?? OrganisationAccountType.MARCHAND,
   })

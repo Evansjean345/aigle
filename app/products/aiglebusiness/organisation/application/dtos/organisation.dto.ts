@@ -1,4 +1,4 @@
-import { type UserKycStatus } from '#core/identity/user/domain/enum'
+import { type AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
 import type Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 import { type OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { type OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
@@ -16,7 +16,7 @@ import { formatMerchantQr } from '#aiglebusiness/organisation/application/mercha
  */
 export interface CreateOrganisationRequestDto {
   ownerUserId: string
-  ownerKycStatus: UserKycStatus
+  ownerKycStatus: AccountVerificationStatus
   name: string
   accountType: OrganisationAccountType
 }

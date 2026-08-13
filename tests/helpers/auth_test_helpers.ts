@@ -1,7 +1,14 @@
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
 import User from '#core/identity/user/domain/models/user'
-import { UserKycStatus, UserStatus } from '#core/identity/user/domain/enum'
+import { UserStatus } from '#core/identity/user/domain/enum'
+import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
+import { AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
+import {
+  KycDocumentStatus,
+  KycDocumentType,
+} from '#core/identity/kyc/domain/enum/kyc_enum'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { type AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
 import NotificationService from '#core/notifications/application/services/notification_service'
 import OtpVerificationService from '#core/identity/otp/application/services/otp_verification_service'
@@ -37,9 +44,17 @@ export const DEVICE_BODY = {
 interface MakeUserOptions {
   pincode?: string
   status?: UserStatus
-  kycStatus?: UserKycStatus
+  /** Statut voulu : posé en créant le dossier qui le porte. */
+  kycStatus?: AccountVerificationStatus
   firstname?: string
   lastname?: string
+}
+
+/** État du dossier qui produit chaque statut. Aucun dossier ne vaut `NOT_STARTED`. */
+const FILE_STATUS_OF: Partial<Record<AccountVerificationStatus, KycDocumentStatus>> = {
+  [AccountVerificationStatus.PENDING_IN_REVIEW]: KycDocumentStatus.PENDING,
+  [AccountVerificationStatus.VERIFIED]: KycDocumentStatus.APPROVED,
+  [AccountVerificationStatus.REJECTED]: KycDocumentStatus.REJECTED,
 }
 
 /** Crée un user actif (phone `225…`). Le PIN brut est hashé par le mixin d'auth au save. */
@@ -51,9 +66,21 @@ export async function makeUser(options: MakeUserOptions = {}): Promise<User> {
   user.phone = `225${Math.floor(1_00_000_000 + Math.random() * 8_99_999_999)}`
   user.status = options.status ?? UserStatus.ACTIVE
   user.accountType = 'freemium'
-  if (options.kycStatus) user.kycStatus = options.kycStatus
   if (options.pincode) user.pincode = options.pincode
   await user.save()
+
+  const fileStatus = options.kycStatus ? FILE_STATUS_OF[options.kycStatus] : undefined
+
+  if (fileStatus) {
+    const document = new KycDocument()
+    document.accountId = user.usersUid
+    document.userId = user.usersUid
+    document.ownerType = AccountOwnerType.USER
+    document.documentType = KycDocumentType.CNI
+    document.status = fileStatus
+    await document.save()
+  }
+
   return user
 }
 

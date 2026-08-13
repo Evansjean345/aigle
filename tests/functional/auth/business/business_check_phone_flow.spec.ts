@@ -1,5 +1,5 @@
 import { test } from '@japa/runner'
-import { UserKycStatus } from '#core/identity/user/domain/enum'
+import { AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
 import { makeUser, authTestSetup, CHANNEL_WEB } from '#tests/helpers/auth_test_helpers'
 
 /**
@@ -14,9 +14,7 @@ test.group('Business auth | check-phone', (group) => {
   group.each.setup(authTestSetup())
 
   test('user Aigle KYC-vérifié → 200, numéro masqué (sans nom)', async ({ client, assert }) => {
-    const user = await makeUser()
-    user.kycStatus = UserKycStatus.VERIFIED
-    await user.save()
+    const user = await makeUser({ kycStatus: AccountVerificationStatus.VERIFIED })
 
     const res = await client.post(CHECK).headers(CHANNEL_WEB).json({ phone: user.phone })
     res.assertStatus(200)
@@ -32,9 +30,7 @@ test.group('Business auth | check-phone', (group) => {
   })
 
   test('user Aigle mais KYC non validé → 403', async ({ client }) => {
-    const user = await makeUser()
-    user.kycStatus = UserKycStatus.PENDING_IN_REVIEW
-    await user.save()
+    const user = await makeUser({ kycStatus: AccountVerificationStatus.PENDING_IN_REVIEW })
 
     const res = await client.post(CHECK).headers(CHANNEL_WEB).json({ phone: user.phone })
     res.assertStatus(403)
@@ -42,9 +38,7 @@ test.group('Business auth | check-phone', (group) => {
   })
 
   test('sans X-Client-Channel → 400 (canal requis pour le traçage)', async ({ client }) => {
-    const user = await makeUser()
-    user.kycStatus = UserKycStatus.VERIFIED
-    await user.save()
+    const user = await makeUser({ kycStatus: AccountVerificationStatus.VERIFIED })
 
     const res = await client.post(CHECK).json({ phone: user.phone })
     res.assertStatus(400)

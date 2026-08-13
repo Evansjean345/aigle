@@ -2,7 +2,10 @@ import { inject } from '@adonisjs/core'
 import UserRepository from '#core/identity/user/domain/interfaces/user_repository'
 import type User from '#core/identity/user/domain/models/user'
 import { type UserLookupResult } from '#core/identity/user/application/dtos/user_lookup_result'
-import { UserKycStatus } from '#core/identity/user/domain/enum'
+import {
+  AccountVerificationStatus,
+  statusOfFile,
+} from '#core/identity/kyc/domain/verification_status'
 import { normalizePhone } from '#shared/utils/utiles'
 
 /**
@@ -23,13 +26,23 @@ export default class UserDirectoryService {
    */
   async findByPhone(phone: string): Promise<UserLookupResult | null> {
     const user = await this.userRepository.findByPhone(normalizePhone(phone))
-    return user ? this.toResult(user) : null
+
+    if (!user) return null
+
+    await user.load('kycDocument')
+
+    return this.toResult(user)
   }
 
   /** Recherche un utilisateur par son identifiant (users_uid). */
   async findById(userId: string): Promise<UserLookupResult | null> {
     const user = await this.userRepository.findById(userId)
-    return user ? this.toResult(user) : null
+
+    if (!user) return null
+
+    await user.load('kycDocument')
+
+    return this.toResult(user)
   }
 
   /**
@@ -42,7 +55,7 @@ export default class UserDirectoryService {
   }
 
   private toResult(user: User): UserLookupResult {
-    const kycVerified = user.kycStatus === UserKycStatus.VERIFIED
+    const kycVerified = statusOfFile(user.kycDocument) === AccountVerificationStatus.VERIFIED
     return {
       userId: user.usersUid,
       firstname: user.firstname ?? null,

@@ -4,7 +4,8 @@ import type UserRepository from '#core/identity/user/domain/interfaces/user_repo
 import { type ExtractModelRelations } from '@adonisjs/lucid/types/relations'
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import db from '@adonisjs/lucid/services/db'
-import { UserKycStatus, UserStatus } from '#core/identity/user/domain/enum'
+import { UserStatus } from '#core/identity/user/domain/enum'
+import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { DateTime } from 'luxon'
 
 export default class UserRepositoryIml implements UserRepository {
@@ -83,7 +84,7 @@ export default class UserRepositoryIml implements UserRepository {
    */
   async findByIds(ids: string[]): Promise<User[]> {
     if (ids.length === 0) return []
-    return User.query().whereIn('users_uid', ids)
+    return User.query().whereIn('users_uid', ids).preload('kycDocument')
   }
 
   /**
@@ -167,9 +168,10 @@ export default class UserRepositoryIml implements UserRepository {
         db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as blockedAccounts', [
           UserStatus.BLOCKED,
         ]),
-        db.raw('SUM(CASE WHEN kyc_status = ? THEN 1 ELSE 0 END) as kycVerified', [
-          UserKycStatus.VERIFIED,
-        ]),
+        db.raw(
+          'SUM(CASE WHEN EXISTS (SELECT 1 FROM `kyc_documents` d WHERE d.`account_id` = `users`.`users_uid` AND d.`status` = ?) THEN 1 ELSE 0 END) as kycVerified',
+          [KycDocumentStatus.APPROVED]
+        ),
         db.raw('SUM(CASE WHEN DATE(created_at) = ? THEN 1 ELSE 0 END) as registeredToday', [today])
       )
       .first()

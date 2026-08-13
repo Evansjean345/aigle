@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import { UserKycStatus } from '#core/identity/user/domain/enum'
+import { AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
 import Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 import Account from '#core/identity/account/domain/models/account'
 import Wallet from '#core/money/wallet/domain/models/wallet'
@@ -38,14 +38,14 @@ import OrganisationAlreadyOwnedException from '#aiglebusiness/organisation/domai
 function command(
   overrides: Partial<{
     ownerUserId: string
-    ownerKycStatus: UserKycStatus
+    ownerKycStatus: AccountVerificationStatus
     name: string
     accountType: OrganisationAccountType
   }> = {}
 ) {
   return {
     ownerUserId: overrides.ownerUserId ?? randomUUID(),
-    ownerKycStatus: overrides.ownerKycStatus ?? UserKycStatus.VERIFIED,
+    ownerKycStatus: overrides.ownerKycStatus ?? AccountVerificationStatus.VERIFIED,
     name: overrides.name ?? 'Ma Boutique',
     accountType: overrides.accountType ?? OrganisationAccountType.MARCHAND,
   }
@@ -126,7 +126,7 @@ test.group('Business organisation | création', (group) => {
 
     let error: unknown
     try {
-      await useCase.execute(command({ ownerUserId, ownerKycStatus: UserKycStatus.NOT_STARTED }))
+      await useCase.execute(command({ ownerUserId, ownerKycStatus: AccountVerificationStatus.NOT_STARTED }))
     } catch (err) {
       error = err
     }

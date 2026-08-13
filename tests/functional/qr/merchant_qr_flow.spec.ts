@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import { UserKycStatus } from '#core/identity/user/domain/enum'
+import { AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
 import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 
@@ -19,7 +19,7 @@ async function createMerchant(name: string): Promise<string> {
   const useCase = await app.container.make(CreateOrganisationUseCase)
   const org = await useCase.execute({
     ownerUserId: randomUUID(),
-    ownerKycStatus: UserKycStatus.VERIFIED,
+    ownerKycStatus: AccountVerificationStatus.VERIFIED,
     name,
     accountType: OrganisationAccountType.MARCHAND,
   })

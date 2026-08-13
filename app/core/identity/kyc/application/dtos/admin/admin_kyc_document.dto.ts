@@ -1,6 +1,7 @@
 import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import type { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import type { KycAuditContext } from '#core/identity/kyc/application/events/kyc_document_submitted'
+import { statusOfFile } from '#core/identity/kyc/domain/verification_status'
 
 /**
  * Contrats de service des documents KYC pour l'administration.
@@ -188,7 +189,8 @@ export const toKycDocumentResult = (
         lastname: kyc.user.lastname,
         usersUid: kyc.user.usersUid,
         kycLevel: options?.ownerLevel ?? 0,
-        kycStatus: kyc.user.kycStatus,
+        // Le dossier projeté est celui du porteur : son état dit où en est sa vérification.
+        kycStatus: statusOfFile(kyc),
         phone: kyc.user.phone,
         status: kyc.user.status,
       }

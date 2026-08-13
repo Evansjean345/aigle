@@ -2,7 +2,7 @@ import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import User from '#core/identity/user/domain/models/user'
-import { UserStatus, UserKycStatus } from '#core/identity/user/domain/enum'
+import { UserStatus } from '#core/identity/user/domain/enum'
 import Account from '#core/identity/account/domain/models/account'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
@@ -34,7 +34,6 @@ async function createUserWithAccount(): Promise<User> {
   user.phone = `+22507${Math.floor(1_000_000 + Math.random() * 8_999_999)}`
   user.status = UserStatus.ACTIVE
   user.accountType = 'freemium'
-  user.kycStatus = UserKycStatus.NOT_STARTED
   await user.save()
 
   const accountService = await app.container.make(AccountService)

@@ -1,5 +1,9 @@
 import type { KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
-import { UserKycStatus, type UserStatus } from '#core/identity/user/domain/enum'
+import { type UserStatus } from '#core/identity/user/domain/enum'
+import {
+  AccountVerificationStatus,
+  statusOfFile,
+} from '#core/identity/kyc/domain/verification_status'
 import type User from '#core/identity/user/domain/models/user'
 
 export class AuthenticatedProfileResponseDto {
@@ -12,7 +16,7 @@ export class AuthenticatedProfileResponseDto {
   declare pictureUrl: string | null
   declare status: UserStatus
   declare kycLevel: KycLevelState
-  declare kycStatus: UserKycStatus
+  declare kycStatus: AccountVerificationStatus
   declare country: Country
 
   /**
@@ -35,10 +39,12 @@ export class AuthenticatedProfileResponseDto {
     response.phone = user.phone
     response.accountNumber = user.accountNumber
     response.accountType = user.accountType
+    const kycStatus = statusOfFile(user.kycDocument)
+
     response.pictureUrl =
-      user.kycStatus === UserKycStatus.VERIFIED ? selfieUrl || user.pictureUrl || '' : ''
+      kycStatus === AccountVerificationStatus.VERIFIED ? selfieUrl || user.pictureUrl || '' : ''
     response.status = user.status
-    response.kycStatus = user.kycStatus
+    response.kycStatus = kycStatus
     response.kycLevel = level ?? 0
     response.country = {
       id: user.country.id,

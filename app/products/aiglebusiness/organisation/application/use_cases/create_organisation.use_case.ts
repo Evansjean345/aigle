@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import { randomUUID } from 'node:crypto'
-import { UserKycStatus } from '#core/identity/user/domain/enum'
+import { AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
 import OrganisationProvisioningService from '#aiglebusiness/organisation/application/services/organisation_provisioning_service'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
@@ -46,7 +46,7 @@ export default class CreateOrganisationUseCase {
    * @throws {OrganisationAlreadyOwnedException} Le propriétaire possède déjà une organisation.
    */
   async execute(request: CreateOrganisationRequestDto): Promise<OrganisationResponseDTO> {
-    if (request.ownerKycStatus !== UserKycStatus.VERIFIED) {
+    if (request.ownerKycStatus !== AccountVerificationStatus.VERIFIED) {
       throw new OwnerKycNotVerifiedException()
     }
 

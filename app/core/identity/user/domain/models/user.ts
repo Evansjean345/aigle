@@ -17,7 +17,7 @@ import Wallet from '#core/money/wallet/domain/models/wallet'
 import Country from '#core/catalog/country/domain/models/country'
 import Transaction from '#core/money/transactions/domain/models/transaction'
 import { uniqueID } from '#shared/utils/utiles'
-import { UserKycStatus, UserStatus } from '#core/identity/user/domain/enum'
+import { UserStatus } from '#core/identity/user/domain/enum'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import UserDevice from '#core/identity/device/domain/models/user_device'
 import DebitPhone from '#core/identity/user/domain/models/debit_phone'
@@ -74,9 +74,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
     serializeAs: null,
   })
   declare pincode: string
-
-  @column()
-  declare kycStatus: UserKycStatus
 
   @column()
   declare identityStatus: 'pending' | 'approved' | 'rejected'

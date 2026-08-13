@@ -1,5 +1,12 @@
 import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
-import { UserKycStatus } from '#core/identity/user/domain/enum'
+
+/** Où en est la vérification d'un compte, telle que son dossier la décide. */
+export enum AccountVerificationStatus {
+  NOT_STARTED = 'NOT_STARTED',
+  PENDING_IN_REVIEW = 'PENDING_IN_REVIEW',
+  VERIFIED = 'VERIFIED',
+  REJECTED = 'REJECTED',
+}
 
 /** État d'un dossier, réduit à ce qui décide du statut. */
 export interface VerificationFileState {
@@ -12,19 +19,19 @@ export interface VerificationFileState {
  * Un dossier en constitution vaut `NOT_STARTED`.
  *
  * @param {VerificationFileState | null} [file] - Dossier du compte, absent s'il n'a rien déposé.
- * @returns {UserKycStatus} Le statut correspondant.
+ * @returns {AccountVerificationStatus} Le statut correspondant.
  */
-export function statusOfFile(file?: VerificationFileState | null): UserKycStatus {
-  if (!file) return UserKycStatus.NOT_STARTED
+export function statusOfFile(file?: VerificationFileState | null): AccountVerificationStatus {
+  if (!file) return AccountVerificationStatus.NOT_STARTED
 
   switch (file.status) {
     case KycDocumentStatus.PENDING:
-      return UserKycStatus.PENDING_IN_REVIEW
+      return AccountVerificationStatus.PENDING_IN_REVIEW
     case KycDocumentStatus.APPROVED:
-      return UserKycStatus.VERIFIED
+      return AccountVerificationStatus.VERIFIED
     case KycDocumentStatus.REJECTED:
-      return UserKycStatus.REJECTED
+      return AccountVerificationStatus.REJECTED
     default:
-      return UserKycStatus.NOT_STARTED
+      return AccountVerificationStatus.NOT_STARTED
   }
 }

@@ -4,7 +4,7 @@ import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import User from '#core/identity/user/domain/models/user'
-import { UserKycStatus } from '#core/identity/user/domain/enum'
+import { AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
 import { makeUser } from '#tests/helpers/auth_test_helpers'
 import { createOrganisation } from '#tests/factories/organisation_factory'
 import OtpVerificationService from '#core/identity/otp/application/services/otp_verification_service'
@@ -41,7 +41,7 @@ async function createOrg(ownerUserId: string): Promise<string> {
   })
 }
 
-async function makeMember(kyc: UserKycStatus = UserKycStatus.VERIFIED): Promise<User> {
+async function makeMember(kyc: AccountVerificationStatus = AccountVerificationStatus.VERIFIED): Promise<User> {
   return makeUser({ firstname: 'Invited', lastname: 'Member', kycStatus: kyc })
 }
 
@@ -124,7 +124,7 @@ test.group('Business members | invitation & lifecycle', (group) => {
 
   test('inviter : user non KYC-vérifié → 403', async ({ assert }) => {
     const { organisationId, roleId } = await seedOrgWithRole()
-    const invitee = await makeMember(UserKycStatus.PENDING_IN_REVIEW)
+    const invitee = await makeMember(AccountVerificationStatus.PENDING_IN_REVIEW)
     const invite = await app.container.make(InviteMemberUseCase)
 
     await assert.rejects(() => invite.execute({ organisationId, phone: invitee.phone, roleId }))

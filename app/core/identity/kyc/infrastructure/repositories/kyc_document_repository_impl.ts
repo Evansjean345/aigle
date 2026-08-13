@@ -301,31 +301,6 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
     )
   }
 
-  /**
-   * Rend l'état du dossier le plus récent de chaque compte demandé.
-   *
-   * @param {string[]} accountIds - Comptes dont on cherche l'état du dossier.
-   * @returns {Promise<Map<string, KycDocumentStatus>>} L'état par compte, comptes sans dossier omis.
-   */
-  async findLatestStatusByAccountIds(
-    accountIds: string[]
-  ): Promise<Map<string, KycDocumentStatus>> {
-    if (accountIds.length === 0) return new Map()
-
-    const rows = await KycDocument.query()
-      .whereIn('account_id', accountIds)
-      .select('accountId', 'status')
-      .orderBy('createdAt', 'desc')
-
-    const latest = new Map<string, KycDocumentStatus>()
-
-    for (const row of rows) {
-      if (!latest.has(row.accountId)) latest.set(row.accountId, row.status)
-    }
-
-    return latest
-  }
-
   async countByStatusForOwnerType(ownerType: string): Promise<Record<string, number>> {
     const rows = await KycDocument.query()
       .where('owner_type', ownerType)

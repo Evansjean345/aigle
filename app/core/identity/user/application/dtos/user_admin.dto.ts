@@ -1,5 +1,9 @@
 import { type DateTime } from 'luxon'
-import { type UserKycStatus, type UserStatus } from '#core/identity/user/domain/enum'
+import { type UserStatus } from '#core/identity/user/domain/enum'
+import {
+  type AccountVerificationStatus,
+  statusOfFile,
+} from '#core/identity/kyc/domain/verification_status'
 import {
   type KycDocumentStatus,
   type KycDocumentType,
@@ -36,7 +40,7 @@ export interface UserCountryRef {
 
 export interface UserKycRef {
   level: number
-  status: UserKycStatus
+  status: AccountVerificationStatus
   documentType: KycDocumentType | null
   documentStatus: KycDocumentStatus | null
 }
@@ -84,7 +88,7 @@ export interface UserSearchResult {
   country: UserCountryRef
   kyc: {
     level: number
-    status: UserKycStatus
+    status: AccountVerificationStatus
   }
   status: UserStatus
 }
@@ -208,7 +212,7 @@ export const toUserListItemResult = (
   },
   kyc: {
     level: options?.level ?? 0,
-    status: user.kycStatus,
+    status: statusOfFile(user.kycDocument),
     documentType: user.kycDocument?.documentType ?? null,
     documentStatus: user.kycDocument?.status ?? null,
   },
@@ -229,7 +233,7 @@ export const toUserSearchResult = (
   country: countryOf(user),
   kyc: {
     level: options?.level ?? 0,
-    status: user.kycStatus,
+    status: statusOfFile(user.kycDocument),
   },
   status: user.status,
 })
@@ -254,7 +258,7 @@ export const toUserDetailsResult = (
   updatedAt: user.updatedAt,
   kyc: {
     level: options?.level ?? 0,
-    status: user.kycStatus,
+    status: statusOfFile(user.kycDocument),
     documentType: user.kycDocument?.documentType ?? null,
     documentStatus: user.kycDocument?.status ?? null,
   },

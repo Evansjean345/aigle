@@ -2,6 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import User from '#core/identity/user/domain/models/user'
 import { AuditResult } from '#core/audit/domain/enums'
+import { statusOfFile } from '#core/identity/kyc/domain/verification_status'
 import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
 import ListOrganisationsUseCase from '#aiglebusiness/organisation/application/use_cases/list_organisations.use_case'
 import { createOrganisationValidator } from '#aiglebusiness/organisation/presentation/client/validators/create_organisation_validator'
@@ -23,9 +24,11 @@ export default class OrganisationController {
     const user = auth.user! as User
     const payload = await request.validateUsing(createOrganisationValidator)
 
+    await user.load('kycDocument')
+
     const result = await this.createOrganisation.execute({
       ownerUserId: user.usersUid,
-      ownerKycStatus: user.kycStatus,
+      ownerKycStatus: statusOfFile(user.kycDocument),
       name: payload.name,
       accountType: payload.account_type as OrganisationAccountType,
     })
