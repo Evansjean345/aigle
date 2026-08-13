@@ -112,4 +112,16 @@ export default abstract class KycDocumentRepository {
    * @returns {Promise<Map<string, SelfiePieceRef>>} Le selfie par compte, comptes sans selfie omis.
    */
   abstract findSelfiePiecesByAccountIds(accountIds: string[]): Promise<Map<string, SelfiePieceRef>>
+
+  /**
+   * Rend l'état du dossier le plus récent de chaque compte demandé, en une requête.
+   *
+   * `account_id` n'est qu'indexé : un compte peut porter plusieurs dossiers.
+   *
+   * @param {string[]} accountIds - Comptes dont on cherche l'état du dossier.
+   * @returns {Promise<Map<string, KycDocumentStatus>>} L'état par compte, comptes sans dossier omis.
+   */
+  abstract findLatestStatusByAccountIds(
+    accountIds: string[]
+  ): Promise<Map<string, KycDocumentStatus>>
 }

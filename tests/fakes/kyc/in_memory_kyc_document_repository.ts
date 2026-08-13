@@ -131,6 +131,24 @@ export default class InMemoryKycDocumentRepository implements KycDocumentReposit
     return found
   }
 
+  async findLatestStatusByAccountIds(
+    accountIds: string[]
+  ): Promise<Map<string, KycDocumentStatus>> {
+    const wanted = new Set(accountIds)
+    const latest = new Map<string, KycDocumentStatus>()
+
+    const sorted = [...this.documents].sort(
+      (a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0)
+    )
+
+    for (const document of sorted) {
+      if (!wanted.has(document.accountId)) continue
+      if (!latest.has(document.accountId)) latest.set(document.accountId, document.status)
+    }
+
+    return latest
+  }
+
   async countByStatusForOwnerType(ownerType: string): Promise<Record<string, number>> {
     return this.documents
       .filter((document) => document.ownerType === ownerType)
