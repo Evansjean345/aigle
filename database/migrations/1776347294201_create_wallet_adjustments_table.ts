@@ -8,8 +8,10 @@ export default class extends BaseSchema {
       table.bigIncrements('id')
       table.string('adjustment_uid', 36).notNullable().unique()
 
+      // `integer` : `wallets.id` et `transactions.id` sont des `increments()`, donc des `int
+      // unsigned`. Une clé étrangère entre types différents est refusée.
       table
-        .bigInteger('wallet_id')
+        .integer('wallet_id')
         .unsigned()
         .notNullable()
         .references('id')
@@ -17,7 +19,7 @@ export default class extends BaseSchema {
         .onDelete('CASCADE')
 
       table
-        .bigInteger('transaction_id')
+        .integer('transaction_id')
         .unsigned()
         .nullable()
         .references('id')

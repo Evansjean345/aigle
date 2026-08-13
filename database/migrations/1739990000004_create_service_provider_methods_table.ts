@@ -47,6 +47,9 @@ export default class extends BaseSchema {
       table.decimal('fee_percent', 5, 2).defaultTo(0)
       table.string('currency', 3).defaultTo('XOF')
       table.boolean('is_active').defaultTo(true)
+      /** Montant plancher de l'opération, et application des frais. */
+      table.integer('min_amount').nullable()
+      table.boolean('apply_feeds').nullable().defaultTo(true)
 
       table.unique(['service_type_id', 'payment_method_id', 'provider_from_id', 'provider_to_id'], {
         indexName: 'unique_combination',

@@ -1,5 +1,5 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
-import Provider from '#shared/models/provider'
+import Provider from '#core/catalog/catalogs/domain/models/provider'
 
 export default class extends BaseSeeder {
   public async run() {

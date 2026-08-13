@@ -1,50 +1,38 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
-import Wallet from '#core/money/wallet/domain/models/wallet'
-import Account from '#core/money/account/domain/models/account'
-import { AccountOwnerType } from '#core/money/account/domain/enums/account_owner_type'
 
 /**
- * Backfill de la fondation account pour les wallets consumer existants (commit 3/4).
+ * Ouvre un compte pour chaque portefeuille existant, et l'y rattache.
  *
- * Pour chaque wallet existant possédant un users_uid : garantit un compte
- * (owner_type=user, owner_ref=account_id=users_uid) et renseigne wallet.account_id
- * = users_uid (account_id dérivé). Idempotent.
+ * Un portefeuille sans porteur est ignoré ; un compte déjà ouvert n'est pas dupliqué. La
+ * correspondance est directe : `account_id = owner_ref = user_id`.
  *
- * Précautions :
- * - lecture de `wallet.userId` via le modèle (Lucid mappe la colonne réelle,
- *   agnostique de la divergence de nommage user_id/users_uid) ;
- * - mise à jour du wallet via le QUERY BUILDER (`.update()`), qui NE déclenche PAS
- *   le hook @beforeSave régénérant walletsUid — un `wallet.save()` corromprait
- *   tous les walletsUid existants.
+ * En SQL et non par les modèles : une migration passée doit rester rejouable, or un modèle déplacé
+ * ou renommé la casserait rétroactivement. C'est ce qui est arrivé ici, `account` ayant quitté
+ * `money` pour `identity`.
  */
 export default class extends BaseSchema {
   async up() {
-    const wallets = await Wallet.query().whereNull('accountId')
+    this.defer(async (db) => {
+      await db.rawQuery(
+        'INSERT INTO `accounts` (`account_id`, `owner_type`, `owner_ref`, `created_at`, `updated_at`) ' +
+          "SELECT w.`user_id`, 'user', w.`user_id`, NOW(), NOW() FROM `wallets` w " +
+          'WHERE w.`user_id` IS NOT NULL AND w.`account_id` IS NULL ' +
+          'AND NOT EXISTS (' +
+          "SELECT 1 FROM `accounts` a WHERE a.`owner_type` = 'user' AND a.`owner_ref` = w.`user_id`" +
+          ') GROUP BY w.`user_id`'
+      )
 
-    for (const wallet of wallets) {
-      const ownerRef = wallet.userId
-      if (!ownerRef) continue // wallet sans user (aucun aujourd'hui) : ignoré
-
-      const existingAccount = await Account.query()
-        .where('owner_type', AccountOwnerType.USER)
-        .where('owner_ref', ownerRef)
-        .first()
-
-      if (!existingAccount) {
-        await Account.create({
-          accountId: ownerRef,
-          ownerType: AccountOwnerType.USER,
-          ownerRef,
-        })
-      }
-
-      await Wallet.query().where('id', wallet.id).update({ accountId: ownerRef })
-    }
+      await db.rawQuery(
+        'UPDATE `wallets` SET `account_id` = `user_id` ' +
+          'WHERE `user_id` IS NOT NULL AND `account_id` IS NULL'
+      )
+    })
   }
 
   async down() {
-    // Réversible : on retire les comptes user dérivés et on vide account_id.
-    await Wallet.query().update({ accountId: null })
-    await Account.query().where('owner_type', AccountOwnerType.USER).delete()
+    this.defer(async (db) => {
+      await db.rawQuery('UPDATE `wallets` SET `account_id` = NULL')
+      await db.rawQuery("DELETE FROM `accounts` WHERE `owner_type` = 'user'")
+    })
   }
 }

@@ -1,0 +1,28 @@
+import { BaseSchema } from '@adonisjs/lucid/schema'
+
+/**
+ * Moyens de paiement du catalogue.
+ *
+ * Reprise de la structure telle qu'elle existe en base : la table avait été créée hors migration,
+ * et `service_provider_methods` la référence. Aucun environnement neuf ne pouvait donc être
+ * provisionné.
+ */
+export default class extends BaseSchema {
+  protected tableName = 'payment_methods'
+
+  async up() {
+    this.schema.createTable(this.tableName, (table) => {
+      table.increments('id')
+      table.string('code', 30).notNullable().unique()
+      table.string('label', 100).notNullable()
+      /** Rang d'affichage dans les listes du client. */
+      table.integer('order').nullable()
+      table.timestamp('created_at')
+      table.timestamp('updated_at')
+    })
+  }
+
+  async down() {
+    this.schema.dropTable(this.tableName)
+  }
+}

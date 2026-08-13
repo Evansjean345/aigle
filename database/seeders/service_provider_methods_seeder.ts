@@ -1,8 +1,8 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
-import ServiceProviderMethod from '#shared/models/service_provider_method'
-import ServiceType from '#shared/models/service_type'
-import PaymentMethod from '#shared/models/payment_method'
-import Provider from '#shared/models/provider'
+import ServiceProviderMethod from '#core/catalog/catalogs/domain/models/service_provider_method'
+import ServiceType from '#core/catalog/catalogs/domain/models/service_type'
+import PaymentMethod from '#core/catalog/catalogs/domain/models/payment_method'
+import Provider from '#core/catalog/catalogs/domain/models/provider'
 
 export default class extends BaseSeeder {
   public async run() {

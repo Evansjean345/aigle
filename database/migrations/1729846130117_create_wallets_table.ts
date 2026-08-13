@@ -8,16 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
       table.uuid('wallets_uid').index()
       table
-        .integer('users_id')
-        .notNullable()
-        .unsigned()
-        .references('id')
-        .inTable('users')
-        .onDelete('cascade')
-        .onUpdate('cascade')
-
-      table
-        .uuid('users_uid')
+        .uuid('user_id')
         .notNullable()
         .references('users_uid')
         .inTable('users')
@@ -27,6 +18,8 @@ export default class extends BaseSchema {
       table.decimal('balance', 15, 2).defaultTo(0)
       table.string('status').defaultTo('active')
       table.string('currency_symbol').defaultTo('XOF')
+      /** Jeton du QR de réception, distinct de l'identifiant du portefeuille. */
+      table.string('qrcode_token', 64).nullable().unique()
       table.timestamp('created_at')
       table.timestamp('updated_at')
     })

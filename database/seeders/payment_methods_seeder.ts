@@ -1,5 +1,5 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
-import PaymentMethod from '#shared/models/payment_method'
+import PaymentMethod from '#core/catalog/catalogs/domain/models/payment_method'
 
 export default class extends BaseSeeder {
   public async run() {

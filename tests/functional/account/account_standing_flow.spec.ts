@@ -100,12 +100,14 @@ test.group('Standing du compte | getStanding', (group) => {
   group.each.setup(async () => {
     await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
     await db.beginGlobalTransaction()
-    // Le cache des niveaux (KycLevelCache) n'est pas transactionnel : on le vide pour isoler les
-    // tests (une grille mise en cache survivrait au rollback et fausserait le test suivant).
+    // Le cache des niveaux n'est pas transactionnel : une grille mise en cache survit au rollback.
+    // D'où le vidage des deux côtés — en entrée pour partir propre, en sortie pour ne rien laisser
+    // aux fichiers de test suivants.
     await cache.clear()
     return async () => {
       await db.rollbackGlobalTransaction()
       await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
+      await cache.clear()
     }
   })
 

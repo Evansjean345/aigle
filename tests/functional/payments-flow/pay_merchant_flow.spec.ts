@@ -247,6 +247,9 @@ test.group('Paiement marchand | limites de réception (validation réelle)', (gr
     return async () => {
       await db.rollbackGlobalTransaction()
       await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
+      // Le cache n'est pas transactionnel : sans ce vidage, la grille seedée ici survit au
+      // rollback et suit les fichiers de test suivants.
+      await cache.clear()
     }
   })
 

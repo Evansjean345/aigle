@@ -156,6 +156,78 @@ services:
     environment:
       - TZ=UTC
 
+  # ===========================================================================
+  # Bases de TEST — `node ace test` s'y branche via .env.test
+  #
+  # Sans elles, les suites tournent sur les bases de développement : un test qui
+  # échoue avant son rollback y laisse ses données, et son cache y survit — un
+  # seed de plafonds a déjà été servi au back-office.
+  #
+  # Sans volume : ces données sont jetables, et repartir d'une base vierge est
+  # une garantie, pas une perte.
+  # ===========================================================================
+  mariadb-test:
+    image: mariadb:11.4
+    container_name: aiglesend-test-mariadb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${TEST_DB_PASSWORD:-test}
+      MYSQL_DATABASE: ${TEST_DB_DATABASE:-aiglesend_test}
+      MYSQL_USER: ${TEST_DB_USER:-test}
+      MYSQL_PASSWORD: ${TEST_DB_PASSWORD:-test}
+    # Le jeu de caractères est imposé ici : sans lui, chaque table hérite du
+    # défaut du serveur, et la base de test cesse de ressembler à la production.
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    tmpfs:
+      - /var/lib/mysql
+    networks:
+      - aiglesend-dev-net
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis-test:
+    image: redis:7.4-alpine
+    container_name: aiglesend-test-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6377:6379"
+    command: redis-server --requirepass ${TEST_REDIS_PASSWORD:-test}
+    networks:
+      - aiglesend-dev-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${TEST_REDIS_PASSWORD:-test}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: aiglesend-test-postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5434:5432"
+    environment:
+      POSTGRES_DB: ${TEST_AUDIT_DB_DATABASE:-aiglesend_audit_test}
+      POSTGRES_USER: ${TEST_AUDIT_DB_USER:-test}
+      POSTGRES_PASSWORD: ${TEST_AUDIT_DB_PASSWORD:-test}
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - aiglesend-dev-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   aiglesend_mariadb_data:
   aiglesend_redis_data:

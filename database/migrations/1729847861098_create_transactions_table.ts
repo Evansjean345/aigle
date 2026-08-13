@@ -25,14 +25,8 @@ export default class extends BaseSchema {
         .onDelete('cascade')
         .onUpdate('cascade')
 
-      table
-        .integer('services_id')
-        .unsigned()
-        .nullable()
-        .references('id')
-        .inTable('services')
-        .onDelete('SET NULL')
-        .onUpdate('SET NULL')
+      /** Sens du mouvement pour le compte porteur. */
+      table.enum('direction', ['debit', 'credit', 'external']).nullable()
 
       table.decimal('fees', 15, 2).notNullable()
       table.decimal('amount', 15, 2).notNullable()

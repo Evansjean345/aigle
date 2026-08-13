@@ -37,6 +37,14 @@ export default class extends BaseSchema {
       table.json('transaction_metadata').nullable()
       table.date('date_payement').nullable()
 
+      // Diagnostic d'un échec : le code du prestataire, sa catégorie, la conduite à tenir, et les
+      // messages destinés au porteur puis au gestionnaire.
+      table.string('error_code', 100).nullable()
+      table.string('error_category', 50).nullable()
+      table.string('admin_action', 50).nullable()
+      table.text('user_message').nullable()
+      table.text('admin_message').nullable()
+
       table.timestamp('created_at')
       table.timestamp('updated_at')
     })

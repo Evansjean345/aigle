@@ -1,5 +1,5 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
-import ServiceType from '#shared/models/service_type'
+import ServiceType from '#core/catalog/catalogs/domain/models/service_type'
 
 export default class extends BaseSeeder {
   public async run() {

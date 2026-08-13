@@ -6,12 +6,13 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
+      // `integer` et non `bigInteger` : `countries.id` est un `increments()`, donc un `int
+      // unsigned`. Une clé étrangère entre types différents est refusée.
       table
-        .bigInteger('country_id')
+        .integer('country_id')
         .unsigned()
         .nullable()
         .references('id')
-
         .inTable('countries')
         .onDelete('SET NULL')
         .onUpdate('CASCADE')

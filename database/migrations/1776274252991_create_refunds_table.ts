@@ -19,7 +19,7 @@ export default class extends BaseSchema {
         .unsigned()
         .notNullable()
         .references('id')
-        .inTable('wallet')
+        .inTable('wallets')
         .onDelete('CASCADE')
       table.enum('type', ['auto_reverse', 'webhook_reverse', 'admin_manual']).notNullable()
       table
