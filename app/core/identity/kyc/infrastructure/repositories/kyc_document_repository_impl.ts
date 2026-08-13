@@ -311,7 +311,6 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
         continue
       }
 
-      // Dossier antérieur à la reprise des pièces : son adresse est déjà consultable.
       if (legacyUrl) {
         selfies.set(String(row.account_id), { fileKey: legacyUrl, isPublicUrl: true })
       }
