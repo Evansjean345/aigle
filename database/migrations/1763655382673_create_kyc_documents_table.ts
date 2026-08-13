@@ -10,7 +10,7 @@ export default class extends BaseSchema {
       table.enum('document_type', ['CNI', 'PASSPORT', 'PERMIS', 'SELFI'])
       table.text('document_recto_url').nullable()
       table.text('document_verso_url').nullable()
-      table.text('selfie_url').nullable()
+      table.text('selfie_url', 'longtext').nullable()
       table.enum('status', ['pending', 'approved', 'rejected']).nullable()
       table.text('comment').nullable()
       table.string('next_action').nullable()

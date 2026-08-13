@@ -11,7 +11,7 @@ export default class extends BaseSchema {
 
   async up() {
     this.schema.alterTable(this.tableName, (table) => {
-      table.text('first_approval_comment').nullable()
+      table.text('first_approval_comment', 'mediumtext').nullable()
     })
   }
 

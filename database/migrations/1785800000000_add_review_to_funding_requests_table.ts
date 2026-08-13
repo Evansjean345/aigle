@@ -18,7 +18,7 @@ export default class extends BaseSchema {
       table.timestamp('reviewed_at').nullable()
 
       // Motif de la décision, obligatoire en cas de refus.
-      table.text('review_comment').nullable()
+      table.text('review_comment', 'mediumtext').nullable()
 
       table.integer('wallet_adjustment_id').unsigned().nullable().index()
     })

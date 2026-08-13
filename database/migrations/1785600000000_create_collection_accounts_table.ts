@@ -23,7 +23,7 @@ export default class extends BaseSchema {
       table.string('account_identifier').notNullable().unique()
       table.string('account_holder').notNullable()
 
-      table.text('instructions').nullable()
+      table.text('instructions', 'mediumtext').nullable()
 
       table.boolean('is_active').notNullable().defaultTo(true).index()
       table.integer('display_order').notNullable().defaultTo(0)

@@ -20,9 +20,18 @@ export default class extends BaseSchema {
     this.schema.alterTable(this.tableName, (table) => {
       table.enum('status', ['in_submission', 'pending', 'approved', 'rejected']).nullable().alter()
     })
+
+    // La tentative porte le même état que le dossier : elle conserve ce qui a été décidé.
+    this.schema.alterTable('kyc_attemps', (table) => {
+      table.enum('status', ['in_submission', 'pending', 'approved', 'rejected']).nullable().alter()
+    })
   }
 
   async down() {
+    this.schema.alterTable('kyc_attemps', (table) => {
+      table.enum('status', ['pending', 'approved', 'rejected']).nullable().alter()
+    })
+
     this.schema.alterTable(this.tableName, (table) => {
       table.enum('status', ['pending', 'approved', 'rejected']).nullable().alter()
     })

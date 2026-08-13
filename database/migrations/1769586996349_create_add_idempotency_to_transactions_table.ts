@@ -5,7 +5,7 @@ export default class extends BaseSchema {
 
   async up() {
     this.schema.alterTable(this.tableName, (table) => {
-      table.string('idempotency').nullable().index()
+      table.string('idempotency', 64).nullable().index()
     })
   }
 

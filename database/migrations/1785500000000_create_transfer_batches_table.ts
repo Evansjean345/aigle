@@ -19,7 +19,7 @@ export default class extends BaseSchema {
       table.string('initiated_by').notNullable()
       table.string('approved_by').nullable()
       table.string('label').nullable()
-      table.text('description').nullable()
+      table.text('description', 'mediumtext').nullable()
 
       table.decimal('total_amount', 15, 2).notNullable().defaultTo(0)
       table.decimal('fees', 15, 2).notNullable().defaultTo(0)

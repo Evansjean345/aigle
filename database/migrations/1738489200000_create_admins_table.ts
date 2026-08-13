@@ -9,8 +9,9 @@ export default class extends BaseSchema {
       table.string('firstname').notNullable()
       table.string('lastname').notNullable()
       table.string('email').unique().notNullable()
-      table.string('password').notNullable()
-      table.boolean('is_active').defaultTo(true)
+      // Nul tant que l'invitation n'est pas acceptée : le gestionnaire le choisit à ce moment.
+      table.string('password').nullable()
+      table.boolean('is_active').defaultTo(false)
 
       table.string('last_login_ip').nullable()
       table.timestamp('last_login_at').nullable()

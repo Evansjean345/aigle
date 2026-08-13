@@ -5,7 +5,7 @@ export default class extends BaseSchema {
 
   async up() {
     this.schema.alterTable(this.tableName, (table) => {
-      table.string('operation_type').nullable().after('wallet_id')
+      table.string('operation_type', 25).nullable().after('wallet_id')
       table.string('description').nullable().after('operation_type')
     })
   }

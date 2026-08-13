@@ -44,7 +44,7 @@ export default class extends BaseSchema {
       table.decimal('amount', 15, 4).notNullable()
       table.decimal('balance_before', 15, 4).notNullable()
       table.decimal('balance_after', 15, 4).notNullable()
-      table.text('comment').notNullable()
+      table.text('comment', 'mediumtext').notNullable()
       table.integer('admin_id').unsigned().notNullable()
       table.decimal('max_amount', 15, 4).nullable()
       table.timestamp('executed_at').notNullable()

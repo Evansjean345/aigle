@@ -19,7 +19,7 @@ export default class extends BaseSchema {
       // Snapshot Technique
       table.string('fingerprint_hash').nullable()
       table.string('ip_address', 45).notNullable()
-      table.text('user_agent').nullable()
+      table.text('user_agent', 'mediumtext').nullable()
       table.string('os_version', 50).nullable()
       table.string('app_version', 50).nullable()
 

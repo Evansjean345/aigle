@@ -39,7 +39,7 @@ export default class extends BaseSchema {
       table.string('status').notNullable().defaultTo('queued').index()
       table.string('transaction_reference').nullable()
       table.string('provider_reference').nullable()
-      table.text('failure_reason').nullable()
+      table.text('failure_reason', 'mediumtext').nullable()
 
       table.integer('attempts').unsigned().notNullable().defaultTo(0)
       table.timestamp('next_retry_at').nullable().index()

@@ -17,7 +17,7 @@ export default class extends BaseSchema {
         .onDelete('SET NULL')
         .onUpdate('CASCADE')
       table.bigInteger('account_number').unsigned().index().unique()
-      table.uuid('users_uid').index()
+      table.uuid('users_uid').notNullable().index()
       table.string('firstname')
       table.string('identity_status').defaultTo('pending')
       table.string('picture_url').nullable()

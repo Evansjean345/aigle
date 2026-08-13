@@ -8,7 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
       table.enum('type', ['phone', 'whatsapp', 'email']).notNullable()
       table.string('value').notNullable()
-      table.boolean('is_active').defaultTo(true)
+      table.boolean('is_active').notNullable().defaultTo(true)
 
       table.timestamp('created_at')
       table.timestamp('updated_at')
