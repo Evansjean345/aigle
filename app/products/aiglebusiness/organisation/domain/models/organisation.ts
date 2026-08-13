@@ -25,6 +25,15 @@ export default class Organisation extends BaseModel {
   @column()
   declare accountType: OrganisationAccountType
 
+  /**
+   * Palier de l'organisation, **projection** de `accounts.level`.
+   *
+   * Ne décide de rien : la validation des mouvements lit le compte. Sert l'affichage et le filtre
+   * de la liste admin, qui pagine et ne peut donc pas interroger le compte ligne à ligne.
+   *
+   * Écrite par le provisioning et par la décision de revue. Un désalignement est relevé par
+   * `diagnose()` et réparé par la reprise.
+   */
   @column()
   declare level: OrganisationLevel
 

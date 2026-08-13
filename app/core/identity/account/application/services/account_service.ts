@@ -67,19 +67,6 @@ export default class AccountService {
    * Annonce l'ouverture du compte ('AccountOpened`) → money crée le wallet. À appeler **après
    * commit** par les appelants transactionnels. Idempotent côté money ('createForAccount`).
    */
-  /**
-   * Indique si un propriétaire a déjà son compte.
-   *
-   * @param {AccountOwnerType} ownerType - Nature du propriétaire.
-   * @param {string} ownerRef - Référence du propriétaire.
-   * @returns {Promise<boolean>} `true` si le compte existe.
-   */
-  async exists(ownerType: AccountOwnerType, ownerRef: string): Promise<boolean> {
-    const account = await this.accountRepository.findByOwner(ownerType, ownerRef)
-
-    return account !== null
-  }
-
   async announceOpened(account: Account): Promise<void> {
     await AccountOpened.dispatch({
       accountId: account.accountId,

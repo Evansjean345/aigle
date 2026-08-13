@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto'
 import { AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
 import OrganisationProvisioningService from '#aiglebusiness/organisation/application/services/organisation_provisioning_service'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
-import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import {
@@ -56,8 +55,6 @@ export default class CreateOrganisationUseCase {
       throw new OrganisationAlreadyOwnedException()
     }
 
-    const isMerchant = request.accountType === OrganisationAccountType.MARCHAND
-
     const organisationId = randomUUID()
 
     const created = await this.organisationRepository.create({
@@ -65,7 +62,9 @@ export default class CreateOrganisationUseCase {
       ownerUserId: request.ownerUserId,
       name: request.name,
       accountType: request.accountType,
-      level: isMerchant ? OrganisationLevel.LEVEL_1 : OrganisationLevel.LEVEL_0,
+      // Le palier est projeté depuis le compte par le provisioning. Tant qu'il n'est pas ouvert,
+      // l'organisation n'engage rien.
+      level: OrganisationLevel.LEVEL_0,
       status: OrganisationStatus.PROVISIONING,
       payableCode: null,
     })

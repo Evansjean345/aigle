@@ -264,7 +264,7 @@ export class OrganisationWalletStateResponseDTO {
 }
 
 /** Étape de configuration non aboutie. */
-export type OrganisationProvisioningStep = 'membership' | 'account' | 'payable_alias'
+export type OrganisationProvisioningStep = 'membership' | 'account' | 'level' | 'payable_alias'
 
 /**
  * Organisation dont la configuration n'a pas abouti, avec ce qui lui manque.

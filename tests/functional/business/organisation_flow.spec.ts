@@ -356,6 +356,31 @@ test.group('Business organisation | liste', (group) => {
     assert.lengthOf(members, 1, 'le propriétaire est rattaché')
   })
 
+  test('un palier désaligné est relevé puis réparé par la reprise', async ({ assert }) => {
+    const useCase = await app.container.make(CreateOrganisationUseCase)
+    const created = await useCase.execute(command({ name: 'Palier décalé' }))
+
+    // Ce que laisse une projection non écrite : le compte est au palier 1, l'organisation non.
+    const repository = await app.container.make(OrganisationRepositoryImpl)
+    await repository.updateLevel(created.organisationId, OrganisationLevel.LEVEL_0)
+    await db
+      .from('organisations')
+      .where('organisation_id', created.organisationId)
+      .update({ status: OrganisationStatus.PROVISIONING })
+
+    const provisioning = await app.container.make(OrganisationProvisioningService)
+    const stale = await Organisation.query()
+      .where('organisation_id', created.organisationId)
+      .firstOrFail()
+
+    assert.include(await provisioning.diagnose(stale), 'level')
+
+    const resumed = await provisioning.resume(created.organisationId)
+
+    assert.equal(resumed.level, OrganisationLevel.LEVEL_1)
+    assert.isEmpty(await provisioning.diagnose(resumed))
+  })
+
   test('reprendre une organisation déjà active ne la touche pas', async ({ assert }) => {
     const useCase = await app.container.make(CreateOrganisationUseCase)
     const created = await useCase.execute(command({ name: 'Déjà prête' }))

@@ -4,22 +4,15 @@ import AccountStandingService from '#core/identity/account/application/services/
 import KycDocumentProcessed from '#core/identity/kyc/application/events/kyc_document_processed'
 import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
-import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
+import { organisationLevelOf } from '#aiglebusiness/organisation/domain/organisation_level_mapping'
 import { requirementsFor } from '#core/identity/kyc/domain/verification_requirements'
-import errorLog from '#shared/infrastructure/logging/error_log'
-
-/** Niveau d'organisation correspondant au niveau du compte. */
-const ORGANISATION_LEVELS: Record<number, OrganisationLevel> = {
-  0: OrganisationLevel.LEVEL_0,
-  1: OrganisationLevel.LEVEL_1,
-  2: OrganisationLevel.LEVEL_2,
-}
 
 /**
  * Reporte sur l'organisation le niveau atteint par son compte à l'approbation de son dossier.
  *
  * Le compte est la source : c'est lui que la validation des mouvements lit. L'organisation en porte
- * une copie pour l'affichage business, qui parle en `OrganisationLevel`.
+ * une projection pour l'affichage business et le filtre de la liste admin, qui parlent en
+ * `OrganisationLevel`.
  */
 @inject()
 export default class SyncOrganisationLevelOnVerificationProcessed {
@@ -29,10 +22,15 @@ export default class SyncOrganisationLevelOnVerificationProcessed {
   ) {}
 
   /**
-   * Recopie le niveau du compte sur l'organisation.
+   * Projette le niveau du compte sur l'organisation.
+   *
+   * Un échec n'est pas rattrapé ici : il laisse la projection désalignée, ce que `diagnose()`
+   * relève et que la reprise de provisioning répare.
    *
    * @param {KycDocumentProcessed} event - Décision de revue.
-   * @returns {Promise<void>} Résolue quand le niveau est reporté, ou d'emblée s'il n'y a rien à reporter.
+   * @returns {Promise<void>} Résolue quand le niveau est projeté, ou d'emblée s'il n'y a rien à
+   *   projeter.
+   * @throws {Error} L'écriture de la projection a échoué.
    */
   async handle(event: KycDocumentProcessed): Promise<void> {
     if (event.ownerType !== AccountOwnerType.ORGANISATION) return
@@ -43,18 +41,12 @@ export default class SyncOrganisationLevelOnVerificationProcessed {
     if (!account) return
 
     const { grantsLevel } = requirementsFor(account.verificationProfile)
-    const mirrored = grantsLevel === null ? null : ORGANISATION_LEVELS[grantsLevel]
 
-    if (!mirrored) return
+    if (grantsLevel === null) return
 
-    try {
-      await this.organisationRepository.updateLevel(account.ownerRef, mirrored)
-    } catch (error) {
-      errorLog.error(
-        'ORGANISATION_LEVEL_SYNC_ERROR',
-        { account_id: event.accountId, error: (error as Error).message },
-        "Impossible de reporter le niveau sur l'organisation"
-      )
-    }
+    await this.organisationRepository.updateLevel(
+      account.ownerRef,
+      organisationLevelOf(grantsLevel)
+    )
   }
 }

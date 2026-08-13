@@ -1,5 +1,6 @@
 import { inject } from '@adonisjs/core'
 import AccountService from '#core/identity/account/application/services/account_service'
+import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
@@ -11,6 +12,7 @@ import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/org
 import OrganisationNotFoundException from '#aiglebusiness/organisation/domain/exceptions/organisation_not_found_exception'
 import type Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 import type { OrganisationProvisioningStep } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
+import { organisationLevelOf } from '#aiglebusiness/organisation/domain/organisation_level_mapping'
 
 /**
  * Configure une organisation nouvellement créée : membership, compte, alias d'encaissement.
@@ -29,7 +31,8 @@ export default class OrganisationProvisioningService {
     private readonly organisationRepository: OrganisationRepository,
     private readonly accountService: AccountService,
     private readonly payableAliasService: PayableAliasService,
-    private readonly membershipService: MembershipService
+    private readonly membershipService: MembershipService,
+    private readonly accountStandingService: AccountStandingService
   ) {}
 
   /**
@@ -54,6 +57,12 @@ export default class OrganisationProvisioningService {
         ? VerificationProfile.NONE
         : VerificationProfile.IMMATRICULATION,
     })
+
+    const level = organisationLevelOf(account.level)
+
+    if (organisation.level !== level) {
+      await this.organisationRepository.updateLevel(organisation.organisationId, level)
+    }
 
     const payableCode = await this.payableAliasService.register(
       organisation.organisationId,
@@ -114,12 +123,15 @@ export default class OrganisationProvisioningService {
 
     if (!hasOwner) missing.push('membership')
 
-    const hasAccount = await this.accountService.exists(
-      AccountOwnerType.ORGANISATION,
-      organisation.organisationId
-    )
+    const account = await this.accountStandingService.describe(organisation.organisationId)
 
-    if (!hasAccount) missing.push('account')
+    if (!account) missing.push('account')
+
+    // Le palier affiché est une projection de celui du compte : désaligné, il annonce au
+    // gestionnaire des droits que l'organisation n'a pas.
+    if (account && organisation.level !== organisationLevelOf(account.level)) {
+      missing.push('level')
+    }
 
     if (!organisation.payableCode) missing.push('payable_alias')
 
