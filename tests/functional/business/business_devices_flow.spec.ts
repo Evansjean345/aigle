@@ -13,7 +13,7 @@ import UserSessionService from '#core/identity/authentication/application/servic
 import { type UserDeviceResult } from '#core/identity/device/application/dto/user_device_result'
 import { appAbility } from '#core/identity/authentication/domain/enums/app_name'
 import User from '#core/identity/user/domain/models/user'
-import { maxDeviceConnectionAllowed } from '#config/app'
+import { maxDeviceConnectionAllowed } from '#config/device'
 import { makeUser, authTestSetup } from '#tests/helpers/auth_test_helpers'
 
 /**

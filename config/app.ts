@@ -13,15 +13,6 @@ export const appEnv = env.get('NODE_ENV', 'development')
 export const mobileDeviceDeepLink = env.get('MOBILE_DEVICE_DEEP_LINK_URL')
 
 /**
- * Represents the maximum number of device connections allowed.
- * The value is retrieved from the environment variable 'MAX_DEVICE_CONNECTIONS'.
- * If the environment variable is not set, a default value of 2 is used.
- *
- * @type {number}
- */
-export const maxDeviceConnectionAllowed: number = env.get('MAX_DEVICE_CONNECTIONS', 2)
-
-/**
  * A configuration flag that determines whether OTP (One-Time Password) verification should be bypassed.
  *
  * This flag is typically used for testing/development purposes where OTP verification

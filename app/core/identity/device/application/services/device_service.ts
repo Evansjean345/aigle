@@ -1,5 +1,5 @@
 import { inject } from '@adonisjs/core'
-import adonisApp from '@adonisjs/core/services/app'
+import { enforceIntegrity, maxDeviceConnectionAllowed } from '#config/device'
 import { DateTime } from 'luxon'
 import DeviceRepository from '#core/identity/device/domain/interfaces/device_repository'
 import UserDeviceRepository from '#core/identity/device/domain/interfaces/user_device_repository'
@@ -12,7 +12,6 @@ import { type DeviceRequestDTO } from '#core/identity/device/application/dto/dev
 import { type UserDeviceResult } from '#core/identity/device/application/dto/user_device_result'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import NewDeviceDetected from '#core/identity/device/application/events/new_device_detected'
-import { maxDeviceConnectionAllowed } from '#config/app'
 import appLog from '#shared/infrastructure/logging/app_log'
 import { Exception } from '@adonisjs/core/exceptions'
 import FailedToSaveOrUpdateDeviceException from '#core/identity/device/domain/exceptions/failed_to_save_or_update_device_exception'
@@ -477,10 +476,9 @@ export default class DeviceService {
       throw new UnauthenticatedDeviceException()
     }
 
-    // Intégrité de l'appareil (matériel) : rooté / émulateur → refus.
-    // ⚠️ DEV : en dehors de la production, on **n'applique pas** ce refus, sinon
-    // aucun émulateur ne peut travailler. Le contrôle reste **actif en production**.
-    if (adonisApp.inProduction && (device.isRooted || device.isEmulator)) {
+    // Intégrité de l'appareil : rooté ou émulé → refus. Le contrôle est actif en production, et
+    // se règle par `DEVICE_ENFORCE_INTEGRITY` — sans quoi aucun émulateur ne peut travailler.
+    if (enforceIntegrity && (device.isRooted || device.isEmulator)) {
       throw new Exception(
         'Opération impossible sur un appareil non sécurisé (rooté ou émulateur).',
         {
