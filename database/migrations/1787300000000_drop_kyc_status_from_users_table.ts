@@ -41,7 +41,8 @@ export default class extends BaseSchema {
     this.defer(async (db) => {
       await db.rawQuery(
         'UPDATE `users` u SET u.`kyc_status` = CASE (' +
-          'SELECT d.`status` FROM `kyc_documents` d WHERE d.`account_id` = u.`users_uid` ' +
+          'SELECT d.`status` FROM `kyc_documents` d ' +
+          'WHERE d.`account_id` COLLATE utf8mb4_unicode_ci = u.`users_uid` COLLATE utf8mb4_unicode_ci ' +
           'ORDER BY d.`created_at` DESC LIMIT 1' +
           ") WHEN 'pending' THEN 'PENDING_IN_REVIEW' " +
           "WHEN 'approved' THEN 'VERIFIED' " +

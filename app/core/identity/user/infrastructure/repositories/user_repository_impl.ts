@@ -168,8 +168,12 @@ export default class UserRepositoryIml implements UserRepository {
         db.raw('SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as blockedAccounts', [
           UserStatus.BLOCKED,
         ]),
+        // `COLLATE` des deux côtés : `users_uid` et `account_id` ne portent pas la même collation,
+        // et MySQL refuse de les comparer sans la forcer.
         db.raw(
-          'SUM(CASE WHEN EXISTS (SELECT 1 FROM `kyc_documents` d WHERE d.`account_id` = `users`.`users_uid` AND d.`status` = ?) THEN 1 ELSE 0 END) as kycVerified',
+          'SUM(CASE WHEN EXISTS (SELECT 1 FROM `kyc_documents` d ' +
+            'WHERE d.`account_id` COLLATE utf8mb4_unicode_ci = `users`.`users_uid` COLLATE utf8mb4_unicode_ci ' +
+            'AND d.`status` = ?) THEN 1 ELSE 0 END) as kycVerified',
           [KycDocumentStatus.APPROVED]
         ),
         db.raw('SUM(CASE WHEN DATE(created_at) = ? THEN 1 ELSE 0 END) as registeredToday', [today])
