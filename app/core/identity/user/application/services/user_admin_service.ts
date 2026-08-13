@@ -64,7 +64,7 @@ export default class UserAdminService {
     const items = paginated.all()
     const userIds = items.map((user) => user.usersUid)
     const since = startDate ? DateTime.fromISO(startDate) : undefined
-    const volumes = await this.transactionVolumeCache.getMonthlyVolumesForUsers(userIds, since)
+    const volumes = await this.transactionVolumeCache.getMonthlyVolumesForAccounts(userIds, since)
 
     const selfies = await this.verificationPictureService.selfieUrlsFor(userIds)
     // Le plafond vient du compte, jamais de `users.kyc_level` : la grille se résout par

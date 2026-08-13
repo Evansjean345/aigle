@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
 import User from '#core/identity/user/domain/models/user'
@@ -12,7 +11,8 @@ import { KycLevelState } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import AccountService from '#core/identity/account/application/services/account_service'
 import ChangeUserStateUseCase from '#aiglesend/user/application/use_cases/admin/change_user_state_use_case'
-import UpdateUserKycStatus from '#core/identity/user/application/use_cases/update_user_kyc_status'
+import KycDocumentProcessed from '#core/identity/kyc/application/events/kyc_document_processed'
+import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 
 /**
  * Caractérise le **push-sync** (refactor account-centric, É2b) : quand le propriétaire change d'état,
@@ -20,7 +20,7 @@ import UpdateUserKycStatus from '#core/identity/user/application/use_cases/updat
  * de sorte que la validation money (qui lit le compte seul) reflète le statut/niveau à jour.
  *
  *  - `ChangeUserStateUseCase` (admin) émet `UserStateChanged` → `account.status` suit.
- *  - `UpdateUserKycStatus` émet `UserKycStatusUpdated` (niveau résultant) → `account.level` suit.
+ *  - une décision de revue émet `KycDocumentProcessed` → `account.level` suit.
  */
 
 const CI_COUNTRY_ID = 52
@@ -35,7 +35,6 @@ async function createUserWithAccount(): Promise<User> {
   user.status = UserStatus.ACTIVE
   user.accountType = 'freemium'
   user.kycStatus = UserKycStatus.NOT_STARTED
-  user.kycLevel = KycLevelState.NOT_VERIFY
   await user.save()
 
   const accountService = await app.container.make(AccountService)
@@ -83,15 +82,15 @@ test.group('Push-sync du compte | statut & niveau', (group) => {
     assert.equal(account.status, AccountStatus.ACTIVE)
   })
 
-  test('KYC vérifié → le niveau du compte est relevé (NOT_VERIFY → KYC_VERIFIED)', async ({
-    assert,
-  }) => {
+  test('dossier d’identité approuvé → le niveau du compte est relevé', async ({ assert }) => {
     const user = await createUserWithAccount()
-    const updateKyc = await app.container.make(UpdateUserKycStatus)
 
-    // Vérification sans niveau explicite : le use case déduit le palier du statut, l'event le
-    // porte, le listener le pose sur le compte. Rien ne transite plus par une colonne de `users`.
-    await updateKyc.execute(user.usersUid, UserKycStatus.VERIFIED)
+    await KycDocumentProcessed.dispatch(
+      user.usersUid,
+      AccountOwnerType.USER,
+      user.usersUid,
+      KycDocumentStatus.APPROVED
+    )
 
     const account = await reloadAccount(user.usersUid)
     assert.equal(account.level, KycLevelState.KYC_VERIFIED)

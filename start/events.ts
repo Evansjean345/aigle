@@ -8,7 +8,6 @@ import TransfertTransactionFailed from '#core/money/transactions/application/eve
 import TransfertInterTransactionFailed from '#core/money/transactions/application/events/transfert_inter_transaction_failed'
 import KycDocumentSubmitted from '#core/identity/kyc/application/events/kyc_document_submitted'
 import KycDocumentProcessed from '#core/identity/kyc/application/events/kyc_document_processed'
-import UserKycStatusUpdated from '#core/identity/user/application/events/user_kyc_status_updated'
 import NewDeviceDetected from '#core/identity/device/application/events/new_device_detected'
 import UserStateChanged from '#core/identity/user/application/events/user_state_changed'
 import WalletStatusChanged from '#core/money/wallet/application/events/wallet_status_changed'
@@ -37,9 +36,6 @@ const OnMerchantPaymentReceivedNotification = () =>
 const OnTransfertSuccessNotification = () =>
   import('#core/notifications/application/listeners/on_transfert_success_notification')
 
-const OnUserKycStatusUpdate = () =>
-  import('#core/identity/user/application/listeners/on_user_kyc_status_update')
-
 const OnKycDocumentSubmittedNotification = () =>
   import('#core/notifications/application/listeners/on_kyc_document_submitted_notification')
 
@@ -63,8 +59,6 @@ const CreateWalletOnAccountOpened = () =>
   import('#core/money/wallet/application/listeners/create_wallet_on_account_opened')
 const SyncAccountStatusOnUserStateChanged = () =>
   import('#core/identity/account/application/listeners/sync_account_status_on_user_state_changed')
-const SyncAccountLevelOnKycUpdated = () =>
-  import('#core/identity/account/application/listeners/sync_account_level_on_kyc_updated')
 const SyncAccountLevelOnVerificationProcessed = () =>
   import('#core/identity/account/application/listeners/sync_account_level_on_verification_processed')
 const SyncOrganisationLevelOnVerificationProcessed = () =>
@@ -107,19 +101,16 @@ emitter.listen(WalletToWalletTransactionCompleted, [
   ResetSecurityCountersOnSuccessListener,
 ])
 emitter.listen(KycDocumentSubmitted, [
-  OnUserKycStatusUpdate,
   OnKycDocumentSubmittedNotification,
   OnKycSubmittedAdminBroadcast,
 ])
+// La notification vient après les montées de palier : avertir avant de poser les droits montrerait
+// au porteur des plafonds qu'il n'a pas encore.
 emitter.listen(KycDocumentProcessed, [
-  OnUserKycStatusUpdate,
   OnKycProcessedAdminBroadcast,
   SyncAccountLevelOnVerificationProcessed,
   SyncOrganisationLevelOnVerificationProcessed,
-])
-emitter.listen(UserKycStatusUpdated, [
   OnKycDocumentProcessedNotification,
-  SyncAccountLevelOnKycUpdated,
 ])
 emitter.listen(NewDeviceDetected, [OnNewDeviceDetectedNotification])
 emitter.listen(UserStateChanged, [

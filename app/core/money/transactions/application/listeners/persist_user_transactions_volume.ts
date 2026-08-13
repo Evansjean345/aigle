@@ -53,9 +53,7 @@ export default class PersistUserTransactionsVolume {
   }
 
   /**
-   * Marque la référence comme traitée (idempotence) puis incrémente le volume **du compte**.
-   * `accountId` est la clé de volume (opaque côté cache) : elle vaut `usersUid` pour un user et
-   * l'org pour un marchand.
+   * Marque la référence comme traitée (idempotence) puis incrémente le volume du compte.
    */
   private async persist(
     reference: string,
@@ -66,6 +64,6 @@ export default class PersistUserTransactionsVolume {
     const ok = await this.idempotency.checkAndMark(reference)
     if (!ok) return
 
-    await this.transactionVolumeCache.incrementOnSuccess({ userId: accountId, amount, timestamp })
+    await this.transactionVolumeCache.incrementOnSuccess({ accountId, amount, timestamp })
   }
 }

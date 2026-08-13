@@ -1,56 +1,64 @@
 import { type DateTime } from 'luxon'
 
+/**
+ * Volumes engagés par un **compte**, sur la journée et sur le mois.
+ *
+ * La clé Redis conserve son préfixe `tx:vol:user:` : le renommer perdrait les volumes en cours.
+ */
 export default abstract class TransactionVolumeCache {
   /**
-   * Increments the transaction volume for a user in a cache on success. Updates cache keys for both daily and monthly tracking.
+   * Incrémente le volume d'un compte, sur la journée et sur le mois.
    *
-   * @param {Object} params - The parameters for the operation.
-   * @param {string} params.userId - The unique identifier for the user whose volume is being incremented.
-   * @param {number} params.amount - The amount to increment the transaction volume by.
-   * @param {Date|string|DateTime} [params.timestamp] - The timestamp associated with the operation. Defaults to the current time if not provided.
-   * @return {Promise<void>} A promise that resolves once the operation is complete.
+   * @param {Object} params - Paramètres de l'opération.
+   * @param {string} params.accountId - Compte dont le volume est incrémenté.
+   * @param {number} params.amount - Montant à ajouter.
+   * @param {Date|string|DateTime} [params.timestamp] - Instant de l'opération, maintenant par défaut.
+   * @return {Promise<void>} Résolue quand l'incrément est écrit.
    */
   abstract incrementOnSuccess(params: {
-    userId: string
+    accountId: string
     amount: number
     timestamp?: Date | string | DateTime
   }): Promise<void>
 
   /**
-   * Retrieves the daily transaction volume for a specific user based on the given date.
+   * Rend le volume engagé par un compte sur une journée.
    *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {Date | string | DateTime} [dt] - The date for which the daily volume is to be retrieved. If not provided, defaults to the current date.
-   * @return {Promise<number>} A promise that resolves to the daily transaction volume as a number.
+   * @param {string} accountId - Compte cible.
+   * @param {Date | string | DateTime} [dt] - Journée visée, aujourd'hui par défaut.
+   * @return {Promise<number>} Le volume de la journée.
    */
-  abstract getDailyVolume(userId: string, dt?: Date | string | DateTime): Promise<number>
+  abstract getDailyVolume(accountId: string, dt?: Date | string | DateTime): Promise<number>
 
   /**
-   * Retrieves the monthly transaction volume for a specific user.
+   * Rend le volume engagé par un compte sur un mois.
    *
-   * @param {string | number} userId - The unique identifier for the user.
-   * @param {Date | string | DateTime} [dt] - The optional date to specify the month and year for the volume lookup. Defaults to the current date if not provided.
-   * @return {Promise<number>} A promise that resolves to the monthly transaction volume as a number. Returns 0 if no data is available.
+   * @param {string | number} accountId - Compte cible.
+   * @param {Date | string | DateTime} [dt] - Mois visé, le mois courant par défaut.
+   * @return {Promise<number>} Le volume du mois, `0` faute de donnée.
    */
-  abstract getMonthlyVolume(userId: string | number, dt?: Date | string | DateTime): Promise<number>
+  abstract getMonthlyVolume(
+    accountId: string | number,
+    dt?: Date | string | DateTime
+  ): Promise<number>
 
   /**
-   * Retrieves the monthly volumes for a list of users.
+   * Rend le volume mensuel de plusieurs comptes.
    *
-   * @param {string[]} userIds - The list of user identifiers.
-   * @param {Date | string | DateTime} [dt] - The optional date to specify the month.
-   * @returns {Promise<Record<string, number>>} A promise that resolves to a record of user ID and their monthly volume.
+   * @param {string[]} accountIds - Comptes cibles.
+   * @param {Date | string | DateTime} [dt] - Mois visé.
+   * @returns {Promise<Record<string, number>>} Le volume du mois par compte.
    */
-  abstract getMonthlyVolumesForUsers(
-    userIds: string[],
+  abstract getMonthlyVolumesForAccounts(
+    accountIds: string[],
     dt?: Date | string | DateTime
   ): Promise<Record<string, number>>
 
   /**
-   * Clears all transaction volumes for a specific user (daily and monthly).
+   * Vide les volumes d'un compte, journalier et mensuel.
    *
-   * @param {string} userId - The unique identifier of the user.
-   * @return {Promise<void>} A promise that resolves once the operation is complete.
+   * @param {string} accountId - Compte cible.
+   * @return {Promise<void>} Résolue quand les clés sont supprimées.
    */
-  abstract clearVolume(userId: string): Promise<void>
+  abstract clearVolume(accountId: string): Promise<void>
 }

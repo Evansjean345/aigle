@@ -5,7 +5,8 @@ import AccountVerificationService from '#core/identity/kyc/application/services/
 import InMemoryKycDocumentRepository from '#tests/fakes/kyc/in_memory_kyc_document_repository'
 import InMemoryFileStorage from '#tests/fakes/shared/in_memory_file_storage'
 import KycDocumentSubmitted from '#core/identity/kyc/application/events/kyc_document_submitted'
-import OnUserKycStatusUpdate from '#core/identity/user/application/listeners/on_user_kyc_status_update'
+import OnKycDocumentProcessedNotification from '#core/notifications/application/listeners/on_kyc_document_processed_notification'
+import KycDocumentProcessed from '#core/identity/kyc/application/events/kyc_document_processed'
 import { DocumentPieceType, KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
@@ -120,47 +121,56 @@ test.group('Kyc | Annonce de soumission', () => {
 })
 
 /**
- * Caractérise la garde du listener qui met à jour le KYC d'un utilisateur.
+ * Caractérise la garde de la notification de décision.
  *
- * Sans elle, un dossier d'entreprise déclencherait une mise à jour sur un utilisateur inexistant.
+ * Un dossier d'organisation n'a pas d'utilisateur porteur : sans garde, la notification partirait
+ * vers un destinataire nul, avec un message écrit pour une personne.
  */
-test.group('Kyc | Garde du suivi utilisateur', () => {
-  test('un dossier d’organisation n’atteint pas la mise à jour utilisateur', async ({ assert }) => {
-    let called = false
-
-    const listener = new OnUserKycStatusUpdate({
-      execute: async () => {
-        called = true
+test.group('Kyc | Garde de la notification', () => {
+  const notifierRecording = (sent: string[]) =>
+    ({
+      sendVia: async (_channel: unknown, notification: { recipientId: string }) => {
+        sent.push(notification.recipientId)
       },
-    } as any)
+    }) as any
+
+  test('un dossier d’organisation ne notifie personne', async ({ assert }) => {
+    const sent: string[] = []
+    const listener = new OnKycDocumentProcessedNotification(notifierRecording(sent))
 
     await listener.handle(
-      new KycDocumentSubmitted(
+      new KycDocumentProcessed(
         uuidv4(),
         AccountOwnerType.ORGANISATION,
         null,
-        KycDocumentStatus.PENDING
+        KycDocumentStatus.APPROVED
       )
     )
 
-    assert.isFalse(called)
+    assert.isEmpty(sent)
   })
 
-  test('un dossier d’utilisateur atteint la mise à jour', async ({ assert }) => {
-    let called = false
-
-    const listener = new OnUserKycStatusUpdate({
-      execute: async () => {
-        called = true
-      },
-    } as any)
-
+  test('un dossier d’utilisateur notifie son porteur', async ({ assert }) => {
+    const sent: string[] = []
+    const listener = new OnKycDocumentProcessedNotification(notifierRecording(sent))
     const userId = uuidv4()
 
     await listener.handle(
-      new KycDocumentSubmitted(userId, AccountOwnerType.USER, userId, KycDocumentStatus.PENDING)
+      new KycDocumentProcessed(userId, AccountOwnerType.USER, userId, KycDocumentStatus.APPROVED)
     )
 
-    assert.isTrue(called)
+    assert.deepEqual(sent, [userId])
+  })
+
+  test('un dossier encore en revue ne notifie pas', async ({ assert }) => {
+    const sent: string[] = []
+    const listener = new OnKycDocumentProcessedNotification(notifierRecording(sent))
+    const userId = uuidv4()
+
+    await listener.handle(
+      new KycDocumentProcessed(userId, AccountOwnerType.USER, userId, KycDocumentStatus.PENDING)
+    )
+
+    assert.isEmpty(sent)
   })
 })

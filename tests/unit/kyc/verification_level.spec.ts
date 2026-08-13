@@ -9,12 +9,19 @@ import { AccountSegment } from '#core/identity/account/domain/enums/account_segm
 import { VerificationProfile } from '#core/identity/kyc/domain/verification_profile'
 import { AccountStatus } from '#core/identity/account/domain/enums/account_status'
 
-/** Retient les niveaux posés, et décrit le compte demandé. */
+/** Retient les niveaux posés et les volumes purgés, et décrit le compte demandé. */
 function accountsFor(segment: AccountSegment, verificationProfile: VerificationProfile) {
   const applied: { accountId: string; level: number }[] = []
+  const cleared: string[] = []
 
   return {
     applied,
+    cleared,
+    volumes: {
+      async clearVolume(accountId: string) {
+        cleared.push(accountId)
+      },
+    },
     service: {
       async setLevel(accountId: string, level: number) {
         applied.push({ accountId, level })
@@ -74,18 +81,19 @@ test.group('Kyc | Palier ouvert par le catalogue', () => {
 })
 
 /**
- * Caractérise la montée de palier d'une organisation à l'approbation de son dossier.
+ * Caractérise la montée de palier à l'approbation d'un dossier.
  *
- * Le dossier d'identité suit une autre route — par l'utilisateur — et ce listener ne doit pas s'y
- * superposer.
+ * Une même route sert les deux porteurs : c'est le profil de vérification du compte qui dit ce que
+ * l'approbation accorde.
  */
-test.group('Kyc | Montée de palier d’une organisation', () => {
+test.group('Kyc | Montée de palier à l’approbation', () => {
   test('un dossier d’entreprise approuvé porte le compte au niveau 2', async ({ assert }) => {
     const accountId = uuidv4()
     const accounts = accountsFor(AccountSegment.ORGANISATION, VerificationProfile.IMMATRICULATION)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
-      accounts.directory as any
+      accounts.directory as any,
+      accounts.volumes as any
     )
 
     await listener.handle(
@@ -99,7 +107,8 @@ test.group('Kyc | Montée de palier d’une organisation', () => {
     const accounts = accountsFor(AccountSegment.ORGANISATION, VerificationProfile.IMMATRICULATION)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
-      accounts.directory as any
+      accounts.directory as any,
+      accounts.volumes as any
     )
 
     await listener.handle(
@@ -109,23 +118,53 @@ test.group('Kyc | Montée de palier d’une organisation', () => {
     assert.isEmpty(accounts.applied)
   })
 
-  test('un dossier d’identité n’emprunte pas cette route', async ({ assert }) => {
+  test('un dossier d’identité approuvé porte le compte au niveau 2', async ({ assert }) => {
+    const accountId = uuidv4()
     const accounts = accountsFor(AccountSegment.PARTICULIER, VerificationProfile.IDENTITE)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
-      accounts.directory as any
+      accounts.directory as any,
+      accounts.volumes as any
     )
 
-    await listener.handle(processed(uuidv4(), AccountOwnerType.USER, KycDocumentStatus.APPROVED))
+    await listener.handle(processed(accountId, AccountOwnerType.USER, KycDocumentStatus.APPROVED))
 
-    assert.isEmpty(accounts.applied)
+    assert.deepEqual(accounts.applied, [{ accountId, level: 2 }])
+  })
+
+  test('une approbation purge les volumes du compte', async ({ assert }) => {
+    const accountId = uuidv4()
+    const accounts = accountsFor(AccountSegment.PARTICULIER, VerificationProfile.IDENTITE)
+    const listener = new SyncAccountLevelOnVerificationProcessed(
+      accounts.service as any,
+      accounts.directory as any,
+      accounts.volumes as any
+    )
+
+    await listener.handle(processed(accountId, AccountOwnerType.USER, KycDocumentStatus.APPROVED))
+
+    assert.deepEqual(accounts.cleared, [accountId])
+  })
+
+  test('un refus ne purge rien', async ({ assert }) => {
+    const accounts = accountsFor(AccountSegment.PARTICULIER, VerificationProfile.IDENTITE)
+    const listener = new SyncAccountLevelOnVerificationProcessed(
+      accounts.service as any,
+      accounts.directory as any,
+      accounts.volumes as any
+    )
+
+    await listener.handle(processed(uuidv4(), AccountOwnerType.USER, KycDocumentStatus.REJECTED))
+
+    assert.isEmpty(accounts.cleared)
   })
 
   test('un compte marchand ne monte nulle part', async ({ assert }) => {
     const accounts = accountsFor(AccountSegment.ORGANISATION, VerificationProfile.NONE)
     const listener = new SyncAccountLevelOnVerificationProcessed(
       accounts.service as any,
-      accounts.directory as any
+      accounts.directory as any,
+      accounts.volumes as any
     )
 
     await listener.handle(
@@ -147,7 +186,8 @@ test.group('Kyc | Montée de palier d’une organisation', () => {
         async describe() {
           return null
         },
-      } as any
+      } as any,
+      { async clearVolume() {} } as any
     )
 
     await listener.handle(

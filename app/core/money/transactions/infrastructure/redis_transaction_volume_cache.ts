@@ -30,25 +30,27 @@ export default class RedisTransactionVolumeCache implements TransactionVolumeCac
   }
 
   /**
-   * Generates a unique key string for a specific user and date.
+   * Compose la clé du volume journalier d'un compte.
    *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {DateTime<boolean>} dt - The date object representing the target day.
-   * @return {string} A formatted string key combining the user ID and date.
+   * Le segment `user:` est conservé : le changer perdrait les volumes en cours.
+   *
+   * @param {string} accountId - Compte cible.
+   * @param {DateTime<boolean>} dt - Journée visée.
+   * @return {string} La clé Redis.
    */
-  private dayKey(userId: string, dt: DateTime<boolean>): string {
-    return `tx:vol:user:${userId}:day:${dt.toFormat('yyyyLLdd')}` // 20251217
+  private dayKey(accountId: string, dt: DateTime<boolean>): string {
+    return `tx:vol:user:${accountId}:day:${dt.toFormat('yyyyLLdd')}` // 20251217
   }
 
   /**
-   * Generates a unique key string based on the user ID and the month of the provided DateTime object.
+   * Compose la clé du volume mensuel d'un compte.
    *
-   * @param {string | number} userId - The identifier for the user, can be a string or a number.
-   * @param {DateTime} dt - The DateTime object representing the date to extract the month and year.
-   * @return {string} A formatted string key containing the user ID and the month-year in 'yyyyLL' format.
+   * @param {string | number} accountId - Compte cible.
+   * @param {DateTime} dt - Mois visé.
+   * @return {string} La clé Redis.
    */
-  private monthKey(userId: string | number, dt: DateTime): string {
-    return `tx:vol:user:${userId}:month:${dt.toFormat('yyyyLL')}` // 202512
+  private monthKey(accountId: string | number, dt: DateTime): string {
+    return `tx:vol:user:${accountId}:month:${dt.toFormat('yyyyLL')}` // 202512
   }
 
   /**
@@ -64,31 +66,31 @@ export default class RedisTransactionVolumeCache implements TransactionVolumeCac
   }
 
   /**
-   * Increments the transaction volume for a user in a cache on success. Updates cache keys for both daily and monthly tracking.
+   * Incrémente le volume d'un compte, sur la journée et sur le mois.
    *
-   * @param {Object} params - The parameters for the operation.
-   * @param {string} params.userId - The unique identifier for the user whose volume is being incremented.
-   * @param {number} params.amount - The amount to increment the transaction volume by.
-   * @param {Date|string|DateTime} [params.timestamp] - The timestamp associated with the operation. Defaults to the current time if not provided.
-   * @return {Promise<void>} A promise that resolves once the operation is complete.
+   * @param {Object} params - Paramètres de l'opération.
+   * @param {string} params.accountId - Compte dont le volume est incrémenté.
+   * @param {number} params.amount - Montant à ajouter.
+   * @param {Date|string|DateTime} [params.timestamp] - Instant de l'opération, maintenant par défaut.
+   * @return {Promise<void>} Résolue quand l'incrément est écrit.
    */
   async incrementOnSuccess(params: {
-    userId: string
+    accountId: string
     amount: number
     timestamp?: Date | string | DateTime
   }): Promise<void> {
-    const { userId, amount } = params
+    const { accountId, amount } = params
 
     const ts = RedisTransactionVolumeCache.normalize(params.timestamp)
     const now = DateTime.now().setZone(RedisTransactionVolumeCache.ZONE)
 
     const keys = [
       {
-        key: this.dayKey(userId, ts),
+        key: this.dayKey(accountId, ts),
         ttl: RedisTransactionVolumeCache.ttlSeconds(now, ts.endOf('day')),
       },
       {
-        key: this.monthKey(userId, ts),
+        key: this.monthKey(accountId, ts),
         ttl: RedisTransactionVolumeCache.ttlSeconds(now, ts.endOf('month')),
       },
     ]
@@ -104,68 +106,72 @@ export default class RedisTransactionVolumeCache implements TransactionVolumeCac
   }
 
   /**
-   * Retrieves the daily transaction volume for a specific user based on the given date.
+   * Rend le volume engagé par un compte sur une journée.
    *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {Date | string | DateTime} [dt] - The date for which the daily volume is to be retrieved. If not provided, defaults to the current date.
-   * @return {Promise<number>} A promise that resolves to the daily transaction volume as a number.
+   * @param {string} accountId - Compte cible.
+   * @param {Date | string | DateTime} [dt] - Journée visée, aujourd'hui par défaut.
+   * @return {Promise<number>} Le volume de la journée.
    */
-  async getDailyVolume(userId: string, dt?: Date | string | DateTime): Promise<number> {
-    const key = this.dayKey(userId, RedisTransactionVolumeCache.normalize(dt))
+  async getDailyVolume(accountId: string, dt?: Date | string | DateTime): Promise<number> {
+    const key = this.dayKey(accountId, RedisTransactionVolumeCache.normalize(dt))
     const val = await this.connection.get(key)
     return val ? Number(val) : 0
   }
 
   /**
-   * Retrieves the monthly transaction volume for a specific user.
+   * Rend le volume engagé par un compte sur un mois.
    *
-   * @param {string | number} userId - The unique identifier for the user.
-   * @param {Date | string | DateTime} [dt] - The optional date to specify the month and year for the volume lookup. Defaults to the current date if not provided.
-   * @return {Promise<number>} A promise that resolves to the monthly transaction volume as a number. Returns 0 if no data is available.
+   * @param {string | number} accountId - Compte cible.
+   * @param {Date | string | DateTime} [dt] - Mois visé, le mois courant par défaut.
+   * @return {Promise<number>} Le volume du mois, `0` faute de donnée.
    */
-  async getMonthlyVolume(userId: string | number, dt?: Date | string | DateTime): Promise<number> {
-    const key = this.monthKey(userId, RedisTransactionVolumeCache.normalize(dt))
+  async getMonthlyVolume(
+    accountId: string | number,
+    dt?: Date | string | DateTime
+  ): Promise<number> {
+    const key = this.monthKey(accountId, RedisTransactionVolumeCache.normalize(dt))
     const val = await this.connection.get(key)
     return val ? Number(val) : 0
   }
 
   /**
-   * Retrieves the monthly volumes for a list of users.
+   * Rend le volume mensuel de plusieurs comptes.
    *
-   * @param {string[]} userIds - The list of user identifiers.
-   * @param {Date | string | DateTime} [dt] - The optional date to specify the month.
-   * @returns {Promise<Record<string, number>>} A promise that resolves to a record of user ID and their monthly volume.
+   * @param {string[]} accountIds - Comptes cibles.
+   * @param {Date | string | DateTime} [dt] - Mois visé.
+   * @returns {Promise<Record<string, number>>} Le volume du mois par compte.
    */
-  async getMonthlyVolumesForUsers(
-    userIds: string[],
+  async getMonthlyVolumesForAccounts(
+    accountIds: string[],
     dt?: Date | string | DateTime
   ): Promise<Record<string, number>> {
     const ts = RedisTransactionVolumeCache.normalize(dt)
     const pipeline = this.connection.pipeline()
 
-    userIds.forEach((userId) => {
-      pipeline.get(this.monthKey(userId, ts))
+    accountIds.forEach((accountId) => {
+      pipeline.get(this.monthKey(accountId, ts))
     })
 
     const results = await pipeline.exec()
     const volumes: Record<string, number> = {}
 
-    userIds.forEach((userId, index) => {
+    accountIds.forEach((accountId, index) => {
       const val = results ? results[index] : null
-      volumes[userId] =
+      volumes[accountId] =
         val && Array.isArray(val) ? (val[1] ? Number(val[1]) : 0) : val ? Number(val) : 0
     })
 
     return volumes
   }
+
   /**
-   * Clears all transaction volumes for a specific user (daily and monthly).
+   * Vide les volumes d'un compte, journalier et mensuel.
    *
-   * @param {string} userId - The unique identifier of the user.
-   * @return {Promise<void>} A promise that resolves once the operation is complete.
+   * @param {string} accountId - Compte cible.
+   * @return {Promise<void>} Résolue quand les clés sont supprimées.
    */
-  async clearVolume(userId: string): Promise<void> {
-    const pattern = `tx:vol:user:${userId}:*`
+  async clearVolume(accountId: string): Promise<void> {
+    const pattern = `tx:vol:user:${accountId}:*`
     const keys = await this.connection.keys(pattern)
 
     if (keys.length > 0) {

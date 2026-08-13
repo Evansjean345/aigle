@@ -24,8 +24,8 @@ interface IncrCall {
 function build() {
   const calls: IncrCall[] = []
   const cache = {
-    incrementOnSuccess: async (p: { userId: string; amount: number }) => {
-      calls.push({ key: p.userId, amount: p.amount })
+    incrementOnSuccess: async (p: { accountId: string; amount: number }) => {
+      calls.push({ key: p.accountId, amount: p.amount })
     },
   } as unknown as TransactionVolumeCache
 
