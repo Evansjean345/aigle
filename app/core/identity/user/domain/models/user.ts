@@ -115,8 +115,14 @@ export default class User extends compose(BaseModel, AuthFinder) {
   })
   declare country: BelongsTo<typeof Country>
 
+  /**
+   * Dossier de vérification du porteur.
+   *
+   * Joint sur `account_id`, colonne d'ancrage du dossier : `kyc_documents.user_id` n'est plus
+   * qu'un vestige, écrit sous condition et destiné à disparaître.
+   */
   @hasOne(() => KycDocument, {
-    foreignKey: 'userId',
+    foreignKey: 'accountId',
     localKey: 'usersUid',
   })
   declare kycDocument: HasOne<typeof KycDocument>
