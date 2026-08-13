@@ -111,4 +111,15 @@ test.group('Kyc | Photo de vérification', () => {
 
     assert.isNull(await service.selfieUrlFor(accountId))
   })
+
+  test('la résolution par lot sert les deux formes de dossier', async ({ assert }) => {
+    const recent = uuidv4()
+    const legacy = uuidv4()
+    const { service } = makeService([documentWithSelfiePiece(recent), legacyDocument(legacy)])
+
+    const urls = await service.selfieUrlsFor([recent, legacy])
+
+    assert.equal(urls.get(recent), 'https://signed.test/kyc_selfies/abc/selfie.jpg')
+    assert.equal(urls.get(legacy), 'https://public.example/selfie.jpg')
+  })
 })

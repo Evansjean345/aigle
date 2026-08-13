@@ -283,22 +283,41 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
     if (accountIds.length === 0) return new Map()
 
     const rows = await db
-      .from('document_pieces')
-      .join('kyc_documents', 'kyc_documents.id', 'document_pieces.kyc_document_id')
+      .from('kyc_documents')
+      .leftJoin('document_pieces', (join) => {
+        join
+          .on('document_pieces.kyc_document_id', 'kyc_documents.id')
+          .andOnVal('document_pieces.piece_type', DocumentPieceType.SELFIE)
+      })
       .whereIn('kyc_documents.account_id', accountIds)
-      .andWhere('document_pieces.piece_type', DocumentPieceType.SELFIE)
       .select(
         'kyc_documents.account_id as account_id',
+        'kyc_documents.selfie_url as legacy_url',
         'document_pieces.file_key as file_key',
         'document_pieces.is_public_url as is_public_url'
       )
 
-    return new Map(
-      rows.map((row: Record<string, unknown>) => [
-        String(row.account_id),
-        { fileKey: String(row.file_key), isPublicUrl: Boolean(row.is_public_url) },
-      ])
-    )
+    const selfies = new Map<string, SelfiePieceRef>()
+
+    for (const row of rows as Record<string, unknown>[]) {
+      const fileKey = row.file_key ? String(row.file_key) : null
+      const legacyUrl = row.legacy_url ? String(row.legacy_url) : null
+
+      if (fileKey) {
+        selfies.set(String(row.account_id), {
+          fileKey,
+          isPublicUrl: Boolean(row.is_public_url),
+        })
+        continue
+      }
+
+      // Dossier antérieur à la reprise des pièces : son adresse est déjà consultable.
+      if (legacyUrl) {
+        selfies.set(String(row.account_id), { fileKey: legacyUrl, isPublicUrl: true })
+      }
+    }
+
+    return selfies
   }
 
   async countByStatusForOwnerType(ownerType: string): Promise<Record<string, number>> {

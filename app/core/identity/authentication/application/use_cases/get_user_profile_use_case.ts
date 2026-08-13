@@ -14,22 +14,24 @@ export default class GetUserProfileUseCase {
   /**
    * Charge le profil et rend la vue destinée à l'application.
    *
-   * Le selfie d'un dossier récent vit sur le stockage privé : il est signé ici, à la lecture, plutôt
-   * que servi depuis une colonne que la soumission n'écrit plus. Le palier vient du compte, seule
-   * source de vérité depuis le retrait de la copie portée par `users`.
+   * Le selfie vit sur le stockage privé : son adresse est signée à la lecture. Le palier vient du
+   * compte, et le statut de vérification du dossier chargé ici.
    *
    * @param {User} authenticated - Utilisateur authentifié.
    * @return {Promise<AuthenticatedProfileResponseDto>} Le profil, photo de vérification comprise.
    */
   async execute(authenticated: User): Promise<AuthenticatedProfileResponseDto> {
-    await authenticated.load('country')
-    await authenticated.load('kycDocument')
-
-    const [selfieUrl, account] = await Promise.all([
+    const [, , selfieUrl, account] = await Promise.all([
+      authenticated.load('country'),
+      authenticated.load('kycDocument'),
       this.verificationPictureService.selfieUrlFor(authenticated.usersUid),
       this.accountStanding.describe(authenticated.usersUid),
     ])
 
-    return AuthenticatedProfileResponseDto.fromModel(authenticated, selfieUrl, account?.level ?? null)
+    return AuthenticatedProfileResponseDto.fromModel(
+      authenticated,
+      selfieUrl,
+      account?.level ?? null
+    )
   }
 }

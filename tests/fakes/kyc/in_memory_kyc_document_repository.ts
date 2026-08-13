@@ -125,6 +125,12 @@ export default class InMemoryKycDocumentRepository implements KycDocumentReposit
           fileKey: selfie.fileKey,
           isPublicUrl: Boolean(selfie.isPublicUrl),
         })
+        continue
+      }
+
+      // Dossier antérieur à la reprise des pièces : son adresse est déjà consultable.
+      if (document.selfieUrl) {
+        found.set(document.accountId, { fileKey: document.selfieUrl, isPublicUrl: true })
       }
     }
 
