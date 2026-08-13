@@ -31,6 +31,12 @@ export default class KycDocument extends BaseModel {
   @column()
   declare ownerType: AccountOwnerType
 
+  /**
+   * Porteur du dossier, hérité d'avant l'ancrage sur le compte.
+   *
+   * N'est plus ni écrite ni lue : `accountId` la remplace. Reste déclarée le temps qu'un
+   * déploiement confirme qu'aucun chemin ne l'attend.
+   */
   @column()
   declare userId: string
 
@@ -82,8 +88,14 @@ export default class KycDocument extends BaseModel {
   })
   declare pieces: HasMany<typeof DocumentPiece>
 
+  /**
+   * Porteur du dossier, quand c'est un utilisateur.
+   *
+   * Joint sur `account_id`, colonne d'ancrage : un dossier d'organisation n'a pas de porteur et
+   * la relation reste vide.
+   */
   @belongsTo(() => User, {
-    foreignKey: 'userId',
+    foreignKey: 'accountId',
     localKey: 'usersUid',
   })
   declare user: BelongsTo<typeof User>

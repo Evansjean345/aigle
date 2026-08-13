@@ -58,7 +58,6 @@ export default class VerificationDecisionService {
       const attemptNumber = (lastAttempt?.attemptNumber || 0) + 1
 
       const decisionAttempt = new KycAttemp()
-      decisionAttempt.userId = kycDocument.userId
       decisionAttempt.accountId = kycDocument.accountId
       decisionAttempt.kycDocumentId = kycDocument.id
       decisionAttempt.documentType = kycDocument.documentType
@@ -90,7 +89,8 @@ export default class VerificationDecisionService {
       await KycDocumentProcessed.dispatch(
         kycDocument.accountId,
         kycDocument.ownerType,
-        kycDocument.ownerType === AccountOwnerType.USER ? kycDocument.userId : null,
+        // Pour un compte utilisateur, l'identifiant du compte est celui du porteur.
+        kycDocument.ownerType === AccountOwnerType.USER ? kycDocument.accountId : null,
         command.status,
         command.comment,
         command.auditContext

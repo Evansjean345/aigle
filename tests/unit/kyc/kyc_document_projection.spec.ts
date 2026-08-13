@@ -23,7 +23,6 @@ test.group('Kyc | Projection du dossier', () => {
     const document = new KycDocument()
     document.id = 1
     document.accountId = accountId
-    document.userId = accountId
     document.ownerType = AccountOwnerType.USER
     document.documentType = KycDocumentType.CNI
     document.status = KycDocumentStatus.PENDING
@@ -53,7 +52,6 @@ test.group('Kyc | Projection du dossier', () => {
     const document = new KycDocument()
     document.id = 2
     document.accountId = accountId
-    document.userId = accountId
     document.ownerType = AccountOwnerType.USER
     document.documentType = KycDocumentType.CNI
     document.status = KycDocumentStatus.APPROVED
@@ -140,6 +138,23 @@ test.group('Kyc | Projection du dossier', () => {
     assert.equal(result.accountId, accountId)
     assert.equal(result.ownerType, AccountOwnerType.USER)
     assert.equal(result.userId, accountId)
+  })
+
+  test('le porteur d’un dossier d’organisation est le compte, jamais la colonne héritée', async ({
+    assert,
+  }) => {
+    const organisationId = uuidv4()
+    const document = new KycDocument()
+    document.id = 4
+    document.accountId = organisationId
+    document.ownerType = AccountOwnerType.ORGANISATION
+    document.status = KycDocumentStatus.PENDING
+    document.$setRelated('pieces', [])
+
+    // `user_id` est nul pour une organisation : le lire rendrait une projection sans porteur.
+    const result = toKycDocumentResult(document)
+
+    assert.equal(result.userId, organisationId)
   })
 
   test('aucune URL signée ne fuite dans la projection', async ({ assert }) => {

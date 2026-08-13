@@ -153,7 +153,7 @@ export const toKycDocumentResult = (
   id: kyc.id,
   accountId: kyc.accountId,
   ownerType: kyc.ownerType,
-  userId: kyc.userId,
+  userId: kyc.accountId,
   documentType: kyc.documentType,
   pieces: toPieceResults(kyc),
   documentRectoUrl: kyc.documentRectoUrl,

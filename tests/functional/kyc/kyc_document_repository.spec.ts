@@ -30,7 +30,6 @@ test.group('Kyc | Repository de dossier', (group) => {
   function makeDocument(accountId: string): KycDocument {
     const document = new KycDocument()
     document.accountId = accountId
-    document.userId = accountId
     document.ownerType = AccountOwnerType.USER
     document.documentType = KycDocumentType.CNI
     document.status = KycDocumentStatus.PENDING
@@ -145,7 +144,6 @@ test.group('Kyc | Repository de dossier', (group) => {
     for (const attemptNumber of [1, 2]) {
       const attempt = new KycAttemp()
       attempt.accountId = accountId
-      attempt.userId = accountId
       attempt.kycDocumentId = saved.id
       attempt.documentType = KycDocumentType.CNI
       attempt.attemptNumber = attemptNumber

@@ -98,10 +98,6 @@ export default class AccountVerificationService {
     document.comment = undefined
     document.agentId = null
 
-    if (account.ownerType === AccountOwnerType.USER) {
-      document.userId = command.accountId
-    }
-
     const complete = missing.length === 0
 
     document.status = complete ? KycDocumentStatus.PENDING : KycDocumentStatus.IN_SUBMISSION
@@ -203,7 +199,6 @@ export default class AccountVerificationService {
     const attempt = new KycAttemp()
     attempt.kycDocumentId = document.id
     attempt.accountId = command.accountId
-    attempt.userId = document.userId
     attempt.documentType = command.documentType
     attempt.attemptNumber = (last?.attemptNumber || 0) + 1
     attempt.status = KycDocumentStatus.PENDING

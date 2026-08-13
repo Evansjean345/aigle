@@ -14,6 +14,11 @@ export class KycAttemp extends BaseModel {
   @column()
   declare accountId: string
 
+  /**
+   * Porteur de la tentative, hérité d'avant l'ancrage sur le compte.
+   *
+   * N'est plus ni écrite ni lue : `accountId` la remplace.
+   */
   @column()
   declare userId: string
 

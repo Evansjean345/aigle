@@ -109,7 +109,7 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
     }
 
     if (filters?.userId) {
-      query.where('user_id', filters.userId)
+      query.where('account_id', filters.userId)
     }
 
     if (filters?.search) {

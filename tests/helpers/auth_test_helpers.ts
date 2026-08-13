@@ -74,7 +74,6 @@ export async function makeUser(options: MakeUserOptions = {}): Promise<User> {
   if (fileStatus) {
     const document = new KycDocument()
     document.accountId = user.usersUid
-    document.userId = user.usersUid
     document.ownerType = AccountOwnerType.USER
     document.documentType = KycDocumentType.CNI
     document.status = fileStatus

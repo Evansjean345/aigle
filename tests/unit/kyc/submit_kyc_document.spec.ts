@@ -23,7 +23,6 @@ function existingDocument(accountId: string, status: KycDocumentStatus): KycDocu
   const document = new KycDocument()
   document.id = 1
   document.accountId = accountId
-  document.userId = accountId
   document.ownerType = AccountOwnerType.USER
   document.documentType = KycDocumentType.CNI
   document.status = status

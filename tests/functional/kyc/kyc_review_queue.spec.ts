@@ -28,7 +28,6 @@ test.group('Kyc | File de revue', (group) => {
     const accountId = randomUUID()
     const document = new KycDocument()
     document.accountId = accountId
-    document.userId = accountId
     document.ownerType = ownerType
     document.documentType = ownerType === AccountOwnerType.USER ? KycDocumentType.CNI : undefined
     document.status = status
