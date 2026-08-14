@@ -13,11 +13,8 @@ export const kycDocumentSorts = {
 /** Nom de tri accepté par la file de revue. */
 export type KycDocumentSort = keyof typeof kycDocumentSorts
 
-/** Noms de tri acceptés, sous la forme attendue par `vine.enum`. */
-export const kycDocumentSortNames = Object.keys(kycDocumentSorts) as [
-  KycDocumentSort,
-  ...KycDocumentSort[],
-]
+/** Noms de tri acceptés, à passer à `vine.enum`. */
+export const kycDocumentSortNames = Object.keys(kycDocumentSorts) as KycDocumentSort[]
 
 /** Traduit un nom de tri en colonne. Rend `null` pour tout nom hors de la table. */
 export function kycDocumentSortColumn(sortBy: string | undefined): string | null {
