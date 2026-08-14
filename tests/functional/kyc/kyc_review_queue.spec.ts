@@ -1,14 +1,10 @@
 import { test } from '@japa/runner'
-import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import KycDocumentRepositoryImpl from '#core/identity/kyc/infrastructure/repositories/kyc_document_repository_impl'
-import {
-  DocumentPieceType,
-  KycDocumentStatus,
-  KycDocumentType,
-} from '#core/identity/kyc/domain/enum/kyc_enum'
+import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
+import { seedKycDocument } from '#tests/helpers/kyc_test_helpers'
 
 /**
  * Caractérise la file de revue quand deux natures de dossier y cohabitent.
@@ -24,19 +20,8 @@ test.group('Kyc | File de revue', (group) => {
 
   const repository = new KycDocumentRepositoryImpl()
 
-  async function seedDocument(ownerType: AccountOwnerType, status: KycDocumentStatus) {
-    const accountId = randomUUID()
-    const document = new KycDocument()
-    document.accountId = accountId
-    document.ownerType = ownerType
-    document.documentType = ownerType === AccountOwnerType.USER ? KycDocumentType.CNI : undefined
-    document.status = status
-    document.agentId = null
-
-    return repository.saveWithPieces(document, [
-      { pieceType: DocumentPieceType.RECTO, fileKey: `verification/${accountId}/piece.jpg` },
-    ])
-  }
+  const seedDocument = (ownerType: AccountOwnerType, status: KycDocumentStatus) =>
+    seedKycDocument({ ownerType, status })
 
   test('la file sans filtre ramène les deux natures de dossier', async ({ assert }) => {
     const user = await seedDocument(AccountOwnerType.USER, KycDocumentStatus.PENDING)

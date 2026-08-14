@@ -30,9 +30,11 @@ export default class KybAdminController {
    * @returns {Promise<void>} La page demandée.
    */
   async index({ request, response }: HttpContext): Promise<void> {
-    const { page, perPage, status } = await request.validateUsing(listKybFilesValidator)
+    const { page, perPage, ...filters } = await request.validateUsing(listKybFilesValidator, {
+      data: request.qs(),
+    })
 
-    return response.ok(await this.listFiles.execute(page ?? 1, perPage ?? 20, { status }))
+    return response.ok(await this.listFiles.execute(page ?? 1, perPage ?? 20, filters))
   }
 
   /**

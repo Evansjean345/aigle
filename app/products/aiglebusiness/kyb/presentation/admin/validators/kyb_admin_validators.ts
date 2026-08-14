@@ -1,5 +1,7 @@
 import vine from '@vinejs/vine'
 import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
+import { kycDocumentSortNames } from '#core/identity/kyc/domain/types/kyc_document_sorts'
+import { minSearchLength } from '#config/app'
 
 /**
  * Motif de la décision de revue.
@@ -14,10 +16,18 @@ export const processKybFileValidator = vine.create(
   })
 )
 
-/** Filtres de la file de revue. */
+/**
+ * Filtres de la file de revue.
+ *
+ * `sortBy` n'accepte que les noms déclarés par la table de tri : un nom de colonne ne peut pas
+ * transiter jusqu'à la requête. La recherche porte sur le nom commercial de l'organisation.
+ */
 export const listKybFilesValidator = vine.create(
   vine.object({
     status: vine.enum(Object.values(KycDocumentStatus)).optional(),
+    search: vine.string().trim().minLength(minSearchLength).optional(),
+    sortBy: vine.enum(kycDocumentSortNames).optional(),
+    order: vine.enum(['asc', 'desc'] as const).optional(),
     page: vine.number().positive().optional(),
     perPage: vine.number().positive().optional(),
   })

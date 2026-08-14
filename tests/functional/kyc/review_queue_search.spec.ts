@@ -3,18 +3,15 @@ import { randomUUID } from 'node:crypto'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
+import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import KycDocumentRepositoryImpl from '#core/identity/kyc/infrastructure/repositories/kyc_document_repository_impl'
 import BusinessReviewService from '#core/identity/kyc/application/services/business_review_service'
 import IdentityReviewService from '#core/identity/kyc/application/services/identity_review_service'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
-import {
-  DocumentPieceType,
-  KycDocumentStatus,
-  KycDocumentType,
-} from '#core/identity/kyc/domain/enum/kyc_enum'
+import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { makeUser } from '#tests/helpers/auth_test_helpers'
+import { seedKycDocument } from '#tests/helpers/kyc_test_helpers'
 
 /**
  * Recherche et tri de la file de revue, sur les deux écrans.
@@ -25,18 +22,8 @@ import { makeUser } from '#tests/helpers/auth_test_helpers'
 
 const repository = new KycDocumentRepositoryImpl()
 
-async function seedDocument(accountId: string, ownerType: AccountOwnerType) {
-  const document = new KycDocument()
-  document.accountId = accountId
-  document.ownerType = ownerType
-  document.documentType = ownerType === AccountOwnerType.USER ? KycDocumentType.CNI : undefined
-  document.status = KycDocumentStatus.PENDING
-  document.agentId = null
-
-  return repository.saveWithPieces(document, [
-    { pieceType: DocumentPieceType.RECTO, fileKey: `verification/${accountId}/piece.jpg` },
-  ])
-}
+const seedDocument = (accountId: string, ownerType: AccountOwnerType) =>
+  seedKycDocument({ accountId, ownerType })
 
 test.group('File de revue | recherche entreprise', (group) => {
   group.each.setup(async () => {
@@ -208,7 +195,6 @@ test.group('File de revue | tri', (group) => {
   test('sans tri, le plus récemment modifié vient en tête', async ({ assert }) => {
     const { first, second } = await seedPair()
 
-    // `updatedAt` est posé par Lucid à chaque écriture : modifier le plus ancien le ramène en tête.
     first.status = KycDocumentStatus.IN_SUBMISSION
     await first.save()
 

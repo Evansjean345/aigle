@@ -12,6 +12,7 @@ import {
   processKycErrorMessages,
   processKycValidator,
 } from '#aiglesend/kyc/presentation/admin/validators/process_kyc_validator'
+import { listKycDocumentsValidator } from '#aiglesend/kyc/presentation/admin/validators/list_kyc_documents_validator'
 import { SimpleMessagesProvider } from '@vinejs/vine'
 import { AuditResult } from '#core/audit/domain/enums'
 import emitter from '@adonisjs/core/services/emitter'
@@ -42,23 +43,15 @@ export default class KycController {
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
   async index({ request, response, auth }: HttpContext): Promise<void> {
-    const page = request.input('page', 1)
-    const perPage = request.input('perPage', request.input('limit', 20))
-    const status = request.input('status')
-    const documentType = request.input('documentType', request.input('document_type'))
-    const userId = request.input('user_id')
-    const search = request.input('search')
-    const startDate = request.input('start_date')
-    const endDate = request.input('end_date')
-
-    const kycDocuments = await this.getAllKycDocumentsUseCase.execute(page, perPage, {
-      status,
-      documentType,
-      userId,
-      search,
-      startDate,
-      endDate,
+    const { page, perPage, ...filters } = await request.validateUsing(listKycDocumentsValidator, {
+      data: request.qs(),
     })
+
+    const kycDocuments = await this.getAllKycDocumentsUseCase.execute(
+      page ?? 1,
+      perPage ?? 20,
+      filters
+    )
 
     emitter
       .emit('activity:audit', {
@@ -67,11 +60,12 @@ export default class KycController {
         eventAction: 'READ_KYC_DOCUMENTS',
         actorId: auth.user?.id ?? null,
         actorType: 'admin',
+
         actorRole: (auth.user as any)?.role?.slug ?? null,
         requestId: request.header('x-request-id') ?? null,
         ipAddress: request.ip(),
         userAgent: request.header('user-agent') ?? null,
-        metadata: { page, perPage, status, documentType, userId, search, startDate, endDate },
+        metadata: { page, perPage, ...filters },
         result: AuditResult.SUCCESS,
       })
       .catch(() => {})
