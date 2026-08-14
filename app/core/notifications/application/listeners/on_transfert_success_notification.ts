@@ -1,4 +1,5 @@
 import NotificationService from '#core/notifications/application/services/notification_service'
+import { consumerRecipient } from '#core/notifications/domain/consumer_recipient'
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import TransfertTransactionCompleted from '#core/money/transactions/application/events/transfert_transaction_completed'
@@ -20,13 +21,11 @@ export default class OnTransfertSuccessNotification {
    * @return {Promise<void>} A promise that resolves when the notification has been successfully sent.
    */
   async handle(event: TransfertTransactionCompleted): Promise<void> {
-    // Guard (L2-D15) : pas de push consumer pour un décaissement d'org (compte sans user → `userId`
-    // null) — transfert unique business ou item de mass-transfer. Le lot enverra sa propre synthèse
-    // (aiglebusiness). Évite une notif « transfert réussi » par employé pour une paie.
-    if (!event.data.userId) return
+    const recipient = consumerRecipient(event.data)
+    if (!recipient) return
 
     const notification = new Notification(
-      event.data.userId,
+      recipient,
       'Transfert effectué avec succès',
       `Vous avez effectué un transfert de ${event.data.amount} F CFA vers le compte ${event.data.beneficiaryPhone}. Nouveau solde: ${event.data.balanceAfter} CFA. Référence: ${event.data.reference}`,
       undefined,

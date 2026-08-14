@@ -1,5 +1,6 @@
 import NotificationService from '#core/notifications/application/services/notification_service'
 import DepositTransactionCompleted from '#core/money/transactions/application/events/deposit_transaction_completed'
+import { consumerRecipient } from '#core/notifications/domain/consumer_recipient'
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
@@ -22,8 +23,11 @@ export default class OnDepositSuccessNotification {
     // à notifier ici — un listener produit s'en charge (compte → org → devices business).
     if (event.data.type === 'checkout') return
 
+    const recipient = consumerRecipient(event.data)
+    if (!recipient) return
+
     const notification = new Notification(
-      event.data.userId!,
+      recipient,
       'Dépot effectué avec succès',
       `Votre dépôt de ${event.data.amount} F CFA a été crédité sur votre compte. Nouveau solde: ${event.data.balanceAfter} CFA. Référence: ${event.data.reference}`,
       undefined,

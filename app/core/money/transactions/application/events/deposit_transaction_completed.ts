@@ -1,4 +1,5 @@
 import { BaseEvent } from '@adonisjs/core/events'
+import { type AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 
 export interface DepositTransactionCompletedPayload {
   reference: string
@@ -11,8 +12,10 @@ export interface DepositTransactionCompletedPayload {
   amount: number
   /** Compte crédité (`account_id`). Pour un consumer, == userId. */
   accountId: string
+  /** Nature du compte crédité. Optionnelle : une charge peut ne pas la porter. */
+  ownerType?: AccountOwnerType
   /** Consumer uniquement (absent pour un checkout : le marchand n'a pas de user). */
-  userId?: string
+  userId?: string | null
   /** Consumer uniquement. */
   balanceAfter?: number
 }
