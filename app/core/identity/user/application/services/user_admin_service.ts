@@ -97,12 +97,7 @@ export default class UserAdminService {
    * @returns {Promise<UserSearchResult[]>} Les correspondances, plafonnées.
    */
   async search(search: string): Promise<UserSearchResult[]> {
-    const paginated = await this.userRepository.paginate(
-      1,
-      6,
-      ['kycDocument', 'country'],
-      search
-    )
+    const paginated = await this.userRepository.paginate(1, 6, ['kycDocument', 'country'], search)
 
     const users = paginated.all()
     const userIds = users.map((user) => user.usersUid)

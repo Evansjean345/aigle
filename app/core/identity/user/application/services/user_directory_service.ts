@@ -7,22 +7,24 @@ import {
   statusOfFile,
 } from '#core/identity/kyc/domain/verification_status'
 import { normalizePhone } from '#shared/utils/utiles'
+import { searchAccountIdsTripwire } from '#config/app'
+import appLog from '#shared/infrastructure/logging/app_log'
 
 /**
- * Port de consultation d'identité exposé par le core aux couches externes.
+ * Consultation d'identité offerte par le core aux couches externes.
  *
- * Les produits (ex : aiglebusiness) n'accèdent JAMAIS au `UserRepository` ni au
- * modèle `User` : ils passent par ce service, qui ne renvoie qu'une vue minimale
- * ('UserLookupResult'). C'est la frontière anti-corruption identité → produit.
+ * Ne rend jamais le modèle `User`, seulement une vue minimale : les produits passent par ce service
+ * et n'atteignent ni `UserRepository` ni le modèle.
  */
 @inject()
 export default class UserDirectoryService {
   constructor(private readonly userRepository: UserRepository) {}
 
   /**
-   * Recherche un utilisateur par téléphone. Le numéro entrant (saisi côté appelant :
-   * local `07…`, `+225…`, `00225…` ou déjà `225…`) est **normalisé** ici avant la
-   * recherche — l'appelant n'a pas à connaître le format canonique.
+   * Recherche un utilisateur par téléphone, le numéro étant normalisé avant la requête.
+   *
+   * @param {string} phone - Numéro sous n'importe quelle forme : `07…`, `+225…`, `00225…`, `225…`.
+   * @returns {Promise<UserLookupResult | null>} L'utilisateur, ou `null` si le numéro est inconnu.
    */
   async findByPhone(phone: string): Promise<UserLookupResult | null> {
     const user = await this.userRepository.findByPhone(normalizePhone(phone))
@@ -34,7 +36,12 @@ export default class UserDirectoryService {
     return this.toResult(user)
   }
 
-  /** Recherche un utilisateur par son identifiant (users_uid). */
+  /**
+   * Recherche un utilisateur par son identifiant.
+   *
+   * @param {string} userId - Identifiant de l'utilisateur (`users_uid`).
+   * @returns {Promise<UserLookupResult | null>} L'utilisateur, ou `null` s'il n'existe pas.
+   */
   async findById(userId: string): Promise<UserLookupResult | null> {
     const user = await this.userRepository.findById(userId)
 
@@ -46,14 +53,41 @@ export default class UserDirectoryService {
   }
 
   /**
-   * Résout plusieurs utilisateurs en UNE requête, indexés par leur id — pour éviter
-   * le N+1 lors de l'enrichissement d'une liste (ex : membres d'une organisation).
+   * Résout plusieurs utilisateurs en une requête, indexés par leur identifiant.
+   *
+   * @param {string[]} userIds - Identifiants à résoudre.
+   * @returns {Promise<Map<string, UserLookupResult>>} Les utilisateurs trouvés. Un identifiant
+   *   inconnu est absent de la table.
    */
   async mapByIds(userIds: string[]): Promise<Map<string, UserLookupResult>> {
     const users = await this.userRepository.findByIds(userIds)
     return new Map(users.map((user) => [user.usersUid, this.toResult(user)]))
   }
 
+  /**
+   * Identifiants des utilisateurs dont le prénom, le nom, le téléphone ou l'identifiant contient le
+   * terme, sans égard à la casse.
+   *
+   * Ne tronque pas : au-delà du fil de détente, journalise et rend l'ensemble.
+   *
+   * @param {string} term - Terme recherché.
+   * @returns {Promise<string[]>} Les identifiants correspondants, vide si aucun.
+   */
+  async searchAccountIds(term: string): Promise<string[]> {
+    const userIds = await this.userRepository.searchIds(term, searchAccountIdsTripwire)
+
+    if (userIds.length >= searchAccountIdsTripwire) {
+      appLog.error(
+        'LIST_SEARCH_TRIPWIRE_REACHED',
+        { directory: 'user', term, count: userIds.length },
+        "La recherche d'utilisateurs atteint le fil de détente"
+      )
+    }
+
+    return userIds
+  }
+
+  /** Projette un utilisateur en vue minimale. La photo n'accompagne qu'un compte vérifié. */
   private toResult(user: User): UserLookupResult {
     const kycVerified = statusOfFile(user.kycDocument) === AccountVerificationStatus.VERIFIED
     return {

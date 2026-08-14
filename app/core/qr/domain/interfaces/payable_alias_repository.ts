@@ -25,6 +25,12 @@ export default abstract class PayableAliasRepository {
   abstract findByAccountIds(accountIds: string[]): Promise<PayableAlias[]>
 
   /**
+   * Retrouve les comptes dont le nom d'affichage ou l'identifiant contient le terme, sans égard à la
+   * casse. Rend au plus `limit` identifiants.
+   */
+  abstract searchAccountIds(term: string, limit: number): Promise<string[]>
+
+  /**
    * Crée et persiste un alias.
    */
   abstract create(

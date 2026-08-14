@@ -2,36 +2,28 @@ import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/core/http'
 
+/*
+|--------------------------------------------------------------------------
+| Environnement
+|--------------------------------------------------------------------------
+*/
+
 export const appEnv = env.get('NODE_ENV', 'development')
 
-/**
- * Represents the deep link URL used for mobile devices.
- *
- * The value of this variable is expected to be a string containing a valid URL,
- * and it is intended to be platform-specific for mobile device navigation.
- */
+/*
+|--------------------------------------------------------------------------
+| Portails et liens
+|--------------------------------------------------------------------------
+|
+| Bases d'URL des surfaces qui entourent l'API. Servent à construire les liens
+| que l'API émet — invitations, redirections d'encaissement, deep links.
+|
+*/
+
+/** Deep link d'ouverture des applications mobiles. */
 export const mobileDeviceDeepLink = env.get('MOBILE_DEVICE_DEEP_LINK_URL')
 
-/**
- * A configuration flag that determines whether OTP (One-Time Password) verification should be bypassed.
- *
- * This flag is typically used for testing/development purposes where OTP verification
- * may need to be skipped. It's also used by google/apple to bypass OTP verification during app review.
- * Use with caution in production environments to maintain security.
- *
- * @type {boolean}
- */
-export const bypassEnabled: boolean = env.get('BYPASS_OTP_VERIFICATION', false)
-
-/**
- * Represents the phone number used for application review purposes.
- * The value is retrieved from an environment variable `APP_REVIEW_PHONE_NUMBER`.
- * If the environment variable is not set, a default phone number is used.
- *
- * @type {string}
- */
-export const appPhoneNumberReview: string = env.get('APP_REVIEW_PHONE_NUMBER', '0768357397')
-
+/** Base du back-office. */
 export const adminDashboardUrl: string = env.get('ADMIN_DASHBOARD_URL', 'http://localhost:3000')
 
 /**
@@ -51,9 +43,51 @@ export const aigleplayPortailUrl: string = env.get('AIGLEPLAY_PORTAIL_URL', 'htt
  */
 export const aigleplayNotifyUrl: string = `${aigleplayPortailUrl}/notify`
 
+/*
+|--------------------------------------------------------------------------
+| Revue des magasins d'applications
+|--------------------------------------------------------------------------
+|
+| Ce qui permet aux équipes de revue Google et Apple d'ouvrir un compte sans
+| recevoir de SMS. À manier avec précaution : le contournement porte sur
+| l'authentification.
+|
+*/
+
+/** Désactive la vérification OTP. Utilisé par la revue des magasins et en développement. */
+export const bypassEnabled: boolean = env.get('BYPASS_OTP_VERIFICATION', false)
+
+/** Numéro réservé à la revue des magasins, exempté d'OTP quand le contournement est actif. */
+export const appPhoneNumberReview: string = env.get('APP_REVIEW_PHONE_NUMBER', '0768357397')
+
+/*
+|--------------------------------------------------------------------------
+| Listes du back-office
+|--------------------------------------------------------------------------
+|
+| Recherche des files de travail.
+|
+*/
+
 /**
- * The configuration settings used by the HTTP server
+ * Longueur minimale d'un terme de recherche.
+ * ex: Ba, Sy, Ka.
  */
+export const minSearchLength: number = Number(env.get('LIST_SEARCH_MIN_LENGTH') ?? 2)
+
+/**
+ * Nombre d'identifiants au-delà duquel une résolution d'annuaire est journalisée comme incident.
+ *
+ * Signale sans tronquer : la résolution rend l'ensemble de ses résultats.
+ */
+export const searchAccountIdsTripwire: number = Number(env.get('LIST_SEARCH_TRIPWIRE') ?? 5000)
+
+/*
+|--------------------------------------------------------------------------
+| Serveur HTTP
+|--------------------------------------------------------------------------
+*/
+
 export const http = defineConfig({
   generateRequestId: true,
   allowMethodSpoofing: false,

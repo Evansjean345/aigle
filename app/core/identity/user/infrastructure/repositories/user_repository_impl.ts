@@ -87,6 +87,23 @@ export default class UserRepositoryIml implements UserRepository {
     return User.query().whereIn('users_uid', ids).preload('kycDocument')
   }
 
+  async searchIds(term: string, limit: number): Promise<string[]> {
+    const pattern = `%${term}%`
+
+    const users = await User.query()
+      .where((query) => {
+        query
+          .whereILike('firstname', pattern)
+          .orWhereILike('lastname', pattern)
+          .orWhereILike('phone', pattern)
+          .orWhereILike('users_uid', pattern)
+      })
+      .select('users_uid')
+      .limit(limit)
+
+    return users.map((user) => user.usersUid)
+  }
+
   /**
    * Finds a user by their phone number.
    *

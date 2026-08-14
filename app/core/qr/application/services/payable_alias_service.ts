@@ -6,6 +6,8 @@ import {
   type ResolveAliasResult,
 } from '#core/qr/application/dtos/payable_alias.dto'
 import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { searchAccountIdsTripwire } from '#config/app'
+import appLog from '#shared/infrastructure/logging/app_log'
 
 /**
  * Porte de l'alias payable (§4.5). Le produit enregistre un alias pour un compte
@@ -73,6 +75,32 @@ export default class PayableAliasService {
     const uniqueIds = [...new Set(accountIds.filter(Boolean))]
     const aliases = await this.payableAliasRepository.findByAccountIds(uniqueIds)
     return new Map(aliases.map((alias) => [alias.accountId, alias.displayName]))
+  }
+
+  /**
+   * Comptes marchands dont le nom d'affichage ou l'identifiant contient le terme, sans égard à la
+   * casse.
+   *
+   * Ne tronque pas : au-delà du fil de détente, journalise et rend l'ensemble.
+   *
+   * @param {string} term - Terme recherché.
+   * @returns {Promise<string[]>} Les comptes correspondants, vide si aucun.
+   */
+  async searchAccountIds(term: string): Promise<string[]> {
+    const accountIds = await this.payableAliasRepository.searchAccountIds(
+      term,
+      searchAccountIdsTripwire
+    )
+
+    if (accountIds.length >= searchAccountIdsTripwire) {
+      appLog.error(
+        'LIST_SEARCH_TRIPWIRE_REACHED',
+        { directory: 'payable_alias', term, count: accountIds.length },
+        'La recherche de comptes marchands atteint le fil de détente'
+      )
+    }
+
+    return accountIds
   }
 
   /**
