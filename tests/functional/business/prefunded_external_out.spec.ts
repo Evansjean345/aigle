@@ -93,7 +93,9 @@ test.group('Engine | initiateExternalOut prefunded (B1)', (group) => {
     assert.lengthOf(entries, 0)
   })
 
-  test('non prefunded (défaut) → wallet débité (garde-fou de non-régression)', async ({ assert }) => {
+  test('non prefunded (défaut) → wallet débité (garde-fou de non-régression)', async ({
+    assert,
+  }) => {
     const { accountId: orgId, wallet } = await makeOrgWallet(100000)
 
     const cmd = prefundedCommand(orgId)

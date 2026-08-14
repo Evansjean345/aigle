@@ -17,7 +17,11 @@ export interface ListKycDocumentsFilters {
   status?: string
   documentType?: string
   userId?: string
+  /** Terme saisi par le gestionnaire. Le service le résout en comptes avant d'appeler le dépôt. */
   search?: string
+  /** Nom de tri exposé par l'API, clé de `kycDocumentSorts`. Absent, l'ordre par défaut s'applique. */
+  sortBy?: string
+  order?: 'asc' | 'desc'
   /** Restreint la file à une nature de dossier : pièces d'identité ou dossiers d'organisation. */
   ownerType?: string
   startDate?: string

@@ -3,6 +3,7 @@ import {
   type DocumentPieceType,
   type KycDocumentStatus,
 } from '#core/identity/kyc/domain/enum/kyc_enum'
+import { type KycDocumentQuery } from '#core/identity/kyc/domain/types/kyc_document_query'
 
 /** Pièce à écrire dans un dossier : son rôle, la clé de l'objet déposé, et sa référence s'il y en a une. */
 export interface DocumentPieceInput {
@@ -45,24 +46,14 @@ export default abstract class KycDocumentRepository {
   ): Promise<KycDocument>
 
   /**
-   * Find all KYC documents with pagination and filters
-   * @param page
-   * @param perPage
-   * @param filters
+   * Page de la file de revue, filtrée et ordonnée.
+   *
+   * @param {number} page - Page demandée.
+   * @param {number} perPage - Taille de page.
+   * @param {KycDocumentQuery} [filters] - Critères. Sans `sortBy`, l'ordre est le plus récemment
+   *   modifié d'abord.
    */
-  abstract findAll(
-    page: number,
-    perPage: number,
-    filters?: {
-      status?: string
-      documentType?: string
-      userId?: string
-      search?: string
-      ownerType?: string
-      startDate?: string
-      endDate?: string
-    }
-  ): Promise<any>
+  abstract findAll(page: number, perPage: number, filters?: KycDocumentQuery): Promise<any>
 
   /**
    * Get KYC statistics

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { DateTime } from 'luxon'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import User from '#core/identity/user/domain/models/user'
+import type User from '#core/identity/user/domain/models/user'
 import { AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
 import { makeUser } from '#tests/helpers/auth_test_helpers'
 import { createOrganisation } from '#tests/factories/organisation_factory'
@@ -41,7 +41,9 @@ async function createOrg(ownerUserId: string): Promise<string> {
   })
 }
 
-async function makeMember(kyc: AccountVerificationStatus = AccountVerificationStatus.VERIFIED): Promise<User> {
+async function makeMember(
+  kyc: AccountVerificationStatus = AccountVerificationStatus.VERIFIED
+): Promise<User> {
   return makeUser({ firstname: 'Invited', lastname: 'Member', kycStatus: kyc })
 }
 

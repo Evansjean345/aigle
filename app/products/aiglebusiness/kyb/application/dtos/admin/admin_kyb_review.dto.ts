@@ -88,10 +88,7 @@ export class AdminKybFileDto {
    * @param {Organisation | undefined} organisation - Entreprise porteuse, si elle a été retrouvée.
    * @returns {AdminKybFileDto} Le dossier nommé.
    */
-  static fromDocument(
-    document: KycDocumentResult,
-    organisation?: Organisation
-  ): AdminKybFileDto {
+  static fromDocument(document: KycDocumentResult, organisation?: Organisation): AdminKybFileDto {
     const dto = new AdminKybFileDto()
 
     dto.id = document.id
@@ -123,10 +120,7 @@ export class AdminKybReviewDto {
    * @param {Organisation | undefined} organisation - Entreprise porteuse, si elle a été retrouvée.
    * @returns {AdminKybReviewDto} La revue nommée.
    */
-  static fromReview(
-    review: BusinessReviewResult,
-    organisation?: Organisation
-  ): AdminKybReviewDto {
+  static fromReview(review: BusinessReviewResult, organisation?: Organisation): AdminKybReviewDto {
     const dto = new AdminKybReviewDto()
 
     dto.document = AdminKybFileDto.fromDocument(review.document, organisation)

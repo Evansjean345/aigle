@@ -27,7 +27,10 @@ test.group('Business sessions', (group) => {
     const user = await makeUser()
     const [tokenA] = await businessTokens(user, 2) // 2 sessions
 
-    const res = await client.get(SESSIONS).header('X-Client-Channel', 'web').header('Authorization', `Bearer ${tokenA}`)
+    const res = await client
+      .get(SESSIONS)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${tokenA}`)
     res.assertStatus(200)
 
     const sessions = res.body()
@@ -46,7 +49,10 @@ test.group('Business sessions', (group) => {
     const [tokenA, tokenB] = await businessTokens(user, 2)
 
     // Depuis A, on récupère l'id de la session B (la non-courante).
-    const listRes = await client.get(SESSIONS).header('X-Client-Channel', 'web').header('Authorization', `Bearer ${tokenA}`)
+    const listRes = await client
+      .get(SESSIONS)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${tokenA}`)
     const other = listRes.body().find((s: { current: boolean }) => !s.current)
     assert.exists(other)
 
@@ -64,7 +70,10 @@ test.group('Business sessions', (group) => {
     reuse.assertStatus(401)
 
     // A fonctionne toujours et ne voit plus qu'une session.
-    const after = await client.get(SESSIONS).header('X-Client-Channel', 'web').header('Authorization', `Bearer ${tokenA}`)
+    const after = await client
+      .get(SESSIONS)
+      .header('X-Client-Channel', 'web')
+      .header('Authorization', `Bearer ${tokenA}`)
     after.assertStatus(200)
     assert.lengthOf(after.body(), 1)
   })

@@ -1,4 +1,4 @@
-import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
+import { type OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import type Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 import { type OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import type {

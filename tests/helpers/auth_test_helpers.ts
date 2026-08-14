@@ -4,10 +4,7 @@ import User from '#core/identity/user/domain/models/user'
 import { UserStatus } from '#core/identity/user/domain/enum'
 import KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import { AccountVerificationStatus } from '#core/identity/kyc/domain/verification_status'
-import {
-  KycDocumentStatus,
-  KycDocumentType,
-} from '#core/identity/kyc/domain/enum/kyc_enum'
+import { KycDocumentStatus, KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { type AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
 import NotificationService from '#core/notifications/application/services/notification_service'

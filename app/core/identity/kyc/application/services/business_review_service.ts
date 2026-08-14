@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import AccountRepository from '#core/identity/account/domain/interfaces/account_repository'
 import FileStorageService from '#shared/infrastructure/services/file_storage_service'
+import PayableAliasService from '#core/qr/application/services/payable_alias_service'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
 import { DocumentPieceType, KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { requirementsFor } from '#core/identity/kyc/domain/verification_requirements'
@@ -27,11 +28,15 @@ export default class BusinessReviewService {
   constructor(
     private readonly kycDocumentRepository: KycDocumentRepository,
     private readonly accountRepository: AccountRepository,
-    private readonly fileStorageService: FileStorageService
+    private readonly fileStorageService: FileStorageService,
+    private readonly payableAliasService: PayableAliasService
   ) {}
 
   /**
    * Liste les dossiers d'entreprise soumis, paginés et filtrés.
+   *
+   * Un terme de recherche est d'abord résolu en comptes marchands par l'annuaire des alias
+   * payables : le dépôt filtre sur des comptes, il ne sait pas nommer une organisation.
    *
    * @param {number} page - Page demandée.
    * @param {number} perPage - Taille de page.
@@ -43,8 +48,11 @@ export default class BusinessReviewService {
     perPage: number,
     filters?: ListKycDocumentsFilters
   ): Promise<PaginatedKycDocumentsResult> {
+    const { search, ...criteria } = filters ?? {}
+
     const paginated = await this.kycDocumentRepository.findAll(page, perPage, {
-      ...filters,
+      ...criteria,
+      ...(search ? { accountIds: await this.payableAliasService.searchAccountIds(search) } : {}),
       ownerType: AccountOwnerType.ORGANISATION,
     })
 

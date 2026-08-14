@@ -126,7 +126,9 @@ test.group('Business organisation | création', (group) => {
 
     let error: unknown
     try {
-      await useCase.execute(command({ ownerUserId, ownerKycStatus: AccountVerificationStatus.NOT_STARTED }))
+      await useCase.execute(
+        command({ ownerUserId, ownerKycStatus: AccountVerificationStatus.NOT_STARTED })
+      )
     } catch (err) {
       error = err
     }

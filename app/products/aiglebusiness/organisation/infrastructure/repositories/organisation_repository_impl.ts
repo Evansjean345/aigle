@@ -1,4 +1,4 @@
-import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
+import { type OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import Organisation from '#aiglebusiness/organisation/domain/models/organisation'

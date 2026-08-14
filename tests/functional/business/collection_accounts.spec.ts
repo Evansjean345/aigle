@@ -50,7 +50,9 @@ test.group('Funding | catalogue des comptes de collecte — F1', (group) => {
     assert.isNotEmpty(created.reference)
     assert.isTrue(created.isActive)
 
-    const stored = await CollectionAccount.query().where('reference', created.reference).firstOrFail()
+    const stored = await CollectionAccount.query()
+      .where('reference', created.reference)
+      .firstOrFail()
     assert.equal(stored.label, 'Wave Entreprise')
     assert.equal(stored.accountHolder, 'AIGLE SA')
   })
@@ -77,7 +79,9 @@ test.group('Funding | catalogue des comptes de collecte — F1', (group) => {
       accountIdentifier: '0700000000',
     } as never)
 
-    const stored = await CollectionAccount.query().where('reference', created.reference).firstOrFail()
+    const stored = await CollectionAccount.query()
+      .where('reference', created.reference)
+      .firstOrFail()
     assert.equal(stored.label, 'Wave Entreprise (principal)')
     assert.equal(stored.accountIdentifier, '0700998877')
   })
@@ -107,7 +111,9 @@ test.group('Funding | catalogue des comptes de collecte — F1', (group) => {
     // Un RIB (banque 5 / guichet 5 / compte 12 / clé 2) ne satisfait pas le motif IBAN qui était
     // exigé auparavant. Comme l'identifiant n'est plus corrigeable après création, un faux refus
     // empêchait purement et simplement d'enregistrer un compte de collecte valide.
-    assert.isTrue(assertIdentifierMatchesType(CollectionAccountType.BANK, 'CI0080100100123456789012'))
+    assert.isTrue(
+      assertIdentifierMatchesType(CollectionAccountType.BANK, 'CI0080100100123456789012')
+    )
     assert.isTrue(assertIdentifierMatchesType(CollectionAccountType.BANK, '001234567890'))
 
     // Le mobile money garde sa règle : là, les 10 chiffres sont une contrainte réelle.
@@ -126,7 +132,9 @@ test.group('Funding | catalogue des comptes de collecte — F1', (group) => {
     const actif = CollectionAccountAdminResponseDTO.fromAccount(created)
     assert.strictEqual(actif.isActive, true)
 
-    const desactive = CollectionAccountAdminResponseDTO.fromAccount(await svc.setActive(created.reference, false))
+    const desactive = CollectionAccountAdminResponseDTO.fromAccount(
+      await svc.setActive(created.reference, false)
+    )
     assert.strictEqual(desactive.isActive, false)
   })
 

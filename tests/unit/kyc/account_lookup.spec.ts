@@ -70,7 +70,9 @@ test.group('Compte | Résolution par le propriétaire', () => {
     assert.isNull(await service.findAccountId(AccountOwnerType.ORGANISATION, randomUUID()))
   })
 
-  test('ne confond pas un utilisateur et une organisation de même référence', async ({ assert }) => {
+  test('ne confond pas un utilisateur et une organisation de même référence', async ({
+    assert,
+  }) => {
     const ref = randomUUID()
     const service = makeService([organisationAccount(ref, randomUUID())])
 

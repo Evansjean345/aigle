@@ -165,10 +165,7 @@ test.group('Kyb admin | gardes de permission', (group) => {
     const id = await seedFile()
     const token = await makeAdminToken(await makeAdminRole([ORGANISATION_KYB_PERMISSIONS.reject]))
 
-    const response = await client
-      .post(`${KYB_URL}/${id}/reject`)
-      .bearerToken(token)
-      .json({})
+    const response = await client.post(`${KYB_URL}/${id}/reject`).bearerToken(token).json({})
 
     response.assertStatus(422)
 

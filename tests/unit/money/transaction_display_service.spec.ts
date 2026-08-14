@@ -92,11 +92,15 @@ test.group('TransactionDisplayService.toDisplay — kind & flow', () => {
 })
 
 test.group('TransactionDisplayService.toDisplay — contrepartie (privacy-first)', () => {
-  test('un P2P n\'expose JAMAIS le nom de l\'utilisateur, seulement le numéro', ({ assert }) => {
+  test("un P2P n'expose JAMAIS le nom de l'utilisateur, seulement le numéro", ({ assert }) => {
     const display = TransactionDisplayService.toDisplay({
       operationType: TransactionType.WALLET_TRANSFERT,
       direction: TransactionDirection.DEBIT,
-      paymentDetails: { operator: PaymentMethod.WALLET, phone: '+2250711111111', user: 'Guy Roland' },
+      paymentDetails: {
+        operator: PaymentMethod.WALLET,
+        phone: '+2250711111111',
+        user: 'Guy Roland',
+      },
     })
 
     assert.equal(display.counterparty.nature, 'user')
@@ -110,7 +114,11 @@ test.group('TransactionDisplayService.toDisplay — contrepartie (privacy-first)
     const display = TransactionDisplayService.toDisplay({
       operationType: TransactionType.CHECKOUT,
       direction: TransactionDirection.CREDIT,
-      paymentDetails: { operator: PaymentMethod.WALLET, phone: '+2250722222222', user: 'Awa Traoré' },
+      paymentDetails: {
+        operator: PaymentMethod.WALLET,
+        phone: '+2250722222222',
+        user: 'Awa Traoré',
+      },
     })
 
     assert.equal(display.counterparty.nature, 'user')

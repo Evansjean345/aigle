@@ -74,7 +74,9 @@ test.group('Reprise | URL héritée', () => {
     assert.equal(urlPrefix(undefined), '(vide)')
   })
 
-  test('une URL du bucket attendu, sous un dossier de dépôt, est reprenable', async ({ assert }) => {
+  test('une URL du bucket attendu, sous un dossier de dépôt, est reprenable', async ({
+    assert,
+  }) => {
     assert.isTrue(
       isReprisableLegacyValue(
         'https://mon-bucket.s3.amazonaws.com/kyc_documents/abc/x.jpg',
@@ -125,7 +127,10 @@ test.group('Reprise | URL héritée', () => {
 
   test('un dossier hors dépôt n’est pas reprenable', async ({ assert }) => {
     assert.isFalse(
-      isReprisableLegacyValue('https://mon-bucket.s3.amazonaws.com/factures/abc/x.pdf', 'mon-bucket')
+      isReprisableLegacyValue(
+        'https://mon-bucket.s3.amazonaws.com/factures/abc/x.pdf',
+        'mon-bucket'
+      )
     )
     assert.isFalse(isReprisableLegacyValue('factures/abc/x.pdf', 'mon-bucket'))
   })

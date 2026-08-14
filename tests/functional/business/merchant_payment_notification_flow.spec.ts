@@ -110,7 +110,11 @@ test.group('Notification paiement marchand | marchand (produit)', (group) => {
     )
 
     await listener.handle(
-      merchantEvent({ recipientAccountId: organisationId, amount: 5000, merchantReference: 'aig_pay_9f' })
+      merchantEvent({
+        recipientAccountId: organisationId,
+        amount: 5000,
+        merchantReference: 'aig_pay_9f',
+      })
     )
 
     assert.lengthOf(notifier.calls, 1)

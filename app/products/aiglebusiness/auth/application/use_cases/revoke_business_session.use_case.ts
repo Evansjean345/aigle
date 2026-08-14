@@ -29,11 +29,6 @@ export default class RevokeBusinessSessionUseCase {
     tokenId: string,
     currentTokenId?: string | number
   ): Promise<{ wasCurrent: boolean }> {
-    return this.userSessionService.revoke(
-      userId,
-      tokenId,
-      AppName.AIGLEBUSINESS,
-      currentTokenId
-    )
+    return this.userSessionService.revoke(userId, tokenId, AppName.AIGLEBUSINESS, currentTokenId)
   }
 }

@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import KycDocumentRepository from '#core/identity/kyc/domain/interfaces/kyc_document_repository'
 import FileStorageService from '#shared/infrastructure/services/file_storage_service'
 import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
+import UserDirectoryService from '#core/identity/user/application/services/user_directory_service'
 import type KycDocument from '#core/identity/kyc/domain/models/kyc_document'
 import { DocumentPieceType } from '#core/identity/kyc/domain/enum/kyc_enum'
 import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
@@ -25,11 +26,15 @@ export default class IdentityReviewService {
   constructor(
     private readonly kycDocumentRepository: KycDocumentRepository,
     private readonly fileStorageService: FileStorageService,
-    private readonly accountStanding: AccountStandingService
+    private readonly accountStanding: AccountStandingService,
+    private readonly userDirectory: UserDirectoryService
   ) {}
 
   /**
    * Liste les dossiers d'identité soumis, paginés et filtrés.
+   *
+   * Un terme de recherche est d'abord résolu en comptes par l'annuaire des utilisateurs : le dépôt
+   * filtre sur des comptes, il ne sait pas nommer un porteur.
    *
    * @param {number} page - Page demandée.
    * @param {number} perPage - Taille de page.
@@ -41,8 +46,11 @@ export default class IdentityReviewService {
     perPage: number,
     filters?: ListKycDocumentsFilters
   ): Promise<PaginatedKycDocumentsResult> {
+    const { search, ...criteria } = filters ?? {}
+
     const paginated = await this.kycDocumentRepository.findAll(page, perPage, {
-      ...filters,
+      ...criteria,
+      ...(search ? { accountIds: await this.userDirectory.searchAccountIds(search) } : {}),
       ownerType: AccountOwnerType.USER,
     })
 

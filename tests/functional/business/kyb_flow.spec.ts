@@ -213,10 +213,7 @@ test.group('Kyb | parcours complet', (group) => {
 
     assert.isAtLeast(stats.pending, 1)
     assert.isAtLeast(stats.inSubmission, 1)
-    assert.equal(
-      stats.total,
-      stats.pending + stats.inSubmission + stats.approved + stats.rejected
-    )
+    assert.equal(stats.total, stats.pending + stats.inSubmission + stats.approved + stats.rejected)
   })
 
   test('la revue nomme l’entreprise, que le core ignore', async ({ assert }) => {

@@ -16,7 +16,10 @@ import CreateRoleUseCase from '#aiglebusiness/membership/application/use_cases/r
 import OrganisationMember from '#aiglebusiness/membership/domain/models/organisation_member'
 import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
 import { appAbility, AppName } from '#core/identity/authentication/domain/enums/app_name'
-import { swapGuards, swapProviderGateway } from '#tests/functional/payments-flow/mocks/operations_fixtures'
+import {
+  swapGuards,
+  swapProviderGateway,
+} from '#tests/functional/payments-flow/mocks/operations_fixtures'
 
 /**
  * Présentation HTTP du **transfert unique** business (`POST …/transfers`). Fige le câblage

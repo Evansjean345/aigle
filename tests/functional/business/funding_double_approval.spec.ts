@@ -89,7 +89,12 @@ test.group('Funding | double validation au-delà du seuil — F4', (group) => {
     const { orgId, wallet } = await makeWallet(0)
     const request = await makeRequest(orgId, 500_000)
 
-    await svc.approve({ reference: request.reference, verifiedAmount: 500_000, adminId: ADMIN_A, comment: 'Vérifié' })
+    await svc.approve({
+      reference: request.reference,
+      verifiedAmount: 500_000,
+      adminId: ADMIN_A,
+      comment: 'Vérifié',
+    })
 
     assert.equal(await balanceOf(wallet.id), 500_000)
 
@@ -136,8 +141,17 @@ test.group('Funding | double validation au-delà du seuil — F4', (group) => {
     const { orgId, wallet } = await makeWallet(0)
     const request = await makeRequest(orgId, 2_000_000)
 
-    await svc.approve({ reference: request.reference, verifiedAmount: 2_000_000, adminId: ADMIN_A, comment: 'Vérifié' })
-    await svc.confirm({ reference: request.reference, adminId: ADMIN_B, comment: 'Second contrôle' })
+    await svc.approve({
+      reference: request.reference,
+      verifiedAmount: 2_000_000,
+      adminId: ADMIN_A,
+      comment: 'Vérifié',
+    })
+    await svc.confirm({
+      reference: request.reference,
+      adminId: ADMIN_B,
+      comment: 'Second contrôle',
+    })
 
     assert.equal(await balanceOf(wallet.id), 2_000_000)
     assert.equal(await fundingLedgerCount(wallet.id), 1)
@@ -202,8 +216,15 @@ test.group('Funding | double validation au-delà du seuil — F4', (group) => {
     const { orgId, wallet } = await makeWallet(0)
     const request = await makeRequest(orgId, 2_000_000)
 
-    await svc.approve({ reference: request.reference, verifiedAmount: 2_000_000, adminId: ADMIN_A, comment: 'Vérifié' })
-    await assert.rejects(() => svc.confirm({ reference: request.reference, adminId: ADMIN_A, comment: 'Second contrôle' }))
+    await svc.approve({
+      reference: request.reference,
+      verifiedAmount: 2_000_000,
+      adminId: ADMIN_A,
+      comment: 'Vérifié',
+    })
+    await assert.rejects(() =>
+      svc.confirm({ reference: request.reference, adminId: ADMIN_A, comment: 'Second contrôle' })
+    )
 
     assert.equal(await balanceOf(wallet.id), 0)
     assert.equal(await fundingLedgerCount(wallet.id), 0)
@@ -218,7 +239,9 @@ test.group('Funding | double validation au-delà du seuil — F4', (group) => {
     const { orgId, wallet } = await makeWallet(0)
     const request = await makeRequest(orgId, 2_000_000)
 
-    await assert.rejects(() => svc.confirm({ reference: request.reference, adminId: ADMIN_B, comment: 'Second contrôle' }))
+    await assert.rejects(() =>
+      svc.confirm({ reference: request.reference, adminId: ADMIN_B, comment: 'Second contrôle' })
+    )
 
     assert.equal(await balanceOf(wallet.id), 0)
     const still = await FundingRequest.findOrFail(request.id)
@@ -231,7 +254,12 @@ test.group('Funding | double validation au-delà du seuil — F4', (group) => {
     const { orgId, wallet } = await makeWallet(0)
     const request = await makeRequest(orgId, 2_000_000)
 
-    await svc.approve({ reference: request.reference, verifiedAmount: 2_000_000, adminId: ADMIN_A, comment: 'Vérifié' })
+    await svc.approve({
+      reference: request.reference,
+      verifiedAmount: 2_000_000,
+      adminId: ADMIN_A,
+      comment: 'Vérifié',
+    })
     await svc.reject({
       reference: request.reference,
       adminId: ADMIN_B,
@@ -259,7 +287,12 @@ test.group('Funding | double validation au-delà du seuil — F4', (group) => {
     // Ne jamais retomber sur une valeur par défaut : sans seuil connu, on ne peut pas savoir si le
     // dossier exige un second valideur, et supposer que non ferait disparaître le contrôle.
     await assert.rejects(() =>
-      svc.approve({ reference: request.reference, verifiedAmount: 500_000, adminId: ADMIN_A, comment: 'Vérifié' })
+      svc.approve({
+        reference: request.reference,
+        verifiedAmount: 500_000,
+        adminId: ADMIN_A,
+        comment: 'Vérifié',
+      })
     )
 
     assert.equal(await balanceOf(wallet.id), 0)
@@ -309,7 +342,12 @@ test.group('Funding | double validation au-delà du seuil — F4', (group) => {
     const request = await makeRequest(orgId, SEUIL)
 
     // La borne est stricte : « au-delà du seuil », donc l'égalité reste en simple validation.
-    await svc.approve({ reference: request.reference, verifiedAmount: SEUIL, adminId: ADMIN_A, comment: 'Vérifié' })
+    await svc.approve({
+      reference: request.reference,
+      verifiedAmount: SEUIL,
+      adminId: ADMIN_A,
+      comment: 'Vérifié',
+    })
 
     assert.equal(await balanceOf(wallet.id), SEUIL)
     const approved = await FundingRequest.findOrFail(request.id)
@@ -324,7 +362,12 @@ test.group('Funding | double validation au-delà du seuil — F4', (group) => {
 
     // Un valideur qui saisirait un montant sous le seuil ne doit pas pouvoir désarmer le contrôle :
     // le déclencheur est le montant déclaré par le marchand, qu'il ne peut pas modifier.
-    await svc.approve({ reference: request.reference, verifiedAmount: 900_000, adminId: ADMIN_A, comment: 'Vérifié' })
+    await svc.approve({
+      reference: request.reference,
+      verifiedAmount: 900_000,
+      adminId: ADMIN_A,
+      comment: 'Vérifié',
+    })
 
     assert.equal(await balanceOf(wallet.id), 0)
     const pending = await FundingRequest.findOrFail(request.id)
@@ -338,9 +381,20 @@ test.group('Funding | double validation au-delà du seuil — F4', (group) => {
     const { orgId, wallet } = await makeWallet(0)
     const request = await makeRequest(orgId, 2_000_000)
 
-    await svc.approve({ reference: request.reference, verifiedAmount: 2_000_000, adminId: ADMIN_A, comment: 'Vérifié' })
-    await svc.confirm({ reference: request.reference, adminId: ADMIN_B, comment: 'Second contrôle' })
-    await assert.rejects(() => svc.confirm({ reference: request.reference, adminId: 99, comment: 'Second contrôle' }))
+    await svc.approve({
+      reference: request.reference,
+      verifiedAmount: 2_000_000,
+      adminId: ADMIN_A,
+      comment: 'Vérifié',
+    })
+    await svc.confirm({
+      reference: request.reference,
+      adminId: ADMIN_B,
+      comment: 'Second contrôle',
+    })
+    await assert.rejects(() =>
+      svc.confirm({ reference: request.reference, adminId: 99, comment: 'Second contrôle' })
+    )
 
     assert.equal(await balanceOf(wallet.id), 2_000_000)
     assert.equal(await fundingLedgerCount(wallet.id), 1)

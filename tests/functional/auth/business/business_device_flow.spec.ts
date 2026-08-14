@@ -98,9 +98,7 @@ test.group('Business auth | device trust (mobile, two-step)', (group) => {
     res.assertStatus(200)
   })
 
-  test('action mobile avec un appareil INCONNU → 401 (appareil non validé)', async ({
-    client,
-  }) => {
+  test('action mobile avec un appareil INCONNU → 401 (appareil non validé)', async ({ client }) => {
     const user = await makeUser({ pincode: '1234' })
     const { token } = await loginTrustedMobile(client, user.phone)
 

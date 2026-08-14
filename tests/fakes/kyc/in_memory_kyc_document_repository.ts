@@ -116,9 +116,7 @@ export default class InMemoryKycDocumentRepository implements KycDocumentReposit
     for (const document of this.documents) {
       if (!wanted.has(document.accountId)) continue
 
-      const selfie = document.pieces?.find(
-        (piece) => piece.pieceType === DocumentPieceType.SELFIE
-      )
+      const selfie = document.pieces?.find((piece) => piece.pieceType === DocumentPieceType.SELFIE)
 
       if (selfie) {
         found.set(document.accountId, {

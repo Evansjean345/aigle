@@ -7,7 +7,7 @@ import {
   KYC_LEVEL_CATALOG,
   type KycLevelDefinition,
 } from '#core/identity/kyc/domain/kyc_level_catalog'
-import { AccountSegment } from '#core/identity/account/domain/enums/account_segment'
+import { type AccountSegment } from '#core/identity/account/domain/enums/account_segment'
 import { meaningOfLevel } from '#core/identity/kyc/domain/verification_requirements'
 
 /**
@@ -104,7 +104,7 @@ test.group('Kyc | Catalogue des paliers', (group) => {
     assert.deepEqual(
       diff.unknown.map((item) => `${item.segment}:${item.level}`),
       [],
-      "palier(s) en base sans déclaration en code : le back-office les afficherait sans signification"
+      'palier(s) en base sans déclaration en code : le back-office les afficherait sans signification'
     )
   })
 })

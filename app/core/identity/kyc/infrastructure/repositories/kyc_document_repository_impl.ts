@@ -10,6 +10,8 @@ import {
   KycDocumentStatus,
   KycDocumentType,
 } from '#core/identity/kyc/domain/enum/kyc_enum'
+import { type KycDocumentQuery } from '#core/identity/kyc/domain/types/kyc_document_query'
+import { kycDocumentSortColumn } from '#core/identity/kyc/domain/types/kyc_document_sorts'
 import db from '@adonisjs/lucid/services/db'
 import { KycAttemp } from '#core/identity/kyc/domain/models/kyc_attemp'
 
@@ -76,24 +78,14 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
   }
 
   /**
-   * Find all KYC documents with pagination and filters
-   * @param page
-   * @param perPage
-   * @param filters
+   * Page de la file de revue, filtrée et ordonnée.
+   *
+   * @param {number} page - Page demandée.
+   * @param {number} perPage - Taille de page.
+   * @param {KycDocumentQuery} [filters] - Critères. Sans `sortBy`, l'ordre est le plus récemment
+   *   modifié d'abord.
    */
-  async findAll(
-    page: number,
-    perPage: number,
-    filters?: {
-      status?: string
-      documentType?: string
-      userId?: string
-      search?: string
-      ownerType?: string
-      startDate?: string
-      endDate?: string
-    }
-  ): Promise<any> {
+  async findAll(page: number, perPage: number, filters?: KycDocumentQuery): Promise<any> {
     const query = KycDocument.query().preload('user').preload('agent').preload('pieces')
 
     if (filters?.status) {
@@ -112,21 +104,23 @@ export default class KycDocumentRepositoryImpl implements KycDocumentRepository 
       query.where('account_id', filters.userId)
     }
 
-    if (filters?.search) {
-      query.whereHas('user', (userQuery) => {
-        userQuery
-          .where('firstname', 'like', `%${filters.search}%`)
-          .orWhere('lastname', 'like', `%${filters.search}%`)
-          .orWhere('phone', 'like', `%${filters.search}%`)
-          .orWhere('users_uid', 'like', `%${filters.search}%`)
-      })
+    if (filters?.accountIds) {
+      query.whereIn('account_id', filters.accountIds)
     }
 
     if (filters?.startDate || filters?.endDate) {
       query.withScopes((scopes) => scopes.filterByDateRange(filters.startDate, filters.endDate))
     }
 
-    return query.orderBy('updated_at', 'desc').paginate(page, perPage)
+    const sortColumn = kycDocumentSortColumn(filters?.sortBy)
+
+    if (sortColumn) {
+      query.orderBy(sortColumn, filters?.order ?? 'desc')
+    } else {
+      query.orderBy('updated_at', 'desc')
+    }
+
+    return query.paginate(page, perPage)
   }
 
   /**

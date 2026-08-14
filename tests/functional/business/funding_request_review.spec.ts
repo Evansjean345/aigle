@@ -184,10 +184,20 @@ test.group('Funding | validation et crédit — F3', (group) => {
     const request = await makeRequest(orgId, 500_000)
 
     await assert.rejects(() =>
-      svc.approve({ reference: request.reference, verifiedAmount: 0, adminId: ADMIN_ID, comment: 'Vérifié' })
+      svc.approve({
+        reference: request.reference,
+        verifiedAmount: 0,
+        adminId: ADMIN_ID,
+        comment: 'Vérifié',
+      })
     )
     await assert.rejects(() =>
-      svc.approve({ reference: request.reference, verifiedAmount: -100, adminId: ADMIN_ID, comment: 'Vérifié' })
+      svc.approve({
+        reference: request.reference,
+        verifiedAmount: -100,
+        adminId: ADMIN_ID,
+        comment: 'Vérifié',
+      })
     )
 
     assert.equal(await balanceOf(wallet.id), 0)
@@ -200,9 +210,19 @@ test.group('Funding | validation et crédit — F3', (group) => {
     const { orgId, wallet } = await makeWallet(0)
     const request = await makeRequest(orgId, 500_000)
 
-    await svc.approve({ reference: request.reference, verifiedAmount: 500_000, adminId: ADMIN_ID, comment: 'Vérifié' })
+    await svc.approve({
+      reference: request.reference,
+      verifiedAmount: 500_000,
+      adminId: ADMIN_ID,
+      comment: 'Vérifié',
+    })
     await assert.rejects(() =>
-      svc.approve({ reference: request.reference, verifiedAmount: 500_000, adminId: 99, comment: 'Vérifié' })
+      svc.approve({
+        reference: request.reference,
+        verifiedAmount: 500_000,
+        adminId: 99,
+        comment: 'Vérifié',
+      })
     )
 
     // L'invariant central du lot : un versement, un crédit.
@@ -222,16 +242,26 @@ test.group('Funding | validation et crédit — F3', (group) => {
     const rejetee = await makeRequest(orgId, 100_000, FundingRequestStatus.REJECTED)
 
     await assert.rejects(() =>
-      svc.approve({ reference: annulee.reference, verifiedAmount: 100_000, adminId: ADMIN_ID, comment: 'Vérifié' })
+      svc.approve({
+        reference: annulee.reference,
+        verifiedAmount: 100_000,
+        adminId: ADMIN_ID,
+        comment: 'Vérifié',
+      })
     )
     await assert.rejects(() =>
-      svc.approve({ reference: rejetee.reference, verifiedAmount: 100_000, adminId: ADMIN_ID, comment: 'Vérifié' })
+      svc.approve({
+        reference: rejetee.reference,
+        verifiedAmount: 100_000,
+        adminId: ADMIN_ID,
+        comment: 'Vérifié',
+      })
     )
 
     assert.equal(await balanceOf(wallet.id), 0)
   })
 
-  test('rejet : statut et motif enregistrés, AUCUN mouvement d\'argent', async ({ assert }) => {
+  test("rejet : statut et motif enregistrés, AUCUN mouvement d'argent", async ({ assert }) => {
     const svc = await app.container.make(FundingRequestReviewService)
     const { orgId, wallet } = await makeWallet(25_000)
     const request = await makeRequest(orgId, 500_000)
@@ -274,7 +304,12 @@ test.group('Funding | validation et crédit — F3', (group) => {
     const { orgId } = await makeWallet(0)
     const request = await makeRequest(orgId, 500_000)
 
-    await svc.approve({ reference: request.reference, verifiedAmount: 500_000, adminId: ADMIN_ID, comment: 'Vérifié' })
+    await svc.approve({
+      reference: request.reference,
+      verifiedAmount: 500_000,
+      adminId: ADMIN_ID,
+      comment: 'Vérifié',
+    })
     await assert.rejects(() =>
       svc.reject({ reference: request.reference, adminId: 99, comment: 'trop tard' })
     )
@@ -292,7 +327,12 @@ test.group('Funding | validation et crédit — F3', (group) => {
     const ledgerAvant = await fundingLedgerCount()
 
     await assert.rejects(() =>
-      svc.approve({ reference: request.reference, verifiedAmount: 500_000, adminId: ADMIN_ID, comment: 'Vérifié' })
+      svc.approve({
+        reference: request.reference,
+        verifiedAmount: 500_000,
+        adminId: ADMIN_ID,
+        comment: 'Vérifié',
+      })
     )
 
     const untouched = await FundingRequest.findOrFail(request.id)
@@ -310,7 +350,12 @@ test.group('Funding | validation et crédit — F3', (group) => {
     const svc = await app.container.make(FundingRequestReviewService)
 
     await assert.rejects(() =>
-      svc.approve({ reference: 'funding_inexistant', verifiedAmount: 1000, adminId: ADMIN_ID, comment: 'Vérifié' })
+      svc.approve({
+        reference: 'funding_inexistant',
+        verifiedAmount: 1000,
+        adminId: ADMIN_ID,
+        comment: 'Vérifié',
+      })
     )
   })
 })
