@@ -123,16 +123,21 @@ export default class Transaction extends BaseModel {
     query.where('status', status)
   })
 
-  static search = scope((query, searchTerm: string) => {
+  /**
+   * Restreint aux transactions dont la référence, le type, le montant ou le titulaire correspond.
+   *
+   * Le titulaire arrive résolu en comptes : une transaction d'organisation n'a pas de porteur
+   * utilisateur, et joindre `user` la rendrait introuvable.
+   */
+  static search = scope((query, searchTerm: string, accountIds: string[] = []) => {
     query.where((subQuery) => {
       subQuery
-        .where('reference', 'like', `%${searchTerm}%`)
-        .orWhere('operation_type', 'like', `%${searchTerm}%`)
-        .orWhereHas('user', (userQuery) => {
-          userQuery
-            .where('firstname', 'like', `%${searchTerm}%`)
-            .orWhere('lastname', 'like', `%${searchTerm}%`)
-        })
+        .whereILike('reference', `%${searchTerm}%`)
+        .orWhereILike('operation_type', `%${searchTerm}%`)
+
+      if (accountIds.length > 0) {
+        subQuery.orWhereIn('account_id', accountIds)
+      }
 
       const amount = Number.parseFloat(searchTerm)
 

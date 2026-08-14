@@ -150,6 +150,8 @@ export default abstract class TransactionRepository {
       userId?: string
       /** Compte titulaire. Pour une organisation, l'`organisationId`. */
       accountId?: string
+      /** Comptes dont le titulaire correspond au terme, résolus par l'annuaire en amont. */
+      searchAccountIds?: string[]
     }
   ): Promise<ModelPaginatorContract<Transaction>>
 

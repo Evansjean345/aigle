@@ -231,6 +231,8 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       userId?: string
       /** Compte titulaire. Pour une organisation, l'`organisationId`. */
       accountId?: string
+      /** Comptes dont le titulaire correspond au terme, résolus par l'annuaire en amont. */
+      searchAccountIds?: string[]
     }
   ): Promise<ModelPaginatorContract<Transaction>> {
     // Account-centric : la partie prenante est résolue par `account_id` (AccountHolderResolver),
@@ -241,7 +243,9 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       .if(filters?.accountId, (q) => q.where('account_id', filters!.accountId!))
       .if(filters?.type, (q) => q.withScopes((scope) => scope.filterByType(filters!.type!)))
       .if(filters?.status, (q) => q.withScopes((scope) => scope.filterByStatus(filters!.status!)))
-      .if(filters?.search, (q) => q.withScopes((scope) => scope.search(filters!.search!)))
+      .if(filters?.search, (q) =>
+        q.withScopes((scope) => scope.search(filters!.search!, filters?.searchAccountIds ?? []))
+      )
       .if(filters?.startDate || filters?.endDate, (q) =>
         q.withScopes((scope) => scope.filterByDateRange(filters?.startDate, filters?.endDate))
       )

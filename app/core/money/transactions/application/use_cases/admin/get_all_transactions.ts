@@ -41,7 +41,14 @@ export default class GetAllTransactionsUseCase {
       accountId?: string
     }
   ): Promise<PaginatedAdminTransactionsResponseDTO> {
-    const transactions = await this.transactionsRepository.all(page, perPage, filters)
+    const searchAccountIds = filters?.search
+      ? await this.holderResolver.searchAccountIds(filters.search)
+      : undefined
+
+    const transactions = await this.transactionsRepository.all(page, perPage, {
+      ...filters,
+      searchAccountIds,
+    })
 
     // Partie prenante résolue par account_id (user OU marchand) — plus de relation `user` préchargée.
     const holders = await this.holderResolver.resolve(transactions.all().map((t) => t.accountId))
