@@ -87,7 +87,6 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
     trx?: TransactionClientContract
   ): Promise<Transaction | null> {
     const query = Transaction.query({ client: trx })
-      .preload('user')
       .preload('payment')
       .preload('ledgers', (q) => {
         q.preload('wallet')
@@ -130,13 +129,6 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
     const query = Transaction.query()
 
     query
-      .if(preloads?.includes('user'), (q) => {
-        q.preload('user', (userQuery) => {
-          userQuery.preload('wallet', (walletQuery) => {
-            walletQuery.select(['id', 'balance'])
-          })
-        })
-      })
       .if(preloads?.includes('payment'), (q) => {
         q.preload('payment')
       })

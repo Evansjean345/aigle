@@ -118,6 +118,21 @@ test.group('Transactions | recherche par titulaire', (group) => {
     assert.isEmpty(page.data)
   })
 
+  test('la partie prenante d’une entreprise est nommée', async ({ assert }) => {
+    const useCase = await app.container.make(GetAllTransactionsUseCase)
+    const aliases = await app.container.make(PayableAliasService)
+
+    const accountId = randomUUID()
+    const name = `Pressing${randomUUID().slice(0, 8)}`
+    await aliases.register(accountId, name)
+    await seedTransaction(accountId, `REF-${randomUUID().slice(0, 8)}`, false)
+
+    const page = await useCase.execute(1, 50, { search: name })
+
+    assert.equal(page.data[0].party?.type, 'organisation')
+    assert.equal(page.data[0].party?.name, name)
+  })
+
   test('sans recherche, la liste n’est pas filtrée', async ({ assert }) => {
     const useCase = await app.container.make(GetAllTransactionsUseCase)
 

@@ -11,6 +11,8 @@ export interface ListRefundsFilter {
   type?: RefundType
   reason?: RefundReason
   search?: string
+  /** Comptes dont le titulaire correspond au terme, résolus par l'annuaire en amont. */
+  searchAccountIds?: string[]
   minAmount?: number
   maxAmount?: number
   startDate?: string

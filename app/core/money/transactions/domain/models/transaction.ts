@@ -1,20 +1,11 @@
 ﻿import { DateTime } from 'luxon'
-import {
-  BaseModel,
-  beforeSave,
-  belongsTo,
-  column,
-  hasMany,
-  hasOne,
-  scope,
-} from '@adonisjs/lucid/orm'
+import { BaseModel, beforeSave, column, hasMany, hasOne, scope } from '@adonisjs/lucid/orm'
 import string from '@adonisjs/core/helpers/string'
 import { v4 as uuidv4 } from 'uuid'
-import type { BelongsTo, HasMany, HasOne } from '@adonisjs/lucid/types/relations'
+import type { HasMany, HasOne } from '@adonisjs/lucid/types/relations'
 import Payment from '#core/money/transactions/domain/models/payment'
 import TransactionLogEntry from '#core/money/transactions/domain/models/transaction_log_entry'
 import TransactionSecurityContext from '#core/money/transactions/domain/models/transaction_security_context'
-import User from '#core/identity/user/domain/models/user'
 import Ledger from '#core/money/ledger/domain/models/ledger'
 import Refund from '#core/money/transactions/domain/models/refund'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
@@ -29,20 +20,13 @@ export default class Transaction extends BaseModel {
   @column()
   declare transactionsUid: string
 
-  // Colonne DB nullable (D8 : une transaction d'org n'a pas de user), mais TYPE non-null pour
-  // que la relation `belongsTo(User)` s'infère (quirk Lucid : FK nullable → relation `never`).
-  // Une transaction marchande porte `usersId/usersUid = null` (compte via `accountId`).
-  @column()
-  declare usersId: number
-
+  /**
+   * Porteur utilisateur, hérité. Nul pour une transaction d'organisation — le titulaire se lit sur
+   * `accountId`.
+   */
   @column()
   declare usersUid: string
 
-  /**
-   * Compte titulaire (D8) : `account_id`. Pour un user, == usersUid ; pour un marchand, l'org.
-   * DB nullable ; type non-null (comme les autres colonnes) — un `\| null` ici casse l'inférence
-   * de relation Lucid (`belongsTo(User)` → `never`).
-   */
   @column()
   declare accountId: string
 
@@ -109,11 +93,6 @@ export default class Transaction extends BaseModel {
     foreignKey: 'transactionId',
   })
   declare securityContext: HasOne<typeof TransactionSecurityContext>
-
-  @belongsTo(() => User, {
-    foreignKey: 'usersId',
-  })
-  declare user: BelongsTo<typeof User>
 
   static filterByType = scope((query, type: TransactionType) => {
     query.where('operation_type', type)

@@ -24,13 +24,14 @@ export class AdminTransactionResponseDTO {
   declare updatedAt: DateTime
   declare payment: PaymentResponseDTO[]
   /**
-   * Partie prenante de la transaction, **uniforme** : un compte **user** (nom + lien profil) ou un
-   * compte **marchand** (nom résolu via l'alias payable). Remplace l'ancien `user` (qui affichait
-   * `-` pour les comptes marchands sans user, depuis le refactor account-centric).
+   * Partie prenante de la transaction : un compte utilisateur, nom et lien vers son profil, ou un
+   * compte d'organisation, nommé par son alias payable.
+   *
+   * Le core ne distingue pas un marchand d'une entreprise — le type de compte vit dans le produit.
    */
   declare party?: {
     accountId: string
-    type: 'user' | 'merchant' | 'unknown'
+    type: 'user' | 'organisation' | 'unknown'
     name: string | null
     /** Présent uniquement pour un compte user (lien vers le profil admin). */
     userId?: string
@@ -143,7 +144,6 @@ export class AdminTransactionResponseDTO {
     dto.display = TransactionDisplayService.toDisplay({
       operationType: transaction.operationType,
       direction: transaction.direction,
-      // `paymentDetails` est parsé en objet par le modèle (colonne JSON) malgré son type `string`.
       paymentDetails: transaction.payment?.[0]
         ?.paymentDetails as unknown as PaymentDetailsInput | null,
       description: transaction.description,
@@ -161,7 +161,7 @@ export class AdminTransactionResponseDTO {
     } else {
       dto.party = {
         accountId: transaction.accountId,
-        type: holder?.merchantName ? 'merchant' : 'unknown',
+        type: holder?.merchantName ? 'organisation' : 'unknown',
         name: holder?.merchantName ?? null,
         wallet,
       }

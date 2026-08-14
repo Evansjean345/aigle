@@ -5,6 +5,7 @@ import {
   type ListRefundsRequestDto,
   type PaginatedRefundsResponseDTO,
 } from '#core/money/transactions/application/dtos/admin/admin_refund_list.dto'
+import AccountHolderResolver from '#core/money/transactions/application/services/account_holder_resolver'
 
 @inject()
 export default class GetRefundsUseCase {
@@ -12,7 +13,10 @@ export default class GetRefundsUseCase {
    * Constructs a new instance.
    * @param {RefundRepository} refundRepository The repository for managing refunds.
    */
-  constructor(private readonly refundRepository: RefundRepository) {}
+  constructor(
+    private readonly refundRepository: RefundRepository,
+    private readonly holderResolver: AccountHolderResolver
+  ) {}
 
   /**
    * Executes the refund listing process, applying filter criteria and pagination.
@@ -25,7 +29,13 @@ export default class GetRefundsUseCase {
     const page = input.page ?? 1
     const perPage = input.perPage ?? 20
 
+    // Un terme est d'abord résolu en comptes : le dépôt filtre sur `account_id`.
+    const searchAccountIds = input.search
+      ? await this.holderResolver.searchAccountIds(input.search)
+      : undefined
+
     const paginator = await this.refundRepository.list(page, perPage, {
+      searchAccountIds,
       walletId: input.walletId,
       userId: input.userId,
       adminId: input.adminId,
@@ -39,6 +49,12 @@ export default class GetRefundsUseCase {
       endDate: input.endDate,
     })
 
-    return RefundListItemResponseDTO.fromPaginator(paginator)
+    // Titulaire résolu par compte : un remboursement sur une transaction d'organisation n'a pas de
+    // porteur utilisateur.
+    const holders = await this.holderResolver.resolve(
+      paginator.all().map((refund) => refund.transaction?.accountId)
+    )
+
+    return RefundListItemResponseDTO.fromPaginator(paginator, holders)
   }
 }

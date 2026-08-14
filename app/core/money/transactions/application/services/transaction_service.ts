@@ -93,7 +93,6 @@ export default class TransactionService {
     transaction.direction = payload.direction
     transaction.totalAmount = Number(payload.total_amount || 0)
     transaction.operationType = payload.operation_type
-    transaction.usersId = (user?.id ?? null) as unknown as number
     transaction.usersUid = (user?.usersUid ?? null) as unknown as string
     transaction.accountId = (accountId ?? user?.usersUid ?? null) as unknown as string
 

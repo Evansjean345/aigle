@@ -6,6 +6,7 @@ import type {
   RefundStatus,
   RefundType,
 } from '#core/money/transactions/domain/enums/refund'
+import type { AccountHolderResult } from '#core/money/transactions/application/services/account_holder_resolver'
 
 // ── RequestDto (input use case) ─────────────────────────────────────
 
@@ -47,11 +48,13 @@ export class RefundListItemResponseDTO {
     id: number
     reference: string
     operationType: string
-    user: {
-      usersUid: string
-      firstname: string
-      lastname: string
-    } | null
+    party: {
+      accountId: string
+      type: 'user' | 'organisation' | 'unknown'
+      name: string | null
+      /** Présent uniquement pour un compte utilisateur. */
+      userId?: string
+    }
   } | null
   declare admin: {
     id: number
@@ -60,7 +63,17 @@ export class RefundListItemResponseDTO {
     email: string
   } | null
 
-  static fromRefund(refund: Refund): RefundListItemResponseDTO {
+  /**
+   * Projette un remboursement pour la liste d'administration.
+   *
+   * @param {Refund} refund - Remboursement à projeter.
+   * @param {Map<string, AccountHolderResult>} [holders] - Titulaires résolus par `account_id`. Sans
+   *   eux, la partie prenante reste inconnue.
+   */
+  static fromRefund(
+    refund: Refund,
+    holders?: Map<string, AccountHolderResult>
+  ): RefundListItemResponseDTO {
     const dto = new RefundListItemResponseDTO()
     dto.id = refund.id
     dto.refundUid = refund.refundUid
@@ -79,20 +92,33 @@ export class RefundListItemResponseDTO {
     dto.createdAt = refund.createdAt
 
     const transaction = refund.transaction
-    dto.transaction = transaction
-      ? {
-          id: transaction.id,
-          reference: transaction.reference,
-          operationType: transaction.operationType,
-          user: transaction.user
-            ? {
-                usersUid: transaction.user.usersUid,
-                firstname: transaction.user.firstname,
-                lastname: transaction.user.lastname,
-              }
-            : null,
-        }
-      : null
+
+    if (transaction) {
+      const holder = holders?.get(transaction.accountId)
+      const fullName = holder?.user
+        ? `${holder.user.firstname ?? ''} ${holder.user.lastname ?? ''}`.trim()
+        : null
+
+      dto.transaction = {
+        id: transaction.id,
+        reference: transaction.reference,
+        operationType: transaction.operationType,
+        party: holder?.user
+          ? {
+              accountId: transaction.accountId,
+              type: 'user',
+              name: fullName || null,
+              userId: holder.user.userId,
+            }
+          : {
+              accountId: transaction.accountId,
+              type: holder?.merchantName ? 'organisation' : 'unknown',
+              name: holder?.merchantName ?? null,
+            },
+      }
+    } else {
+      dto.transaction = null
+    }
 
     dto.admin = refund.admin
       ? {
@@ -106,9 +132,12 @@ export class RefundListItemResponseDTO {
     return dto
   }
 
-  static fromPaginator(paginator: ModelPaginatorContract<Refund>): PaginatedRefundsResponseDTO {
+  static fromPaginator(
+    paginator: ModelPaginatorContract<Refund>,
+    holders?: Map<string, AccountHolderResult>
+  ): PaginatedRefundsResponseDTO {
     return {
-      data: paginator.all().map(RefundListItemResponseDTO.fromRefund),
+      data: paginator.all().map((refund) => RefundListItemResponseDTO.fromRefund(refund, holders)),
       meta: {
         total: paginator.total,
         currentPage: paginator.currentPage,

@@ -45,11 +45,7 @@ export default class RefundRepositoryImpl implements RefundRepository {
   ): Promise<ModelPaginatorContract<Refund>> {
     const query = Refund.query()
       .preload('transaction', (txQuery) => {
-        txQuery
-          .select(['id', 'reference', 'operation_type', 'users_id', 'users_uid'])
-          .preload('user', (userQuery) => {
-            userQuery.select(['id', 'usersUid', 'firstname', 'lastname'])
-          })
+        txQuery.select(['id', 'reference', 'operation_type', 'account_id'])
       })
       .preload('admin', (adminQuery) => {
         adminQuery.select(['id', 'firstname', 'lastname', 'email'])
@@ -73,17 +69,20 @@ export default class RefundRepositoryImpl implements RefundRepository {
 
     if (filters?.search) {
       const term = `%${filters.search}%`
+      const accountIds = filters.searchAccountIds ?? []
+
       query.where((builder) => {
         builder
-          .where('refund_uid', 'like', term)
-          .orWhere('comment', 'like', term)
+          .whereILike('refund_uid', term)
+          .orWhereILike('comment', term)
           .orWhereHas('transaction', (txQuery) => {
-            txQuery.where('reference', 'like', term).orWhereHas('user', (userQuery) => {
-              userQuery
-                .where('firstname', 'like', term)
-                .orWhere('lastname', 'like', term)
-                .orWhere('phone', 'like', term)
-            })
+            txQuery.whereILike('reference', term)
+
+            // Le titulaire arrive résolu en comptes : une transaction d'organisation n'a pas de
+            // porteur utilisateur.
+            if (accountIds.length > 0) {
+              txQuery.orWhereIn('account_id', accountIds)
+            }
           })
       })
     }

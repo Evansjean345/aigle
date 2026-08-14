@@ -30,7 +30,6 @@ export async function createPendingFixture(
   transaction.operationType = TransactionType.DEPOSIT
   transaction.direction = TransactionDirection.CREDIT
   transaction.fees = data.fees
-  transaction.usersId = data.usersId
   transaction.usersUid = data.usersUid
   await transaction.save()
 
