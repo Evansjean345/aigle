@@ -129,8 +129,6 @@ export default class SettleDepositHandler {
     await this.support.dispatchFlowEvent('DepositTransactionCompleted', transaction, {
       type: isCheckout ? 'checkout' : 'deposit',
       amount: isCheckout ? creditAmount : transaction.amount,
-      accountId: transaction.accountId,
-      userId: transaction.usersUid,
       balanceAfter: updatedWallet.balance || 0,
     })
   }
@@ -167,8 +165,6 @@ export default class SettleDepositHandler {
     await this.support.dispatchFlowEvent('DepositTransactionFailed', transaction, {
       type: isCheckout ? 'checkout' : 'deposit',
       amount: Number(transaction.amount),
-      accountId: transaction.accountId,
-      userId: transaction.usersUid,
     })
   }
 }

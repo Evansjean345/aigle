@@ -137,7 +137,6 @@ export default class SettleTransfertInterSecondHandler {
 
     await this.support.dispatchFlowEvent('TransfertInterTransactionFailed', transaction, {
       amount: transaction.amount,
-      userId: transaction.usersUid,
       beneficiaryPhone: this.paymentService.extractBeneficiaryPhone(secondPayment),
     })
   }

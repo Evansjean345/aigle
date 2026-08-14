@@ -13,6 +13,9 @@ import { AdminAction } from '#shared/enums/provider_error_enums'
 import { PROVIDER_SEVERITY_MAP } from '#shared/enums/provider_error_severity_map'
 import type { AuditResult } from '#core/audit/domain/enums'
 import DispatchFlowEventJob from '#core/money/transactions/application/jobs/dispatch_flow_event_job'
+import AccountStandingService from '#core/identity/account/application/services/account_standing_service'
+import { AccountOwnerType } from '#core/identity/account/domain/enums/account_owner_type'
+import appLog from '#shared/infrastructure/logging/app_log'
 import type { FlowEventName } from '#core/money/transactions/application/jobs/dispatch_flow_event_job'
 import type {
   SettlementOutcome,
@@ -40,7 +43,8 @@ const TERMINAL_STATE_CODES = new Set([
 export default class SettlementSupport {
   constructor(
     private readonly paymentService: PaymentService,
-    private readonly transactionService: TransactionService
+    private readonly transactionService: TransactionService,
+    private readonly accountStanding: AccountStandingService
   ) {}
 
   /** Charge la transaction (verrou `forUpdate`) + tous ses paiements (ordonnés). */
@@ -155,17 +159,69 @@ export default class SettlementSupport {
       .catch(() => {})
   }
 
-  /** Dispatch différé (queue) de l'event par flux — comportement inchangé. */
+  /**
+   * Dispatch différé (queue) de l'event par flux, enrichi de la nature du compte.
+   *
+   * `ownerType` dit si le compte réglé appartient à une personne ou à une organisation, et `userId`
+   * n'est renseigné que dans le premier cas — les écouteurs y lisent s'il y a quelqu'un à notifier.
+   *
+   * @param {FlowEventName} eventName - Event à émettre.
+   * @param {Transaction} transaction - Transaction réglée.
+   * @param {Record<string, unknown>} eventData - Charge propre au flux.
+   */
   async dispatchFlowEvent(
     eventName: FlowEventName,
     transaction: Transaction,
     eventData: Record<string, unknown>
   ): Promise<void> {
+    const holder = await this.resolveHolder(transaction.accountId)
+
     await DispatchFlowEventJob.dispatch({
       eventName,
-      eventData: { reference: transaction.reference, ...eventData },
+      eventData: {
+        reference: transaction.reference,
+        accountId: transaction.accountId,
+        ...holder,
+        ...eventData,
+      },
       reference: transaction.reference,
     })
+  }
+
+  /**
+   * Nature du compte réglé, et son porteur s'il s'agit d'une personne.
+   *
+   * Un compte introuvable ou une lecture en échec rendent une charge sans `ownerType` : les écouteurs
+   * retombent alors sur l'ancien signal. L'argent étant déjà déplacé, refuser d'émettre l'event le
+   * priverait de sa notification sans rien réparer.
+   */
+  private async resolveHolder(
+    accountId: string
+  ): Promise<{ ownerType?: AccountOwnerType; userId?: string | null }> {
+    try {
+      const account = await this.accountStanding.describe(accountId)
+
+      if (!account) {
+        appLog.error(
+          'SETTLEMENT_ACCOUNT_NOT_FOUND',
+          { accountId },
+          'Compte introuvable au règlement : nature du compte absente de la charge'
+        )
+        return {}
+      }
+
+      return {
+        ownerType: account.ownerType,
+        userId: account.ownerType === AccountOwnerType.USER ? account.ownerRef : null,
+      }
+    } catch (error) {
+      appLog.error(
+        'SETTLEMENT_ACCOUNT_LOOKUP_FAILED',
+        { accountId, error: this.errorMessage(error) },
+        'Lecture du compte impossible au règlement : nature du compte absente de la charge'
+      )
+      return {}
+    }
   }
 
   /** Message d'erreur normalisé pour l'audit. */

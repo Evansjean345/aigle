@@ -82,8 +82,6 @@ export default class SettleTransfertHandler {
 
     await this.support.dispatchFlowEvent('TransfertTransactionCompleted', transaction, {
       amount: transaction.amount,
-      accountId: transaction.accountId,
-      userId: transaction.usersUid,
       balanceAfter: currentBalance,
       beneficiaryPhone: this.paymentService.extractBeneficiaryPhone(payment),
     })
@@ -108,7 +106,6 @@ export default class SettleTransfertHandler {
 
     await this.support.dispatchFlowEvent('TransfertTransactionFailed', transaction, {
       amount: transaction.amount,
-      userId: transaction.usersUid,
       beneficiaryPhone: this.paymentService.extractBeneficiaryPhone(payment),
     })
 
