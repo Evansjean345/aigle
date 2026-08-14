@@ -87,7 +87,11 @@ export default class UserRepositoryIml implements UserRepository {
     return User.query().whereIn('users_uid', ids).preload('kycDocument')
   }
 
-  async searchIds(term: string, limit: number): Promise<string[]> {
+  async searchIds(
+    term: string,
+    limit: number,
+    options: { phone?: boolean } = {}
+  ): Promise<string[]> {
     const pattern = `%${term}%`
 
     const users = await User.query()
@@ -95,8 +99,11 @@ export default class UserRepositoryIml implements UserRepository {
         query
           .whereILike('firstname', pattern)
           .orWhereILike('lastname', pattern)
-          .orWhereILike('phone', pattern)
           .orWhereILike('users_uid', pattern)
+
+        if (options.phone ?? true) {
+          query.orWhereILike('phone', pattern)
+        }
       })
       .select('users_uid')
       .limit(limit)

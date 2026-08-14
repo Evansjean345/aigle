@@ -94,6 +94,19 @@ test.group('Transactions | recherche par titulaire', (group) => {
     assert.equal(page.data[0].transactionUid, transaction.transactionsUid)
   })
 
+  test('le numéro de téléphone ne fait pas correspondre', async ({ assert }) => {
+    const useCase = await app.container.make(GetAllTransactionsUseCase)
+
+    const user = await makeUser()
+    await seedTransaction(user.usersUid, `REF-${randomUUID().slice(0, 8)}`)
+
+    // Le tableau des transactions n'affiche pas le numéro : une correspondance dessus serait
+    // inexplicable pour le gestionnaire.
+    const page = await useCase.execute(1, 50, { search: user.phone })
+
+    assert.isEmpty(page.data)
+  })
+
   test('une recherche sans correspondance rend une page vide', async ({ assert }) => {
     const useCase = await app.container.make(GetAllTransactionsUseCase)
 

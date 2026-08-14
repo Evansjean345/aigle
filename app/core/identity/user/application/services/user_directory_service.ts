@@ -65,16 +65,20 @@ export default class UserDirectoryService {
   }
 
   /**
-   * Identifiants des utilisateurs dont le prénom, le nom, le téléphone ou l'identifiant contient le
-   * terme, sans égard à la casse.
+   * Identifiants des utilisateurs dont le prénom, le nom, l'identifiant ou — au choix — le téléphone
+   * contient le terme, sans égard à la casse.
    *
    * Ne tronque pas : au-delà du fil de détente, journalise et rend l'ensemble.
    *
    * @param {string} term - Terme recherché.
+   * @param {object} [options] - `phone` à `false` restreint la recherche au nom et à l'identifiant,
+   *   pour un écran qui n'affiche pas le numéro.
    * @returns {Promise<string[]>} Les identifiants correspondants, vide si aucun.
    */
-  async searchAccountIds(term: string): Promise<string[]> {
-    const userIds = await this.userRepository.searchIds(term, searchAccountIdsTripwire)
+  async searchAccountIds(term: string, options: { phone?: boolean } = {}): Promise<string[]> {
+    const userIds = await this.userRepository.searchIds(term, searchAccountIdsTripwire, {
+      phone: options.phone ?? true,
+    })
 
     if (userIds.length >= searchAccountIdsTripwire) {
       appLog.error(

@@ -34,12 +34,15 @@ export default class AccountHolderResolver {
    * Les deux annuaires sont interrogés et leurs résultats réunis — contrairement à `resolve`, qui
    * s'arrête au premier trouvé.
    *
+   * Le téléphone est écarté : les listings d'argent affichent le titulaire par son nom, et une
+   * correspondance sur un numéro absent du tableau serait inexplicable.
+   *
    * @param {string} term - Terme recherché.
    * @returns {Promise<string[]>} Les comptes correspondants, sans doublon, vide si aucun.
    */
   async searchAccountIds(term: string): Promise<string[]> {
     const [users, merchants] = await Promise.all([
-      this.userDirectoryService.searchAccountIds(term),
+      this.userDirectoryService.searchAccountIds(term, { phone: false }),
       this.payableAliasService.searchAccountIds(term),
     ])
 

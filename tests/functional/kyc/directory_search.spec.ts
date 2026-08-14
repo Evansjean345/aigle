@@ -48,6 +48,15 @@ test.group('Annuaires | recherche par utilisateur', (group) => {
     assert.include(found, user.usersUid)
   })
 
+  test('le téléphone s’écarte pour un écran qui ne l’affiche pas', async ({ assert }) => {
+    const service = await app.container.make(UserDirectoryService)
+    const user = await makeUser()
+
+    const found = await service.searchAccountIds(user.phone, { phone: false })
+
+    assert.notInclude(found, user.usersUid)
+  })
+
   test('trouve par l’identifiant', async ({ assert }) => {
     const service = await app.container.make(UserDirectoryService)
     const user = await makeUser()
