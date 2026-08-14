@@ -40,7 +40,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
     return await Transaction.query()
       .preload('payment')
       .preload('ledgers')
-      .where('usersUid', userId)
+      .where('account_id', userId)
       .orderBy('createdAt', 'desc')
       .paginate(page, perPage)
   }
@@ -179,7 +179,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
     const query = Transaction.query()
       .preload('payment')
       .where('reference', reference)
-      .where('usersUid', userId)
+      .where('account_id', userId)
 
     if (preloads?.includes('ledgers')) {
       query.preload('ledgers')
@@ -198,7 +198,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
   async getLatestTransactionByUserId(userId: string, limit: number = 8): Promise<Transaction[]> {
     return Transaction.query()
       .preload('payment')
-      .where('usersUid', userId)
+      .where('account_id', userId)
       .orderBy('createdAt', 'desc')
       .limit(limit)
   }
@@ -221,18 +221,17 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       startDate?: string
       endDate?: string
       userId?: string
-      /** Compte titulaire. Pour une organisation, l'`organisationId`. */
+      /** Compte titulaire. Pour une organisation, l'organisationId'. */
       accountId?: string
       /** Comptes dont le titulaire correspond au terme, résolus par l'annuaire en amont. */
       searchAccountIds?: string[]
     }
   ): Promise<ModelPaginatorContract<Transaction>> {
-    // Account-centric : la partie prenante est résolue par `account_id` (AccountHolderResolver),
-    // plus par un preload de la relation `user` (FK héritée — cf. R4).
+    const accountId = filters?.accountId ?? filters?.userId
+
     const query = Transaction.query().preload('payment')
     query
-      .if(filters?.userId, (q) => q.where('usersUid', filters!.userId!))
-      .if(filters?.accountId, (q) => q.where('account_id', filters!.accountId!))
+      .if(accountId, (q) => q.where('account_id', accountId!))
       .if(filters?.type, (q) => q.withScopes((scope) => scope.filterByType(filters!.type!)))
       .if(filters?.status, (q) => q.withScopes((scope) => scope.filterByStatus(filters!.status!)))
       .if(filters?.search, (q) =>
@@ -254,7 +253,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    */
   async countSuccessByDate(userId: string, date: string): Promise<number> {
     const result = await Transaction.query()
-      .where('usersUid', userId)
+      .where('account_id', userId)
       .where('status', TransactionStatus.SUCCESS)
       .whereRaw('DATE(created_at) = ?', [date])
       .count('* as total')
@@ -271,7 +270,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    */
   async findLastSuccessByUserId(userId: string): Promise<Transaction | null> {
     return await Transaction.query()
-      .where('usersUid', userId)
+      .where('account_id', userId)
       .where('status', TransactionStatus.SUCCESS)
       .orderBy('created_at', 'desc')
       .first()
@@ -314,12 +313,10 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
   }> {
     const query = Transaction.query()
 
-    if (options?.userId) {
-      query.where('usersUid', options.userId)
-    }
+    const accountId = options?.accountId ?? options?.userId
 
-    if (options?.accountId) {
-      query.where('account_id', options.accountId)
+    if (accountId) {
+      query.where('account_id', accountId)
     }
 
     if (options?.startDate || options?.endDate) {

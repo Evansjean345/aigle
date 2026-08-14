@@ -5,6 +5,7 @@ import app from '@adonisjs/core/services/app'
 import Transaction from '#core/money/transactions/domain/models/transaction'
 import GetAllTransactionsUseCase from '#core/money/transactions/application/use_cases/admin/get_all_transactions'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
+import TransactionRepositoryImpl from '#core/money/transactions/infrastructure/repositories/transaction_repository_impl'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
@@ -39,6 +40,50 @@ async function seedTransaction(accountId: string, reference: string, isUser = tr
 
   return transaction.save()
 }
+
+test.group('Transactions | filtre par compte', (group) => {
+  group.each.setup(async () => {
+    await db.beginGlobalTransaction()
+    return () => db.rollbackGlobalTransaction()
+  })
+
+  const repository = new TransactionRepositoryImpl()
+
+  test('les transactions d’une personne remontent', async ({ assert }) => {
+    const user = await makeUser()
+    const transaction = await seedTransaction(user.usersUid, `REF-${randomUUID().slice(0, 8)}`)
+
+    const page = await repository.getAllByUserId(user.usersUid, 1, 50)
+
+    assert.include(
+      page.all().map((entry) => entry.id),
+      transaction.id
+    )
+  })
+
+  test('les transactions d’une organisation remontent aussi', async ({ assert }) => {
+    const accountId = randomUUID()
+    const transaction = await seedTransaction(accountId, `REF-${randomUUID().slice(0, 8)}`, false)
+
+    // Le compte n'a pas de ligne utilisateur : filtrer sur `users_uid` ne rendait rien.
+    const page = await repository.getAllByUserId(accountId, 1, 50)
+
+    assert.include(
+      page.all().map((entry) => entry.id),
+      transaction.id
+    )
+  })
+
+  test('les compteurs d’une organisation ne sont plus vides', async ({ assert }) => {
+    const accountId = randomUUID()
+    await seedTransaction(accountId, `REF-${randomUUID().slice(0, 8)}`, false)
+
+    const stats = await repository.getStats({ userId: accountId })
+
+    assert.equal(stats.count, 1)
+    assert.equal(stats.successCount, 1)
+  })
+})
 
 test.group('Transactions | recherche par titulaire', (group) => {
   group.each.setup(async () => {
