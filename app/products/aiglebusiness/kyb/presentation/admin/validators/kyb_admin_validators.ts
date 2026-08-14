@@ -24,7 +24,10 @@ export const processKybFileValidator = vine.create(
  */
 export const listKybFilesValidator = vine.create(
   vine.object({
-    status: vine.enum(Object.values(KycDocumentStatus)).optional(),
+    status: vine
+      .enum(Object.values(KycDocumentStatus))
+      .parse((value) => (typeof value === 'string' ? value.toLowerCase() : value))
+      .optional(),
     search: vine.string().trim().minLength(minSearchLength).optional(),
     sortBy: vine.enum(kycDocumentSortNames).optional(),
     order: vine.enum(['asc', 'desc'] as const).optional(),

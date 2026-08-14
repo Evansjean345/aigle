@@ -13,7 +13,12 @@ export const listKycDocumentsValidator = vine.create(
   vine.object({
     page: vine.number().min(1).optional(),
     perPage: vine.number().min(1).max(100).optional(),
-    status: vine.enum(Object.values(KycDocumentStatus)).optional(),
+    // La casse est ramenée avant la vérification : le back-office envoie `PENDING`, l'énumération
+    // vaut `pending`.
+    status: vine
+      .enum(Object.values(KycDocumentStatus))
+      .parse((value) => (typeof value === 'string' ? value.toLowerCase() : value))
+      .optional(),
     documentType: vine.string().trim().minLength(1).optional(),
     userId: vine.string().trim().minLength(1).optional(),
     search: vine.string().trim().minLength(minSearchLength).optional(),

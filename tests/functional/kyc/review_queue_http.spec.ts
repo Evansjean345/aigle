@@ -111,6 +111,31 @@ test.group('File de revue HTTP | identité', (group) => {
     response.assertStatus(422)
   })
 
+  test('un statut en majuscules est accepté', async ({ client, assert }) => {
+    const user = await makeUser()
+    const document = await seedDocument(user.usersUid, AccountOwnerType.USER)
+
+    const response = await client
+      .get('/api/admin/kyc')
+      .qs({ status: 'PENDING' })
+      .bearerToken(await agent())
+
+    response.assertStatus(200)
+    assert.include(
+      response.body().data.map((entry: { id: number }) => entry.id),
+      document.id
+    )
+  })
+
+  test('un statut inexistant est refusé', async ({ client }) => {
+    const response = await client
+      .get('/api/admin/kyc')
+      .qs({ status: 'INEXISTANT' })
+      .bearerToken(await agent())
+
+    response.assertStatus(422)
+  })
+
   test('un tri déclaré est accepté', async ({ client }) => {
     const response = await client
       .get('/api/admin/kyc')
