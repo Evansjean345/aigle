@@ -57,13 +57,15 @@ test.group('Annuaires | recherche par utilisateur', (group) => {
     assert.notInclude(found, user.usersUid)
   })
 
-  test('trouve par l’identifiant', async ({ assert }) => {
+  test('l’identifiant ne fait pas correspondre', async ({ assert }) => {
     const service = await app.container.make(UserDirectoryService)
     const user = await makeUser()
 
+    // Aucune file n'affiche l'identifiant d'un utilisateur : une correspondance dessus serait
+    // inexplicable pour le gestionnaire.
     const found = await service.searchAccountIds(user.usersUid)
 
-    assert.deepEqual(found, [user.usersUid])
+    assert.notInclude(found, user.usersUid)
   })
 
   test('ignore la casse', async ({ assert }) => {

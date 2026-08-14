@@ -65,14 +65,17 @@ export default class UserDirectoryService {
   }
 
   /**
-   * Identifiants des utilisateurs dont le prénom, le nom, l'identifiant ou — au choix — le téléphone
-   * contient le terme, sans égard à la casse.
+   * Identifiants des utilisateurs dont le prénom, le nom ou — au choix — le téléphone contient le
+   * terme, sans égard à la casse.
+   *
+   * La recherche ne porte que sur ce qu'un écran affiche : un gestionnaire doit pouvoir voir
+   * pourquoi une ligne remonte.
    *
    * Ne tronque pas : au-delà du fil de détente, journalise et rend l'ensemble.
    *
    * @param {string} term - Terme recherché.
-   * @param {object} [options] - `phone` à `false` restreint la recherche au nom et à l'identifiant,
-   *   pour un écran qui n'affiche pas le numéro.
+   * @param {object} [options] - `phone` à `false` restreint la recherche au nom, pour un écran qui
+   *   n'affiche pas le numéro.
    * @returns {Promise<string[]>} Les identifiants correspondants, vide si aucun.
    */
   async searchAccountIds(term: string, options: { phone?: boolean } = {}): Promise<string[]> {

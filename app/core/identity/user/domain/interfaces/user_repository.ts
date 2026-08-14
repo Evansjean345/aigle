@@ -59,9 +59,8 @@ export default abstract class UserRepository {
   abstract findByIds(ids: string[]): Promise<User[]>
 
   /**
-   * Retrouve les identifiants des utilisateurs dont le prénom, le nom, l'identifiant ou — si
-   * `options.phone` — le téléphone contient le terme, sans égard à la casse. Rend au plus `limit`
-   * identifiants.
+   * Retrouve les identifiants des utilisateurs dont le prénom, le nom ou — si `options.phone` — le
+   * téléphone contient le terme, sans égard à la casse. Rend au plus `limit` identifiants.
    */
   abstract searchIds(term: string, limit: number, options?: { phone?: boolean }): Promise<string[]>
 

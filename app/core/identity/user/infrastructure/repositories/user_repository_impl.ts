@@ -96,10 +96,7 @@ export default class UserRepositoryIml implements UserRepository {
 
     const users = await User.query()
       .where((query) => {
-        query
-          .whereILike('firstname', pattern)
-          .orWhereILike('lastname', pattern)
-          .orWhereILike('users_uid', pattern)
+        query.whereILike('firstname', pattern).orWhereILike('lastname', pattern)
 
         if (options.phone ?? true) {
           query.orWhereILike('phone', pattern)
