@@ -1,4 +1,5 @@
 import type Ledger from '#core/money/ledger/domain/models/ledger'
+import { type DailyAccountActivity } from '#core/money/ledger/domain/types/daily_account_activity'
 import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import { type LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
@@ -79,4 +80,18 @@ export default abstract class LedgerRepository {
     period?: string
     groupBy?: 'day' | 'week' | 'month'
   }): Promise<any[]>
+
+  /**
+   * Entrées et sorties d'un compte, jour par jour, sur une période.
+   *
+   * @param {string} accountId - Compte dont on veut l'activité.
+   * @param {string} startDate - Premier jour inclus, au format `YYYY-MM-DD`.
+   * @param {string} endDate - Dernier jour inclus, au format `YYYY-MM-DD`.
+   * @returns {Promise<DailyAccountActivity[]>} Les jours mouvementés, du plus ancien au plus récent.
+   */
+  abstract getDailyActivityByAccount(
+    accountId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<DailyAccountActivity[]>
 }

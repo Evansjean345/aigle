@@ -191,6 +191,8 @@ export type ScannedRoutes = {
     'invitation.decline': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'business_transactions.list': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_transactions.quotas': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.summary': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.chart': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'business_transfer.create': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'mass_transfer.simulate': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
@@ -306,6 +308,8 @@ export type ScannedRoutes = {
     'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'business_transactions.list': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_transactions.quotas': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.summary': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.chart': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'mass_transfer.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'mass_transfer.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
@@ -410,6 +414,8 @@ export type ScannedRoutes = {
     'invitation.show': { paramsTuple: [ParamValue]; params: {'token': ParamValue} }
     'business_transactions.list': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_transactions.quotas': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.summary': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
+    'business_transactions.chart': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'business_transactions.details': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }
     'mass_transfer.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'mass_transfer.show': { paramsTuple: [ParamValue,ParamValue]; params: {'organisationId': ParamValue,'reference': ParamValue} }

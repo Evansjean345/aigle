@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import LedgerRepository from '#core/money/ledger/domain/interfaces/ledger_repository'
 import WalletRepository from '#core/money/wallet/domain/interfaces/wallet_repository'
 import { type AccountActivityResult } from '#core/money/ledger/application/dtos/ledger.dto'
+import { type DailyAccountActivity } from '#core/money/ledger/domain/types/daily_account_activity'
 import Transaction from '#core/money/transactions/domain/models/transaction'
 import Ledger from '#core/money/ledger/domain/models/ledger'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
@@ -445,6 +446,25 @@ export default class LedgerService {
    * @param {string} accountId - Identifiant du compte titulaire, l'organisation pour une entreprise.
    * @returns {Promise<AccountActivityResult>} Les agrégats du compte.
    */
+  /**
+   * Entrées et sorties d'un compte, jour par jour, sur une période.
+   *
+   * Ne rend que les jours mouvementés : c'est à l'appelant de combler les jours creux s'il veut une
+   * série continue.
+   *
+   * @param {string} accountId - Identifiant du compte titulaire.
+   * @param {string} startDate - Premier jour inclus, au format `YYYY-MM-DD`.
+   * @param {string} endDate - Dernier jour inclus, au format `YYYY-MM-DD`.
+   * @returns {Promise<DailyAccountActivity[]>} Les jours mouvementés, du plus ancien au plus récent.
+   */
+  async getDailyAccountActivity(
+    accountId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<DailyAccountActivity[]> {
+    return this.ledgerRepository.getDailyActivityByAccount(accountId, startDate, endDate)
+  }
+
   async getAccountActivity(accountId: string): Promise<AccountActivityResult> {
     const wallet = await this.walletRepository.findByAccountId(accountId)
 

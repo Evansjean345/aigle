@@ -1,4 +1,5 @@
 import Ledger from '#core/money/ledger/domain/models/ledger'
+import { type DailyAccountActivity } from '#core/money/ledger/domain/types/daily_account_activity'
 import type LedgerRepository from '#core/money/ledger/domain/interfaces/ledger_repository'
 import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
@@ -138,7 +139,6 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
       scopes.filterByAccount(filters.accountId)
 
       if (filters.startDate || filters.endDate) {
-        console.log(filters.startDate, filters.endDate)
         scopes.filterByDateRange(filters.startDate, filters.endDate)
       }
     })
@@ -173,6 +173,45 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
       out_count: Number(stats.out_count || 0),
       period: filters.period || '30d',
     }
+  }
+
+  /**
+   * Entrées et sorties d'un compte, jour par jour, sur une période.
+   *
+   * Ne rend que les jours qui portent au moins une écriture : un jour sans mouvement est absent.
+   *
+   * @param {string} accountId - Compte dont on veut l'activité.
+   * @param {string} startDate - Premier jour inclus, au format `YYYY-MM-DD`.
+   * @param {string} endDate - Dernier jour inclus, au format `YYYY-MM-DD`.
+   * @returns {Promise<DailyAccountActivity[]>} Les jours mouvementés, du plus ancien au plus récent.
+   */
+  async getDailyActivityByAccount(
+    accountId: string,
+    startDate: string,
+    endDate: string
+  ): Promise<DailyAccountActivity[]> {
+    const rows = await Ledger.query()
+      .select(
+        db.raw("DATE_FORMAT(created_at, '%Y-%m-%d') as day"),
+        db.raw('SUM(CASE WHEN direction = ? THEN total_amount ELSE 0 END) as total_in', [
+          LedgerDirection.CREDIT,
+        ]),
+        db.raw('SUM(CASE WHEN direction = ? THEN total_amount ELSE 0 END) as total_out', [
+          LedgerDirection.DEBIT,
+        ])
+      )
+      .withScopes((scopes) => {
+        scopes.filterByAccount(accountId)
+        scopes.filterByDateRange(startDate, endDate)
+      })
+      .groupByRaw("DATE_FORMAT(created_at, '%Y-%m-%d')")
+      .orderByRaw("DATE_FORMAT(created_at, '%Y-%m-%d') ASC")
+
+    return rows.map((row) => ({
+      date: String(row.$extras.day),
+      totalIn: Number(row.$extras.total_in ?? 0),
+      totalOut: Number(row.$extras.total_out ?? 0),
+    }))
   }
 
   /**

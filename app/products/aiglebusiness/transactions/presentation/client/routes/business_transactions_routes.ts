@@ -22,6 +22,15 @@ export default function businessTransactionsRoutes() {
         BusinessTransactionsController,
         'quotas',
       ])
+      router.get('organisations/:organisationId/transactions/summary', [
+        BusinessTransactionsController,
+        'summary',
+      ])
+      router.get('organisations/:organisationId/transactions/chart', [
+        BusinessTransactionsController,
+        'chart',
+      ])
+      // Après les segments fixes, sinon « summary » serait pris pour une référence.
       router.get('organisations/:organisationId/transactions/:reference', [
         BusinessTransactionsController,
         'details',

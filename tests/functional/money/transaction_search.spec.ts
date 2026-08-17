@@ -2,14 +2,11 @@ import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import app from '@adonisjs/core/services/app'
-import Transaction from '#core/money/transactions/domain/models/transaction'
 import GetAllTransactionsUseCase from '#core/money/transactions/application/use_cases/admin/get_all_transactions'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
 import TransactionRepositoryImpl from '#core/money/transactions/infrastructure/repositories/transaction_repository_impl'
-import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
-import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
-import { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
 import { makeUser } from '#tests/helpers/auth_test_helpers'
+import { seedTransaction as seedMoneyTransaction } from '#tests/helpers/money_test_helpers'
 
 /**
  * Recherche du listing de transactions par l'administration.
@@ -18,28 +15,14 @@ import { makeUser } from '#tests/helpers/auth_test_helpers'
  * porteur utilisateur, et joindre `user` la rendait introuvable.
  */
 
-/**
- * Transaction réussie sur un compte.
- *
- * `usersUid` porte une clé étrangère vers `users` : une transaction d'organisation la laisse nulle,
- * son compte n'ayant pas de ligne utilisateur.
- */
-async function seedTransaction(accountId: string, reference: string, isUser = true) {
-  const transaction = new Transaction()
-  transaction.transactionsUid = randomUUID()
-  transaction.accountId = accountId
-  transaction.usersUid = (isUser ? accountId : null) as unknown as string
-  transaction.amount = 5000
-  transaction.totalAmount = 5000
-  transaction.fees = 0
-  transaction.operationType = TransactionType.TRANSFERT
-  transaction.direction = TransactionDirection.OUT
-  transaction.reference = reference
-  transaction.dateTransaction = new Date().toISOString().slice(0, 10)
-  transaction.status = TransactionStatus.SUCCESS
-
-  return transaction.save()
-}
+/** `isUser` à `false` laisse `usersUid` nul, comme une transaction d'organisation. */
+const seedTransaction = (accountId: string, reference: string, isUser = true) =>
+  seedMoneyTransaction({
+    accountId,
+    reference,
+    amount: 5000,
+    usersUid: isUser ? accountId : null,
+  })
 
 test.group('Transactions | filtre par compte', (group) => {
   group.each.setup(async () => {
