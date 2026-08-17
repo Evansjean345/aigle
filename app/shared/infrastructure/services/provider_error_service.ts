@@ -90,7 +90,7 @@ const REGISTRY: Record<ProviderErrorCode, ProviderErrorDefinition> = {
     code: ProviderErrorCode.ACCOUNT_BLOCKED,
     category: ErrorCategory.SECURITY,
     isFinal: true,
-    adminAction: AdminAction.INVESTIGATE,
+    adminAction: AdminAction.REVIEW_ACCOUNT,
     userMessage: 'Votre compte est restreint. Veuillez contacter le support.',
     adminMessage: 'Compte client bloqué/suspendu chez le provider.',
   },
