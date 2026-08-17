@@ -9,6 +9,10 @@ import GetUserTransactionsStatsUseCase from '#core/money/transactions/applicatio
 import GetGlobalTransactionsStatsUseCase from '#core/money/transactions/application/use_cases/admin/get_global_transactions_stats'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
+import {
+  listTransactionsValidator,
+  transactionsStatsValidator,
+} from '#core/money/transactions/presentation/admin/validators/list_transactions_validator'
 
 /**
  * A controller responsible for managing transaction-related operations such as fetching transactions,
@@ -39,16 +43,13 @@ export default class TransactionsController {
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
   async getAllTransactions({ request, response, auth }: HttpContext): Promise<void> {
-    const page = request.input('page', 1)
-    const perPage = request.input('perPage', 16)
-    const type = request.input('type')
-    const status = request.input('status')
-    const search = request.input('search')
-    const startDate = request.input('startDate')
-    const endDate = request.input('endDate')
-    const userId = request.input('userId', request.input('user_id'))
+    const query = await request.validateUsing(listTransactionsValidator)
+
+    const page = query.page ?? 1
+    const perPage = query.perPage ?? 16
+    const { type, status, search, startDate, endDate, userId } = query
     // Sert l'onglet transactions d'une organisation : `account_id == organisationId`.
-    const accountId = request.input('accountId', request.input('account_id'))
+    const accountId = query.accountId
 
     const transactions = await this.getAllTransactionsUseCase.execute(page, perPage, {
       type,
@@ -149,13 +150,11 @@ export default class TransactionsController {
    */
   async getUserTransactions({ params, request, response, auth }: HttpContext): Promise<void> {
     const { id } = params
-    const page = request.input('page', 1)
-    const perPage = request.input('perPage', 16)
-    const type = request.input('type')
-    const status = request.input('status')
-    const search = request.input('search')
-    const startDate = request.input('startDate')
-    const endDate = request.input('endDate')
+    const query = await request.validateUsing(listTransactionsValidator)
+
+    const page = query.page ?? 1
+    const perPage = query.perPage ?? 16
+    const { type, status, search, startDate, endDate } = query
 
     const transactions = await this.getAllTransactionsUseCase.execute(page, perPage, {
       type,
@@ -190,10 +189,10 @@ export default class TransactionsController {
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
   async getTransactionsStats({ request, response, auth }: HttpContext): Promise<void> {
-    const startDate = request.input('startDate')
-    const endDate = request.input('endDate')
+    const query = await request.validateUsing(transactionsStatsValidator)
+    const { startDate, endDate } = query
     // Sert le bandeau de l'onglet transactions d'une organisation.
-    const accountId = request.input('accountId', request.input('account_id'))
+    const accountId = query.accountId
     const stats = await this.getGlobalTransactionsStatsUseCase.execute(
       startDate,
       endDate,
@@ -226,8 +225,7 @@ export default class TransactionsController {
    */
   async getUserTransactionStats({ params, request, response, auth }: HttpContext): Promise<void> {
     const { id } = params
-    const startDate = request.input('startDate')
-    const endDate = request.input('endDate')
+    const { startDate, endDate } = await request.validateUsing(transactionsStatsValidator)
     const stats = await this.getUserTransactionsStatsUseCase.execute(id, startDate, endDate)
 
     emitter.emit('activity:audit', {

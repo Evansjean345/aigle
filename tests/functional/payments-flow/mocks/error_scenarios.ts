@@ -25,7 +25,9 @@ export const SECURITY_ERROR_SCENARIOS: ProviderErrorScenario[] = [
     errorCode: ProviderErrorCode.ACCOUNT_BLOCKED,
     expected: {
       category: ErrorCategory.SECURITY,
-      adminAction: AdminAction.INVESTIGATE,
+      // Un compte client suspendu chez l'opérateur se revoit, il ne s'enquête pas — l'enquête
+      // reste à FRAUD_SUSPICION. C'est ce que documente `on_provider_error_alert`.
+      adminAction: AdminAction.REVIEW_ACCOUNT,
       hasUserMessage: true,
     },
   },

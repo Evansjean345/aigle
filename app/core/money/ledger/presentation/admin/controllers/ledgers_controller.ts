@@ -3,9 +3,12 @@ import { inject } from '@adonisjs/core'
 import GetAllLedgersUseCase from '#core/money/ledger/application/use_cases/get_all_ledgers'
 import GetLedgerStatsUseCase from '#core/money/ledger/application/use_cases/get_ledger_stats'
 import GetUserLedgerStatsUseCase from '#core/money/ledger/application/use_cases/get_user_ledger_stats'
-import { LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
+import {
+  listLedgersValidator,
+  ledgersStatsValidator,
+} from '#core/money/ledger/presentation/admin/validators/list_ledgers_validator'
 
 @inject()
 export default class LedgersController {
@@ -29,19 +32,13 @@ export default class LedgersController {
    * @return {Promise<void>} A promise that resolves when the method completes.
    */
   async getAllLedgers({ request, response, auth }: HttpContext): Promise<void> {
-    const page = request.input('page', 1)
-    const perPage = request.input('limit', request.input('perPage', 20))
-    const walletId = request.input('wallet_id')
-    const direction = request.input('direction')
-    const operationType = request.input('operationType', request.input('operation_type')) as
-      | LedgerOperationType
-      | string
-    const startDate = request.input('startDate', request.input('start_date'))
-    const endDate = request.input('endDate', request.input('end_date'))
-    const search = request.input('search')
-    const userId = request.input('userId', request.input('user_id'))
+    const query = await request.validateUsing(listLedgersValidator)
+
+    const page = query.page ?? 1
+    const perPage = query.perPage ?? 20
+    const { walletId, direction, operationType, startDate, endDate, search, userId } = query
     // Sert l'onglet grand livre d'une organisation : son portefeuille est rattaché par compte.
-    const accountId = request.input('accountId', request.input('account_id'))
+    const accountId = query.accountId
 
     const ledgers = await this.getAllLedgersUseCase.execute(page, perPage, {
       walletId,
@@ -89,13 +86,11 @@ export default class LedgersController {
    * @return {Promise<void>} A promise that resolves when the response is sent.
    */
   async getLedgersStats({ request, response, auth }: HttpContext): Promise<void> {
-    const walletId = request.input('wallet_id')
-    // Sert les compteurs du grand livre d'une organisation, dont le portefeuille est rattaché par
-    // compte et non par utilisateur.
-    const accountId = request.input('accountId', request.input('account_id'))
-    const period = request.input('period', '30d')
-    const startDate = request.input('startDate', request.input('start_date'))
-    const endDate = request.input('endDate', request.input('end_date'))
+    const query = await request.validateUsing(ledgersStatsValidator)
+
+    const { walletId, startDate, endDate } = query
+    const accountId = query.accountId
+    const period = query.period ?? '30d'
 
     const stats = await this.getLedgerStatsUseCase.execute({
       walletId,
@@ -159,27 +154,17 @@ export default class LedgersController {
    * @param {Object} context.params - Parameters from the request route.
    * @param {string} context.params.id - The ID of the user.
    * @param {Object} context.request - The request object containing input data.
-   * @param {number} context.request.input.page - The current page number (default is 1).
-   * @param {number} context.request.input.perPage - Number of records per page (default is 20).
-   * @param {string} [context.request.input.direction] - The transaction direction (e.g., 'inflow', 'outflow').
-   * @param {string} [context.request.input.operation_type] - The type of operation (e.g., 'deposit', 'withdrawal').
-   * @param {string} [context.request.input.start_date] - The start date filter for the ledger records.
-   * @param {string} [context.request.input.end_date] - The end date filter for the ledger records.
    * @param {Object} context.response - The response object used to send the output.
    *
    * @return {Promise<void>} Resolves when the ledger records have been retrieved and the response is sent.
    */
   async getUserLedgers({ params, request, response, auth }: HttpContext): Promise<void> {
     const { id } = params // userId
-    const page = request.input('page', 1)
-    const perPage = request.input('perPage', 20)
-    const direction = request.input('direction')
-    const operationType = request.input('operationType', request.input('operation_type')) as
-      | LedgerOperationType
-      | string
-    const startDate = request.input('startDate', request.input('start_date'))
-    const endDate = request.input('endDate', request.input('end_date'))
-    const search = request.input('search')
+    const query = await request.validateUsing(listLedgersValidator)
+
+    const page = query.page ?? 1
+    const perPage = query.perPage ?? 20
+    const { direction, operationType, startDate, endDate, search } = query
 
     const result = await this.getAllLedgersUseCase.execute(page, perPage, {
       direction,

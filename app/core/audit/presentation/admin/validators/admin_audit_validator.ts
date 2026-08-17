@@ -39,5 +39,5 @@ const auditListSchema = vine.object({
   endDate: vine.string().trim().optional(),
 })
 
-export const adminAuditListValidator = vine.compile(auditListSchema)
+export const adminAuditListValidator = vine.create(auditListSchema)
 export type AdminAuditListValidator = Infer<typeof auditListSchema>

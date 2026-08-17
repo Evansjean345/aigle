@@ -24,7 +24,7 @@ export default class AdminAuditController {
    * @return {Promise<void>}
    */
   async list({ request, response, auth }: HttpContext): Promise<void> {
-    const query = await adminAuditListValidator.validate(request.qs())
+    const query = await request.validateUsing(adminAuditListValidator)
 
     const result = await this.listAuditLogsUseCase.execute({
       page: query.page,
