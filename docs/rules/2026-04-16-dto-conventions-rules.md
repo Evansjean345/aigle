@@ -102,7 +102,7 @@ export class WalletAdjustmentResponseDTO { ... }
 
 ## Règle 7 — Seuil de split
 
-Un fichier DTO ne doit pas dépasser **~150 lignes** ou **6-7 DTOs**. Au-delà, découper par sous-domaine fonctionnel.
+Un fichier DTO ne doit pas dépasser **~400 lignes**. Au-delà, découper par sous-domaine fonctionnel.
 
 ---
 
@@ -116,8 +116,8 @@ Nouveau DTO à créer
 │   └─ NON → dtos/{domaine}.dto.ts
 │
 ├─ Le fichier cible existe déjà ?
-│   ├─ OUI et < 150 lignes → ajouter dans le fichier existant
-│   ├─ OUI et > 150 lignes → splitter par sous-domaine
+│   ├─ OUI et < 400 lignes → ajouter dans le fichier existant
+│   ├─ OUI et > 400 lignes → splitter par sous-domaine
 │   └─ NON → créer le fichier
 │
 ├─ Quel suffixe ?
