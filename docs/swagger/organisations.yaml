@@ -36,11 +36,20 @@ paths:
         - name: level
           in: query
           required: false
-          schema: { type: string }
+          description: >
+            Palier de l'entreprise. Un marchand encaisse dès sa création et reste au palier 0 ;
+            une entreprise atteint le palier 2 par sa vérification.
+          schema:
+            type: string
+            enum: [level_0, level_1, level_2]
         - name: status
           in: query
           required: false
-          schema: { type: string }
+          description: >
+            `provisioning` désigne une organisation dont la création n'est pas encore achevée.
+          schema:
+            type: string
+            enum: [provisioning, active, inactive]
         - name: startDate
           in: query
           required: false
@@ -734,6 +743,7 @@ components:
             status:
               type: string
               nullable: true
+              enum: [active, inactive]
               description: Nul quand l'organisation n'a pas encore de portefeuille.
         activity:
           type: object
