@@ -101,7 +101,12 @@ components:
             type: object
             properties:
               pieceType: { type: string }
-              reference: { type: string }
+              reference:
+                type: string
+                nullable: true
+                description: >
+                  Numéro porté par la pièce, quand elle en attend un. Une pièce sans référence
+                  reste incomplète : elle figure alors aussi dans `missingPieces`.
         missingPieces:
           type: array
           items: { type: string }

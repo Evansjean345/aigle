@@ -19,11 +19,39 @@ paths:
         - in: query
           name: status
           required: false
-          description: Restreint la file à un statut de dossier.
+          description: >
+            Restreint la file à un statut de dossier. La casse est ramenée avant vérification :
+            `PENDING` est accepté au même titre que `pending`.
           schema:
             type: string
             enum: [pending, approved, rejected, in_submission]
           example: pending
+        - in: query
+          name: search
+          required: false
+          description: >
+            Restreint la file aux entreprises dont le nom commercial ou l'identifiant de compte
+            contient le terme, sans égard à la casse. Deux caractères au minimum.
+          schema: { type: string, minLength: 2 }
+          example: Boulangerie
+        - in: query
+          name: sortBy
+          required: false
+          description: >
+            Critère de tri. Sans lui, la file est ordonnée du plus récemment modifié au plus ancien.
+            Tout autre nom est refusé — un nom de colonne ne peut pas transiter jusqu'à la requête.
+          schema:
+            type: string
+            enum: [submittedAt, status]
+          example: submittedAt
+        - in: query
+          name: order
+          required: false
+          description: Sens du tri. Sans effet si `sortBy` est absent.
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
         - in: query
           name: page
           required: false
@@ -325,6 +353,13 @@ components:
         createdAt:
           type: string
           format: date-time
+        depositedPieces:
+          type: array
+          description: >
+            Rôles des pièces déjà déposées, sans les fichiers : de quoi dire ce qui manque encore
+            sans ouvrir le dossier.
+          items: { type: string }
+          example: [RCCM, DFE]
         pieces:
           type: array
           items: { $ref: '#/components/schemas/AdminKybPiece' }
