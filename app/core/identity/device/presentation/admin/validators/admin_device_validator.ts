@@ -1,4 +1,6 @@
 import vine from '@vinejs/vine'
+import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
+import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 
 export const adminDeviceListValidator = vine.create(
   vine.object({
@@ -49,10 +51,8 @@ export const deviceTransactionSummaryValidator = vine.create(
 export const deviceTransactionsListValidator = vine.create(
   vine.object({
     userId: vine.string().trim().optional(),
-    operationType: vine
-      .enum(['deposit', 'transfert', 'wallet_transfert', 'inter_reseau'])
-      .optional(),
-    status: vine.enum(['pending', 'success', 'failed']).optional(),
+    operationType: vine.enum(Object.values(TransactionType)).optional(),
+    status: vine.enum(Object.values(TransactionStatus)).optional(),
     startDate: vine
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/)
