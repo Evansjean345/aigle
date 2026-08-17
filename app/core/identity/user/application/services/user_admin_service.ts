@@ -22,7 +22,7 @@ import {
 /**
  * Annuaire des utilisateurs pour l'administration.
  *
- * Distinct de `UserDirectoryService`, qui résout une identité minimale pour les produits : ce
+ * Distinct de `UserDirectoryService', qui résout une identité minimale pour les produits : ce
  * service porte ce que le back-office affiche et les décisions qu'il prend sur un compte.
  */
 @inject()
@@ -50,7 +50,8 @@ export default class UserAdminService {
     perPage: number,
     search?: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    sort?: { sortBy?: string; order?: 'asc' | 'desc' }
   ): Promise<PaginatedUsersResult> {
     const paginated = await this.userRepository.paginate(
       page,
@@ -58,7 +59,8 @@ export default class UserAdminService {
       ['wallet', 'kycDocument', 'country'],
       search,
       startDate,
-      endDate
+      endDate,
+      sort
     )
 
     const items = paginated.all()
@@ -67,8 +69,6 @@ export default class UserAdminService {
     const volumes = await this.transactionVolumeCache.getMonthlyVolumesForAccounts(userIds, since)
 
     const selfies = await this.verificationPictureService.selfieUrlsFor(userIds)
-    // Le plafond vient du compte, jamais de `users.kyc_level` : la grille se résout par
-    // `(segment, level)`, et une jointure sur le seul niveau rendrait une ligne arbitraire.
     const standings = await this.accountStanding.getStandings(userIds)
 
     return {

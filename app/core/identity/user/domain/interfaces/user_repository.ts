@@ -31,6 +31,7 @@ export default abstract class UserRepository {
    * @param {string} [search] - Optional search term.
    * @param startDate
    * @param endDate
+   * @param sort
    * @returns {Promise<ModelPaginatorContract<User>>}
    */
   abstract paginate(
@@ -39,7 +40,8 @@ export default abstract class UserRepository {
     relations?: ExtractModelRelations<User>[],
     search?: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    sort?: { sortBy?: string; order?: 'asc' | 'desc' }
   ): Promise<ModelPaginatorContract<User>>
 
   /**

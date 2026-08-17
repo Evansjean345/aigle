@@ -24,8 +24,9 @@ export default class GetAllUsersUseCase {
     perPage: number = 16,
     search?: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    sort?: { sortBy?: string; order?: 'asc' | 'desc' }
   ): Promise<PaginatedUsersResult> {
-    return this.userAdminService.list(page, perPage, search, startDate, endDate)
+    return this.userAdminService.list(page, perPage, search, startDate, endDate, sort)
   }
 }

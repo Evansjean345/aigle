@@ -20,6 +20,13 @@ export async function makeAdminWith(
     name: 'Rôle de test',
   })
 
+  const unknown = permissions.findIndex((permission) => !permission?.slug)
+  if (unknown !== -1) {
+    throw new Error(
+      `makeAdminWith : la permission à l'index ${unknown} n'a pas de slug — clé inexistante dans le catalogue ?`
+    )
+  }
+
   const rows = await Promise.all(
     permissions.map((permission) =>
       Permission.firstOrCreate(

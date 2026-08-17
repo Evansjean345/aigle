@@ -10,6 +10,7 @@ import SearchUserUseCase from '#aiglesend/user/application/use_cases/admin/searc
 import { UserStatus } from '#core/identity/user/domain/enum'
 import emitter from '@adonisjs/core/services/emitter'
 import { AuditResult } from '#core/audit/domain/enums'
+import { listUsersValidator } from '#aiglesend/user/presentation/admin/validators/list_users_validator'
 import Admin from '#core/team/domain/models/admin'
 
 @inject()
@@ -42,12 +43,17 @@ export default class UsersController {
    * @return {Promise<Object>} A JSON response with a message.
    */
   async index({ request, response, auth }: HttpContext): Promise<void> {
-    const page = request.input('page', 1)
-    const perPage = request.input('perPage', 50)
-    const search = request.input('search')
-    const startDate = request.input('startDate')
-    const endDate = request.input('endDate')
-    const users = await this.getAllUsersUseCase.execute(page, perPage, search, startDate, endDate)
+    const { page, perPage, search, startDate, endDate, sortBy, order } =
+      await request.validateUsing(listUsersValidator)
+
+    const users = await this.getAllUsersUseCase.execute(
+      page ?? 1,
+      perPage ?? 50,
+      search,
+      startDate,
+      endDate,
+      { sortBy, order }
+    )
 
     emitter
       .emit('activity:audit', {

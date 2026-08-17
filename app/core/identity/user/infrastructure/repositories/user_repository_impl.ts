@@ -1,6 +1,7 @@
 ﻿import User from '#core/identity/user/domain/models/user'
 import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type UserRepository from '#core/identity/user/domain/interfaces/user_repository'
+import { userSortColumn } from '#core/identity/user/domain/types/user_sorts'
 import { type ExtractModelRelations } from '@adonisjs/lucid/types/relations'
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import db from '@adonisjs/lucid/services/db'
@@ -35,6 +36,7 @@ export default class UserRepositoryIml implements UserRepository {
    * @param {string} [search] - Optional search term.
    * @param {string} startDate - The start date for filtering users by creation date.
    * @param {string} endDate - The end date for filtering users by creation date.
+   * @param sort
    * @returns {Promise<ModelPaginatorContract<User>>}
    */
   async paginate(
@@ -43,7 +45,8 @@ export default class UserRepositoryIml implements UserRepository {
     relations?: ExtractModelRelations<User>[],
     search?: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    sort?: { sortBy?: string; order?: 'asc' | 'desc' }
   ): Promise<ModelPaginatorContract<User>> {
     const query = User.query()
 
@@ -61,7 +64,15 @@ export default class UserRepositoryIml implements UserRepository {
       query.withScopes((scopes) => scopes.filterByDateRange(startDate, endDate))
     }
 
-    return query.orderBy('created_at', 'desc').paginate(page, perPage)
+    const sortColumn = userSortColumn(sort?.sortBy)
+
+    if (sortColumn) {
+      query.orderBy(sortColumn, sort?.order ?? 'desc')
+    } else {
+      query.orderBy('created_at', 'desc')
+    }
+
+    return query.paginate(page, perPage)
   }
 
   /**
