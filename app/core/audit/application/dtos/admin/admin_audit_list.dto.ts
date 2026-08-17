@@ -10,10 +10,20 @@ export interface ListAuditLogsRequestDto {
   actorId?: string
   actorType?: string
   actorRole?: string
+  /** Compte au nom duquel l'acteur a agi, quand l'action est déléguée. */
+  initiatedById?: string
+  initiatedByType?: string
   targetType?: string
   targetId?: string
+  /** Trace d'une requête HTTP entière : tous ses événements portent le même identifiant. */
+  requestId?: string
+  ipAddress?: string
+  errorCode?: string
   result?: string
   search?: string
+  /** Nom de tri déclaré dans `auditLogSorts`. Sans lui, l'ordre par défaut du dépôt. */
+  sortBy?: string
+  order?: 'asc' | 'desc'
   startDate?: string
   endDate?: string
 }

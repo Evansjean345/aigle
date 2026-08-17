@@ -8,6 +8,9 @@
 export const auditLogSorts = {
   occurredAt: 'created_at',
   eventCategory: 'event_category',
+  eventAction: 'event_action',
+  actorType: 'actor_type',
+  result: 'result',
 } as const
 
 /** Nom de tri accepté par la file d'audit. */

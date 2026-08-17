@@ -24,19 +24,29 @@ export default class ListAuditLogsUseCase {
     const page = input.page ?? 1
     const perPage = input.perPage ?? 20
 
-    const paginator = await this.auditLogRepository.list(page, perPage, {
-      eventCategory: input.eventCategory,
-      eventAction: input.eventAction,
-      actorId: input.actorId,
-      actorType: input.actorType,
-      actorRole: input.actorRole,
-      targetType: input.targetType,
-      targetId: input.targetId,
-      result: input.result,
-      search: input.search,
-      startDate: input.startDate,
-      endDate: input.endDate,
-    })
+    const paginator = await this.auditLogRepository.list(
+      page,
+      perPage,
+      {
+        eventCategory: input.eventCategory,
+        eventAction: input.eventAction,
+        actorId: input.actorId,
+        actorType: input.actorType,
+        actorRole: input.actorRole,
+        initiatedById: input.initiatedById,
+        initiatedByType: input.initiatedByType,
+        targetType: input.targetType,
+        targetId: input.targetId,
+        requestId: input.requestId,
+        ipAddress: input.ipAddress,
+        errorCode: input.errorCode,
+        result: input.result,
+        search: input.search,
+        startDate: input.startDate,
+        endDate: input.endDate,
+      },
+      { sortBy: input.sortBy, order: input.order }
+    )
 
     const actorIds = Array.from(
       new Set(
