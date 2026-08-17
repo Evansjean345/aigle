@@ -19,6 +19,9 @@ export interface ListOrganisationsQuery {
   /** Bornes de création, incluses. Format ISO. */
   startDate?: string
   endDate?: string
+  /** Nom de tri exposé par l'API, clé de `organisationSorts`. Absent, l'ordre par défaut s'applique. */
+  sortBy?: string
+  order?: 'asc' | 'desc'
 }
 
 /**

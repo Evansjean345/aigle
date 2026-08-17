@@ -11,6 +11,7 @@ import type {
 } from '#aiglebusiness/organisation/domain/types/organisation_repository_types'
 import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
+import { organisationSortColumn } from '#aiglebusiness/organisation/domain/types/organisation_sorts'
 
 /**
  * Implémentation Lucid du port OrganisationRepository.
@@ -73,7 +74,15 @@ export default class OrganisationRepositoryImpl implements OrganisationRepositor
       })
     }
 
-    return builder.orderBy('created_at', 'desc').paginate(query.page, query.perPage)
+    const sortColumn = organisationSortColumn(query.sortBy)
+
+    if (sortColumn) {
+      builder.orderBy(sortColumn, query.order ?? 'desc')
+    } else {
+      builder.orderBy('created_at', 'desc')
+    }
+
+    return builder.paginate(query.page, query.perPage)
   }
 
   async searchByTerm(term: string, limit: number): Promise<Organisation[]> {

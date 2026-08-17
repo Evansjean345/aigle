@@ -11,7 +11,7 @@ import { VerificationProfile } from '#core/identity/kyc/domain/verification_prof
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
 import OrganisationNotFoundException from '#aiglebusiness/organisation/domain/exceptions/organisation_not_found_exception'
 import type Organisation from '#aiglebusiness/organisation/domain/models/organisation'
-import type { OrganisationProvisioningStep } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
+import type { OrganisationProvisioningStep } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_profile.dto'
 import { organisationLevelOf } from '#aiglebusiness/organisation/domain/organisation_level_mapping'
 
 /**

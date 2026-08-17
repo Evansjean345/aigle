@@ -7,8 +7,8 @@ import OrganisationRepository from '#aiglebusiness/organisation/domain/interface
 import OrganisationNotFoundException from '#aiglebusiness/organisation/domain/exceptions/organisation_not_found_exception'
 import UnfreezeOnBlockedOrganisationException from '#aiglebusiness/organisation/domain/exceptions/unfreeze_on_blocked_organisation_exception'
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
-import type { FreezeOrganisationWalletCommand } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
-import { OrganisationWalletStateResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
+import type { FreezeOrganisationWalletCommand } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_moderation.dto'
+import { OrganisationWalletStateResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_moderation.dto'
 
 /**
  * Gèle ou dégèle le portefeuille d'une organisation depuis le back-office.

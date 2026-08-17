@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
-import { OrganisationSearchItemResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
+import { OrganisationSearchItemResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_listing.dto'
 
 /** Plafond de résultats : l'appelant est un champ d'autocomplétion, pas un export. */
 const SEARCH_LIMIT = 10

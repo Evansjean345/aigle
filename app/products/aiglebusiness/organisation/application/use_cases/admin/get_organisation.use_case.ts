@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 import OrganisationEnrichmentService from '#aiglebusiness/organisation/application/services/organisation_enrichment_service'
 import OrganisationNotFoundException from '#aiglebusiness/organisation/domain/exceptions/organisation_not_found_exception'
-import { OrganisationAdminResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
+import { OrganisationAdminResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_profile.dto'
 
 /**
  * Charge une organisation pour l'espace admin, sans restriction de propriétaire.

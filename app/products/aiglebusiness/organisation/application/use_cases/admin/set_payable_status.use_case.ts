@@ -5,8 +5,8 @@ import OrganisationRepository from '#aiglebusiness/organisation/domain/interface
 import OrganisationNotFoundException from '#aiglebusiness/organisation/domain/exceptions/organisation_not_found_exception'
 import PayableAliasNotFoundException from '#aiglebusiness/organisation/domain/exceptions/payable_alias_not_found_exception'
 import { AuditResult } from '#core/audit/domain/enums'
-import type { SetPayableStatusCommand } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
-import { PayableStatusResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
+import type { SetPayableStatusCommand } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_moderation.dto'
+import { PayableStatusResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_moderation.dto'
 
 /**
  * Ouvre ou suspend l'encaissement d'une organisation.

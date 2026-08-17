@@ -9,8 +9,8 @@ import OrganisationRepository from '#aiglebusiness/organisation/domain/interface
 import OrganisationMemberRepository from '#aiglebusiness/membership/domain/interfaces/organisation_member_repository'
 import OrganisationNotFoundException from '#aiglebusiness/organisation/domain/exceptions/organisation_not_found_exception'
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
-import type { ChangeOrganisationStateCommand } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
-import { OrganisationStateResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
+import type { ChangeOrganisationStateCommand } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_moderation.dto'
+import { OrganisationStateResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_moderation.dto'
 
 /**
  * Bloque ou débloque une organisation depuis le back-office.

@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 import OrganisationProvisioningService from '#aiglebusiness/organisation/application/services/organisation_provisioning_service'
 import { reviewAfterMinutes, batchLimit } from '#config/organisation_provisioning'
-import { StuckOrganisationResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
+import { StuckOrganisationResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_profile.dto'
 
 /**
  * Organisations dont la configuration n'a pas abouti malgré les reprises.

@@ -2,10 +2,10 @@ import { inject } from '@adonisjs/core'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
 import OrganisationEnrichmentService from '#aiglebusiness/organisation/application/services/organisation_enrichment_service'
 import {
-  OrganisationAdminResponseDTO,
+  OrganisationListItemResponseDTO,
   type ListOrganisationsRequestDto,
   type PaginatedOrganisationsResponseDTO,
-} from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
+} from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_listing.dto'
 
 /** Nombre de lignes par défaut et plafond, pour qu'un `perPage` extravagant ne balaie pas la table. */
 const DEFAULT_PER_PAGE = 10
@@ -38,10 +38,12 @@ export default class ListOrganisationsForAdminUseCase {
       status: request.status,
       startDate: request.startDate,
       endDate: request.endDate,
+      sortBy: request.sortBy,
+      order: request.order,
     })
 
     const enrichment = await this.enrichment.resolve(page.all())
 
-    return OrganisationAdminResponseDTO.fromPaginator(page, enrichment)
+    return OrganisationListItemResponseDTO.fromPaginator(page, enrichment)
   }
 }

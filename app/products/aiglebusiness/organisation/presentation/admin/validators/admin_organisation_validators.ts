@@ -1,4 +1,6 @@
 import vine from '@vinejs/vine'
+import { organisationSortNames } from '#aiglebusiness/organisation/domain/types/organisation_sorts'
+import { minSearchLength } from '#config/app'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { OrganisationLevel } from '#aiglebusiness/organisation/domain/enums/organisation_level'
 import { OrganisationStatus } from '#aiglebusiness/organisation/domain/enums/organisation_status'
@@ -9,10 +11,12 @@ export const listOrganisationsValidator = vine.create(
   vine.object({
     page: vine.number().min(1).optional(),
     perPage: vine.number().min(1).max(100).optional(),
-    search: vine.string().trim().minLength(1).optional(),
+    search: vine.string().trim().minLength(minSearchLength).optional(),
     accountType: vine.enum(Object.values(OrganisationAccountType)).optional(),
     level: vine.enum(Object.values(OrganisationLevel)).optional(),
     status: vine.enum(Object.values(OrganisationStatus)).optional(),
+    sortBy: vine.enum(organisationSortNames).optional(),
+    order: vine.enum(['asc', 'desc'] as const).optional(),
     startDate: vine.string().optional(),
     endDate: vine.string().optional(),
   })

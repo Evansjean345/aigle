@@ -1,6 +1,6 @@
 import { inject } from '@adonisjs/core'
 import OrganisationRepository from '#aiglebusiness/organisation/domain/interfaces/organisation_repository'
-import { OrganisationStatsResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation.dto'
+import { OrganisationStatsResponseDTO } from '#aiglebusiness/organisation/application/dtos/admin/admin_organisation_listing.dto'
 
 /**
  * Compteurs d'en-tête de la liste des organisations, pour l'espace admin.
