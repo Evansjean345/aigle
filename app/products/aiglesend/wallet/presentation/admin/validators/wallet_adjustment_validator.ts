@@ -10,7 +10,7 @@ const walletAdjustementValidatorSchema = vine.object({
   transactionReference: vine.string().trim().minLength(1).optional(),
 })
 
-export const walletAdjustmentValidator = vine.compile(walletAdjustementValidatorSchema)
+export const walletAdjustmentValidator = vine.create(walletAdjustementValidatorSchema)
 
 const walletAdjustementListSchema = vine.object({
   page: vine.number().positive().optional(),
@@ -27,4 +27,4 @@ const walletAdjustementListSchema = vine.object({
   endDate: vine.string().trim().optional(),
 })
 
-export const walletAdjustmentListValidator = vine.compile(walletAdjustementListSchema)
+export const walletAdjustmentListValidator = vine.create(walletAdjustementListSchema)

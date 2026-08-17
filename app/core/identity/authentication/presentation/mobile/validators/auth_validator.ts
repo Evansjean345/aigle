@@ -29,7 +29,7 @@ const registerSchema = vine.object({
   deviceInfo: deviceSchema,
 })
 
-export const registerValidator = vine.compile(registerSchema)
+export const registerValidator = vine.create(registerSchema)
 export type RegisterValidatorType = InferInput<typeof registerSchema>
 
 /**
@@ -54,7 +54,7 @@ export type RegisterValidatorType = InferInput<typeof registerSchema>
  *   - `is_emulator`: A required boolean indicating whether the login attempt is from an emulator.
  *   - `is_rooted`: A required boolean indicating whether the device is rooted.
  */
-export const loginValidator = vine.compile(
+export const loginValidator = vine.create(
   vine.object({
     phone: vine.string().trim(),
     codepin: vine.string().trim().minLength(5).maxLength(5),
@@ -74,7 +74,7 @@ export const loginValidator = vine.compile(
  * - `otp`: Must be a string, trimmed of any leading or trailing whitespace, with a minimum and maximum length of 4 characters.
  * - `country_id`: Must be a number and it is required to exist in the `countries` table in the database.
  */
-export const verifyUserAccountValidator = vine.compile(
+export const verifyUserAccountValidator = vine.create(
   vine.object({
     phone: vine.string().trim(),
     otp: vine.string().trim().minLength(4).maxLength(4),
@@ -98,7 +98,7 @@ export const verifyUserAccountValidator = vine.compile(
  * structure and rules. If the validation fails, appropriate errors will
  * be reported.
  */
-export const checkPinValidator = vine.compile(
+export const checkPinValidator = vine.create(
   vine.object({
     pincode: vine.string().trim().minLength(5).maxLength(5),
   })
@@ -121,7 +121,7 @@ export const checkPinValidator = vine.compile(
  *  performing an asynchronous check against the `countries` table to
  *  verify the existence of a record with the specified `id`.
  */
-export const checkPhoneValidator = vine.compile(
+export const checkPhoneValidator = vine.create(
   vine.object({
     phone: vine.string().trim(),
     country_id: vine.number().exists(async (db, value) => {
@@ -145,7 +145,7 @@ export const checkPhoneValidator = vine.compile(
  * - `country_id`: A numeric field that is validated to ensure the existence of a
  *    corresponding country entry in the database using an asynchronous lookup.
  */
-export const forgotPasswordResetValidator = vine.compile(
+export const forgotPasswordResetValidator = vine.create(
   vine.object({
     phone: vine.string().trim(),
     reset_token: vine.string().trim(),

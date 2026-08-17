@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine'
 
-export const adminDeviceListValidator = vine.compile(
+export const adminDeviceListValidator = vine.create(
   vine.object({
     minAccounts: vine.number().min(0).optional(),
     isEmulator: vine
@@ -27,13 +27,13 @@ export const adminDeviceListValidator = vine.compile(
   })
 )
 
-export const adminDeviceAccountsValidator = vine.compile(
+export const adminDeviceAccountsValidator = vine.create(
   vine.object({
     status: vine.enum(['active', 'all']).optional(),
   })
 )
 
-export const deviceTransactionSummaryValidator = vine.compile(
+export const deviceTransactionSummaryValidator = vine.create(
   vine.object({
     from: vine
       .string()
@@ -46,7 +46,7 @@ export const deviceTransactionSummaryValidator = vine.compile(
   })
 )
 
-export const deviceTransactionsListValidator = vine.compile(
+export const deviceTransactionsListValidator = vine.create(
   vine.object({
     userId: vine.string().trim().optional(),
     operationType: vine

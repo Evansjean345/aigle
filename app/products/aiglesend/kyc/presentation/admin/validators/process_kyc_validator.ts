@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine'
 import { KycDocumentStatus } from '#core/identity/kyc/domain/enum/kyc_enum'
 
-export const processKycValidator = vine.compile(
+export const processKycValidator = vine.create(
   vine.object({
     status: vine.enum(KycDocumentStatus),
     comment: vine

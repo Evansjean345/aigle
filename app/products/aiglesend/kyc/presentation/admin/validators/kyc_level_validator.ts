@@ -6,7 +6,7 @@ import vine from '@vinejs/vine'
  * Ni `segment` ni `level` : le couple identifie le palier et porte sa signification en code.
  * Un montant nul signifie **illimité** — c'est ainsi que la grille exprime l'absence de plafond.
  */
-export const updateKycLevelValidator = vine.compile(
+export const updateKycLevelValidator = vine.create(
   vine.object({
     singleLimit: vine.number().min(0).nullable().optional(),
     dailyLimit: vine.number().min(0).nullable().optional(),

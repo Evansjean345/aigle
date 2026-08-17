@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine'
 
-export const walletToWalletValidator = vine.compile(
+export const walletToWalletValidator = vine.create(
   vine.object({
     token: vine.string().optional(),
     recipient_phone: vine.string().optional(),

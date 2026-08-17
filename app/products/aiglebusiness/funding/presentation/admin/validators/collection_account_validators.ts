@@ -11,7 +11,7 @@ import { CollectionAccountType } from '#aiglebusiness/funding/domain/enums/colle
 /** Mobile money ivoirien : 10 chiffres, indicatif +225 facultatif. */
 const MSISDN = /^(?:\+?225)?\d{10}$/
 
-export const createCollectionAccountValidator = vine.compile(
+export const createCollectionAccountValidator = vine.create(
   vine.object({
     label: vine.string().trim().minLength(2).maxLength(120),
     type: vine.enum(Object.values(CollectionAccountType)),
@@ -50,7 +50,7 @@ export function assertIdentifierMatchesType(
 }
 
 /** Mise à jour : `accountIdentifier` et `type` sont volontairement absents. */
-export const updateCollectionAccountValidator = vine.compile(
+export const updateCollectionAccountValidator = vine.create(
   vine.object({
     label: vine.string().trim().minLength(2).maxLength(120).optional(),
     accountHolder: vine.string().trim().minLength(2).maxLength(160).optional(),
@@ -59,7 +59,7 @@ export const updateCollectionAccountValidator = vine.compile(
   })
 )
 
-export const toggleCollectionAccountValidator = vine.compile(
+export const toggleCollectionAccountValidator = vine.create(
   vine.object({
     isActive: vine.boolean(),
   })

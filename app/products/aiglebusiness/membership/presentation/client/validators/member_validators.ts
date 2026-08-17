@@ -3,7 +3,7 @@ import vine from '@vinejs/vine'
 /**
  * Invitation d'un membre : téléphone de l'invité + rôle à lui attribuer.
  */
-export const inviteMemberValidator = vine.compile(
+export const inviteMemberValidator = vine.create(
   vine.object({
     phone: vine.string().trim().minLength(6).maxLength(20),
     role_id: vine.number().positive(),
@@ -13,7 +13,7 @@ export const inviteMemberValidator = vine.compile(
 /**
  * Changement de rôle d'un membre.
  */
-export const changeMemberRoleValidator = vine.compile(
+export const changeMemberRoleValidator = vine.create(
   vine.object({
     role_id: vine.number().positive(),
   })
@@ -22,7 +22,7 @@ export const changeMemberRoleValidator = vine.compile(
 /**
  * Acceptation d'une invitation : code OTP reçu par SMS.
  */
-export const acceptInvitationValidator = vine.compile(
+export const acceptInvitationValidator = vine.create(
   vine.object({
     otp: vine.string().trim().minLength(4).maxLength(8),
   })

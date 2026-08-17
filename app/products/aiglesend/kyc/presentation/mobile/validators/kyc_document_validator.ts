@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine'
 import { KycDocumentType } from '#core/identity/kyc/domain/enum/kyc_enum'
 
-export const kycDocumentValidator = vine.compile(
+export const kycDocumentValidator = vine.create(
   vine.object({
     document_type: vine.enum(KycDocumentType),
     document_recto: vine.file({

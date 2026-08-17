@@ -12,7 +12,7 @@ import vine from '@vinejs/vine'
  * - `downloadUrl`: An optional, nullable string containing a valid URL for downloading the version.
  * - `changelog`: An optional, nullable string detailing the changes in the version.
  */
-export const createAppVersionValidator = vine.compile(
+export const createAppVersionValidator = vine.create(
   vine.object({
     deviceType: vine.enum(['ios', 'android']),
     versionNumber: vine.string(),
@@ -27,7 +27,7 @@ export const createAppVersionValidator = vine.compile(
 /**
  * Validateur pour la mise à jour d'une version (Admin)
  */
-export const updateAppVersionValidator = vine.compile(
+export const updateAppVersionValidator = vine.create(
   vine.object({
     deviceType: vine.enum(['ios', 'android']).optional(),
     versionNumber: vine.string().optional(),

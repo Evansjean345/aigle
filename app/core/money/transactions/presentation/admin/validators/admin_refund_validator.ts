@@ -7,7 +7,7 @@ const schema = vine.object({
   comment: vine.string().trim().minLength(10).maxLength(1000),
 })
 
-export const adminRefundValidator = vine.compile(schema)
+export const adminRefundValidator = vine.create(schema)
 
 const transactionsRefundListSchema = vine.object({
   page: vine.number().positive().optional(),
@@ -24,4 +24,4 @@ const transactionsRefundListSchema = vine.object({
   endDate: vine.string().trim().optional(),
 })
 
-export const transactionsRefundListValidator = vine.compile(transactionsRefundListSchema)
+export const transactionsRefundListValidator = vine.create(transactionsRefundListSchema)

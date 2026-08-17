@@ -4,7 +4,7 @@ import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enum
 /**
  * Payload de création d'organisation (canal client).
  */
-export const createOrganisationValidator = vine.compile(
+export const createOrganisationValidator = vine.create(
   vine.object({
     name: vine.string().trim().minLength(2).maxLength(120),
     account_type: vine.enum(Object.values(OrganisationAccountType)),

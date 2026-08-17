@@ -3,7 +3,7 @@ import vine from '@vinejs/vine'
 /**
  * Payload du paiement marchand : `code` du QR marchand, montant, et PIN (débit wallet).
  */
-export const payMerchantValidator = vine.compile(
+export const payMerchantValidator = vine.create(
   vine.object({
     code: vine.string().trim().minLength(1),
     amount: vine.number().positive().min(1),

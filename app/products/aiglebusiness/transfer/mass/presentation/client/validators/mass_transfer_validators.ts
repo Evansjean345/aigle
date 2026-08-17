@@ -3,7 +3,7 @@ import vine from '@vinejs/vine'
 /**
  * Valide la demande d'initiation d'un lot : une liste de bénéficiaires mobile money, plafonnée à 50.
  */
-export const massTransferValidator = vine.compile(
+export const massTransferValidator = vine.create(
   vine.object({
     label: vine.string().trim().maxLength(120).optional(),
     description: vine.string().trim().maxLength(500).optional(),

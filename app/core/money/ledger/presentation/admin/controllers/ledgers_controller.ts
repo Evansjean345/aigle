@@ -37,7 +37,6 @@ export default class LedgersController {
     const page = query.page ?? 1
     const perPage = query.perPage ?? 20
     const { walletId, direction, operationType, startDate, endDate, search, userId } = query
-    // Sert l'onglet grand livre d'une organisation : son portefeuille est rattaché par compte.
     const accountId = query.accountId
 
     const ledgers = await this.getAllLedgersUseCase.execute(page, perPage, {
@@ -51,28 +50,30 @@ export default class LedgersController {
       accountId,
     })
 
-    emitter.emit('activity:audit', {
-      eventCategory: 'LEDGERS',
-      eventAction: 'READ_LEDGERS',
-      actorId: auth.user?.id ?? null,
-      actorType: 'admin',
-      actorRole: (auth.user as any)?.role?.slug ?? null,
-      requestId: request.header('x-request-id') ?? null,
-      ipAddress: request.ip(),
-      userAgent: request.header('user-agent') ?? null,
-      metadata: {
-        page,
-        perPage,
-        walletId,
-        direction,
-        operationType,
-        startDate,
-        endDate,
-        search,
-        userId,
-      },
-      result: AuditResult.SUCCESS,
-    })
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'LEDGERS',
+        eventAction: 'READ_LEDGERS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        metadata: {
+          page,
+          perPage,
+          walletId,
+          direction,
+          operationType,
+          startDate,
+          endDate,
+          search,
+          userId,
+        },
+        result: AuditResult.SUCCESS,
+      })
+      .catch(() => {})
 
     return response.ok(ledgers)
   }
@@ -100,18 +101,20 @@ export default class LedgersController {
       endDate,
     })
 
-    emitter.emit('activity:audit', {
-      eventCategory: 'LEDGERS',
-      eventAction: 'READ_STATS',
-      actorId: auth.user?.id ?? null,
-      actorType: 'admin',
-      actorRole: (auth.user as any)?.role?.slug ?? null,
-      requestId: request.header('x-request-id') ?? null,
-      ipAddress: request.ip(),
-      userAgent: request.header('user-agent') ?? null,
-      metadata: { walletId, period, startDate, endDate },
-      result: AuditResult.SUCCESS,
-    })
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'LEDGERS',
+        eventAction: 'READ_STATS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        metadata: { walletId, period, startDate, endDate },
+        result: AuditResult.SUCCESS,
+      })
+      .catch(() => {})
 
     return response.ok(stats)
   }
@@ -175,20 +178,22 @@ export default class LedgersController {
       userId: id,
     })
 
-    emitter.emit('activity:audit', {
-      eventCategory: 'LEDGERS',
-      eventAction: 'READ_USER_LEDGERS',
-      actorId: auth.user?.id ?? null,
-      actorType: 'admin',
-      actorRole: (auth.user as any)?.role?.slug ?? null,
-      targetType: 'user',
-      targetId: id,
-      requestId: request.header('x-request-id') ?? null,
-      ipAddress: request.ip(),
-      userAgent: request.header('user-agent') ?? null,
-      metadata: { page, perPage, direction, operationType, startDate, endDate, search },
-      result: AuditResult.SUCCESS,
-    })
+    emitter
+      .emit('activity:audit', {
+        eventCategory: 'LEDGERS',
+        eventAction: 'READ_USER_LEDGERS',
+        actorId: auth.user?.id ?? null,
+        actorType: 'admin',
+        actorRole: (auth.user as any)?.role?.slug ?? null,
+        targetType: 'user',
+        targetId: id,
+        requestId: request.header('x-request-id') ?? null,
+        ipAddress: request.ip(),
+        userAgent: request.header('user-agent') ?? null,
+        metadata: { page, perPage, direction, operationType, startDate, endDate, search },
+        result: AuditResult.SUCCESS,
+      })
+      .catch(() => {})
 
     return response.ok(result)
   }
@@ -211,7 +216,29 @@ export default class LedgersController {
     const stats = await this.getUserLedgerStatsUseCase.execute(id, { period, startDate, endDate })
 
     if (!stats) {
-      emitter.emit('activity:audit', {
+      emitter
+        .emit('activity:audit', {
+          eventCategory: 'LEDGERS',
+          eventAction: 'READ_USER_STATS',
+          actorId: auth.user?.id ?? null,
+          actorType: 'admin',
+          actorRole: (auth.user as any)?.role?.slug ?? null,
+          targetType: 'user',
+          targetId: id,
+          requestId: request.header('x-request-id') ?? null,
+          ipAddress: request.ip(),
+          userAgent: request.header('user-agent') ?? null,
+          metadata: { period, startDate, endDate },
+          result: AuditResult.FAILURE,
+          errorMessage: 'User or wallet not found',
+        })
+        .catch(() => {})
+
+      return response.notFound({ message: 'User or wallet not found' })
+    }
+
+    emitter
+      .emit('activity:audit', {
         eventCategory: 'LEDGERS',
         eventAction: 'READ_USER_STATS',
         actorId: auth.user?.id ?? null,
@@ -223,26 +250,9 @@ export default class LedgersController {
         ipAddress: request.ip(),
         userAgent: request.header('user-agent') ?? null,
         metadata: { period, startDate, endDate },
-        result: AuditResult.FAILURE,
-        errorMessage: 'User or wallet not found',
+        result: AuditResult.SUCCESS,
       })
-      return response.notFound({ message: 'User or wallet not found' })
-    }
-
-    emitter.emit('activity:audit', {
-      eventCategory: 'LEDGERS',
-      eventAction: 'READ_USER_STATS',
-      actorId: auth.user?.id ?? null,
-      actorType: 'admin',
-      actorRole: (auth.user as any)?.role?.slug ?? null,
-      targetType: 'user',
-      targetId: id,
-      requestId: request.header('x-request-id') ?? null,
-      ipAddress: request.ip(),
-      userAgent: request.header('user-agent') ?? null,
-      metadata: { period, startDate, endDate },
-      result: AuditResult.SUCCESS,
-    })
+      .catch(() => {})
 
     return response.ok(stats)
   }

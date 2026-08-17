@@ -9,10 +9,10 @@ import vine from '@vinejs/vine'
  * - `label`: A required string that is trimmed and must be unique in the 'service_types' table.
  * - `description`: An optional string that is trimmed.
  *
- * Compiled using the `vine.compile` method, this validator can be used
+ * Compiled using the `vine.create` method, this validator can be used
  * to validate input data for creating service types.
  */
-export const createServiceTypeValidator = vine.compile(
+export const createServiceTypeValidator = vine.create(
   vine.object({
     code: vine.string().unique(async (db, value) => {
       const match = await db.from('service_types').where('code', value).first()
@@ -26,7 +26,7 @@ export const createServiceTypeValidator = vine.compile(
   })
 )
 
-export const updateServiceTypeValidator = vine.compile(
+export const updateServiceTypeValidator = vine.create(
   vine.object({
     code: vine.string().unique(async (db, value, field) => {
       const match = await db

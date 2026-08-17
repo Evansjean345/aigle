@@ -9,10 +9,10 @@ import { allowedProviderType } from '#core/catalog/catalogs/application/use_case
  * - `label`: A required string that is trimmed and must be unique in the 'service_types' table.
  * - `description`: An optional string that is trimmed.
  *
- * Compiled using the `vine.compile` method, this validator can be used
+ * Compiled using the `vine.create` method, this validator can be used
  * to validate input data for creating service types.
  */
-export const createProviderValidator = vine.compile(
+export const createProviderValidator = vine.create(
   vine.object({
     code: vine.string().unique(async (db, value) => {
       const match = await db.from('providers').where('code', value).first()
@@ -43,7 +43,7 @@ export const createProviderValidator = vine.compile(
  *
  * The schema is primarily used to validate input data for updating provider records in the database.
  */
-export const updateProviderValidator = vine.compile(
+export const updateProviderValidator = vine.create(
   vine.object({
     code: vine.string().unique(async (db, value, field) => {
       const match = await db

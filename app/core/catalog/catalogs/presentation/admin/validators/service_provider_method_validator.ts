@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine'
 
-export const createServiceProviderMethodValidator = vine.compile(
+export const createServiceProviderMethodValidator = vine.create(
   vine.object({
     serviceTypeId: vine
       .number()
@@ -44,7 +44,7 @@ export const createServiceProviderMethodValidator = vine.compile(
   })
 )
 
-export const updateServiceProviderMethodValidator = vine.compile(
+export const updateServiceProviderMethodValidator = vine.create(
   vine.object({
     serviceTypeId: vine
       .number()

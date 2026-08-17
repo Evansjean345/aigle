@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine'
 
-export const createAdminValidator = vine.compile(
+export const createAdminValidator = vine.create(
   vine.object({
     firstname: vine.string().trim(),
     lastname: vine.string().trim(),
@@ -16,7 +16,7 @@ export const createAdminValidator = vine.compile(
   })
 )
 
-export const updateAdminValidator = vine.compile(
+export const updateAdminValidator = vine.create(
   vine.object({
     firstname: vine.string().trim().optional(),
     lastname: vine.string().trim().optional(),

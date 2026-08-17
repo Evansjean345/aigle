@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine'
 
-export const createPaymentMethodValidator = vine.compile(
+export const createPaymentMethodValidator = vine.create(
   vine.object({
     code: vine.string().unique(async (db, value) => {
       const match = await db.from('payment_methods').where('code', value).first()
@@ -13,7 +13,7 @@ export const createPaymentMethodValidator = vine.compile(
   })
 )
 
-export const updatePaymentMethodValidator = vine.compile(
+export const updatePaymentMethodValidator = vine.create(
   vine.object({
     code: vine.string().unique(async (db, value, field) => {
       const match = await db

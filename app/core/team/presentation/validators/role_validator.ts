@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine'
 
-export const createRoleValidator = vine.compile(
+export const createRoleValidator = vine.create(
   vine.object({
     name: vine.string().trim(),
     description: vine.string().trim().optional(),
@@ -8,7 +8,7 @@ export const createRoleValidator = vine.compile(
   })
 )
 
-export const updateRoleValidator = vine.compile(
+export const updateRoleValidator = vine.create(
   vine.object({
     name: vine.string().trim().optional(),
     description: vine.string().trim().optional(),

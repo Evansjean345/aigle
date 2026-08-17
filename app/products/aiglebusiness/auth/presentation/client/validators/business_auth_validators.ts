@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine'
 
 /** Étape 0 : vérification du numéro (user Aigle KYC-vérifié). */
-export const businessCheckPhoneValidator = vine.compile(
+export const businessCheckPhoneValidator = vine.create(
   vine.object({
     phone: vine.string().trim().minLength(6).maxLength(20),
   })

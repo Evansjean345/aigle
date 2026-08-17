@@ -1,6 +1,6 @@
 import vine from '@vinejs/vine'
 
-export const changePasswordValidator = vine.compile(
+export const changePasswordValidator = vine.create(
   vine.object({
     old_pincode: vine.string().trim().minLength(5).maxLength(5),
     new_pincode: vine.string().trim().minLength(5).maxLength(5),

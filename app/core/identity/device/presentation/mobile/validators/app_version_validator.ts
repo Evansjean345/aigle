@@ -4,7 +4,7 @@ import { DeviceType } from '#core/identity/device/domain/enums'
 /**
  * Validateur pour la vérification de mise à jour (Mobile)
  */
-export const checkUpdateValidator = vine.compile(
+export const checkUpdateValidator = vine.create(
   vine.object({
     platform: vine.enum(DeviceType),
     version: vine.string(),
