@@ -27,9 +27,7 @@ export default class extends BaseSchema {
         await db.rawQuery(`ALTER TABLE devices DROP INDEX \`${index.Key_name}\``)
       }
 
-      await db.rawQuery(
-        `CREATE INDEX devices_fingerprint_hash_index ON devices (fingerprint_hash)`
-      )
+      await db.rawQuery(`CREATE INDEX devices_fingerprint_hash_index ON devices (fingerprint_hash)`)
     })
   }
 

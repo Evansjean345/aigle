@@ -169,6 +169,7 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
    *
    * @param {string} reference - The unique reference identifier of the transaction.
    * @param {string} userId - The unique identifier of the user associated with the transaction.
+   * @param {string[]} preloads - The array preloads
    * @return {Promise<Transaction | null>} A promise that resolves to the matching transaction object if found, or null if no match is found.
    */
   async findByReferenceAndUserId(

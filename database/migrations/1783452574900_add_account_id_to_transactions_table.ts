@@ -25,7 +25,9 @@ export default class extends BaseSchema {
 
     // 2. Backfill : pour l'existant (consumer), le compte = users_uid.
     this.defer(async (db) => {
-      await db.rawQuery('UPDATE `transactions` SET `account_id` = `users_uid` WHERE `account_id` IS NULL')
+      await db.rawQuery(
+        'UPDATE `transactions` SET `account_id` = `users_uid` WHERE `account_id` IS NULL'
+      )
     })
 
     // 3. Relâche users_uid en NULLABLE (conserve la FK ; NULL autorisé). ALTER brut pour
