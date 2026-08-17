@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import { LEDGER_PERMISSIONS } from '#core/money/ledger/presentation/admin/permissions.config'
 import { LedgerDirection, LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
+import { ledgerSortNames } from '#core/money/ledger/domain/types/ledger_sorts'
 import { ledgerStatsPeriods } from '#core/money/ledger/presentation/admin/validators/list_ledgers_validator'
 import { makeAdminWith } from '#tests/helpers/admin_test_helpers'
 
@@ -71,6 +72,39 @@ test.group('Grands livres HTTP | liste', (group) => {
       .bearerToken(await agent())
 
     response.assertStatus(422)
+  })
+
+  test('un nom de colonne au tri est refusé', async ({ client }) => {
+    const response = await client
+      .get('/api/admin/ledgers')
+      .qs({ sortBy: 'total_amount' })
+      .bearerToken(await agent())
+
+    response.assertStatus(422)
+  })
+
+  test('une injection au tri est refusée', async ({ client }) => {
+    const response = await client
+      .get('/api/admin/ledgers')
+      .qs({ sortBy: 'id; DROP TABLE ledgers' })
+      .bearerToken(await agent())
+
+    response.assertStatus(422)
+  })
+
+  test('tous les tris déclarés sont acceptés', async ({ client }) => {
+    const token = await agent()
+
+    for (const sortBy of ledgerSortNames) {
+      for (const order of ['asc', 'desc']) {
+        const response = await client
+          .get('/api/admin/ledgers')
+          .qs({ sortBy, order })
+          .bearerToken(token)
+
+        response.assertStatus(200)
+      }
+    }
   })
 
   test('tous les sens déclarés sont acceptés, quelle que soit leur casse', async ({ client }) => {

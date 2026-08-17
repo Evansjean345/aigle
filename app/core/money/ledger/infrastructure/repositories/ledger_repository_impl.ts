@@ -6,6 +6,7 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import { LedgerDirection, type LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
+import { ledgerSortColumn } from '#core/money/ledger/domain/types/ledger_sorts'
 
 /**
  * Implementation of the LedgerRepository interface for managing ledger entities.
@@ -55,6 +56,7 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
    * @param {number} page - The page number to retrieve.
    * @param {number} perPage - The number of entries per page.
    * @param {object} filters - Filtering criteria.
+   * @param {object} [sort] - Ordre demandé. Sans `sortBy`, l'ordre par défaut du dépôt.
    * @return {Promise<any>} A promise that resolves to a paginated list of Ledger objects.
    */
   async findAll(
@@ -70,7 +72,8 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
       userId?: string
       /** Compte titulaire du portefeuille. Pour une organisation, son `organisationId`. */
       accountId?: string
-    }
+    },
+    sort?: { sortBy?: string; order?: 'asc' | 'desc' }
   ): Promise<ModelPaginatorContract<Ledger>> {
     const query = Ledger.query()
       .withScopes((scopes) => {
@@ -108,7 +111,18 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
         // via `LedgerHolderResolver` — plus de preload du FK hérité `user_id`.
         walletQuery.select(['id', 'account_id'])
       })
-      .orderBy('createdAt', 'desc')
+
+    // L'ordre se termine toujours par `created_at desc` : trier sur une colonne à faible
+    // cardinalité comme `direction` laisserait sinon la pagination rendre deux fois la même ligne.
+    const sortColumn = ledgerSortColumn(sort?.sortBy)
+    const order = sort?.order ?? 'desc'
+
+    if (sortColumn && sortColumn !== 'created_at') {
+      query.orderBy(sortColumn, order)
+      query.orderBy('created_at', 'desc')
+    } else {
+      query.orderBy('created_at', sortColumn ? order : 'desc')
+    }
 
     return await query.paginate(page, perPage)
   }

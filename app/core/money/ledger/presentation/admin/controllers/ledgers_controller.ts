@@ -37,18 +37,15 @@ export default class LedgersController {
     const page = query.page ?? 1
     const perPage = query.perPage ?? 20
     const { walletId, direction, operationType, startDate, endDate, search, userId } = query
+    const { sortBy, order } = query
     const accountId = query.accountId
 
-    const ledgers = await this.getAllLedgersUseCase.execute(page, perPage, {
-      walletId,
-      direction,
-      operationType,
-      startDate,
-      endDate,
-      search,
-      userId,
-      accountId,
-    })
+    const ledgers = await this.getAllLedgersUseCase.execute(
+      page,
+      perPage,
+      { walletId, direction, operationType, startDate, endDate, search, userId, accountId },
+      { sortBy, order }
+    )
 
     emitter
       .emit('activity:audit', {
@@ -167,16 +164,14 @@ export default class LedgersController {
 
     const page = query.page ?? 1
     const perPage = query.perPage ?? 20
-    const { direction, operationType, startDate, endDate, search } = query
+    const { direction, operationType, startDate, endDate, search, sortBy, order } = query
 
-    const result = await this.getAllLedgersUseCase.execute(page, perPage, {
-      direction,
-      operationType,
-      startDate,
-      endDate,
-      search,
-      userId: id,
-    })
+    const result = await this.getAllLedgersUseCase.execute(
+      page,
+      perPage,
+      { direction, operationType, startDate, endDate, search, userId: id },
+      { sortBy, order }
+    )
 
     emitter
       .emit('activity:audit', {

@@ -1,6 +1,7 @@
 import vine from '@vinejs/vine'
 import { type Infer } from '@vinejs/vine/types'
 import { LedgerDirection, LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
+import { ledgerSortNames } from '#core/money/ledger/domain/types/ledger_sorts'
 import { minSearchLength } from '#config/app'
 
 /** Périodes que le dépôt sait traduire en date de départ. Toute autre valeur ne filtre rien. */
@@ -29,6 +30,8 @@ const listLedgersSchema = vine.object({
     .in(Object.values(LedgerOperationType))
     .optional(),
   search: vine.string().trim().minLength(minSearchLength).maxLength(100).optional(),
+  sortBy: vine.enum(ledgerSortNames).optional(),
+  order: vine.enum(['asc', 'desc']).optional(),
   startDate: vine.string().trim().optional(),
   endDate: vine.string().trim().optional(),
   /** Porteur utilisateur. Conservé pour les écritures antérieures au compte titulaire. */

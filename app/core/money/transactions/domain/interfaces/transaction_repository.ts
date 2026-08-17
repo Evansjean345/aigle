@@ -136,6 +136,7 @@ export default abstract class TransactionRepository {
    * @param {TransactionType} [filters.type] - Filter by transaction type.
    * @param {TransactionStatus} [filters.status] - Filter by transaction status.
    * @param {string} [filters.search] - Search term.
+   * @param {Object} [sort] - Ordre demandé. Sans `sortBy`, l'ordre par défaut du dépôt.
    * @return {Promise<ModelPaginatorContract<Transaction>>} A promise that resolves to a paginated list of transactions.
    */
   abstract all(
@@ -152,7 +153,8 @@ export default abstract class TransactionRepository {
       accountId?: string
       /** Comptes dont le titulaire correspond au terme, résolus par l'annuaire en amont. */
       searchAccountIds?: string[]
-    }
+    },
+    sort?: { sortBy?: string; order?: 'asc' | 'desc' }
   ): Promise<ModelPaginatorContract<Transaction>>
 
   /**

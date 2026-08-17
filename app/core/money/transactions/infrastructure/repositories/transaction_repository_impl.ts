@@ -5,6 +5,7 @@ import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
 import db from '@adonisjs/lucid/services/db'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
+import { transactionSortColumn } from '#core/money/transactions/domain/types/transaction_sorts'
 import { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
 
 /**
@@ -226,7 +227,8 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
       accountId?: string
       /** Comptes dont le titulaire correspond au terme, résolus par l'annuaire en amont. */
       searchAccountIds?: string[]
-    }
+    },
+    sort?: { sortBy?: string; order?: 'asc' | 'desc' }
   ): Promise<ModelPaginatorContract<Transaction>> {
     const accountId = filters?.accountId ?? filters?.userId
 
@@ -242,7 +244,19 @@ export default class TransactionRepositoryImpl implements TransactionRepository 
         q.withScopes((scope) => scope.filterByDateRange(filters?.startDate, filters?.endDate))
       )
 
-    return query.orderBy('created_at', 'desc').paginate(page, perPage)
+    // L'ordre se termine toujours par `created_at desc` : trier sur une colonne à faible
+    // cardinalité comme `status` laisserait sinon la pagination rendre deux fois la même ligne.
+    const sortColumn = transactionSortColumn(sort?.sortBy)
+    const order = sort?.order ?? 'desc'
+
+    if (sortColumn && sortColumn !== 'created_at') {
+      query.orderBy(sortColumn, order)
+      query.orderBy('created_at', 'desc')
+    } else {
+      query.orderBy('created_at', sortColumn ? order : 'desc')
+    }
+
+    return query.paginate(page, perPage)
   }
 
   /**

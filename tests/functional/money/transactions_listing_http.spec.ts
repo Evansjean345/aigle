@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import { TRANSACTION_PERMISSIONS } from '#core/money/transactions/presentation/admin/permissions.config'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
+import { transactionSortNames } from '#core/money/transactions/domain/types/transaction_sorts'
 import { makeAdminWith } from '#tests/helpers/admin_test_helpers'
 
 /**
@@ -74,6 +75,39 @@ test.group('Transactions HTTP | liste', (group) => {
       .bearerToken(await agent())
 
     response.assertStatus(422)
+  })
+
+  test('un nom de colonne au tri est refusé', async ({ client }) => {
+    const response = await client
+      .get('/api/admin/transactions')
+      .qs({ sortBy: 'created_at' })
+      .bearerToken(await agent())
+
+    response.assertStatus(422)
+  })
+
+  test('une injection au tri est refusée', async ({ client }) => {
+    const response = await client
+      .get('/api/admin/transactions')
+      .qs({ sortBy: 'id; DROP TABLE transactions' })
+      .bearerToken(await agent())
+
+    response.assertStatus(422)
+  })
+
+  test('tous les tris déclarés sont acceptés', async ({ client }) => {
+    const token = await agent()
+
+    for (const sortBy of transactionSortNames) {
+      for (const order of ['asc', 'desc']) {
+        const response = await client
+          .get('/api/admin/transactions')
+          .qs({ sortBy, order })
+          .bearerToken(token)
+
+        response.assertStatus(200)
+      }
+    }
   })
 
   test('tous les types déclarés sont acceptés', async ({ client }) => {

@@ -47,19 +47,16 @@ export default class TransactionsController {
 
     const page = query.page ?? 1
     const perPage = query.perPage ?? 16
-    const { type, status, search, startDate, endDate, userId } = query
+    const { type, status, search, startDate, endDate, userId, sortBy, order } = query
     // Sert l'onglet transactions d'une organisation : `account_id == organisationId`.
     const accountId = query.accountId
 
-    const transactions = await this.getAllTransactionsUseCase.execute(page, perPage, {
-      type,
-      status,
-      search,
-      startDate,
-      endDate,
-      userId,
-      accountId,
-    })
+    const transactions = await this.getAllTransactionsUseCase.execute(
+      page,
+      perPage,
+      { type, status, search, startDate, endDate, userId, accountId },
+      { sortBy, order }
+    )
 
     emitter
       .emit('activity:audit', {
@@ -154,16 +151,14 @@ export default class TransactionsController {
 
     const page = query.page ?? 1
     const perPage = query.perPage ?? 16
-    const { type, status, search, startDate, endDate } = query
+    const { type, status, search, startDate, endDate, sortBy, order } = query
 
-    const transactions = await this.getAllTransactionsUseCase.execute(page, perPage, {
-      type,
-      status,
-      search,
-      startDate,
-      endDate,
-      userId: id,
-    })
+    const transactions = await this.getAllTransactionsUseCase.execute(
+      page,
+      perPage,
+      { type, status, search, startDate, endDate, userId: id },
+      { sortBy, order }
+    )
 
     emitter.emit('activity:audit', {
       eventCategory: 'TRANSACTION',

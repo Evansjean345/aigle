@@ -2,6 +2,7 @@ import vine from '@vinejs/vine'
 import { type Infer } from '@vinejs/vine/types'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
+import { transactionSortNames } from '#core/money/transactions/domain/types/transaction_sorts'
 import { minSearchLength } from '#config/app'
 
 /**
@@ -23,6 +24,8 @@ const listTransactionsSchema = vine.object({
     .parse((value) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
     .optional(),
   search: vine.string().trim().minLength(minSearchLength).maxLength(100).optional(),
+  sortBy: vine.enum(transactionSortNames).optional(),
+  order: vine.enum(['asc', 'desc']).optional(),
   startDate: vine.string().trim().optional(),
   endDate: vine.string().trim().optional(),
   /** Porteur utilisateur. Conservé pour les transactions antérieures au compte titulaire. */

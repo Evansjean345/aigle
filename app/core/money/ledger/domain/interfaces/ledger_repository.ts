@@ -51,7 +51,8 @@ export default abstract class LedgerRepository {
       userId?: string
       /** Compte titulaire du portefeuille. Pour une organisation, son `organisationId`. */
       accountId?: string
-    }
+    },
+    sort?: { sortBy?: string; order?: 'asc' | 'desc' }
   ): Promise<ModelPaginatorContract<Ledger>>
 
   /**

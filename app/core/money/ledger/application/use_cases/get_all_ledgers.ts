@@ -26,6 +26,7 @@ export default class GetAllLedgersUseCase {
    * @param {string} [filters.direction] - Filter by transaction direction (e.g., "inbound" or "outbound").
    * @param {string} [filters.startDate] - Filter transactions starting from a specific date (ISO 8601 format).
    * @param {string} [filters.endDate] - Filter transactions up to a specific date (ISO 8601 format).
+   * @param {Object} [sort] - Ordre demandé. Sans `sortBy`, l'ordre par défaut du dépôt.
    *
    * @return {Promise<{ meta: any; data: LedgerDto[] }>} A promise that resolves to an object containing pagination metadata and a list of ledger data in DTO format.
    */
@@ -42,9 +43,10 @@ export default class GetAllLedgersUseCase {
       userId?: string
       /** Compte titulaire du portefeuille. Pour une organisation, son `organisationId`. */
       accountId?: string
-    }
+    },
+    sort?: { sortBy?: string; order?: 'asc' | 'desc' }
   ): Promise<{ meta: any; data: LedgerDto[] }> {
-    const paginatedLedgers = await this.ledgerRepository.findAll(page, perPage, filters)
+    const paginatedLedgers = await this.ledgerRepository.findAll(page, perPage, filters, sort)
     const ledgers = paginatedLedgers.all()
 
     // Titulaires résolus par account_id (user via directory identité, org via alias payable).
