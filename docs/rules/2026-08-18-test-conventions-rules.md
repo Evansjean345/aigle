@@ -3,6 +3,9 @@
 **Date** : 2026-08-18
 **Statut** : Validé
 **Scope** : tout `*.spec.ts` de `tests/`, plus `tests/fakes/` et `tests/factories/`
+**Référence** : [documentation officielle Japa](https://japa.dev/docs/introduction) — les mécanismes
+du runner (hooks, datasets, exceptions, suites, plugin assert) suivent ce qu'elle prescrit. Les
+écarts sont nommés et justifiés dans [ce que prescrit la documentation officielle](#ce-que-prescrit-la-documentation-officielle).
 
 ---
 
@@ -154,12 +157,12 @@ tout champ fixé est une affirmation implicite qu'il compte.
 
 ## Règle 6 — La suite est choisie par ce qu'on exerce, pas par facilité
 
-| Cible                                                | Suite        | Budget  |
-| ---------------------------------------------------- | ------------ | ------- |
-| Logique métier pure, projection, calcul, mapping     | `unit`       | 2 s     |
-| Service ou écouteur, ses frontières doublées         | `unit`       | 2 s     |
-| Requête Lucid réelle, repository                     | `functional` | 30 s    |
-| Contrôleur, route, middleware, validation, autorisation | `functional` | 30 s    |
+| Cible                                                   | Suite        | Budget |
+| ------------------------------------------------------- | ------------ | ------ |
+| Logique métier pure, projection, calcul, mapping        | `unit`       | 2 s    |
+| Service ou écouteur, ses frontières doublées            | `unit`       | 2 s    |
+| Requête Lucid réelle, repository                        | `functional` | 30 s   |
+| Contrôleur, route, middleware, validation, autorisation | `functional` | 30 s   |
 
 **Un test unitaire ne touche jamais la base.** C'est tenu aujourd'hui — zéro spec de `tests/unit/`
 n'importe `db` ni ne requête un modèle — et le budget de 2 s déclaré dans `adonisrc.ts` en dépend.
@@ -180,8 +183,37 @@ Emplacement : `tests/{suite}/{contexte}/{sujet}.spec.ts`, le contexte reflétant
 group.each.setup(() => testUtils.db().withGlobalTransaction())
 ```
 
-Le hook manuel — `db.beginGlobalTransaction()` puis `rollbackGlobalTransaction()` dans une cleanup —
-fait la même chose en dix lignes recopiées, et se trompe silencieusement quand la cleanup manque.
+L'état créé par un `setup` se défait par la **fonction de nettoyage qu'il retourne**, pas par un
+`teardown` séparé. C'est la recommandation explicite de la documentation Japa, et pour une raison
+qu'un `teardown` n'a pas : si le `setup` échoue, sa fonction de nettoyage n'est pas exécutée — on
+n'essaie jamais de défaire un état qui n'a pas été créé.
+
+```ts
+group.each.setup(async () => {
+  await createTables()
+  return async () => await dropTables()
+})
+```
+
+Le dépôt applique déjà cette forme partout. Ce qui pèche est en dessous : `db.beginGlobalTransaction()`
+appelé à la main fait ce que `testUtils.db().withGlobalTransaction()` fait en une ligne, recopié 66
+fois.
+
+**Un hook identique dans plus de deux specs appartient à la suite, pas aux specs.** Japa permet de
+l'enregistrer une fois dans `configureSuite` (`tests/bootstrap.ts`), où le serveur HTTP de la suite
+fonctionnelle est déjà démarré :
+
+```ts
+export const configureSuite: Config['configureSuite'] = (suite) => {
+  if (suite.name === 'unit') return
+
+  suite.setup(() => testUtils.httpServer().start())
+  suite.onTest((test) => test.setup(() => testUtils.db().withGlobalTransaction()))
+}
+```
+
+C'est la réponse de fond aux 66 copies : une spec n'a plus de hook d'isolation du tout, sauf à en
+vouloir un autre.
 
 **Désactiver les contraintes de clé étrangère est interdit dans un nouveau test.**
 
@@ -219,7 +251,24 @@ test('transfert p2p → seul l’émetteur est horodaté, le bénéficiaire rest
 Le nom du groupe porte la cible et l'angle : `'ResetSecurityCountersOnSuccess | qui est horodaté'`.
 
 Arrange / Act / Assert, et **aucun `if` ni `for`** dans un test : deux cas dans un test sont deux
-tests, ou un dataset (`test('…').with([…])`).
+tests, ou un dataset.
+
+Le dataset s'écrit `.with()` **avant** `.run()` — c'est cet ordre qui donne à TypeScript le type du
+paramètre, et le titre interpole les champs entre accolades :
+
+```ts
+test('un compte {segment} plafonne à {limite} F CFA')
+  .with([
+    { segment: 'particulier', limite: 200_000 },
+    { segment: 'organisation', limite: 2_000_000 },
+  ])
+  .run(({ assert }, { segment, limite }) => {
+    assert.equal(limitOf(segment), limite)
+  })
+```
+
+Chaque ligne devient un test nommé, qui échoue seul. Une boucle dans un test échoue en bloc et ne
+dit pas laquelle des lignes a cassé.
 
 L'en-tête de la spec dit en trois lignes **ce qui est caractérisé et pourquoi ça compte** — pas
 l'historique du bug, pas la référence au registre (règle 3 des JSDoc), pas la liste des étapes.
@@ -235,11 +284,26 @@ l'historique du bug, pas la référence au registre (règle 3 des JSDoc), pas la
 
 ```ts
 // ❌ passe si le code ne lève pas
-try { await service.transfer(cmd); assert.fail() } catch (e) { assert.equal(e.code, 'E_THROTTLE') }
+try {
+  await service.transfer(cmd)
+  assert.fail()
+} catch (e) {
+  assert.equal(e.code, 'E_THROTTLE')
+}
 
 // ✅
 await assert.rejects(() => service.transfer(cmd), TransferThrottleException)
 ```
+
+Japa en documente trois formes : `assert.throws` / `assert.rejects`, l'équivalent `expect`, et la
+forme haute `test(…).throws(…)` posée sur le test lui-même. **Ce dépôt s'en tient à `assert`** — le
+plugin `expect` n'est pas chargé dans `tests/bootstrap.ts`, et la forme haute déplace l'attente hors
+du corps du test, là où elle se lit moins bien à côté d'assertions ordinaires. Un seul style dans
+113 assertions d'erreur vaut mieux que trois.
+
+Quand un test comporte un chemin conditionnel côté code sous test — une notification qui part ou ne
+part pas — `assert.plan(n)` fige le nombre d'assertions attendues et fait échouer le test si l'une
+d'elles a été sautée. C'est le garde-fou contre le test qui passe parce qu'il n'a rien vérifié.
 
 **Argent** : montants entiers en XOF, comparés exactement. Un arrondi se teste explicitement, jamais
 par tolérance.
@@ -267,20 +331,48 @@ d'autorisation, 404, et l'effet persistant.
 
 ---
 
+# Ce que prescrit la documentation officielle
+
+Les mécanismes du runner viennent de [japa.dev](https://japa.dev/docs/introduction). Ce tableau dit
+lesquels ces règles reprennent, et où elles vont plus loin — un choix de projet n'est légitime que
+s'il est nommé.
+
+| Prescription Japa                                                                                                    | Ici                                                                        |
+| -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [Fonction de nettoyage retournée par le `setup`](https://japa.dev/docs/lifecycle-hooks), jamais un `teardown` séparé | Règle 7 — déjà appliqué partout dans le dépôt                              |
+| [Hooks au niveau de la suite](https://japa.dev/docs/test-suites#lifecycle-hooks) via `configureSuite`                | Règle 7 — sous-exploité : 66 hooks recopiés là où la suite en porterait un |
+| [Datasets](https://japa.dev/docs/datasets) plutôt qu'une boucle, `.with()` avant `.run()`                            | Règle 8 — l'ordre est ce qui type le paramètre                             |
+| [Trois formes d'assertion d'erreur](https://japa.dev/docs/exceptions) : `assert`, `expect`, forme haute              | Règle 9 — **écart assumé** : `assert` seul, `expect` n'est pas chargé      |
+| [`assert.plan(n)`](https://japa.dev/docs/plugins/assert) contre le test qui ne vérifie rien                          | Règle 9 — sur les tests à chemin conditionnel                              |
+| [Suites nommées avec leurs globs](https://japa.dev/docs/test-suites)                                                 | Règle 6 — `unit` et `functional`, budgets 2 s et 30 s                      |
+
+Deux points que la documentation ne couvre pas, et qui sont donc des décisions de ce dépôt :
+
+- **La forme des doublures** (règles 1 à 4). Japa ne prescrit rien sur le remplacement des
+  dépendances — c'est le point où ces règles apportent le plus, et c'est aussi celui où le dépôt
+  avait le plus dérivé.
+- **Les fabriques de données** (règle 5). La documentation AdonisJS recommande les Model Factories
+  Lucid ; le dépôt n'en a aucune et écrit à la main. L'écart est nommé dans « ce qui est différé ».
+
+Le reste — `route()`, `loginAs()`, les assertions en base — relève d'AdonisJS et de son client API,
+pas du runner.
+
+---
+
 # L'état mesuré — 2026-08-18
 
 125 specs, deux suites (`unit` 2 s, `functional` 30 s), 883 tests au vert.
 
-| Règle                          | Dette mesurée                                                          |
-| ------------------------------ | ---------------------------------------------------------------------- |
-| 1 — pas de cast                | **208** casts dans **53** specs, dont **19** objets littéraux          |
-| 2 — doublures rangées          | **14** doublures déclarées dans une spec ; 9 fichiers dans `tests/fakes/` |
-| 3 — deux noms                  | **7** vocabulaires : Fake, Stub, Spy, InMemory, Capturing, Silent, Permissive |
-| 5 — fabriques                  | 4 fabriques ; ~15 helpers recopiés dans 2 à 4 specs                    |
-| 6 — suite juste                | **0** violation : aucun test unitaire ne touche la base                |
-| 7 — isolation                  | **66** hooks manuels, **51** désactivent les FK, **0** `withGlobalTransaction` ; **5** specs écrivent sans aucune isolation |
-| 9 — assertions                 | **85** assertions imprécises, **6** `try/catch`                        |
-| 10 — URLs                      | **104** URLs en dur contre **2** `route()`                             |
+| Règle                 | Dette mesurée                                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — pas de cast       | **208** casts dans **53** specs, dont **19** objets littéraux                                                                                     |
+| 2 — doublures rangées | **14** doublures déclarées dans une spec ; 9 fichiers dans `tests/fakes/`                                                                         |
+| 3 — deux noms         | **7** vocabulaires : Fake, Stub, Spy, InMemory, Capturing, Silent, Permissive                                                                     |
+| 5 — fabriques         | 4 fabriques ; ~15 helpers recopiés dans 2 à 4 specs                                                                                               |
+| 6 — suite juste       | **0** violation : aucun test unitaire ne touche la base                                                                                           |
+| 7 — isolation         | **66** hooks recopiés, **51** désactivent les FK, **0** `withGlobalTransaction`, **0** hook de suite ; **5** specs écrivent sans aucune isolation |
+| 9 — assertions        | **85** assertions imprécises, **6** `try/catch`                                                                                                   |
+| 10 — URLs             | **104** URLs en dur contre **2** `route()`                                                                                                        |
 
 La règle 6 est le seul acquis : elle passe en **[ERROR]** — un test unitaire qui touche la base doit
 casser la suite. Les autres décrivent le cap, pas l'état.
@@ -290,6 +382,15 @@ Les trois gisements par ordre de risque réel :
 1. **Les 51 désactivations de FK** (règle 7) — elles éteignent une vérification de la base, pas une
    commodité de test. C'est le seul point de cette liste qui peut laisser passer une écriture
    orpheline jusqu'en production.
+
+   Vérifié le 2026-08-18 sur trois specs de trois dossiers différents — dont `checkout_flow`, qui
+   crée portefeuilles et transactions : **elles passent toutes sans la ligne**. Les seules
+   contraintes vers `users` portent sur `wallets.user_id`, `transactions.users_uid` / `user_id`,
+   `debit_phones` et `access_tokens` ; un portefeuille d'organisation pose `user_id` à `null`, ce
+   qui satisfait la contrainte sans la désactiver, et `organisations.owner_user_id` n'en porte
+   aucune. La ligne a probablement été nécessaire avant la bascule account-centric, puis recopiée
+   de spec en spec. Elle ne protège aujourd'hui rien de ce qu'elle prétend protéger.
+
 2. **Les 208 casts** (règle 1) — chacun est un contrat qui a cessé d'être comparé.
 3. **Les 104 URLs en dur** (règle 10) — sans gravité tant qu'aucune route ne bouge, coûteux le jour
    où l'une bouge.
@@ -319,9 +420,17 @@ deviendraient par une règle ESLint restreinte à `tests/` :
 Comme pour dependency-cruiser, une garde ne se pose **qu'une fois la dette à zéro** : la poser sur
 208 violations produit un bruit qu'on apprend à ignorer en une semaine.
 
+**L'isolation remontée à la suite.** Les 66 hooks recopiés se remplacent par un `suite.onTest` dans
+`configureSuite`, où le serveur HTTP est déjà démarré. Cela ne peut se faire qu'après le retrait des
+hooks par spec — deux transactions globales imbriquées ne se rollback pas proprement — et après avoir
+identifié les specs qui veulent un autre régime (`truncate` pour le code qui valide ses propres
+transactions). C'est la suite naturelle du retrait des désactivations de FK.
+
 **Les fabriques de modèles Lucid.** Il n'y a aujourd'hui aucune `database/factories/` ; les quatre
-fabriques de `tests/factories/` écrivent à la main. C'est ce qui rend les données incomplètes, donc
-ce qui a rendu la désactivation des FK nécessaire. Résoudre la règle 7 pour de bon passe par là.
+fabriques de `tests/factories/` écrivent à la main, et posent des porteurs qui n'existent pas
+(`organisation.ownerUserId = randomUUID()`). Aucune contrainte ne le sanctionne aujourd'hui, mais
+c'est le jour où l'on en ajoutera une sur `organisations.owner_user_id` que la dette se paiera d'un
+coup. Des fabriques qui créent le porteur avec l'organisation la préviennent.
 
 ---
 
