@@ -1,7 +1,8 @@
 import { inject } from '@adonisjs/core'
-import Transaction from '#core/money/transactions/domain/models/transaction'
 import NotificationService from '#core/notifications/application/services/notification_service'
-import WalletToWalletTransactionCompleted from '#core/money/transactions/application/events/wallet_to_wallet_transaction_completed'
+import WalletToWalletTransactionCompleted, {
+  type WalletToWalletLeg,
+} from '#core/money/transactions/application/events/wallet_to_wallet_transaction_completed'
 import { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
@@ -9,61 +10,47 @@ import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 @inject()
 export default class WalletToWalletTransactionNotification {
   /**
+   * Construit l'écouteur.
    *
-   * @param notificationService
+   * @param {NotificationService} notificationService - Envoi des notifications.
    */
   constructor(private readonly notificationService: NotificationService) {}
 
   /**
-   * Handles the completion of a wallet-to-wallet transaction by sending notifications
-   * to both the sender and the receiver.
+   * Notifie les parties d'un mouvement de portefeuille à portefeuille abouti.
    *
-   * @param {WalletToWalletTransactionCompleted} event - The event object containing details
-   *    about the completed wallet-to-wallet transaction, including sender and receiver data.
-   * @return {Promise<void>} A promise that resolves when the notifications have been sent.
+   * @param {WalletToWalletTransactionCompleted} event - Les deux jambes et le contexte.
+   * @returns {Promise<void>} Rien : l'envoi ne bloque pas le mouvement.
    */
   async handle(event: WalletToWalletTransactionCompleted): Promise<void> {
-    // Paiement marchand : le **destinataire** (compte org sans user) est notifié par la couche
-    // produit (`OnMerchantPaymentReceivedNotification`, encaissement). Mais le **payeur** est un
-    // utilisateur aiglesend : il doit être notifié de son paiement (comme un dépôt/transfert).
-    if (event.payload.type === 'merchant') {
-      await this.sendMerchantPaymentNotification(
-        event.senderTransaction,
-        event.payload.senderBalanceAfter
-      )
+    const { sender, recipient, type } = event.payload
+
+    // Sur un paiement marchand, le marchand est notifié par la couche produit : ici, seul le payeur
+    // l'est. Le notifier des deux côtés lui enverrait deux fois le même paiement.
+    if (type === 'merchant') {
+      await this.sendMerchantPaymentNotification(sender)
       return
     }
 
-    // P2P (user ↔ user) : on notifie les deux côtés. Les soldes viennent de l'event (R9 : le modèle
-    // `Transaction` ne porte pas `balanceAfter`).
+    // Chaque partie est nommée à l'autre par son numéro : le message parle de la jambe d'en face.
     await Promise.all([
-      this.sendWalletToWalletTransfertNotification(
-        event.senderTransaction,
-        event.payload.recipientPhone,
-        event.payload.senderBalanceAfter
-      ),
-      this.sendWalletToWalletDepositNotification(
-        event.receiverTransaction,
-        event.payload.senderPhone,
-        event.payload.recipientBalanceAfter
-      ),
+      this.sendWalletToWalletTransfertNotification(sender, recipient.phone),
+      this.sendWalletToWalletDepositNotification(recipient, sender.phone),
     ])
   }
 
   /**
-   * Notifie le **payeur** (utilisateur aiglesend) de son paiement marchand. La description de la
-   * transaction porte déjà « Paiement à {marchand} » ; on confirme montant, nouveau solde et référence.
+   * Notifie le payeur de son paiement marchand.
    *
-   * @param transaction Jambe débit (payeur).
-   * @param balanceAfter Solde du payeur après le paiement (porté par l'event).
-   * @private
+   * @param {WalletToWalletLeg} sender - Jambe du payeur.
+   * @returns {Promise<void>} Rien : l'envoi ne bloque pas le mouvement.
    */
-  private async sendMerchantPaymentNotification(transaction: Transaction, balanceAfter: number) {
+  private async sendMerchantPaymentNotification(sender: WalletToWalletLeg): Promise<void> {
     // Le payeur est un utilisateur consumer : sa notif ne cible que son app aiglesend.
     const notification = new Notification(
-      transaction.usersUid,
+      sender.accountId,
       'Paiement effectué',
-      `Vous avez effectué un paiement de ${transaction.amount} F CFA. Nouveau solde: ${balanceAfter} CFA. Référence: ${transaction.reference}`,
+      `Vous avez effectué un paiement de ${sender.amount} F CFA. Nouveau solde: ${sender.balanceAfter} CFA. Référence: ${sender.reference}`,
       undefined,
       AppName.AIGLESEND
     )
@@ -72,22 +59,20 @@ export default class WalletToWalletTransactionNotification {
   }
 
   /**
-   * Send push notification to the user when a wallet to wallet transaction is completed
+   * Notifie l'émetteur d'un transfert entre portefeuilles.
    *
-   * @param transaction
-   * @param recipienPhone
-   * @param balanceAfter Solde de l'émetteur après le transfert (porté par l'event).
-   * @private
+   * @param {WalletToWalletLeg} sender - Jambe de l'émetteur.
+   * @param {string | null} recipientPhone - Numéro du bénéficiaire, tel que la ligne l'affiche.
+   * @returns {Promise<void>} Rien : l'envoi ne bloque pas le mouvement.
    */
   private async sendWalletToWalletTransfertNotification(
-    transaction: Transaction,
-    recipienPhone: string | null,
-    balanceAfter: number
-  ) {
+    sender: WalletToWalletLeg,
+    recipientPhone: string | null
+  ): Promise<void> {
     const notification = new Notification(
-      transaction.usersUid,
+      sender.accountId,
       'Transfert effectué avec succès',
-      `Vous avez effectué un transfert de ${transaction.amount} F CFA vers le numéro ${recipienPhone}. Nouveau solde: ${balanceAfter} CFA. Référence: ${transaction.reference}`,
+      `Vous avez effectué un transfert de ${sender.amount} F CFA vers le numéro ${recipientPhone}. Nouveau solde: ${sender.balanceAfter} CFA. Référence: ${sender.reference}`,
       undefined,
       AppName.AIGLESEND
     )
@@ -96,22 +81,20 @@ export default class WalletToWalletTransactionNotification {
   }
 
   /**
-   * Send push notification to the user when a wallet to wallet transaction is completed
+   * Notifie le bénéficiaire d'un transfert entre portefeuilles.
    *
-   * @param transaction
-   * @param from
-   * @param balanceAfter Solde du bénéficiaire après réception (porté par l'event).
-   * @private
+   * @param {WalletToWalletLeg} recipient - Jambe du bénéficiaire.
+   * @param {string | null} senderPhone - Numéro de l'émetteur, tel que la ligne l'affiche.
+   * @returns {Promise<void>} Rien : l'envoi ne bloque pas le mouvement.
    */
   private async sendWalletToWalletDepositNotification(
-    transaction: Transaction,
-    from: string,
-    balanceAfter: number
-  ) {
+    recipient: WalletToWalletLeg,
+    senderPhone: string | null
+  ): Promise<void> {
     const notification = new Notification(
-      transaction.usersUid,
+      recipient.accountId,
       'Transfert reçu',
-      `Vous avez reçu un transfert de ${transaction.amount} F CFA de la part du ${from}. Nouveau solde: ${balanceAfter} CFA. Référence: ${transaction.reference}`,
+      `Vous avez reçu un transfert de ${recipient.amount} F CFA de la part du ${senderPhone}. Nouveau solde: ${recipient.balanceAfter} CFA. Référence: ${recipient.reference}`,
       undefined,
       AppName.AIGLESEND
     )

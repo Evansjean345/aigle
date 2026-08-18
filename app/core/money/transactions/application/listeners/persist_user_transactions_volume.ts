@@ -26,13 +26,12 @@ export default class PersistUserTransactionsVolume {
       | WalletToWalletTransactionCompleted
   ) {
     if (event instanceof WalletToWalletTransactionCompleted) {
-      const { senderTransaction: sTx, receiverTransaction: rTx } = event
-      // Volume PAR COMPTE (account-centric) : émetteur ET bénéficiaire — y compris un **marchand**
-      // (compte org sans user). `Transaction.accountId` == usersUid pour un user, l'org pour un
-      // marchand : la clé de volume s'aligne ainsi sur la lecture (validation/quotas par accountId).
+      const { sender, recipient } = event.payload
+      // Le volume est compté par compte, des deux côtés — y compris pour un marchand, dont le
+      // compte est l'organisation. La clé s'aligne ainsi sur la lecture des plafonds.
       await Promise.all([
-        this.persist(sTx.reference, sTx.accountId, sTx.amount, sTx.createdAt),
-        this.persist(rTx.reference, rTx.accountId, rTx.amount, rTx.createdAt),
+        this.persist(sender.reference, sender.accountId, sender.amount, sender.occurredAt),
+        this.persist(recipient.reference, recipient.accountId, recipient.amount, recipient.occurredAt),
       ])
       return
     }

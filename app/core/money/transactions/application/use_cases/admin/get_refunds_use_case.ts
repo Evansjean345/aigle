@@ -51,8 +51,6 @@ export default class GetRefundsUseCase {
       order: input.order,
     })
 
-    // Titulaire résolu par compte : un remboursement sur une transaction d'organisation n'a pas de
-    // porteur utilisateur.
     const holders = await this.holderResolver.resolve(
       paginator.all().map((refund) => refund.transaction?.accountId)
     )

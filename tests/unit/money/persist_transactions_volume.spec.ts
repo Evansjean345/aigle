@@ -2,11 +2,12 @@ import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import PersistUserTransactionsVolume from '#core/money/transactions/application/listeners/persist_user_transactions_volume'
 import DepositTransactionCompleted from '#core/money/transactions/application/events/deposit_transaction_completed'
-import WalletToWalletTransactionCompleted from '#core/money/transactions/application/events/wallet_to_wallet_transaction_completed'
+import WalletToWalletTransactionCompleted, {
+  type WalletToWalletLeg,
+} from '#core/money/transactions/application/events/wallet_to_wallet_transaction_completed'
 import TransfertTransactionCompleted from '#core/money/transactions/application/events/transfert_transaction_completed'
 import type TransactionVolumeCache from '#core/money/transactions/domain/interfaces/transaction_volume_cache'
 import type IdempotencyProvider from '#core/money/transactions/domain/interfaces/idempotency_provider'
-import type Transaction from '#core/money/transactions/domain/models/transaction'
 
 /**
  * Caractérise `PersistUserTransactionsVolume` **account-centric** : le volume (plafonds daily/monthly)
@@ -37,15 +38,17 @@ function build() {
   return { listener, calls }
 }
 
-function tx(overrides: Partial<Transaction>): Transaction {
+/** Jambe de l'event — le modèle `Transaction` ne traverse plus la frontière. */
+function leg(overrides: Partial<WalletToWalletLeg>): WalletToWalletLeg {
   return {
     reference: 'ref',
     accountId: 'acc',
-    usersUid: 'user',
     amount: 1000,
-    createdAt: DateTime.now(),
+    occurredAt: DateTime.now(),
+    balanceAfter: 0,
+    phone: null,
     ...overrides,
-  } as unknown as Transaction
+  }
 }
 
 test.group('PersistUserTransactionsVolume | account-centric', () => {
@@ -71,24 +74,12 @@ test.group('PersistUserTransactionsVolume | account-centric', () => {
   }) => {
     const { listener, calls } = build()
 
-    const sender = tx({ reference: 's-1', accountId: 'user-1', usersUid: 'user-1', amount: 7000 })
-    // Bénéficiaire marchand : compte org, PAS d'user (usersUid null).
-    const receiver = tx({
-      reference: 'r-1',
-      accountId: 'org-9',
-      usersUid: null as unknown as string,
-      amount: 7000,
-    })
-
     await listener.handle(
-      new WalletToWalletTransactionCompleted(sender, receiver, {
+      new WalletToWalletTransactionCompleted({
+        sender: leg({ reference: 's-1', accountId: 'user-1', amount: 7000 }),
+        // Bénéficiaire marchand : son compte est l'organisation.
+        recipient: leg({ reference: 'r-1', accountId: 'org-9', amount: 7000 }),
         type: 'merchant',
-        recipientPhone: null,
-        senderPhone: '+2250700000000',
-        senderAccountId: sender.accountId,
-        recipientAccountId: 'org-9',
-        senderBalanceAfter: 0,
-        recipientBalanceAfter: 7000,
       })
     )
 
@@ -119,18 +110,11 @@ test.group('PersistUserTransactionsVolume | account-centric', () => {
   test('transfert p2p → incrémente émetteur ET bénéficiaire par accountId', async ({ assert }) => {
     const { listener, calls } = build()
 
-    const sender = tx({ reference: 's-2', accountId: 'user-1', usersUid: 'user-1', amount: 3000 })
-    const receiver = tx({ reference: 'r-2', accountId: 'user-2', usersUid: 'user-2', amount: 3000 })
-
     await listener.handle(
-      new WalletToWalletTransactionCompleted(sender, receiver, {
+      new WalletToWalletTransactionCompleted({
+        sender: leg({ reference: 's-2', accountId: 'user-1', amount: 3000 }),
+        recipient: leg({ reference: 'r-2', accountId: 'user-2', amount: 3000 }),
         type: 'p2p',
-        recipientPhone: '+2250701010101',
-        senderPhone: '+2250700000000',
-        senderAccountId: 'user-1',
-        recipientAccountId: 'user-2',
-        senderBalanceAfter: 0,
-        recipientBalanceAfter: 3000,
       })
     )
 

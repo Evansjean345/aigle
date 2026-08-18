@@ -6,36 +6,38 @@ import WalletToWalletTransactionCompleted from '#core/money/transactions/applica
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 import Organisation from '#aiglebusiness/organisation/domain/models/organisation'
 
-/**
- * Notifie le marchand d'un **encaissement interne** (paiement marchand par wallet : un utilisateur
- * aiglesend paie un marchand). Jumeau produit de [[OnCheckoutReceivedNotification]] pour le chemin
- * **interne** (`internal_move`, event `WalletToWalletTransactionCompleted`) — l'encaissement externe
- * (checkout) est déjà couvert par le listener deposit.
- *
- * Self-filtre sur `payload.type === 'merchant'` : le listener consumer
- * (`WalletToWalletTransactionNotification`) ignore ce même flag et **délègue** ici la notif marchand
- * (discriminateur d'event : un seul event, chaque listener se filtre). Résolution produit :
- * `recipientAccountId` (= `organisationId`) → organisation → **propriétaire** (owner-only, MVP).
- */
+/** Prévient le propriétaire d'une organisation qu'un utilisateur vient de la payer. */
 @inject()
 export default class OnMerchantPaymentReceivedNotification {
+  /**
+   * Construit l'écouteur.
+   *
+   * @param {NotificationService} notificationService - Envoi des notifications.
+   */
   constructor(private readonly notificationService: NotificationService) {}
 
+  /**
+   * Notifie le propriétaire de l'organisation encaissée.
+   *
+   * @param {WalletToWalletTransactionCompleted} event - Les deux jambes du mouvement et sa nature.
+   * @returns {Promise<void>} Rien : un compte sans organisation connue n'envoie rien.
+   */
   async handle(event: WalletToWalletTransactionCompleted): Promise<void> {
     if (event.payload.type !== 'merchant') return
 
-    // `accountId` d'un compte marchand == `organisationId` (dérivé, sans jointure core→produit).
+    // Le compte d'un marchand porte l'identifiant de son organisation : la résoudre ne demande
+    // aucune jointure du core vers le produit.
     const organisation = await Organisation.findBy(
       'organisationId',
-      event.payload.recipientAccountId
+      event.payload.recipient.accountId
     )
+
     if (!organisation) return
 
-    // La jambe **crédit** (receiverTransaction) porte le montant reçu par le marchand + sa référence.
-    const received = event.receiverTransaction
+    const received = event.payload.recipient
 
-    // `targetApp = aiglebusiness` : l'encaissement est une notif **marchand** — elle ne doit partir
-    // que vers l'app business du propriétaire, pas vers son app aiglesend (consumer).
+    // L'encaissement ne part que vers l'app business : un seul envoi Expo ne peut pas mêler les
+    // appareils de deux projets.
     const notification = new Notification(
       organisation.ownerUserId,
       'Paiement reçu',

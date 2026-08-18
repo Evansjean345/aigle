@@ -30,8 +30,6 @@ export default class ExpoPushNotificationChannelImpl implements PushNotification
    * @throws {Exception} If no push tokens are found for the recipient.
    */
   async send(notification: Notification): Promise<void> {
-    // Routage multi-app : `targetApp` (si présent) restreint aux appareils de cette app
-    // (ex. une notif marchand ne part que vers aiglebusiness) ; absent → tous les appareils.
     const userDevices = await this.deviceService.getTrustedDevices(
       notification.recipientId,
       notification.targetApp
@@ -39,9 +37,6 @@ export default class ExpoPushNotificationChannelImpl implements PushNotification
 
     if (userDevices.length === 0) return
 
-    // Un même jeton peut être porté par plusieurs liaisons — un appareil réenregistré en crée une
-    // seconde sans effacer la première. L'envoyer deux fois dans le lot affiche deux notifications
-    // identiques sur le téléphone.
     const tokens = [...new Set(userDevices.map((ud) => ud.pushToken).filter(Boolean))]
 
     if (!tokens || tokens.length === 0) {
@@ -110,8 +105,6 @@ export default class ExpoPushNotificationChannelImpl implements PushNotification
 
     const messages = []
 
-    // Même garde qu'à l'envoi par destinataire : un jeton répété dans le lot vaut deux
-    // notifications identiques sur le téléphone.
     for (const token of new Set(tokens)) {
       if (Expo.isExpoPushToken(token)) {
         messages.push({

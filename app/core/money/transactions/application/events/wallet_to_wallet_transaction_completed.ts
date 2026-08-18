@@ -1,14 +1,34 @@
 import { BaseEvent } from '@adonisjs/core/events'
-import type Transaction from '#core/money/transactions/domain/models/transaction'
+import type { DateTime } from 'luxon'
+
+/**
+ * Une jambe du mouvement, réduite à ce que les écouteurs en lisent.
+ *
+ * Le modèle `Transaction` ne traverse pas la frontière : un écouteur qui le recevrait pourrait
+ * charger des relations et écrire en base, alors qu'il n'a qu'à notifier.
+ */
+export interface WalletToWalletLeg {
+  reference: string
+  /** Compte de la partie. Pour une organisation, son `organisationId`. */
+  accountId: string
+  amount: number
+  occurredAt: DateTime
+  /** Solde de la partie après le mouvement. */
+  balanceAfter: number
+  /** Numéro de la partie. `null` pour une organisation, qui n'en porte pas. */
+  phone: string | null
+}
 
 export default class WalletToWalletTransactionCompleted extends BaseEvent {
   /**
-   * Accept event data as constructor parameters
+   * Rapporte un mouvement de portefeuille à portefeuille abouti.
+   *
+   * @param {object} payload - Les deux jambes et le contexte de notification.
    */
   constructor(
-    public senderTransaction: Transaction,
-    public receiverTransaction: Transaction,
     public payload: {
+      sender: WalletToWalletLeg
+      recipient: WalletToWalletLeg
       /**
        * Qui reçoit : une personne, ou un marchand.
        *
@@ -16,13 +36,6 @@ export default class WalletToWalletTransactionCompleted extends BaseEvent {
        * La nullité de `wallets.user_id` ne décide plus de rien.
        */
       type: 'p2p' | 'merchant'
-      recipientPhone: string | null
-      senderPhone: string
-      senderAccountId: string
-      recipientAccountId: string
-      /** Soldes après mouvement. Le modèle `Transaction` ne les porte pas. */
-      senderBalanceAfter: number
-      recipientBalanceAfter: number
     }
   ) {
     super()

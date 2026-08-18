@@ -5,8 +5,10 @@ import db from '@adonisjs/lucid/services/db'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import OnMerchantPaymentReceivedNotification from '#aiglebusiness/organisation/application/listeners/on_merchant_payment_received_notification'
 import WalletToWalletTransactionNotification from '#core/notifications/application/listeners/on_wallet_to_wallet_transaction_notification'
-import WalletToWalletTransactionCompleted from '#core/money/transactions/application/events/wallet_to_wallet_transaction_completed'
-import type Transaction from '#core/money/transactions/domain/models/transaction'
+import WalletToWalletTransactionCompleted, {
+  type WalletToWalletLeg,
+} from '#core/money/transactions/application/events/wallet_to_wallet_transaction_completed'
+import { DateTime } from 'luxon'
 import type { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import type NotificationService from '#core/notifications/application/services/notification_service'
@@ -29,19 +31,22 @@ class CapturingNotificationService {
   }
 }
 
-/** Transaction minimale (jambe) pour l'event — seuls les champs lus par les listeners. */
+/** Jambe de l'event — le modèle `Transaction` ne traverse plus la frontière. */
 function leg(fields: {
-  usersUid?: string
+  accountId?: string
   amount: number
   balanceAfter?: number
   reference: string
-}): Transaction {
+  phone?: string | null
+}): WalletToWalletLeg {
   return {
-    usersUid: fields.usersUid ?? randomUUID(),
-    amount: fields.amount,
-    balanceAfter: fields.balanceAfter ?? 0,
     reference: fields.reference,
-  } as unknown as Transaction
+    accountId: fields.accountId ?? randomUUID(),
+    amount: fields.amount,
+    occurredAt: DateTime.now(),
+    balanceAfter: fields.balanceAfter ?? 0,
+    phone: fields.phone ?? null,
+  }
 }
 
 function merchantEvent(opts: {
@@ -52,35 +57,40 @@ function merchantEvent(opts: {
   merchantReference?: string
 }): WalletToWalletTransactionCompleted {
   const amount = opts.amount ?? 5000
-  const sender = leg({
-    usersUid: opts.payerUserId ?? randomUUID(),
-    amount,
-    balanceAfter: 15000,
-    reference: opts.payerReference ?? 'aig_pay_sender',
-  })
-  const receiver = leg({ amount, reference: opts.merchantReference ?? 'aig_pay_receiver' })
-  return new WalletToWalletTransactionCompleted(sender, receiver, {
+
+  return new WalletToWalletTransactionCompleted({
+    sender: leg({
+      accountId: opts.payerUserId ?? randomUUID(),
+      amount,
+      balanceAfter: 15000,
+      reference: opts.payerReference ?? 'aig_pay_sender',
+      phone: '2250700000000',
+    }),
+    recipient: leg({
+      accountId: opts.recipientAccountId,
+      amount,
+      balanceAfter: 5000,
+      reference: opts.merchantReference ?? 'aig_pay_receiver',
+    }),
     type: 'merchant',
-    recipientPhone: null,
-    senderPhone: '2250700000000',
-    senderAccountId: sender.usersUid,
-    recipientAccountId: opts.recipientAccountId,
-    senderBalanceAfter: 15000,
-    recipientBalanceAfter: 5000,
   })
 }
 
 function p2pEvent(): WalletToWalletTransactionCompleted {
-  const sender = leg({ amount: 3000, balanceAfter: 12000, reference: 'aig_p2p_sender' })
-  const receiver = leg({ amount: 3000, balanceAfter: 8000, reference: 'aig_p2p_receiver' })
-  return new WalletToWalletTransactionCompleted(sender, receiver, {
+  return new WalletToWalletTransactionCompleted({
+    sender: leg({
+      amount: 3000,
+      balanceAfter: 12000,
+      reference: 'aig_p2p_sender',
+      phone: '2250700000000',
+    }),
+    recipient: leg({
+      amount: 3000,
+      balanceAfter: 8000,
+      reference: 'aig_p2p_receiver',
+      phone: '2250711111111',
+    }),
     type: 'p2p',
-    recipientPhone: '2250711111111',
-    senderPhone: '2250700000000',
-    senderAccountId: sender.usersUid,
-    recipientAccountId: randomUUID(),
-    senderBalanceAfter: 12000,
-    recipientBalanceAfter: 8000,
   })
 }
 
@@ -195,5 +205,21 @@ test.group('Notification paiement marchand | payeur (consumer)', () => {
     await listener.handle(p2pEvent())
 
     assert.lengthOf(notifier.calls, 2)
+  })
+
+  test('les notifications ciblent les comptes des deux parties', async ({ assert }) => {
+    const notifier = new CapturingNotificationService()
+    const listener = new WalletToWalletTransactionNotification(
+      notifier as unknown as NotificationService
+    )
+
+    const event = p2pEvent()
+    await listener.handle(event)
+
+    const recipients = notifier.calls.map((call) => call.notification.recipientId)
+    assert.includeMembers(recipients, [
+      event.payload.sender.accountId,
+      event.payload.recipient.accountId,
+    ])
   })
 })

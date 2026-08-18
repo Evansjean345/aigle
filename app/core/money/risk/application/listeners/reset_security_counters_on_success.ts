@@ -28,10 +28,13 @@ export default class ResetSecurityCountersOnSuccess {
       | WalletToWalletTransactionCompleted
   ) {
     if (event instanceof WalletToWalletTransactionCompleted) {
-      const { senderTransaction: sTx, receiverTransaction: rTx } = event
+      const { sender, recipient, type } = event.payload
+
+      // Les compteurs sont tenus par personne : le payeur en est toujours une, le destinataire
+      // seulement hors paiement marchand.
       await Promise.all([
-        this.reset(sTx.usersUid, sTx.createdAt),
-        ...(rTx.usersUid ? [this.reset(rTx.usersUid, rTx.createdAt)] : []),
+        this.reset(sender.accountId, sender.occurredAt),
+        ...(type === 'p2p' ? [this.reset(recipient.accountId, recipient.occurredAt)] : []),
       ])
       return
     }

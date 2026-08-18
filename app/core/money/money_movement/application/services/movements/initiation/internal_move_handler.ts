@@ -197,14 +197,24 @@ export default class InternalMoveHandler {
       const recipient = await this.accountStandingService.describe(recipientAccountId)
       const recipientOwnerType = recipient?.ownerType ?? AccountOwnerType.USER
 
-      WalletToWalletTransactionCompleted.dispatch(senderTx, recipientTx, {
+      WalletToWalletTransactionCompleted.dispatch({
+        sender: {
+          reference: senderTx.reference,
+          accountId: senderWallet.accountId ?? cmd.fromAccountId,
+          amount: Number(senderTx.amount),
+          occurredAt: senderTx.createdAt,
+          balanceAfter: debited.balance,
+          phone: senderWallet.user.phone,
+        },
+        recipient: {
+          reference: recipientTx.reference,
+          accountId: recipientAccountId,
+          amount: Number(recipientTx.amount),
+          occurredAt: recipientTx.createdAt,
+          balanceAfter: credited.balance,
+          phone: recipientWallet.user?.phone ?? null,
+        },
         type: recipientOwnerType === AccountOwnerType.ORGANISATION ? 'merchant' : 'p2p',
-        recipientPhone: recipientWallet.user?.phone ?? null,
-        senderPhone: senderWallet.user.phone,
-        senderAccountId: senderWallet.accountId ?? cmd.fromAccountId,
-        recipientAccountId,
-        senderBalanceAfter: debited.balance,
-        recipientBalanceAfter: credited.balance,
       }).catch((err) =>
         transferLog.error(
           'EVENT_DISPATCH_FAILED',
