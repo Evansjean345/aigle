@@ -3,7 +3,7 @@ import TransactionRepository from '#core/money/transactions/domain/interfaces/tr
 import {
   MobileTransactionResponseDTO,
   PaginatedMobileTransactionsResponseDTO,
-} from '#core/money/transactions/application/dto/mobile_transaction.dto'
+} from '#core/money/transactions/application/dtos/mobile_transaction.dto'
 
 /**
  * Liste paginée des transactions d'un **compte** (`account_id`) — account-centric.

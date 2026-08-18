@@ -3,7 +3,7 @@ import { inject } from '@adonisjs/core'
 import {
   AdminTransactionResponseDTO,
   PaginatedAdminTransactionsResponseDTO,
-} from '#core/money/transactions/application/dto/admin_transaction.dto'
+} from '#core/money/transactions/application/dtos/admin/admin_transaction.dto'
 import InvalidUserIdException from '#core/money/transactions/domain/exceptions/invalid_user_id_exception'
 import AccountHolderResolver from '#core/money/transactions/application/services/account_holder_resolver'
 

@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import DeviceRepository from '#core/identity/device/domain/interfaces/device_repository'
 import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
 import DeviceNotFoundException from '#core/identity/device/domain/exceptions/device_not_found_exception'
-import type { DeviceTransactionSummaryDto } from '#core/identity/device/application/dto/admin_device_transaction.dto'
+import type { DeviceTransactionSummaryDto } from '#core/identity/device/application/dtos/admin/admin_device_transaction.dto'
 
 /**
  * Activité transactionnelle d'un appareil, sur une période.

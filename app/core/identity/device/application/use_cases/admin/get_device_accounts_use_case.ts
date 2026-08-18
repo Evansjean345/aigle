@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import DeviceRepository from '#core/identity/device/domain/interfaces/device_repository'
 import UserDeviceRepository from '#core/identity/device/domain/interfaces/user_device_repository'
 import DeviceNotFoundException from '#core/identity/device/domain/exceptions/device_not_found_exception'
-import { AdminDeviceAccountDto } from '#core/identity/device/application/dto/admin_device.dto'
+import { AdminDeviceAccountDto } from '#core/identity/device/application/dtos/admin/admin_device.dto'
 
 @inject()
 export default class GetDeviceAccountsUseCase {

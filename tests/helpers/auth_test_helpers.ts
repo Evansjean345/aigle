@@ -10,7 +10,7 @@ import { type AppName, appAbility } from '#core/identity/authentication/domain/e
 import NotificationService from '#core/notifications/application/services/notification_service'
 import OtpVerificationService from '#core/identity/otp/application/services/otp_verification_service'
 import DeviceService from '#core/identity/device/application/services/device_service'
-import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
+import { DeviceCommandDTO } from '#core/identity/device/application/dtos/device.command.dto'
 
 /**
  * Données et fakes partagés des tests d'authentification (aiglesend + business).

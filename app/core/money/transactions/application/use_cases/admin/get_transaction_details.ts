@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
 import WalletService from '#core/money/wallet/application/services/wallet_service'
-import { AdminTransactionResponseDTO } from '#core/money/transactions/application/dto/admin_transaction.dto'
+import { AdminTransactionResponseDTO } from '#core/money/transactions/application/dtos/admin/admin_transaction.dto'
 import TransactionNotFoundException from '#core/money/transactions/domain/exceptions/transaction_not_found_exception'
 import AccountHolderResolver from '#core/money/transactions/application/services/account_holder_resolver'
 

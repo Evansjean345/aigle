@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import { AdminTransactionResponseDTO } from '#core/money/transactions/application/dto/admin_transaction.dto'
+import { AdminTransactionResponseDTO } from '#core/money/transactions/application/dtos/admin/admin_transaction.dto'
 import { TransactionType } from '#core/money/transactions/domain/enums/transaction_type'
 import { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
 import { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'

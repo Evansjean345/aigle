@@ -6,7 +6,7 @@ import {
 import OtpSendingService from '#core/identity/otp/application/services/otp_sending_service'
 import DeviceService from '#core/identity/device/application/services/device_service'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
-import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
+import { DeviceCommandDTO } from '#core/identity/device/application/dtos/device.command.dto'
 import { bypassEnabled, appPhoneNumberReview } from '#config/app'
 import CountryRepository from '#core/catalog/country/domain/interfaces/country_repository'
 import UserRepository from '#core/identity/user/domain/interfaces/user_repository'

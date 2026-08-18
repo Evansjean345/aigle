@@ -1,4 +1,4 @@
-import { type DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
+import { type DeviceRequestDTO } from '#core/identity/device/application/dtos/device.dto'
 import { type DeviceIdentity } from '#core/identity/device/domain/enums/device_identity'
 
 export class DeviceCommandDTO {

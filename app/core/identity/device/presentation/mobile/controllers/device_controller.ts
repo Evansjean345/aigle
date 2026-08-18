@@ -2,7 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import DeviceService from '#core/identity/device/application/services/device_service'
 import { updatePushTokenValidator } from '#core/identity/device/presentation/mobile/validators/device_validator'
-import { DeviceResponseDTO } from '#core/identity/device/application/dto/device.dto'
+import { DeviceResponseDTO } from '#core/identity/device/application/dtos/device.dto'
 import RevokeDeviceUseCase from '#core/identity/device/application/use_cases/mobile/revoke_device_use_case'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 

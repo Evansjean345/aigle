@@ -1,4 +1,4 @@
-import { MobileTransactionResponseDTO } from '#core/money/transactions/application/dto/mobile_transaction.dto'
+import { MobileTransactionResponseDTO } from '#core/money/transactions/application/dtos/mobile_transaction.dto'
 import type Transaction from '#core/money/transactions/domain/models/transaction'
 import type { AccountActivityResult } from '#core/money/ledger/application/dtos/ledger.dto'
 import type { DailyAccountActivity } from '#core/money/ledger/domain/types/daily_account_activity'

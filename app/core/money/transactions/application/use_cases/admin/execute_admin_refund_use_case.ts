@@ -3,7 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import TransactionService from '#core/money/transactions/application/services/transaction_service'
 import WalletService from '#core/money/wallet/application/services/wallet_service'
 import RefundService from '#core/money/transactions/application/services/refund_service'
-import { AdminRefundResponseDTO } from '#core/money/transactions/application/dto/admin_refund.dto'
+import { AdminRefundResponseDTO } from '#core/money/transactions/application/dtos/admin/admin_refund.dto'
 import { RefundReason } from '#core/money/transactions/domain/enums/refund'
 import transactionLog from '#shared/infrastructure/logging/transaction_log'
 

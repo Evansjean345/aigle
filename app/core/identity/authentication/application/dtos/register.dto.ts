@@ -1,4 +1,4 @@
-import { DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
+import { DeviceRequestDTO } from '#core/identity/device/application/dtos/device.dto'
 import { type RegisterValidatorType } from '#core/identity/authentication/presentation/mobile/validators/auth_validator'
 import { type GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 

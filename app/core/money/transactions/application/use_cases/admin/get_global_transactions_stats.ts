@@ -1,6 +1,6 @@
 import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
 import { inject } from '@adonisjs/core'
-import { UserTransactionsStatsDTO } from '#core/money/transactions/application/dto/admin_transaction.dto'
+import { UserTransactionsStatsDTO } from '#core/money/transactions/application/dtos/admin/admin_transaction.dto'
 
 @inject()
 export default class GetGlobalTransactionsStatsUseCase {

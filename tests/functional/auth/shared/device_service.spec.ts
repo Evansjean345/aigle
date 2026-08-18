@@ -3,11 +3,11 @@ import { randomUUID } from 'node:crypto'
 import { DateTime } from 'luxon'
 import app from '@adonisjs/core/services/app'
 import DeviceService from '#core/identity/device/application/services/device_service'
-import { DeviceCommandDTO } from '#core/identity/device/application/dto/device.command.dto'
+import { DeviceCommandDTO } from '#core/identity/device/application/dtos/device.command.dto'
 import {
   DeviceRequestDTO,
   DeviceResponseDTO,
-} from '#core/identity/device/application/dto/device.dto'
+} from '#core/identity/device/application/dtos/device.dto'
 import { DeviceStatus } from '#core/identity/device/domain/enums'
 import { AppName, appAbility } from '#core/identity/authentication/domain/enums/app_name'
 import UserDevice from '#core/identity/device/domain/models/user_device'

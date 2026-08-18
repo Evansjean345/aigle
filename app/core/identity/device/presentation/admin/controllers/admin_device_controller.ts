@@ -7,7 +7,7 @@ import GetDeviceDetailsUseCase from '#core/identity/device/application/use_cases
 import GetDeviceAccountsUseCase from '#core/identity/device/application/use_cases/admin/get_device_accounts_use_case'
 import GetDeviceTransactionSummaryUseCase from '#core/identity/device/application/use_cases/admin/get_device_transaction_summary_use_case'
 import GetDeviceTransactionsUseCase from '#core/identity/device/application/use_cases/admin/get_device_transactions_use_case'
-import { DeviceResponseDTO } from '#core/identity/device/application/dto/device.dto'
+import { DeviceResponseDTO } from '#core/identity/device/application/dtos/device.dto'
 import {
   adminDeviceListValidator,
   adminDeviceAccountsValidator,

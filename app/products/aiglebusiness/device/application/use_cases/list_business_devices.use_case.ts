@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import DeviceService from '#core/identity/device/application/services/device_service'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
-import { type UserDeviceResult } from '#core/identity/device/application/dto/user_device_result'
+import { type UserDeviceResult } from '#core/identity/device/application/dtos/user_device_result'
 
 /**
  * Liste les appareils liés au compte business de l'utilisateur.

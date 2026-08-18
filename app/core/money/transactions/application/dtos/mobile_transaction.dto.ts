@@ -1,6 +1,6 @@
 import { type DateTime } from 'luxon'
 import { type TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
-import { PaymentResponseDTO } from '#core/money/transactions/application/dto/payment.dto'
+import { PaymentResponseDTO } from '#core/money/transactions/application/dtos/payment.dto'
 import TransactionDisplayService, {
   type TransactionDisplay,
   type PaymentDetailsInput,
@@ -50,7 +50,7 @@ export class MobileTransactionResponseDTO {
     dto.display = TransactionDisplayService.toDisplay({
       operationType: transaction.operationType,
       direction: transaction.direction,
-      // `paymentDetails` est parsé en objet par le modèle (colonne JSON) malgré son type `string`.
+      // 'paymentDetails` est parsé en objet par le modèle (colonne JSON) malgré son type `string`.
       paymentDetails: transaction.payment?.[0]
         ?.paymentDetails as unknown as PaymentDetailsInput | null,
       description: transaction.description,

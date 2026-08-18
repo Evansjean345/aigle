@@ -6,7 +6,7 @@ import DeviceNotFoundException from '#core/identity/device/domain/exceptions/dev
 import {
   AdminDeviceDetailDto,
   AdminDeviceSiblingDto,
-} from '#core/identity/device/application/dto/admin_device.dto'
+} from '#core/identity/device/application/dtos/admin/admin_device.dto'
 
 /**
  * Fiche d'une ligne d'appareil, avec les autres lignes du même téléphone.

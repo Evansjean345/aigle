@@ -2,7 +2,7 @@ import { inject } from '@adonisjs/core'
 import DeviceRepository from '#core/identity/device/domain/interfaces/device_repository'
 import DeviceNotFoundException from '#core/identity/device/domain/exceptions/device_not_found_exception'
 import Transaction from '#core/money/transactions/domain/models/transaction'
-import type { DeviceTransactionListItemDto } from '#core/identity/device/application/dto/admin_device_transaction.dto'
+import type { DeviceTransactionListItemDto } from '#core/identity/device/application/dtos/admin/admin_device_transaction.dto'
 
 interface DeviceTransactionsFilters {
   userId?: string

@@ -1,5 +1,5 @@
 import { type UserLookupResult } from '#core/identity/user/application/dtos/user_lookup_result'
-import { type DeviceRequestDTO } from '#core/identity/device/application/dto/device.dto'
+import { type DeviceRequestDTO } from '#core/identity/device/application/dtos/device.dto'
 
 // ── RequestDto (input use cases) ────────────────────────────────────
 // Le canal + le contexte de requête (IP/UA/requestId/géo) sont passés à part via

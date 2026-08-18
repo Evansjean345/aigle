@@ -1,6 +1,6 @@
 import type { WalletStatus } from '#core/money/wallet/domain/enums/wallet_status'
 import type Wallet from '#core/money/wallet/domain/models/wallet'
-import { MobileTransactionResponseDTO } from '#core/money/transactions/application/dto/mobile_transaction.dto'
+import { MobileTransactionResponseDTO } from '#core/money/transactions/application/dtos/mobile_transaction.dto'
 import type Transaction from '#core/money/transactions/domain/models/transaction'
 
 export class WalletCreatedResult {

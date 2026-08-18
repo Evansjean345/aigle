@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import LedgerRepository from '#core/money/ledger/domain/interfaces/ledger_repository'
 import AccountHolderResolver from '#core/money/transactions/application/services/account_holder_resolver'
-import { LedgerDto } from '#core/money/ledger/application/dto/ledger.dto'
+import { LedgerDto } from '#core/money/ledger/application/dtos/admin/admin_ledger.dto'
 import { LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
 
 @inject()

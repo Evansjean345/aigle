@@ -1,6 +1,6 @@
 ﻿import { inject } from '@adonisjs/core'
 import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
-import { MobileTransactionResponseDTO } from '#core/money/transactions/application/dto/mobile_transaction.dto'
+import { MobileTransactionResponseDTO } from '#core/money/transactions/application/dtos/mobile_transaction.dto'
 import TransactionNotFoundException from '#core/money/transactions/domain/exceptions/transaction_not_found_exception'
 
 /**

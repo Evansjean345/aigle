@@ -1,6 +1,6 @@
 import { type DateTime } from 'luxon'
 import { type TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
-import { PaymentResponseDTO } from '#core/money/transactions/application/dto/payment.dto'
+import { PaymentResponseDTO } from '#core/money/transactions/application/dtos/payment.dto'
 import TransactionDisplayService, {
   type TransactionDisplay,
   type PaymentDetailsInput,

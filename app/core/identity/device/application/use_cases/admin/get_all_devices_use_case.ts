@@ -3,7 +3,7 @@ import { inject } from '@adonisjs/core'
 import {
   AdminDeviceFilters,
   AdminDeviceListItemDto,
-} from '#core/identity/device/application/dto/admin_device.dto'
+} from '#core/identity/device/application/dtos/admin/admin_device.dto'
 
 @inject()
 export default class GetAllDevicesUseCase {
