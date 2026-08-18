@@ -103,16 +103,17 @@ export default class Transaction extends BaseModel {
   })
 
   /**
-   * Restreint aux transactions dont la référence, le type, le montant ou le titulaire correspond.
+   * Restreint aux transactions dont la référence, le montant ou le titulaire correspond.
+   *
+   * Le type d'opération n'est pas cherché : le filtre dédié le compare exactement, là où une
+   * correspondance partielle ferait remonter `wallet_transfert` sur le terme `transfert`.
    *
    * Le titulaire arrive résolu en comptes : une transaction d'organisation n'a pas de porteur
    * utilisateur, et joindre `user` la rendrait introuvable.
    */
   static search = scope((query, searchTerm: string, accountIds: string[] = []) => {
     query.where((subQuery) => {
-      subQuery
-        .whereILike('reference', `%${searchTerm}%`)
-        .orWhereILike('operation_type', `%${searchTerm}%`)
+      subQuery.whereILike('reference', `%${searchTerm}%`)
 
       if (accountIds.length > 0) {
         subQuery.orWhereIn('account_id', accountIds)

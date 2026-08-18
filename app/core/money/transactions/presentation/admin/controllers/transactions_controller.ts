@@ -48,7 +48,6 @@ export default class TransactionsController {
     const page = query.page ?? 1
     const perPage = query.perPage ?? 16
     const { type, status, search, startDate, endDate, userId, sortBy, order } = query
-    // Sert l'onglet transactions d'une organisation : `account_id == organisationId`.
     const accountId = query.accountId
 
     const transactions = await this.getAllTransactionsUseCase.execute(
