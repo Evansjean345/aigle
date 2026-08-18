@@ -6,7 +6,7 @@ import type {
   RefundStatus,
   RefundType,
 } from '#core/money/transactions/domain/enums/refund'
-import type { AccountHolderResult } from '#core/money/transactions/application/services/account_holder_resolver'
+import type { AccountHolderResult } from '#core/money/transactions/application/dtos/account_holder.dto'
 
 // ── RequestDto (input use case) ─────────────────────────────────────
 

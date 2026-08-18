@@ -1,41 +1,32 @@
 import { inject } from '@adonisjs/core'
 import UserDirectoryService from '#core/identity/user/application/services/user_directory_service'
 import PayableAliasService from '#core/qr/application/services/payable_alias_service'
-import type { UserLookupResult } from '#core/identity/user/application/dtos/user_lookup_result'
-
-/** Titulaire résolu d'un compte : user (compte utilisateur) OU nom marchand (compte org). */
-export interface AccountHolderResult {
-  user: UserLookupResult | null
-  merchantName: string | null
-}
+import type { AccountHolderResult } from '#core/money/transactions/application/dtos/account_holder.dto'
 
 /**
- * Résout les **titulaires** d'un lot de comptes par `account_id` — la clé canonique du modèle
- * account-centric (wallet/transaction → account → owner), et non le FK hérité `user_id`.
+ * Résout les titulaires d'un lot de comptes, par `account_id`.
  *
- * L'invariant β (`accountId == usersUid` pour un compte user) permet de résoudre en 2 requêtes
- * batch, sans N+1 ni preload ORM :
- *  1. comptes user → `UserDirectoryService.mapByIds` (port anti-corruption identité) ;
- *  2. comptes restants (organisations) → nom commercial via l'alias payable (qr, supporting).
- *
- * Consommé par les listings admin (transactions, écritures comptables) — étape (3) de R4.
+ * Un compte utilisateur porte le même identifiant que son porteur : c'est ce qui permet de
+ * n'interroger l'annuaire des personnes qu'une fois pour tout le lot.
  */
 @inject()
 export default class AccountHolderResolver {
+  /**
+   * Construit le résolveur.
+   *
+   * @param {UserDirectoryService} userDirectoryService - Annuaire des personnes.
+   * @param {PayableAliasService} payableAliasService - Annuaire des noms commerciaux.
+   */
   constructor(
     private readonly userDirectoryService: UserDirectoryService,
     private readonly payableAliasService: PayableAliasService
   ) {}
 
   /**
-   * Comptes dont le titulaire correspond au terme, qu'il s'agisse d'une personne ou d'une
-   * entreprise.
+   * Cherche les comptes dont le titulaire correspond au terme, personnes et organisations réunies.
    *
-   * Les deux annuaires sont interrogés et leurs résultats réunis — contrairement à `resolve`, qui
-   * s'arrête au premier trouvé.
-   *
-   * Le téléphone est écarté : les listings d'argent affichent le titulaire par son nom, et une
-   * correspondance sur un numéro absent du tableau serait inexplicable.
+   * La recherche ne porte que sur les noms : un compte trouvé par son numéro de téléphone
+   * apparaîtrait sans que la ligne montre ce qui l'a fait correspondre.
    *
    * @param {string} term - Terme recherché.
    * @returns {Promise<string[]>} Les comptes correspondants, sans doublon, vide si aucun.
@@ -50,10 +41,10 @@ export default class AccountHolderResolver {
   }
 
   /**
-   * Résout le titulaire de chaque compte, en deux requêtes.
+   * Résout le titulaire de chaque compte, en deux requêtes quel que soit le nombre de comptes.
    *
-   * Un compte utilisateur se résout en personne : son alias payable n'est pas consulté, même s'il en
-   * porte un.
+   * Un compte trouvé parmi les personnes s'arrête là : son nom commercial n'est pas cherché, même
+   * s'il en porte un.
    *
    * @param {(string | null | undefined)[]} accountIds - Comptes à résoudre. Les valeurs vides sont
    *   écartées, les doublons réduits.

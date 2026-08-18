@@ -1,5 +1,5 @@
 import type Ledger from '#core/money/ledger/domain/models/ledger'
-import type { AccountHolderResult } from '#core/money/transactions/application/services/account_holder_resolver'
+import type { AccountHolderResult } from '#core/money/transactions/application/dtos/account_holder.dto'
 
 export class LedgerTransactionDto {
   declare id: number

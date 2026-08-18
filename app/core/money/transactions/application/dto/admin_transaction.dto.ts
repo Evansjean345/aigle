@@ -5,7 +5,7 @@ import TransactionDisplayService, {
   type TransactionDisplay,
   type PaymentDetailsInput,
 } from '#core/money/transactions/application/services/transaction_display_service'
-import type { AccountHolderResult } from '#core/money/transactions/application/services/account_holder_resolver'
+import type { AccountHolderResult } from '#core/money/transactions/application/dtos/account_holder.dto'
 import type Transaction from '#core/money/transactions/domain/models/transaction'
 import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 

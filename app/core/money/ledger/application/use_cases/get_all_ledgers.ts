@@ -41,7 +41,6 @@ export default class GetAllLedgersUseCase {
       endDate?: string
       search?: string
       userId?: string
-      /** Compte titulaire du portefeuille. Pour une organisation, son `organisationId`. */
       accountId?: string
     },
     sort?: { sortBy?: string; order?: 'asc' | 'desc' }
@@ -49,10 +48,10 @@ export default class GetAllLedgersUseCase {
     const paginatedLedgers = await this.ledgerRepository.findAll(page, perPage, filters, sort)
     const ledgers = paginatedLedgers.all()
 
-    // Titulaires résolus par account_id (user via directory identité, org via alias payable).
     const holders = await this.holderResolver.resolve(
       ledgers.map((ledger) => ledger.wallet?.accountId)
     )
+
     const data = ledgers.map((ledger) => LedgerDto.fromLedger(ledger, holders))
 
     return {
