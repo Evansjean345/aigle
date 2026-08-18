@@ -2,7 +2,7 @@ import type Ledger from '#core/money/ledger/domain/models/ledger'
 import { type DailyAccountActivity } from '#core/money/ledger/domain/types/daily_account_activity'
 import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
-import { type LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
+import { type LedgerOperation } from '#core/money/ledger/domain/types/ledger_operation'
 
 export default abstract class LedgerRepository {
   /**
@@ -45,7 +45,7 @@ export default abstract class LedgerRepository {
     filters?: {
       walletId?: number
       direction?: string
-      operationType?: LedgerOperationType | string
+      operationType?: LedgerOperation
       startDate?: string
       endDate?: string
       search?: string

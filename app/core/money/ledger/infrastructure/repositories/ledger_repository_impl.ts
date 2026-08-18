@@ -5,7 +5,8 @@ import { type TransactionClientContract } from '@adonisjs/lucid/types/database'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import { type ModelPaginatorContract } from '@adonisjs/lucid/types/model'
-import { LedgerDirection, type LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
+import { LedgerDirection } from '#core/money/ledger/domain/ledger_enums'
+import { type LedgerOperation } from '#core/money/ledger/domain/types/ledger_operation'
 import { ledgerSortColumn } from '#core/money/ledger/domain/types/ledger_sorts'
 
 /**
@@ -65,7 +66,7 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
     filters?: {
       walletId?: number
       direction?: string
-      operationType?: LedgerOperationType | string
+      operationType?: LedgerOperation
       startDate?: string
       endDate?: string
       search?: string
@@ -109,13 +110,9 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
         transactionQuery.select(['id', 'reference', 'operation_type', 'status', 'description'])
       })
       .preload('wallet', (walletQuery) => {
-        // Account-centric : le titulaire est résolu par `account_id` (wallet → account → owner)
-        // via `LedgerHolderResolver` — plus de preload du FK hérité `user_id`.
         walletQuery.select(['id', 'account_id'])
       })
 
-    // L'ordre se termine toujours par `created_at desc` : trier sur une colonne à faible
-    // cardinalité comme `direction` laisserait sinon la pagination rendre deux fois la même ligne.
     const sortColumn = ledgerSortColumn(sort?.sortBy)
     const order = sort?.order ?? 'desc'
 

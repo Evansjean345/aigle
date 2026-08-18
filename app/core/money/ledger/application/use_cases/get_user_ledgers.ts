@@ -3,7 +3,7 @@ import LedgerRepository from '#core/money/ledger/domain/interfaces/ledger_reposi
 import WalletRepository from '#core/money/wallet/domain/interfaces/wallet_repository'
 import AccountHolderResolver from '#core/money/transactions/application/services/account_holder_resolver'
 import { LedgerDto } from '#core/money/ledger/application/dtos/admin/admin_ledger.dto'
-import { LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
+import { type LedgerOperation } from '#core/money/ledger/domain/types/ledger_operation'
 
 @inject()
 export default class GetUserLedgersUseCase {
@@ -32,7 +32,7 @@ export default class GetUserLedgersUseCase {
     perPage: number,
     filters?: {
       direction?: string
-      operationType?: LedgerOperationType | string
+      operationType?: LedgerOperation
       startDate?: string
       endDate?: string
       search?: string

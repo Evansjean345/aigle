@@ -3,7 +3,8 @@ import { BaseModel, belongsTo, column, scope } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import Transaction from '#core/money/transactions/domain/models/transaction'
 import Wallet from '#core/money/wallet/domain/models/wallet'
-import { LedgerDirection, LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
+import { LedgerDirection } from '#core/money/ledger/domain/ledger_enums'
+import { type LedgerOperation } from '#core/money/ledger/domain/types/ledger_operation'
 
 export default class Ledger extends BaseModel {
   @column({ isPrimary: true })
@@ -16,7 +17,7 @@ export default class Ledger extends BaseModel {
   declare walletId: number
 
   @column()
-  declare operationType: LedgerOperationType
+  declare operationType: LedgerOperation
 
   @column()
   declare description: string | null

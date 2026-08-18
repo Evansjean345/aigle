@@ -7,6 +7,7 @@ import Transaction from '#core/money/transactions/domain/models/transaction'
 import Ledger from '#core/money/ledger/domain/models/ledger'
 import { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { LedgerDirection, LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
+import { type LedgerOperation } from '#core/money/ledger/domain/types/ledger_operation'
 import ledgerLog from '#shared/infrastructure/logging/ledger_log'
 import errorLog from '#shared/infrastructure/logging/error_log'
 
@@ -20,6 +21,7 @@ export default class LedgerService {
    * Constructs an instance of the class.
    *
    * @param {LedgerRepository} ledgerRepository - The repository used for managing ledger operations.
+   * @param walletRepository
    */
   constructor(
     private ledgerRepository: LedgerRepository,
@@ -50,7 +52,7 @@ export default class LedgerService {
       fees: number
       balanceBefore: number
       balanceAfter: number
-      operationType?: LedgerOperationType | string
+      operationType?: LedgerOperation
       description?: string | null
     },
     trx?: TransactionClientContract
@@ -63,9 +65,8 @@ export default class LedgerService {
           transactionId: params.transaction.id,
           walletId: params.walletId,
           direction: params.direction,
-          operationType:
-            (params.operationType as LedgerOperationType) ||
-            (params.transaction.operationType as unknown as LedgerOperationType),
+          // Sans type propre, l'écriture reprend celui de la transaction qui la cause.
+          operationType: params.operationType ?? params.transaction.operationType,
           description: params.description || params.transaction.description,
           amountBrut: params.amountBrut,
           fees: params.fees,
@@ -228,7 +229,7 @@ export default class LedgerService {
       fees: number
       balanceBefore: number
       balanceAfter: number
-      operationType?: LedgerOperationType | string
+      operationType?: LedgerOperation
     },
     trx?: TransactionClientContract
   ): Promise<Ledger> {
@@ -449,7 +450,7 @@ export default class LedgerService {
         transaction,
         walletId,
         direction: LedgerDirection.CREDIT,
-        operationType: 'reversal',
+        operationType: LedgerOperationType.REVERSAL,
         description,
         amountBrut: transaction.amount,
         fees: transaction.fees,
