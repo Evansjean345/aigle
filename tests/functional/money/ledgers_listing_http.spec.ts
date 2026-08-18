@@ -50,19 +50,28 @@ test.group('Grands livres HTTP | liste', (group) => {
     response.assertStatus(422)
   })
 
-  test('le vocabulaire des transactions est refusé sur les écritures', async ({ client }) => {
+  test('le vocabulaire des transactions est accepté sur les écritures', async ({ client }) => {
     const token = await agent()
 
-    // Le back-office proposait ces trois valeurs, qui appartiennent à `TransactionType` et non à
-    // `LedgerOperationType` : elles ne rendaient jamais rien.
-    for (const operationType of ['wallet_transfert', 'transfert', 'inter_reseau']) {
+    // Une écriture rattachée à une transaction hérite du type de celle-ci : la colonne porte donc
+    // aussi ces valeurs-là.
+    for (const operationType of ['wallet_transfert', 'transfert', 'inter_reseau', 'checkout']) {
       const response = await client
         .get('/api/admin/ledgers')
         .qs({ operationType })
         .bearerToken(token)
 
-      response.assertStatus(422)
+      response.assertStatus(200)
     }
+  })
+
+  test('un type hors des deux vocabulaires est refusé', async ({ client }) => {
+    const response = await client
+      .get('/api/admin/ledgers')
+      .qs({ operationType: 'virement' })
+      .bearerToken(await agent())
+
+    response.assertStatus(422)
   })
 
   test('un terme d’une seule lettre est refusé', async ({ client }) => {

@@ -1,6 +1,7 @@
 import vine from '@vinejs/vine'
 import { type Infer } from '@vinejs/vine/types'
-import { LedgerDirection, LedgerOperationType } from '#core/money/ledger/domain/ledger_enums'
+import { LedgerDirection } from '#core/money/ledger/domain/ledger_enums'
+import { ledgerOperationFilters } from '#core/money/ledger/domain/types/ledger_operation_filters'
 import { ledgerSortNames } from '#core/money/ledger/domain/types/ledger_sorts'
 import { minSearchLength } from '#config/app'
 
@@ -27,7 +28,7 @@ const listLedgersSchema = vine.object({
     .string()
     .trim()
     .parse((value) => (typeof value === 'string' ? value.toLowerCase() : value))
-    .in(Object.values(LedgerOperationType))
+    .in(ledgerOperationFilters)
     .optional(),
   search: vine.string().trim().minLength(minSearchLength).maxLength(100).optional(),
   sortBy: vine.enum(ledgerSortNames).optional(),
