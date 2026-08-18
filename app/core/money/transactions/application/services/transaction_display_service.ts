@@ -2,19 +2,7 @@ import { TransactionType } from '#core/money/transactions/domain/enums/transacti
 import { TransactionDirection } from '#core/money/transactions/domain/enums/transaction_direction'
 import { PaymentMethod } from '#core/money/transactions/domain/enums/payment_method'
 
-/**
- * Service de **présentation** des transactions (taxonomie 2026-07). Dérive une classification
- * **unique et non ambiguë** — `kind` / `scope` / `flow` / `counterparty` — depuis les données déjà
- * enregistrées ('operationType` + `direction` + `paymentDetails'), sans discriminant en base.
- *
- * Consommé par le DTO mobile **et** le DTO admin → la règle de classification (source de l'ancienne
- * ambiguïté `wallet_transfert') est écrite **une seule fois**. La composition du **libellé** humain
- * reste côté client (privacy : un numéro `user` est résolu en contact local ; jamais un nom serveur).
- *
- * Pur & sans I/O → `toDisplay` est statique et testable sans construire de modèle Lucid.
- */
-
-/** Type métier affiché, dérivé (jamais persisté). */
+/** Type métier affiché. Dérivé à la lecture, jamais stocké. */
 export type TransactionKind =
   | 'deposit'
   | 'external_transfer'
@@ -28,16 +16,18 @@ export type TransactionKind =
 /** L'argent reste dans aigle (`internal`) ou franchit un opérateur (`external`). */
 export type TransactionScope = 'internal' | 'external'
 
-/** Sens du point de vue du compte du leg : entrée (+), sortie (−), transit (ni +/−). */
+/** Sens vu du compte : une entrée, une sortie, ou ni l'un ni l'autre. */
 export type TransactionFlow = 'in' | 'out' | 'neutral'
 
-/** Nature de la contrepartie du leg. */
+/** Nature de la contrepartie : une personne, un marchand, ou un compte hors aiglesend. */
 export type CounterpartyNature = 'user' | 'merchant' | 'external'
 
 /**
- * Contrepartie **du leg** (privacy-first) : pour un `user`/`external` on n'expose que
- * `{ phone, operator }` — jamais le nom (résolu en contact local côté app) ; seul un **marchand**
- * (identité commerciale) porte un `name`.
+ * Contrepartie d'un mouvement.
+ *
+ * Une personne n'est désignée que par son numéro : son nom n'est pas rendu, l'application le
+ * résout dans le répertoire local. Seul un marchand porte un `name`, qui est son identité
+ * commerciale.
  */
 export interface TransactionCounterparty {
   nature: CounterpartyNature
@@ -46,6 +36,7 @@ export interface TransactionCounterparty {
   operator: string | null
 }
 
+/** Classification d'affichage d'un mouvement. */
 export interface TransactionDisplay {
   kind: TransactionKind
   scope: TransactionScope
@@ -53,16 +44,17 @@ export interface TransactionDisplay {
   counterparty: TransactionCounterparty
 }
 
-/** Détails de paiement d'un leg (colonne JSON `paymentDetails`, déjà parsée par le modèle). */
+/** Détails de paiement d'un mouvement. La colonne JSON est déjà transformée en objet par le modèle. */
 export interface PaymentDetailsInput {
   operator?: string | null
   phone?: string | null
-  /** Nom d'utilisateur éventuellement stocké — **jamais** exposé (privacy). */
+  /** Nom de la personne, quand il a été enregistré. N'est jamais rendu au client. */
   user?: string | null
-  /** Nom marchand (identité commerciale, exposable). */
+  /** Nom commercial du marchand. */
   name?: string | null
 }
 
+/** Ce qu'il faut connaître d'un mouvement pour le classer. */
 export interface TransactionDisplayInput {
   operationType: TransactionType | string
   direction: TransactionDirection | string
@@ -70,13 +62,23 @@ export interface TransactionDisplayInput {
   description?: string | null
 }
 
-/** Libellé opérateur exposé pour un mouvement interne (la base stocke `wallet`). */
+/** Nom d'opérateur rendu pour un mouvement interne. La base stocke `wallet`. */
 const AIGLESEND_OPERATOR = 'aiglesend'
 
+/**
+ * Classe un mouvement pour l'affichage, à partir de ce qui est déjà enregistré.
+ *
+ * Aucune colonne ne porte cette classification : elle se déduit du type d'opération, du sens et des
+ * détails de paiement. La règle vit ici seule, pour que la vue mobile et la vue admin ne puissent
+ * pas diverger.
+ */
 export default class TransactionDisplayService {
   /**
-   * Dérive la classification d'affichage d'un leg de transaction.
-   * @param input operationType + direction + paymentDetails (contrepartie) + description (fallback).
+   * Classe un mouvement.
+   *
+   * @param {TransactionDisplayInput} input - Type d'opération, sens, détails de paiement et
+   *   description du mouvement.
+   * @returns {TransactionDisplay} Sa nature, sa portée, son sens et sa contrepartie.
    */
   static toDisplay(input: TransactionDisplayInput): TransactionDisplay {
     const dir = input.direction
@@ -95,13 +97,13 @@ export default class TransactionDisplayService {
         return { kind: 'inter_network', scope: 'external', flow, counterparty: external(pd) }
 
       case TransactionType.WALLET_TRANSFERT:
-        // Root fix taxonomie : `wallet_transfert` = **P2P uniquement** (le paiement marchand est
-        // désormais `checkout`). La contrepartie est donc toujours un utilisateur.
+        // Un transfert de portefeuille à portefeuille se fait entre personnes : le paiement
+        // marchand porte le type `checkout`.
         return { kind: 'p2p_transfer', scope: 'internal', flow, counterparty: userParty(pd) }
 
       case TransactionType.CHECKOUT:
         if (dir === TransactionDirection.DEBIT) {
-          // Jambe payeur : un utilisateur aiglesend paie un marchand → contrepartie = marchand.
+          // Côté payeur : la contrepartie est le marchand encaissé.
           return {
             kind: 'merchant_payment',
             scope: 'internal',
@@ -109,7 +111,8 @@ export default class TransactionDisplayService {
             counterparty: merchant(pd, input.description),
           }
         }
-        // Jambe crédit = encaissement marchand. Payeur interne (user aiglesend) OU externe (mobile money).
+
+        // Côté marchand : la contrepartie est le payeur, aiglesend ou mobile money.
         return {
           kind: 'merchant_collection',
           scope: isInternal ? 'internal' : 'external',
@@ -135,20 +138,26 @@ export default class TransactionDisplayService {
     }
   }
 
+  /** Traduit le sens comptable en sens vu du compte : une entrée, une sortie, ou ni l'un ni l'autre. */
   private static toFlow(direction: TransactionDirection | string): TransactionFlow {
     if (direction === TransactionDirection.CREDIT) return 'in'
     if (direction === TransactionDirection.DEBIT) return 'out'
     return 'neutral'
   }
 
-  /** Vrai si le leg est un mouvement interne (opérateur `wallet`/`internal`). */
+  /** Dit si l'argent est resté dans aiglesend, sans passer par un opérateur. */
   private static isInternalMechanism(pd: PaymentDetailsInput | null): boolean {
     const operator = pd?.operator
     return operator === PaymentMethod.WALLET || operator === PaymentMethod.INTERNAL
   }
 }
 
-/** Contrepartie opérateur externe (mobile money) : `{ phone, operator }`. */
+/**
+ * Construit la contrepartie d'un mouvement passé par un opérateur.
+ *
+ * @param {PaymentDetailsInput | null} pd - Détails de paiement du mouvement.
+ * @returns {TransactionCounterparty} Le numéro et l'opérateur, sans nom.
+ */
 function external(pd: PaymentDetailsInput | null): TransactionCounterparty {
   return {
     nature: 'external',
@@ -159,16 +168,26 @@ function external(pd: PaymentDetailsInput | null): TransactionCounterparty {
 }
 
 /**
- * Contrepartie **utilisateur** : `{ phone, operator: 'aiglesend' }`. Le nom (`pd.user`) n'est
- * **jamais** exposé — l'app le résout en contact local. Privacy-first (taxonomie S3).
+ * Construit la contrepartie d'un mouvement entre deux personnes.
+ *
+ * Le nom stocké dans `pd.user` n'est pas repris : le rendre exposerait l'identité d'un tiers.
+ *
+ * @param {PaymentDetailsInput | null} pd - Détails de paiement du mouvement.
+ * @returns {TransactionCounterparty} Le numéro seul, sur le réseau aiglesend.
  */
 function userParty(pd: PaymentDetailsInput | null): TransactionCounterparty {
   return { nature: 'user', name: null, phone: pd?.phone ?? null, operator: AIGLESEND_OPERATOR }
 }
 
 /**
- * Contrepartie **marchand** : nom commercial (exposable). Source : `pd.name` (écrit à la source),
- * sinon fallback sur la `description` legacy « Paiement à {marchand} » (transactions antérieures).
+ * Construit la contrepartie marchande d'un mouvement.
+ *
+ * Le nom commercial vient des détails de paiement ; à défaut, il est relu dans la description, où
+ * les transactions les plus anciennes sont seules à le porter.
+ *
+ * @param {PaymentDetailsInput | null} pd - Détails de paiement du mouvement.
+ * @param {string} [description] - Description du mouvement, lue en dernier recours.
+ * @returns {TransactionCounterparty} Le nom du marchand, sans numéro.
  */
 function merchant(
   pd: PaymentDetailsInput | null,
@@ -178,7 +197,12 @@ function merchant(
   return { nature: 'merchant', name, phone: null, operator: AIGLESEND_OPERATOR }
 }
 
-/** Extrait le nom marchand d'une description legacy « Paiement à {marchand} ». */
+/**
+ * Extrait le nom du marchand d'une description de la forme « Paiement à {marchand} ».
+ *
+ * @param {string} [description] - Description du mouvement.
+ * @returns {string | null} Le nom trouvé, ou `null` si la description ne suit pas cette forme.
+ */
 function parseMerchantFromDescription(description?: string | null): string | null {
   if (!description) return null
   const match = description.match(/^Paiement à (.+)$/)
