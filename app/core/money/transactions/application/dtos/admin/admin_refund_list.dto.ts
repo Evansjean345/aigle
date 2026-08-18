@@ -24,6 +24,9 @@ export interface ListRefundsRequestDto {
   maxAmount?: number
   startDate?: string
   endDate?: string
+  /** Nom de tri déclaré dans `refundSorts`. Sans lui, l'ordre par défaut du dépôt. */
+  sortBy?: string
+  order?: 'asc' | 'desc'
 }
 
 // ── Response (output HTTP) ──────────────────────────────────────────

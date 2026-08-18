@@ -3,6 +3,7 @@ import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import Refund from '#core/money/transactions/domain/models/refund'
 import type RefundRepository from '#core/money/transactions/domain/interfaces/refund_repository'
 import type { ListRefundsFilter } from '#core/money/transactions/domain/interfaces/refund_repository'
+import { refundSortColumn } from '#core/money/transactions/domain/types/refund_sorts'
 
 export default class RefundRepositoryImpl implements RefundRepository {
   /**
@@ -87,6 +88,18 @@ export default class RefundRepositoryImpl implements RefundRepository {
       })
     }
 
-    return query.orderBy('executed_at', 'desc').paginate(page, perPage)
+    // L'ordre se termine toujours par `executed_at desc` : trier sur une colonne à faible
+    // cardinalité comme `type` laisserait sinon la pagination rendre deux fois la même ligne.
+    const sortColumn = refundSortColumn(filters?.sortBy)
+    const order = filters?.order ?? 'desc'
+
+    if (sortColumn && sortColumn !== 'executed_at') {
+      query.orderBy(sortColumn, order)
+      query.orderBy('executed_at', 'desc')
+    } else {
+      query.orderBy('executed_at', sortColumn ? order : 'desc')
+    }
+
+    return query.paginate(page, perPage)
   }
 }

@@ -1,5 +1,7 @@
 import vine from '@vinejs/vine'
 import { RefundReason, RefundType } from '#core/money/transactions/domain/enums/refund'
+import { refundSortNames } from '#core/money/transactions/domain/types/refund_sorts'
+import { minSearchLength } from '#config/app'
 
 const schema = vine.object({
   reference: vine.string().trim().minLength(1),
@@ -17,7 +19,9 @@ const transactionsRefundListSchema = vine.object({
   adminId: vine.number().positive().optional(),
   type: vine.enum(Object.values(RefundType)).optional(),
   reason: vine.enum(Object.values(RefundReason)).optional(),
-  search: vine.string().trim().minLength(1).maxLength(200).optional(),
+  search: vine.string().trim().minLength(minSearchLength).maxLength(200).optional(),
+  sortBy: vine.enum(refundSortNames).optional(),
+  order: vine.enum(['asc', 'desc']).optional(),
   minAmount: vine.number().min(0).optional(),
   maxAmount: vine.number().min(0).optional(),
   startDate: vine.string().trim().optional(),

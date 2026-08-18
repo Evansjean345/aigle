@@ -1,5 +1,7 @@
 import vine from '@vinejs/vine'
 import { AdjustmentType, AdjustmentReason } from '#core/money/wallet/domain/enums/wallet_adjustment'
+import { walletAdjustmentSortNames } from '#core/money/wallet/domain/types/wallet_adjustment_sorts'
+import { minSearchLength } from '#config/app'
 
 const walletAdjustementValidatorSchema = vine.object({
   walletId: vine.number().positive(),
@@ -21,7 +23,9 @@ const walletAdjustementListSchema = vine.object({
   adminId: vine.number().positive().optional(),
   type: vine.enum(Object.values(AdjustmentType)).optional(),
   reason: vine.enum(Object.values(AdjustmentReason)).optional(),
-  search: vine.string().trim().minLength(1).maxLength(200).optional(),
+  search: vine.string().trim().minLength(minSearchLength).maxLength(200).optional(),
+  sortBy: vine.enum(walletAdjustmentSortNames).optional(),
+  order: vine.enum(['asc', 'desc']).optional(),
   minAmount: vine.number().min(0).optional(),
   maxAmount: vine.number().min(0).optional(),
   startDate: vine.string().trim().optional(),

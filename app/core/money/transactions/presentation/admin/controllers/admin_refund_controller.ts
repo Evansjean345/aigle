@@ -50,6 +50,8 @@ export default class AdminRefundController {
       maxAmount: query.maxAmount,
       startDate: query.startDate,
       endDate: query.endDate,
+      sortBy: query.sortBy,
+      order: query.order,
     })
 
     return response.ok(result)

@@ -33,6 +33,8 @@ export default class ListWalletAdjustmentsUseCase {
       maxAmount: input.maxAmount,
       startDate: input.startDate,
       endDate: input.endDate,
+      sortBy: input.sortBy,
+      order: input.order,
     })
 
     return WalletAdjustmentListItemResponseDTO.fromResultPage(page)

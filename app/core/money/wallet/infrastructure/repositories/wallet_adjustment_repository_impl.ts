@@ -3,6 +3,7 @@ import type { ModelPaginatorContract } from '@adonisjs/lucid/types/model'
 import WalletAdjustment from '#core/money/wallet/domain/models/wallet_adjustment'
 import type WalletAdjustmentRepository from '#core/money/wallet/domain/interfaces/wallet_adjustment_repository'
 import type { ListWalletAdjustmentsFilter } from '#core/money/wallet/domain/interfaces/wallet_adjustment_repository'
+import { walletAdjustmentSortColumn } from '#core/money/wallet/domain/types/wallet_adjustment_sorts'
 
 export default class WalletAdjustmentRepositoryImpl implements WalletAdjustmentRepository {
   /**
@@ -86,6 +87,18 @@ export default class WalletAdjustmentRepositoryImpl implements WalletAdjustmentR
       })
     }
 
-    return query.orderBy('executed_at', 'desc').paginate(page, perPage)
+    // L'ordre se termine toujours par `executed_at desc` : trier sur une colonne à faible
+    // cardinalité comme `type` laisserait sinon la pagination rendre deux fois la même ligne.
+    const sortColumn = walletAdjustmentSortColumn(filters?.sortBy)
+    const order = filters?.order ?? 'desc'
+
+    if (sortColumn && sortColumn !== 'executed_at') {
+      query.orderBy(sortColumn, order)
+      query.orderBy('executed_at', 'desc')
+    } else {
+      query.orderBy('executed_at', sortColumn ? order : 'desc')
+    }
+
+    return query.paginate(page, perPage)
   }
 }

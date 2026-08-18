@@ -20,6 +20,9 @@ export interface ListWalletAdjustmentsFilter {
   maxAmount?: number
   startDate?: string
   endDate?: string
+  /** Nom de tri déclaré dans `walletAdjustmentSorts`. Sans lui, l'ordre par défaut du dépôt. */
+  sortBy?: string
+  order?: 'asc' | 'desc'
 }
 
 export default abstract class WalletAdjustmentRepository {

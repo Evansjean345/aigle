@@ -12,6 +12,7 @@ export default class GetRefundsUseCase {
   /**
    * Constructs a new instance.
    * @param {RefundRepository} refundRepository The repository for managing refunds.
+   * @param holderResolver
    */
   constructor(
     private readonly refundRepository: RefundRepository,
@@ -29,7 +30,6 @@ export default class GetRefundsUseCase {
     const page = input.page ?? 1
     const perPage = input.perPage ?? 20
 
-    // Un terme est d'abord résolu en comptes : le dépôt filtre sur `account_id`.
     const searchAccountIds = input.search
       ? await this.holderResolver.searchAccountIds(input.search)
       : undefined
@@ -47,6 +47,8 @@ export default class GetRefundsUseCase {
       maxAmount: input.maxAmount,
       startDate: input.startDate,
       endDate: input.endDate,
+      sortBy: input.sortBy,
+      order: input.order,
     })
 
     // Titulaire résolu par compte : un remboursement sur une transaction d'organisation n'a pas de
