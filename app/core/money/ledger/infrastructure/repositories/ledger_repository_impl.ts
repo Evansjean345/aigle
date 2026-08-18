@@ -69,6 +69,8 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
       startDate?: string
       endDate?: string
       search?: string
+      /** Comptes dont le titulaire correspond au terme, résolus par l'annuaire en amont. */
+      searchAccountIds?: string[]
       userId?: string
       /** Compte titulaire du portefeuille. Pour une organisation, son `organisationId`. */
       accountId?: string
@@ -86,7 +88,7 @@ export default class LedgerRepositoryImpl implements LedgerRepository {
           scopes.filterByDateRange(filters.startDate, filters.endDate)
         }
         if (filters?.search) {
-          scopes.search(filters.search)
+          scopes.search(filters.search, filters.searchAccountIds ?? [])
         }
       })
       .select([

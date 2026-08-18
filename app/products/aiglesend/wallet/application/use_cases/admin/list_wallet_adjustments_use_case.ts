@@ -24,7 +24,7 @@ export default class ListWalletAdjustmentsUseCase {
   ): Promise<PaginatedWalletAdjustmentsResponseDTO> {
     const page = await this.walletAdjustmentService.list(input.page ?? 1, input.perPage ?? 20, {
       walletId: input.walletId,
-      userId: input.userId,
+      accountId: input.accountId,
       adminId: input.adminId,
       type: input.type,
       reason: input.reason,

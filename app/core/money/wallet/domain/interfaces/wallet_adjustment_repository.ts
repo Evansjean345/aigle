@@ -8,11 +8,14 @@ import type {
 
 export interface ListWalletAdjustmentsFilter {
   walletId?: number
-  userId?: string
+  /** Compte titulaire du portefeuille ajusté. Pour une organisation, son `organisationId`. */
+  accountId?: string
   adminId?: number
   type?: AdjustmentType
   reason?: AdjustmentReason
   search?: string
+  /** Comptes dont le titulaire correspond au terme, résolus par l'annuaire en amont. */
+  searchAccountIds?: string[]
   minAmount?: number
   maxAmount?: number
   startDate?: string

@@ -72,10 +72,10 @@ export async function seedTransaction(options: SeedTransactionOptions = {}): Pro
 
 export interface SeedLedgerOptions {
   walletId: number
-  transactionId: number
+  transactionId?: number | null
   direction: LedgerDirection
   amount: number
-  /** Jour de l'écriture. Aujourd'hui par défaut. */
+  operationType?: LedgerOperationType
   day?: DateTime
 }
 
@@ -88,9 +88,9 @@ export interface SeedLedgerOptions {
 export async function seedLedger(options: SeedLedgerOptions): Promise<Ledger> {
   const entry = new Ledger()
   entry.walletId = options.walletId
-  entry.transactionId = options.transactionId
+  entry.transactionId = options.transactionId ?? null
   entry.direction = options.direction
-  entry.operationType = LedgerOperationType.TRANSFERT
+  entry.operationType = options.operationType ?? LedgerOperationType.TRANSFERT
   entry.amountBrut = options.amount
   entry.fees = 0
   entry.totalAmount = options.amount

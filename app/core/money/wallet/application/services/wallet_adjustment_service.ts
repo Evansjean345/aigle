@@ -6,6 +6,7 @@ import WalletService from '#core/money/wallet/application/services/wallet_servic
 import LedgerService from '#core/money/ledger/application/services/ledger_service'
 import WalletAdjustmentRepository from '#core/money/wallet/domain/interfaces/wallet_adjustment_repository'
 import TransactionRepository from '#core/money/transactions/domain/interfaces/transaction_repository'
+import AccountHolderResolver from '#core/money/transactions/application/services/account_holder_resolver'
 import { AdjustmentType, AdjustmentStatus } from '#core/money/wallet/domain/enums/wallet_adjustment'
 import { LedgerDirection } from '#core/money/ledger/domain/ledger_enums'
 import AdjustmentFailedException from '#core/money/wallet/domain/exceptions/adjustment_failed_exception'
@@ -28,7 +29,8 @@ export default class WalletAdjustmentService {
     private walletService: WalletService,
     private ledgerService: LedgerService,
     private walletAdjustmentRepository: WalletAdjustmentRepository,
-    private transactionRepository: TransactionRepository
+    private transactionRepository: TransactionRepository,
+    private holderResolver: AccountHolderResolver
   ) {}
 
   /**
@@ -118,7 +120,14 @@ export default class WalletAdjustmentService {
     perPage: number,
     filters: ListWalletAdjustmentsFilters
   ): Promise<PaginatedWalletAdjustmentsResult> {
-    const paginator = await this.walletAdjustmentRepository.list(page, perPage, filters)
+    const searchAccountIds = filters.search
+      ? await this.holderResolver.searchAccountIds(filters.search)
+      : undefined
+
+    const paginator = await this.walletAdjustmentRepository.list(page, perPage, {
+      ...filters,
+      searchAccountIds,
+    })
 
     return {
       data: paginator.all().map(toWalletAdjustmentListItemResult),

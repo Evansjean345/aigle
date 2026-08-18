@@ -36,7 +36,7 @@ export default class WalletAdjustmentController {
       page: query.page,
       perPage: query.perPage,
       walletId: query.walletId,
-      userId: query.userId,
+      accountId: query.accountId,
       adminId: query.adminId,
       type: query.type as AdjustmentType | undefined,
       reason: query.reason as AdjustmentReason | undefined,

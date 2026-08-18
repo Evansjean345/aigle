@@ -36,6 +36,7 @@ export default abstract class LedgerRepository {
    * @param {number} page - The page number to retrieve.
    * @param {number} perPage - The number of entries per page.
    * @param {object} filters - Filtering criteria.
+   * @param {object} sort - Sort by
    * @return {Promise<any>} A promise that resolves to a paginated list of Ledger objects.
    */
   abstract findAll(
@@ -48,8 +49,8 @@ export default abstract class LedgerRepository {
       startDate?: string
       endDate?: string
       search?: string
+      searchAccountIds?: string[]
       userId?: string
-      /** Compte titulaire du portefeuille. Pour une organisation, son `organisationId`. */
       accountId?: string
     },
     sort?: { sortBy?: string; order?: 'asc' | 'desc' }

@@ -105,19 +105,19 @@ export default class Ledger extends BaseModel {
     }
   })
 
-  static search = scope((query, searchTerm: string) => {
+  static search = scope((query, searchTerm: string, accountIds: string[] = []) => {
     query.where((subQuery) => {
-      subQuery
-        .orWhereHas('transaction', (transactionQuery) => {
-          transactionQuery.where('reference', 'like', `%${searchTerm}%`)
+      subQuery.orWhereHas('transaction', (transactionQuery) => {
+        transactionQuery.whereILike('reference', `%${searchTerm}%`)
+      })
+
+      // Le titulaire arrive résolu en comptes : le portefeuille d'une organisation n'a pas de
+      // porteur utilisateur, et joindre `user` rendrait ses écritures introuvables.
+      if (accountIds.length > 0) {
+        subQuery.orWhereHas('wallet', (walletQuery) => {
+          walletQuery.whereIn('account_id', accountIds)
         })
-        .orWhereHas('wallet', (walletQuery) => {
-          walletQuery.whereHas('user', (userQuery) => {
-            userQuery
-              .where('firstname', 'like', `%${searchTerm}%`)
-              .orWhere('lastname', 'like', `%${searchTerm}%`)
-          })
-        })
+      }
 
       const amount = Number.parseFloat(searchTerm)
 

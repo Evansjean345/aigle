@@ -58,29 +58,31 @@ export default class WalletAdjustmentRepositoryImpl implements WalletAdjustmentR
     if (filters?.startDate) query.where('executed_at', '>=', filters.startDate)
     if (filters?.endDate) query.where('executed_at', '<=', filters.endDate)
 
-    if (filters?.userId) {
+    // Le compte titulaire, jamais le porteur utilisateur : le portefeuille d'une organisation n'a
+    // pas de `user_id`, et joindre `user` rendrait ses ajustements introuvables.
+    if (filters?.accountId) {
       query.whereHas('wallet', (walletQuery) => {
-        walletQuery.where('user_id', filters.userId!)
+        walletQuery.where('account_id', filters.accountId!)
       })
     }
 
     if (filters?.search) {
       const term = `%${filters.search}%`
+      const accountIds = filters.searchAccountIds ?? []
+
       query.where((builder) => {
-        builder
-          .where('adjustment_uid', 'like', term)
-          .orWhere('comment', 'like', term)
-          .orWhereHas('wallet', (walletQuery) => {
-            walletQuery.whereHas('user', (userQuery) => {
-              userQuery
-                .where('firstname', 'like', term)
-                .orWhere('lastname', 'like', term)
-                .orWhere('phone', 'like', term)
-            })
+        builder.whereILike('adjustment_uid', term).orWhereILike('comment', term)
+
+        // Le titulaire arrive résolu en comptes par l'annuaire, personnes et organisations réunies.
+        if (accountIds.length > 0) {
+          builder.orWhereHas('wallet', (walletQuery) => {
+            walletQuery.whereIn('account_id', accountIds)
           })
-          .orWhereHas('transaction', (txQuery) => {
-            txQuery.where('reference', 'like', term)
-          })
+        }
+
+        builder.orWhereHas('transaction', (txQuery) => {
+          txQuery.whereILike('reference', term)
+        })
       })
     }
 

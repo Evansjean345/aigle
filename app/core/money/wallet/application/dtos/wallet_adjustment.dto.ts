@@ -30,7 +30,8 @@ export interface WalletAdjustmentCommand {
 /** Filtres de la liste des ajustements, déjà normalisés par la frontière HTTP. */
 export interface ListWalletAdjustmentsFilters {
   walletId?: number
-  userId?: string
+  /** Compte titulaire du portefeuille ajusté. Pour une organisation, son `organisationId`. */
+  accountId?: string
   adminId?: number
   type?: AdjustmentType
   reason?: AdjustmentReason

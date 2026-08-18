@@ -45,7 +45,16 @@ export default class GetAllLedgersUseCase {
     },
     sort?: { sortBy?: string; order?: 'asc' | 'desc' }
   ): Promise<{ meta: any; data: LedgerDto[] }> {
-    const paginatedLedgers = await this.ledgerRepository.findAll(page, perPage, filters, sort)
+    const searchAccountIds = filters?.search
+      ? await this.holderResolver.searchAccountIds(filters.search)
+      : undefined
+
+    const paginatedLedgers = await this.ledgerRepository.findAll(
+      page,
+      perPage,
+      { ...filters, searchAccountIds },
+      sort
+    )
     const ledgers = paginatedLedgers.all()
 
     const holders = await this.holderResolver.resolve(

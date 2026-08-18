@@ -16,7 +16,8 @@ const walletAdjustementListSchema = vine.object({
   page: vine.number().positive().optional(),
   perPage: vine.number().positive().max(200).optional(),
   walletId: vine.number().positive().optional(),
-  userId: vine.string().trim().uuid().optional(),
+  /** Compte titulaire du portefeuille ajusté. Pour une organisation, son `organisationId`. */
+  accountId: vine.string().trim().uuid().optional(),
   adminId: vine.number().positive().optional(),
   type: vine.enum(Object.values(AdjustmentType)).optional(),
   reason: vine.enum(Object.values(AdjustmentReason)).optional(),

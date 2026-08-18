@@ -15,7 +15,8 @@ export interface ListWalletAdjustmentsRequestDto {
   page?: number
   perPage?: number
   walletId?: number
-  userId?: string
+  /** Compte titulaire du portefeuille ajusté. Pour une organisation, son `organisationId`. */
+  accountId?: string
   adminId?: number
   type?: AdjustmentType
   reason?: AdjustmentReason
