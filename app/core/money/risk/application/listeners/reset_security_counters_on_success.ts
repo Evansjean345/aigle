@@ -6,46 +6,58 @@ import TransfertTransactionCompleted from '#core/money/transactions/application/
 import WalletToWalletTransactionCompleted from '#core/money/transactions/application/events/wallet_to_wallet_transaction_completed'
 
 /**
- * Listener `risk` (anti-abus) — réinitialise les compteurs de vélocité/échec sur un succès de
- * transaction. Abonné aux mêmes events `*Completed` que le listener de volume (money) : deux
- * consommateurs indépendants sur le même « topic » (cf. ADR-0014). Au split micro-services, ce
- * listener devient un consumer Kafka de la sécurité.
+ * Remet à zéro les compteurs anti-abus d'une personne dès qu'une de ses transactions aboutit.
  *
- * Idempotent (setLastSuccessTime = set, resetFailures = reset) : pas de garde d'idempotence
- * nécessaire, contrairement à l'incrément de volume.
+ * Poser le dernier succès et effacer les échecs donne le même état quel que soit le nombre de
+ * passages : l'écouteur n'a pas besoin de garde d'idempotence.
  */
 @inject()
 export default class ResetSecurityCountersOnSuccess {
+  /**
+   * Construit l'écouteur.
+   *
+   * @param {TransactionThrottleCache} throttleCache - Date du dernier succès, par personne.
+   * @param {TransactionFailureCache} failureCache - Compteur d'échecs consécutifs, par personne.
+   */
   constructor(
     private readonly throttleCache: TransactionThrottleCache,
     private readonly failureCache: TransactionFailureCache
   ) {}
 
+  /**
+   * Réinitialise les compteurs des personnes concernées par la transaction aboutie.
+   *
+   * @param {DepositTransactionCompleted | TransfertTransactionCompleted | WalletToWalletTransactionCompleted} event - La transaction aboutie.
+   * @returns {Promise<void>} Rien : une opération sans personne derrière ne remet rien à zéro.
+   */
   async handle(
     event:
       | DepositTransactionCompleted
       | TransfertTransactionCompleted
       | WalletToWalletTransactionCompleted
-  ) {
+  ): Promise<void> {
     if (event instanceof WalletToWalletTransactionCompleted) {
-      const { sender, recipient, type } = event.payload
-
-      // Les compteurs sont tenus par personne : le payeur en est toujours une, le destinataire
-      // seulement hors paiement marchand.
-      await Promise.all([
-        this.reset(sender.accountId, sender.occurredAt),
-        ...(type === 'p2p' ? [this.reset(recipient.accountId, recipient.occurredAt)] : []),
-      ])
+      // Seul l'émetteur est horodaté : le délai entre deux opérations vise celui qui les lance.
+      // Horodater le bénéficiaire lui interdirait de transférer pendant une minute alors qu'il
+      // n'a fait que recevoir.
+      await this.reset(event.payload.sender.accountId, event.payload.sender.occurredAt)
       return
     }
 
-    // Compteurs de sécurité PAR USER : un checkout marchand n'a pas de user → ignoré.
+    // Un encaissement marchand n'a personne derrière lui : il ne remet aucun compteur à zéro.
     if (event instanceof DepositTransactionCompleted && event.data.type === 'checkout') return
 
     const { userId } = event.data
     await this.reset(userId!)
   }
 
+  /**
+   * Pose le dernier succès et efface les échecs d'une personne.
+   *
+   * @param {string} userId - La personne. Pour un compte utilisateur, son identifiant vaut celui du compte.
+   * @param {Date | string | import('luxon').DateTime} [timestamp] - Date du succès. Par défaut, maintenant.
+   * @returns {Promise<void>} Rien.
+   */
   private async reset(
     userId: string,
     timestamp?: Date | string | import('luxon').DateTime

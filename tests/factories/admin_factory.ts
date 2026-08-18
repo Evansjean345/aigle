@@ -7,7 +7,7 @@ import type { PermissionDefinition } from '#core/team/domain/value_objects/permi
 import { ADMIN_PERMISSION_CATALOG } from '#start/permissions'
 
 /**
- * Reconstruit la table des permissions à l'image de `ADMIN_PERMISSION_CATALOG`.
+ * Reconstruit la table des permissions à l'image de `ADMIN_PERMISSION_CATALOG'.
  *
  * Reproduit `node ace permissions:sync` : la table ne contient que ce que l'agrégat déclare. À
  * appeler dans le setup d'un test de garde, sinon les lignes déjà présentes en base masqueraient un

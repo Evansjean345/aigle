@@ -5,9 +5,9 @@ import db from '@adonisjs/lucid/services/db'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import OnCheckoutReceivedNotification from '#aiglebusiness/organisation/application/listeners/on_checkout_received_notification'
 import DepositTransactionCompleted from '#core/money/transactions/application/events/deposit_transaction_completed'
-import type { Notification } from '#core/notifications/domain/notification'
 import { NotificationChannelType } from '#core/notifications/domain/notification_channel_type'
 import type NotificationService from '#core/notifications/application/services/notification_service'
+import CapturingNotificationService from '#tests/fakes/notifications/capturing_notification_service'
 import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 
 /**
@@ -16,14 +16,6 @@ import { AppName } from '#core/identity/authentication/domain/enums/app_name'
  * (owner-only, MVP), et pousse une notif. On mocke la frontière (NotificationService) et on
  * exerce le comportement via `handle`.
  */
-
-/** Capture les envois de notification (frontière push). */
-class CapturingNotificationService {
-  public calls: Array<{ channel: NotificationChannelType; notification: Notification }> = []
-  async sendVia(channel: NotificationChannelType, notification: Notification): Promise<void> {
-    this.calls.push({ channel, notification })
-  }
-}
 
 async function makeOrg(ownerUserId: string): Promise<string> {
   return createOrganisation({
@@ -57,7 +49,9 @@ test.group('Notification marchand | encaissement checkout', (group) => {
     await listener.handle(checkoutEvent(organisationId, 5000, 'aig_tx_9f3a2c'))
 
     assert.lengthOf(notifier.calls, 1)
+
     const { channel, notification } = notifier.calls[0]
+
     assert.equal(channel, NotificationChannelType.PushNotification)
     assert.equal(notification.recipientId, ownerUserId)
     assert.include(notification.message, '5000')
