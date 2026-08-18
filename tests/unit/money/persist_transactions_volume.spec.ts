@@ -72,7 +72,7 @@ test.group('PersistUserTransactionsVolume | account-centric', () => {
     const { listener, calls } = build()
 
     const sender = tx({ reference: 's-1', accountId: 'user-1', usersUid: 'user-1', amount: 7000 })
-    // Bénéficiaire marchand : compte org, PAS de user (usersUid null).
+    // Bénéficiaire marchand : compte org, PAS d'user (usersUid null).
     const receiver = tx({
       reference: 'r-1',
       accountId: 'org-9',
@@ -85,6 +85,7 @@ test.group('PersistUserTransactionsVolume | account-centric', () => {
         type: 'merchant',
         recipientPhone: null,
         senderPhone: '+2250700000000',
+        senderAccountId: sender.accountId,
         recipientAccountId: 'org-9',
         senderBalanceAfter: 0,
         recipientBalanceAfter: 7000,
@@ -126,6 +127,7 @@ test.group('PersistUserTransactionsVolume | account-centric', () => {
         type: 'p2p',
         recipientPhone: '+2250701010101',
         senderPhone: '+2250700000000',
+        senderAccountId: 'user-1',
         recipientAccountId: 'user-2',
         senderBalanceAfter: 0,
         recipientBalanceAfter: 3000,

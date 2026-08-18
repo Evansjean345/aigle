@@ -38,7 +38,11 @@ export default class ExpoPushNotificationChannelImpl implements PushNotification
     )
 
     if (userDevices.length === 0) return
-    const tokens = userDevices.map((ud) => ud.pushToken)
+
+    // Un même jeton peut être porté par plusieurs liaisons — un appareil réenregistré en crée une
+    // seconde sans effacer la première. L'envoyer deux fois dans le lot affiche deux notifications
+    // identiques sur le téléphone.
+    const tokens = [...new Set(userDevices.map((ud) => ud.pushToken).filter(Boolean))]
 
     if (!tokens || tokens.length === 0) {
       notificationLog.warn(
@@ -106,7 +110,9 @@ export default class ExpoPushNotificationChannelImpl implements PushNotification
 
     const messages = []
 
-    for (const token of tokens) {
+    // Même garde qu'à l'envoi par destinataire : un jeton répété dans le lot vaut deux
+    // notifications identiques sur le téléphone.
+    for (const token of new Set(tokens)) {
       if (Expo.isExpoPushToken(token)) {
         messages.push({
           to: token,
