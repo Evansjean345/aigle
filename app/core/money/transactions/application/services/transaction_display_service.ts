@@ -98,7 +98,7 @@ export default class TransactionDisplayService {
 
       case TransactionType.WALLET_TRANSFERT:
         // Un transfert de portefeuille à portefeuille se fait entre personnes : le paiement
-        // marchand porte le type `checkout`.
+        // marchand porte le type `checkout'.
         return { kind: 'p2p_transfer', scope: 'internal', flow, counterparty: userParty(pd) }
 
       case TransactionType.CHECKOUT:
