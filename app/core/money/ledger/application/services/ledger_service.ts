@@ -254,20 +254,26 @@ export default class LedgerService {
   }
 
   /**
-   * Records a wallet adjustment in the ledger.
+   * Écrit un ajustement au grand livre.
    *
-   * @param {Transaction} transaction - The linked transaction (can be a dummy for autonomous adjustments).
-   * @param {number} walletId - The wallet ID being adjusted.
-   * @param {LedgerDirection} direction - CREDIT or DEBIT depending on adjustment type.
-   * @param {number} amount - The adjustment amount.
-   * @param {number} balanceBefore - Balance before the adjustment.
-   * @param {number} balanceAfter - Balance after the adjustment.
-   * @param {string} description - Description of the adjustment.
-   * @param {TransactionClientContract} [trx] - Optional DB transaction client.
-   * @return {Promise<Ledger>}
+   * L'ajustement peut n'être rattaché à aucune transaction : c'est même le cas courant, un
+   * gestionnaire corrigeant un solde sans qu'un paiement soit en cause. L'écriture est alors posée
+   * directement, `transaction_id` restant nul — sans quoi le mouvement d'argent n'apparaîtrait
+   * nulle part au livre.
+   *
+   * @param {Transaction | null} transaction - Transaction corrigée, ou `null` pour un ajustement
+   *   autonome.
+   * @param {number} walletId - Portefeuille ajusté.
+   * @param {LedgerDirection} direction - Sens de l'écriture, selon le type d'ajustement.
+   * @param {number} amount - Montant de l'ajustement.
+   * @param {number} balanceBefore - Solde avant l'ajustement.
+   * @param {number} balanceAfter - Solde après l'ajustement.
+   * @param {string} description - Description de l'ajustement.
+   * @param {TransactionClientContract} [trx] - Transaction à utiliser.
+   * @returns {Promise<Ledger>} La ligne écrite.
    */
   async recordAdjustment(
-    transaction: Transaction,
+    transaction: Transaction | null,
     walletId: number,
     direction: LedgerDirection,
     amount: number,
@@ -276,6 +282,24 @@ export default class LedgerService {
     description: string,
     trx?: TransactionClientContract
   ): Promise<Ledger> {
+    if (!transaction) {
+      return this.ledgerRepository.create(
+        {
+          transactionId: null,
+          walletId,
+          direction,
+          operationType: LedgerOperationType.ADJUSTMENT,
+          description,
+          amountBrut: amount,
+          fees: 0,
+          totalAmount: amount,
+          balanceBefore,
+          balanceAfter,
+        },
+        trx
+      )
+    }
+
     return this.createEntry(
       {
         transaction,

@@ -89,18 +89,18 @@ export default class WalletAdjustmentService {
       trx
     )
 
-    if (transaction) {
-      await this.ledgerService.recordAdjustment(
-        transaction,
-        params.walletId,
-        ledgerDirection,
-        params.amount,
-        balanceBefore,
-        balanceAfter,
-        `Ajustement ${params.type} : ${params.comment}`,
-        trx
-      )
-    }
+    // Écrit qu'une transaction soit rattachée ou non : un solde qui bouge sans écriture au livre
+    // romprait l'égalité entre la somme des écritures et le solde du portefeuille.
+    await this.ledgerService.recordAdjustment(
+      transaction,
+      params.walletId,
+      ledgerDirection,
+      params.amount,
+      balanceBefore,
+      balanceAfter,
+      `Ajustement ${params.type} : ${params.comment}`,
+      trx
+    )
 
     return toWalletAdjustmentResult(walletAdjustment)
   }
