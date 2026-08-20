@@ -64,11 +64,9 @@ async function openAccountFor(ownerType: AccountOwnerType, ownerRef: string): Pr
 
 test.group('Fondation account | openFor(user)', (group) => {
   group.each.setup(async () => {
-    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
     await db.beginGlobalTransaction()
     return async () => {
       await db.rollbackGlobalTransaction()
-      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
     }
   })
 
@@ -108,11 +106,9 @@ test.group('Fondation account | openFor(user)', (group) => {
 
 test.group('Fondation account | openFor(organisation)', (group) => {
   group.each.setup(async () => {
-    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
     await db.beginGlobalTransaction()
     return async () => {
       await db.rollbackGlobalTransaction()
-      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
     }
   })
 
@@ -142,11 +138,9 @@ test.group('Fondation account | openFor(organisation)', (group) => {
  */
 test.group('Fondation D8 | argent account-centrique', (group) => {
   group.each.setup(async () => {
-    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
     await db.beginGlobalTransaction()
     return async () => {
       await db.rollbackGlobalTransaction()
-      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
     }
   })
 

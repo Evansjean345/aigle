@@ -7,7 +7,7 @@ import OtpSendingService from '#core/identity/otp/application/services/otp_sendi
 import MembershipConsentOtpTemplate from '#aiglebusiness/membership/domain/templates/membership_consent_otp_template'
 import { InvitationPreviewDTO } from '#aiglebusiness/membership/application/dtos/member.dto'
 import { MemberStatus } from '#aiglebusiness/membership/domain/enums/member_status'
-import { maskPhone } from '#shared/utils/utiles'
+import { maskPhoneKeepingPrefix } from '#shared/utils/utiles'
 import InvitationTokenInvalidException from '#aiglebusiness/membership/domain/exceptions/invitation_token_invalid_exception'
 import InvitationExpiredException from '#aiglebusiness/membership/domain/exceptions/invitation_expired_exception'
 
@@ -52,6 +52,12 @@ export default class GetInvitationUseCase {
       new MembershipConsentOtpTemplate(organisation.name)
     )
 
-    return InvitationPreviewDTO.from(organisation.name, maskPhone(invitee.phone))
+    // Masquage partiel plutôt que total : l'invité doit reconnaître lequel de ses
+    // numéros a reçu le code. L'indicatif et les deux premiers chiffres suffisent,
+    // le reste du numéro n'est pas divulgué (décision #15).
+    return InvitationPreviewDTO.from(
+      organisation.name,
+      maskPhoneKeepingPrefix(invitee.phone)
+    )
   }
 }

@@ -109,3 +109,61 @@ export const maskPhone = (value: string | number | undefined | null): string => 
   const str = typeof value === 'string' ? value : String(value)
   return str.replace(/\d(?=\d{2})/g, '*')
 }
+
+/**
+ * Masks a phone number while keeping enough of it to be recognisable by its owner:
+ * the country code, the first two digits of the national number, and the last two.
+ * Example: "2250768357397" -> "+225 07******97"
+ *
+ * Unlike {@link maskPhone} — which hides everything but the last two digits and is
+ * meant for security logs — this variant is for screens where a user must confirm
+ * *which* of their numbers was used, without the number being fully disclosed.
+ *
+ * The country code is only split off when it matches `defaultCountryCode` and the
+ * remainder is a plausible national number (8 to 10 digits, the same convention as
+ * {@link normalizePhone}). Any other number is masked as a whole rather than being
+ * prefixed with a guessed — and possibly wrong — dialling code.
+ *
+ * @param {string | number | undefined | null} value - The phone number to be masked.
+ * @param {string} [defaultCountryCode='225'] - Dialling code to recognise.
+ * @returns {string} - The partially masked number.
+ */
+export const maskPhoneKeepingPrefix = (
+  value: string | number | undefined | null,
+  defaultCountryCode: string = '225'
+): string => {
+  if (value === undefined || value === null) {
+    return ''
+  }
+
+  const digits = String(value).replace(/\D/g, '')
+
+  if (!digits) {
+    return ''
+  }
+
+  let countryCode = ''
+  let national = digits
+
+  if (digits.startsWith(defaultCountryCode)) {
+    const rest = digits.slice(defaultCountryCode.length)
+
+    if (rest.length >= 8 && rest.length <= 10) {
+      countryCode = defaultCountryCode
+      national = rest
+    }
+  }
+
+  const prefix = countryCode ? `+${countryCode} ` : ''
+
+  // Too short to reveal both ends without exposing most of the number.
+  if (national.length <= 4) {
+    return `${prefix}${maskPhone(national)}`
+  }
+
+  const head = national.slice(0, 2)
+  const tail = national.slice(-2)
+  const hidden = '*'.repeat(national.length - 4)
+
+  return `${prefix}${head}${hidden}${tail}`
+}

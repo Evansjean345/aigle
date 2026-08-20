@@ -53,7 +53,6 @@ test.group('Transfer | frais du paiement en masse — B10', (group) => {
   let fees: FakeFeeResolver
 
   group.each.setup(async () => {
-    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
     await db.beginGlobalTransaction()
 
     fees = new FakeFeeResolver()
@@ -62,7 +61,6 @@ test.group('Transfer | frais du paiement en masse — B10', (group) => {
     return async () => {
       app.container.restore(FeeResolver)
       await db.rollbackGlobalTransaction()
-      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
     }
   })
 

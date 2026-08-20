@@ -115,7 +115,6 @@ test.group('Checkout | paiement marchand (e2e)', (group) => {
   let gateway: ReturnType<typeof swapProviderGateway>
 
   group.each.setup(async () => {
-    await db.rawQuery('SET FOREIGN_KEY_CHECKS = 0')
     await db.beginGlobalTransaction()
     gateway = swapProviderGateway()
     QueueManager.fake()
@@ -124,7 +123,6 @@ test.group('Checkout | paiement marchand (e2e)', (group) => {
       QueueManager.restore()
       gateway.restore()
       await db.rollbackGlobalTransaction()
-      await db.rawQuery('SET FOREIGN_KEY_CHECKS = 1')
     }
   })
 
