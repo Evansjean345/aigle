@@ -96,4 +96,23 @@ export default class MembershipService {
       permissions: member.role.permissions.map((permission) => permission.permissionSlug),
     }))
   }
+
+  /**
+   * Appartenance active d'un utilisateur à UNE organisation, rôle et permissions compris.
+   *
+   * Passe par les appartenances actives plutôt que par la ligne (org, user) : celle-ci existe quel
+   * que soit son statut et ne précharge pas les permissions du rôle.
+   *
+   * @param {string} userId - Utilisateur dont l'appartenance est cherchée.
+   * @param {string} organisationId - Organisation concernée.
+   * @returns {Promise<UserMembershipResult | null>} L'appartenance, ou `null` si l'utilisateur n'est
+   *   pas membre actif de cette organisation.
+   */
+  async findActiveMembership(
+    userId: string,
+    organisationId: string
+  ): Promise<UserMembershipResult | null> {
+    const memberships = await this.listActiveMemberships(userId)
+    return memberships.find((m) => m.organisationId === organisationId) ?? null
+  }
 }

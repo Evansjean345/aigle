@@ -477,6 +477,66 @@ paths:
         '400':
           $ref: '#/components/responses/ChannelRequired'
 
+  /api/business/organisations/{organisationId}:
+    get:
+      operationId: getOrganisation
+      summary: Détail d'une de mes organisations
+      description: |
+        Renvoie **une** organisation dont l'utilisateur authentifié est **membre actif**, dans la
+        même forme qu'un élément de `GET /organisations` — rôle, permissions et solde compris. Le
+        client peut donc remplacer l'entrée de sa liste sans transformation, au lieu de recharger
+        la liste entière pour rafraîchir une seule organisation.
+
+        Le **solde** (`wallet`) n'est joint qu'avec la permission `wallet:view`, sinon `null`.
+
+        Contrairement aux routes d'action scopées `organisations/{organisationId}`, cet endpoint
+        **n'exige pas une organisation active** : une organisation en cours de configuration
+        (`provisioning`) reste lisible, c'est justement l'état que le client suit.
+
+        Une organisation inexistante **et** une organisation dont l'appelant n'est pas membre
+        renvoient toutes deux `404` — le refus ne révèle pas l'existence d'une organisation tierce.
+      tags:
+        - Business - Organisations
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/OrganisationId'
+        - $ref: '#/components/parameters/ClientChannelHeader'
+        - $ref: '#/components/parameters/DeviceFingerprintHeader'
+        - $ref: '#/components/parameters/DeviceUidHeader'
+      responses:
+        '200':
+          description: L'organisation, avec le rôle, les permissions et le solde de l'appelant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyOrganisationResponse'
+              example:
+                organisationId: a3f1c8e2-7b04-4c9a-9f22-1d5e6a8b3c40
+                name: Boutique Ali
+                accountType: marchand
+                level: level_1
+                status: active
+                payableCode: a3f1c8e2-7b04-4c9a-9f22-1d5e6a8b3c40
+                payableQr: https://pay.aigle/a3f1c8e2-7b04-4c9a-9f22-1d5e6a8b3c40
+                role:
+                  slug: comptable
+                  name: Comptable
+                permissions: [transactions:view, wallet:view]
+                wallet:
+                  balance: 100000
+                  currency: XOF
+                  status: active
+        '400':
+          $ref: '#/components/responses/ChannelRequired'
+        '404':
+          description: Organisation introuvable, ou appelant non membre actif
+          content:
+            application/json:
+              example:
+                code: E_ORGANISATION_NOT_FOUND
+                message: Organisation introuvable
+
   /api/business/organisations/{organisationId}/permissions-catalog:
     get:
       operationId: listPermissionsCatalog
@@ -961,12 +1021,21 @@ paths:
         règlement (`success`/`failed` + **refund** du compte org sur échec) arrive ensuite via le
         **webhook opérateur** — le décaissement business se règle comme un transfert consumer.
 
-        **Autorisation** : permission `payout:initiate` (sensitive ; l'OWNER passe d'office).
+        **Autorisation** : permission `transfer:initiate` (sensitive ; l'OWNER passe d'office), puis
+        **step-up PIN** du membre initiateur (`pinCode`) — même garde que le transfert consumer :
+        compte non bloqué, vélocité, PIN, et appareil de confiance.
+
+        La garde **appareil dépend du canal** (`X-Client-Channel`), comme le middleware d'accès :
+        en `mobile`, `X-Device-Fingerprint` et `X-Device-Uid` sont requis et l'appareil doit être
+        enrôlé **de confiance pour aiglebusiness** ; en `web`, le portail n'enrôle pas d'appareil et
+        la vérification est sautée (les autres gardes s'appliquent).
         **Aucune restriction par segment** — marchand **comme** entreprise peuvent décaisser : le
         plafonnement est assuré par les **limites de transactions** du compte (selon son niveau KYB).
         Un niveau dont la grille impose des plafonds à `0` est de facto bloqué par ses limites.
 
-        Les **frais** sont à la charge de la business (`total = montant + frais`).
+        Les **frais** sont à la charge de la business. `includeFees` choisit leur assiette :
+        absent/`false` → `total = amount + frais` (le bénéficiaire reçoit `amount`) ; `true` →
+        `total = amount` (gross-up, le bénéficiaire reçoit `amount - frais`).
       tags:
         - Business - Transferts
       security:
@@ -992,6 +1061,8 @@ paths:
               phone: '+2250700000000'
               providerCode: wave
               paymentMethodCode: mobile_money
+              includeFees: false
+              pinCode: '12345'
       responses:
         '202':
           description: Transfert accepté — en cours de traitement (règlement par webhook)
@@ -1005,16 +1076,24 @@ paths:
                   transactionReference: aigle_pay_9f3a2c
                   status: pending
         '400':
-          description: Solde insuffisant (ou canal requis manquant)
+          description: Solde insuffisant, code PIN invalide (ou canal requis manquant)
           content:
             application/json:
-              example:
-                code: E_INSUFFICIENT_FUNDS
-                message: Solde insuffisant pour effectuer cette opération.
+              examples:
+                solde:
+                  summary: Solde insuffisant
+                  value:
+                    code: E_INSUFFICIENT_FUNDS
+                    message: Solde insuffisant pour effectuer cette opération.
+                pin:
+                  summary: PIN invalide
+                  value:
+                    code: INVALID_PINCODE
+                    message: Le code pin renseigné est invalide
         '403':
           description: |
-            Permission `payout:initiate` absente **ou** limite de transaction dépassée (le plafond du
-            compte selon son niveau KYB).
+            Permission `transfer:initiate` absente **ou** limite de transaction dépassée (le plafond
+            du compte selon son niveau KYB).
           content:
             application/json:
               examples:
@@ -1029,7 +1108,9 @@ paths:
                     code: DAILY_LIMIT_EXCEEDED
                     message: Le plafond journalier de transaction est dépassé.
         '422':
-          description: Payload invalide (montant, téléphone, provider, moyen de paiement)
+          description: |
+            Payload invalide (montant, téléphone, provider, moyen de paiement, PIN absent ou de
+            longueur différente de 5).
 
   /api/business/organisations/{organisationId}/mass-transfers/simulate:
     post:
@@ -2902,13 +2983,15 @@ components:
 
     TransferRequest:
       type: object
-      required: [amount, phone, providerCode, paymentMethodCode]
+      required: [amount, phone, providerCode, paymentMethodCode, pinCode]
       description: Ordre de transfert unique depuis le compte de l'organisation vers un mobile money.
       properties:
         amount:
           type: integer
           minimum: 1
-          description: Montant net à envoyer (XOF, entier). Les frais s'ajoutent au débit.
+          description: |
+            Montant à envoyer (XOF, entier). Sans `includeFees`, les frais s'ajoutent au débit
+            (`total = amount + frais`).
           example: 25000
         phone:
           type: string
@@ -2922,6 +3005,21 @@ components:
           type: string
           description: Code du moyen de paiement catalogue.
           example: mobile_money
+        includeFees:
+          type: boolean
+          description: |
+            Mode de facturation des frais. `true` = `amount` porte déjà les frais (gross-up : le
+            bénéficiaire reçoit `amount - frais`, le compte org est débité de `amount`). Absent ou
+            `false` = les frais s'ajoutent au montant (le bénéficiaire reçoit `amount`).
+          example: false
+        pinCode:
+          type: string
+          minLength: 5
+          maxLength: 5
+          description: |
+            Code PIN à 5 chiffres du **membre initiateur** (step-up d'authentification, comme sur le
+            transfert consumer). Vérifié avant tout débit du compte org.
+          example: '12345'
 
     TransferResponse:
       type: object

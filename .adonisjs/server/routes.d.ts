@@ -176,6 +176,7 @@ export type ScannedRoutes = {
     'business_health': { paramsTuple?: []; params?: {} }
     'organisation.store': { paramsTuple?: []; params?: {} }
     'organisation.index': { paramsTuple?: []; params?: {} }
+    'organisation.show': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'permission.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'role.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'role.store': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
@@ -302,6 +303,7 @@ export type ScannedRoutes = {
     'business_session.index': { paramsTuple?: []; params?: {} }
     'business_health': { paramsTuple?: []; params?: {} }
     'organisation.index': { paramsTuple?: []; params?: {} }
+    'organisation.show': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'permission.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'role.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
@@ -408,6 +410,7 @@ export type ScannedRoutes = {
     'business_session.index': { paramsTuple?: []; params?: {} }
     'business_health': { paramsTuple?: []; params?: {} }
     'organisation.index': { paramsTuple?: []; params?: {} }
+    'organisation.show': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'permission.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'role.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }
     'member.index': { paramsTuple: [ParamValue]; params: {'organisationId': ParamValue} }

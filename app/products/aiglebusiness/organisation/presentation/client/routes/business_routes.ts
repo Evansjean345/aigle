@@ -10,13 +10,13 @@ const OrganisationController = () =>
 export default function businessClientRoutes() {
   router
     .group(() => {
-      // Liveness : volontairement « nue » (sondes de monitoring sans en-tête de canal).
       router.get('health', [BusinessHealthController, 'handle'])
 
       router
         .group(() => {
           router.post('organisations', [OrganisationController, 'store'])
           router.get('organisations', [OrganisationController, 'index'])
+          router.get('organisations/:organisationId', [OrganisationController, 'show'])
         })
         .use([
           middleware.geoip(),

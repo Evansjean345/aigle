@@ -5,6 +5,7 @@ import { AuditResult } from '#core/audit/domain/enums'
 import { statusOfFile } from '#core/identity/kyc/domain/verification_status'
 import CreateOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/create_organisation.use_case'
 import ListOrganisationsUseCase from '#aiglebusiness/organisation/application/use_cases/list_organisations.use_case'
+import GetOrganisationUseCase from '#aiglebusiness/organisation/application/use_cases/get_organisation.use_case'
 import { createOrganisationValidator } from '#aiglebusiness/organisation/presentation/client/validators/create_organisation_validator'
 import { OrganisationAccountType } from '#aiglebusiness/organisation/domain/enums/organisation_account_type'
 import { businessTraceContext, emitBusinessAudit } from '#aiglebusiness/shared/business_audit'
@@ -13,7 +14,8 @@ import { businessTraceContext, emitBusinessAudit } from '#aiglebusiness/shared/b
 export default class OrganisationController {
   constructor(
     private readonly createOrganisation: CreateOrganisationUseCase,
-    private readonly listOrganisations: ListOrganisationsUseCase
+    private readonly listOrganisations: ListOrganisationsUseCase,
+    private readonly getOrganisation: GetOrganisationUseCase
   ) {}
 
   /**
@@ -52,6 +54,19 @@ export default class OrganisationController {
   async index({ response, auth }: HttpContext): Promise<void> {
     const user = auth.user! as User
     const result = await this.listOrganisations.execute(user.usersUid)
+
+    return response.ok(result)
+  }
+
+  /**
+   * Détail d'une organisation dont l'utilisateur authentifié est membre actif.
+   */
+  async show({ response, auth, params }: HttpContext): Promise<void> {
+    const user = auth.user! as User
+    const result = await this.getOrganisation.execute(
+      user.usersUid,
+      params.organisationId as string
+    )
 
     return response.ok(result)
   }

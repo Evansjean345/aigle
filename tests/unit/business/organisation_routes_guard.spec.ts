@@ -8,8 +8,12 @@ import router from '@adonisjs/core/services/router'
  * les deux sens : sur une route non gardée hors liste, et sur une exemption devenue inutile.
  */
 
-/** Routes scopées ouvertes malgré le blocage. Vide : le blocage ne souffre pas d'exception. */
-const EXEMPTED_PATTERNS: string[] = []
+/**
+ * Routes scopées ouvertes malgré le blocage. Réservé à la **lecture d'état** : une organisation en
+ * configuration ou bloquée doit rester consultable, sinon le client perd l'écran qui lui explique
+ * pourquoi il ne peut rien faire. Aucune route d'**action** n'a sa place ici.
+ */
+const EXEMPTED_PATTERNS: string[] = ['/api/business/organisations/:organisationId']
 
 interface ScopedRoute {
   pattern: string
