@@ -7,6 +7,8 @@ import TransactionThrottleCache from '#core/money/risk/domain/interfaces/transac
 import TransactionFailureCache from '#core/money/risk/domain/interfaces/transaction_failure_cache'
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
+import { ClientChannel } from '#core/identity/authentication/domain/enums/client_channel'
 
 /** Nature de l'opération argent — détermine le sous-ensemble de gardes appliqué. */
 export type MoneyOperationKind = 'deposit' | 'transfert' | 'transfert_inter' | 'wallet_to_wallet'
@@ -24,6 +26,18 @@ export interface AuthorizeMoneyOperationInput {
   geoIpLocation?: GeoIpLocation
   pincode?: string
   debitPhone?: { phone: string; providerId: number }
+  /**
+   * App dont la liaison appareil est vérifiée. La liaison appareil↔utilisateur est enregistrée
+   * par app au login : un membre connecté uniquement sur aiglebusiness n'a pas de liaison
+   * aiglesend. Défaut `AIGLESEND` — les opérations consumer n'ont rien à passer.
+   */
+  appName?: AppName
+  /**
+   * Canal du client. Sur `web`, l'appareil n'est pas un facteur d'authentification (le portail
+   * n'enrôle pas d'appareil de confiance) : la vérification d'appareil est sautée, les autres
+   * gardes restent appliquées. Absent = canal mobile implicite, appareil vérifié.
+   */
+  channel?: ClientChannel
 }
 
 @inject()
@@ -48,9 +62,20 @@ export default class IdentityGate {
 
     const checks: Promise<unknown>[] = []
 
-    // Toutes les opérations : pas bloqué + appareil de confiance.
+    // Toutes les opérations : pas bloqué.
     checks.push(this.failureCache.verifyNotBlocked(user.usersUid))
-    checks.push(this.accountValidation.validateDevice(user, input.deviceInfo, input.geoIpLocation))
+
+    // Appareil de confiance : uniquement hors canal web, où aucun appareil n'est enrôlé.
+    if (input.channel !== ClientChannel.WEB) {
+      checks.push(
+        this.accountValidation.validateDevice(
+          user,
+          input.deviceInfo,
+          input.geoIpLocation,
+          input.appName ?? AppName.AIGLESEND
+        )
+      )
+    }
 
     // Vélocité : toutes sauf deposit.
     if (kind !== 'deposit') {

@@ -33,6 +33,7 @@ function transferDto(): TransferRequestDto {
     phone: '0700000008',
     providerCode: 'orange',
     paymentMethodCode: 'mobile-money',
+    pinCode: '12345',
   }
 }
 

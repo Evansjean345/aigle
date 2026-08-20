@@ -1,6 +1,7 @@
 import type { DeviceHeadersInfo } from '#shared/middleware/device_middleware'
 import type { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
 import type { TransactionStatus } from '#core/money/transactions/domain/enums/transaction_status'
+import type { ClientChannel } from '#core/identity/authentication/domain/enums/client_channel'
 
 /**
  * Initiateur d'un transfert business : le **membre** (user) qui déclenche pour le compte de
@@ -24,6 +25,12 @@ export interface TransferRequestDto {
   providerCode: string
   /** Code moyen de paiement catalogue (ex. `mobile_money`). */
   paymentMethodCode: string
+  /** 'true` = le montant porte déjà les frais (gross-up) ; sinon les frais s'ajoutent au montant. */
+  includeFees?: boolean
+  /** PIN du membre initiateur, vérifié en step-up par `IdentityGate`. */
+  pinCode: string
+  /** Canal déclaré (`X-Client-Channel`) : sur `web`, la garde saute la vérification d'appareil. */
+  channel?: ClientChannel
   deviceInfo?: DeviceHeadersInfo
   geoIpLocation?: GeoIpLocation
   ipAddress?: string | null

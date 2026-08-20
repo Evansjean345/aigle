@@ -26,6 +26,7 @@ export default class BusinessTransferController {
     params,
     deviceInfo,
     geoLocation,
+    clientChannel,
   }: HttpContext): Promise<void> {
     const payload = await request.validateUsing(transferValidator)
 
@@ -38,6 +39,9 @@ export default class BusinessTransferController {
       phone: payload.phone,
       providerCode: payload.providerCode,
       paymentMethodCode: payload.paymentMethodCode,
+      includeFees: payload.includeFees,
+      pinCode: payload.pinCode,
+      channel: clientChannel,
       deviceInfo,
       geoIpLocation: geoLocation,
       ipAddress: geoLocation?.ip ?? null,

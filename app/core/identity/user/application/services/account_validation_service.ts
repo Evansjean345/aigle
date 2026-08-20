@@ -17,6 +17,7 @@ import limiter from '@adonisjs/limiter/services/main'
 import { errors as limiterErrors } from '@adonisjs/limiter'
 import InvalidPincodeException from '#core/identity/authentication/domain/exceptions/invalid_pincode_exception'
 import { GeoIpLocation } from '#shared/infrastructure/services/geoip_service'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
 
 /**
  * Service d'auth du compte utilisateur : validation de l'**appareil** (device trust, obsolescence,
@@ -43,12 +44,14 @@ export default class AccountValidationService {
    * @param {User} user - The user object.
    * @param {DeviceHeadersInfo} deviceInfo - The device information from headers.
    * @param {GeoIpLocation} geoIpLocation - The geolocation details of the device.
+   * @param {AppName} [appName] - App dont la liaison appareil est vérifiée (défaut `AIGLESEND`).
    * @throws {UnauthenticatedDeviceException} If the device is not found, not trusted, or doesn't belong to the user.
    */
   async validateDevice(
     user: User,
     deviceInfo?: DeviceHeadersInfo,
-    geoIpLocation?: GeoIpLocation
+    geoIpLocation?: GeoIpLocation,
+    appName: AppName = AppName.AIGLESEND
   ): Promise<void> {
     if (!deviceInfo || !deviceInfo.fingerprintHash) {
       throw new Exception("Les informations de l'appareil sont manquantes.", {
@@ -79,7 +82,8 @@ export default class AccountValidationService {
     const userDevice = await this.deviceService.getUserDeviceForValidation(
       user.usersUid,
       deviceInfo.fingerprintHash,
-      deviceInfo.deviceUid
+      deviceInfo.deviceUid,
+      appName
     )
 
     if (!userDevice) {

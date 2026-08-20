@@ -10,21 +10,33 @@ import type {
   TransferRequestDto,
   TransferActor,
 } from '#aiglebusiness/transfer/application/dtos/transfer.dto'
+import type IdentityGate from '#core/identity/authentication/application/services/identity_gate'
+import type { AuthorizeMoneyOperationInput } from '#core/identity/authentication/application/services/identity_gate'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
+import { ClientChannel } from '#core/identity/authentication/domain/enums/client_channel'
 
 /**
- * Caractérise `InitiateTransferUseCase` (transfert unique business). Routeur mince : mappe un payload
- * marchand vers un `ExternalOutCommand` **account-centric** puis délègue à `engine.initiateExternalOut`.
- * On stube l'engine (frontière) et on capture la commande émise.
+ * Caractérise `InitiateTransferUseCase` (transfert unique business). Routeur mince : autorise
+ * l'initiateur via `IdentityGate` (dont le step-up PIN), mappe un payload marchand vers un
+ * `ExternalOutCommand` **account-centric** puis délègue à `engine.initiateExternalOut`. On stube la
+ * garde et l'engine (frontières) et on capture leurs entrées.
  *
  * **Pas de gate d'éligibilité par segment** : marchand comme entreprise peuvent décaisser — le
  * plafonnement est assuré par les **limites de transactions** du compte, appliquées dans le core
  * (`PartyValidator` sur `external_out`), pas ici. Décisions vérifiées : `type = TRANSFERT`, source =
- * **compte org** (`fromAccountId == organisationId`), frais via la **grille transfert**, la business
- * paie les frais (`includeFees = false`).
+ * **compte org** (`fromAccountId == organisationId`), frais via la **grille transfert**, mode de
+ * facturation (`includeFees`) repris du client, et step-up PIN sur le membre initiateur.
  */
 
 function build() {
   const commands: ExternalOutCommand[] = []
+  const authorizations: AuthorizeMoneyOperationInput[] = []
+  const identityGate = {
+    authorize: async (input: AuthorizeMoneyOperationInput): Promise<void> => {
+      authorizations.push(input)
+    },
+  } as unknown as IdentityGate
+
   const engine = {
     initiateExternalOut: async (cmd: ExternalOutCommand): Promise<MovementResult> => {
       commands.push(cmd)
@@ -39,8 +51,8 @@ function build() {
     },
   } as unknown as MoneyMovementEngine
 
-  const useCase = new InitiateTransferUseCase(engine)
-  return { useCase, commands }
+  const useCase = new InitiateTransferUseCase(identityGate, engine)
+  return { useCase, commands, authorizations }
 }
 
 const actor: TransferActor = { id: 7, usersUid: 'member-uid' }
@@ -50,6 +62,7 @@ const payload: TransferRequestDto = {
   phone: '+2250700000000',
   providerCode: 'wave',
   paymentMethodCode: 'mobile-money',
+  pinCode: '12345',
 }
 
 test.group('InitiateTransferUseCase | transfert unique business', () => {
@@ -77,7 +90,62 @@ test.group('InitiateTransferUseCase | transfert unique business', () => {
     assert.equal(cmd.feeContext.serviceTypeCode, TransactionType.TRANSFERT)
     assert.equal(cmd.feeContext.paymentMethodCode, 'mobile-money')
     assert.equal(cmd.feeContext.providerFromCode, 'wave')
-    assert.equal(cmd.feeContext.includeFees, false)
+    assert.isUndefined(cmd.feeContext.includeFees)
+  })
+
+  test('propage le mode de facturation des frais demandé par le client', async ({ assert }) => {
+    const { useCase, commands } = build()
+
+    await useCase.execute({ ...payload, includeFees: true }, actor, 'org-42', 'idem-3')
+
+    assert.isTrue(commands[0].feeContext.includeFees)
+  })
+
+  test("vérifie le PIN de l'initiateur avant de solliciter le moteur", async ({ assert }) => {
+    const { useCase, authorizations } = build()
+
+    await useCase.execute(payload, actor, 'org-42', 'idem-4')
+
+    assert.lengthOf(authorizations, 1)
+    assert.equal(authorizations[0].userId, 'member-uid')
+    assert.equal(authorizations[0].kind, 'transfert')
+    assert.equal(authorizations[0].pincode, '12345')
+  })
+
+  test("cible la liaison appareil aiglebusiness et relaie le canal de l'appel", async ({
+    assert,
+  }) => {
+    const { useCase, authorizations } = build()
+
+    await useCase.execute(
+      { ...payload, channel: ClientChannel.WEB },
+      actor,
+      'org-42',
+      'idem-channel'
+    )
+
+    // Un membre connecté au seul business n'a pas de liaison aiglesend ; sur web, aucun appareil.
+    assert.equal(authorizations[0].appName, AppName.AIGLEBUSINESS)
+    assert.equal(authorizations[0].channel, ClientChannel.WEB)
+  })
+
+  test('ne débite pas le compte org quand la garde identité rejette', async ({ assert }) => {
+    const { commands } = build()
+    const engine = {
+      initiateExternalOut: async (cmd: ExternalOutCommand): Promise<MovementResult> => {
+        commands.push(cmd)
+        return {} as MovementResult
+      },
+    } as unknown as MoneyMovementEngine
+    const refusing = {
+      authorize: async (): Promise<void> => {
+        throw new Error('PIN invalide')
+      },
+    } as unknown as IdentityGate
+    const useCase = new InitiateTransferUseCase(refusing, engine)
+
+    await assert.rejects(() => useCase.execute(payload, actor, 'org-42', 'idem-5'), 'PIN invalide')
+    assert.lengthOf(commands, 0)
   })
 
   test('retourne la référence et le statut du mouvement', async ({ assert }) => {

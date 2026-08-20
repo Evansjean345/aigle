@@ -2,6 +2,8 @@ import { test } from '@japa/runner'
 import IdentityGate from '#core/identity/authentication/application/services/identity_gate'
 import UserAccountNotFoundException from '#core/identity/authentication/domain/exceptions/user_account_not_found_exception'
 import type User from '#core/identity/user/domain/models/user'
+import { AppName } from '#core/identity/authentication/domain/enums/app_name'
+import { ClientChannel } from '#core/identity/authentication/domain/enums/client_channel'
 
 /**
  * Test unitaire d'IdentityGate — la façade d'autorisation du chemin argent.
@@ -19,8 +21,16 @@ class SpyAccountValidation {
   pinResult = true
   deviceError: Error | null = null
 
-  async validateDevice(user: User, ..._rest: unknown[]): Promise<void> {
+  apps: unknown[] = []
+
+  async validateDevice(
+    user: User,
+    _deviceInfo?: unknown,
+    _geoIpLocation?: unknown,
+    appName?: unknown
+  ): Promise<void> {
     this.devices.push(user)
+    this.apps.push(appName)
     if (this.deviceError) throw this.deviceError
   }
 
@@ -97,6 +107,54 @@ test.group('IdentityGate | frontière par ID', () => {
     )
     assert.lengthOf(failure.calls, 0)
     assert.lengthOf(account.pins, 0)
+  })
+})
+
+test.group('IdentityGate | appareil : app ciblée et canal', () => {
+  test('appName transmis à la validation appareil ; défaut aiglesend', async ({ assert }) => {
+    const { gate, account } = build()
+
+    await gate.authorize({ userId: 'user-uid-1', kind: 'transfert', pincode: '1234' })
+    await gate.authorize({
+      userId: 'user-uid-1',
+      kind: 'transfert',
+      pincode: '1234',
+      appName: AppName.AIGLEBUSINESS,
+    })
+
+    // La liaison appareil est par app : sans précision, le chemin consumer reste ciblé.
+    assert.deepEqual(account.apps, [AppName.AIGLESEND, AppName.AIGLEBUSINESS])
+  })
+
+  test('canal web : appareil non vérifié, les autres gardes restent appliquées', async ({
+    assert,
+  }) => {
+    const { gate, account, throttle, failure } = build()
+
+    await gate.authorize({
+      userId: 'user-uid-1',
+      kind: 'transfert',
+      pincode: '1234',
+      channel: ClientChannel.WEB,
+    })
+
+    assert.lengthOf(account.devices, 0) // le portail web n'enrôle pas d'appareil
+    assert.deepEqual(failure.calls, ['user-uid-1'])
+    assert.deepEqual(throttle.calls, ['user-uid-1'])
+    assert.lengthOf(account.pins, 1)
+  })
+
+  test('canal mobile : appareil vérifié', async ({ assert }) => {
+    const { gate, account } = build()
+
+    await gate.authorize({
+      userId: 'user-uid-1',
+      kind: 'transfert',
+      pincode: '1234',
+      channel: ClientChannel.MOBILE,
+    })
+
+    assert.lengthOf(account.devices, 1)
   })
 })
 

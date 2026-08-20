@@ -510,11 +510,23 @@ export default class DeviceService {
 
   /**
    * Récupère un UserDevice pour validation (ex: middleware d'authentification).
+   *
+   * La liaison appareil↔utilisateur est **par app** : un membre connecté uniquement sur
+   * aiglebusiness n'a pas de liaison aiglesend. L'appelant précise donc l'app dont il valide
+   * l'appareil ; le défaut `AIGLESEND` conserve le comportement des appels consumer.
+   *
+   * @param {string} userId - Identifiant de l'utilisateur (usersUid).
+   * @param {string} fingerprintHash - Empreinte de l'appareil transmise par le client.
+   * @param {string} deviceUid - Identifiant persistant de l'appareil transmis par le client.
+   * @param {AppName} [appName] - App dont la liaison est recherchée.
+   * @returns {Promise<UserDevice | null>} La liaison active, ou `null` si l'appareil est inconnu ou
+   *   non lié à l'utilisateur pour cette app.
    */
   async getUserDeviceForValidation(
     userId: string,
     fingerprintHash: string,
-    deviceUid: string
+    deviceUid: string,
+    appName: AppName = AppName.AIGLESEND
   ): Promise<UserDevice | null> {
     const device = await this.deviceRepository.findByFingerprintAndUid(fingerprintHash, deviceUid)
 
@@ -525,7 +537,7 @@ export default class DeviceService {
     const userDevice = await this.userDeviceRepository.findActiveByUserAndDevice(
       userId,
       device.id,
-      AppName.AIGLESEND
+      appName
     )
 
     if (userDevice) {
