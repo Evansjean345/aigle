@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+#
 #
 # Dockerfile multi-stage pour aigle_send_api (AdonisJS v6) — base Alpine
 #

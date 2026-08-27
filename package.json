@@ -113,5 +113,9 @@
       "strtok3": "8.0.1"
     }
   },
-  "prettier": "@adonisjs/prettier-config"
+  "prettier": "@adonisjs/prettier-config",
+  "allowScripts": {
+    "@swc/core@1.15.21": true,
+    "protobufjs@7.5.4": true
+  }
 }

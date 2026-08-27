@@ -19,7 +19,6 @@
 #   API_TAG=v0.1.0   (défaut "dev") — le tag de l'image, repris par build-and-ship.sh
 
 services:
-
   # ===========================================================================
   # API AdonisJS — build local, image taggée pour ship ultérieur
   # ===========================================================================
@@ -31,15 +30,15 @@ services:
       tags:
         - ghcr.io/fintech-hyksos/aiglesend-api:${API_TAG:-dev}
       labels:
-        - "aiglesend.version=${API_TAG:-dev}"
-        - "aiglesend.built-at=local-dev"
+        - 'aiglesend.version=${API_TAG:-dev}'
+        - 'aiglesend.built-at=local-dev'
     container_name: aiglesend-dev-api
     restart: unless-stopped
     env_file:
-      - .env.docker.dev
+      - .env
     ports:
       # Port hôte 3380 → conteneur 3333 (cohérent avec NUXT_PUBLIC_BASE_URL=http://localhost:3380/api/admin/)
-      - "3333:3333"
+      - '3333:3333'
     depends_on:
       mariadb:
         condition: service_healthy
@@ -61,14 +60,14 @@ services:
       - .env
     depends_on:
       api:
-        condition: service_started     # attendre que l'API soit lancée
+        condition: service_started # attendre que l'API soit lancée
       mariadb:
         condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: [ "node", "ace", "queue:work", "--queue=default,payment,mail" ]
+    command: ['node', 'ace', 'queue:work', '--queue=default,payment,mail']
     networks:
       - aiglesend-dev-net
 
@@ -80,7 +79,7 @@ services:
     container_name: aiglesend-dev-mariadb
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3307:3306"
+      - '127.0.0.1:3307:3306'
     env_file:
       - .env
     environment:
@@ -94,7 +93,7 @@ services:
     networks:
       - aiglesend-dev-net
     healthcheck:
-      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -108,9 +107,11 @@ services:
     container_name: aiglesend-dev-redis
     restart: unless-stopped
     ports:
-      - "127.0.0.1:6378:6379"
+      - '127.0.0.1:6378:6379'
     volumes:
       - aiglesend_redis_data:/data
+    env_file:
+      - .env
     command: >
       redis-server
       --appendonly yes
@@ -118,7 +119,7 @@ services:
     networks:
       - aiglesend-dev-net
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD}', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -131,17 +132,19 @@ services:
     container_name: aiglesend-dev-postgres
     restart: unless-stopped
     ports:
-      - "127.0.0.1:5433:5432"
+      - '127.0.0.1:5433:5432'
     environment:
       POSTGRES_DB: ${AUDIT_DB_DATABASE}
       POSTGRES_USER: ${AUDIT_DB_USER}
       POSTGRES_PASSWORD: ${AUDIT_DB_PASSWORD}
     volumes:
       - aiglesend_postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
     networks:
       - aiglesend-dev-net
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -151,10 +154,12 @@ services:
     container_name: maildev
     restart: always
     ports:
-      - "1080:1080"
-      - "1025:1025"
+      - '1080:1080'
+      - '1025:1025'
     environment:
       - TZ=UTC
+    networks:
+      - aiglesend-dev-net
 
   # ===========================================================================
   # Bases de TEST — `node ace test` s'y branche via .env.test
@@ -171,7 +176,7 @@ services:
     container_name: aiglesend-test-mariadb
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3308:3306"
+      - '127.0.0.1:3308:3306'
     environment:
       MYSQL_ROOT_PASSWORD: ${TEST_DB_PASSWORD:-test}
       MYSQL_DATABASE: ${TEST_DB_DATABASE:-aiglesend_test}
@@ -187,7 +192,7 @@ services:
     networks:
       - aiglesend-dev-net
     healthcheck:
-      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      test: ['CMD', 'healthcheck.sh', '--connect', '--innodb_initialized']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -198,12 +203,12 @@ services:
     container_name: aiglesend-test-redis
     restart: unless-stopped
     ports:
-      - "127.0.0.1:6377:6379"
+      - '127.0.0.1:6377:6379'
     command: redis-server --requirepass ${TEST_REDIS_PASSWORD:-test}
     networks:
       - aiglesend-dev-net
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${TEST_REDIS_PASSWORD:-test}", "ping" ]
+      test: ['CMD', 'redis-cli', '-a', '${TEST_REDIS_PASSWORD:-test}', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -213,7 +218,7 @@ services:
     container_name: aiglesend-test-postgres
     restart: unless-stopped
     ports:
-      - "127.0.0.1:5434:5432"
+      - '127.0.0.1:5434:5432'
     environment:
       POSTGRES_DB: ${TEST_AUDIT_DB_DATABASE:-aiglesend_audit_test}
       POSTGRES_USER: ${TEST_AUDIT_DB_USER:-test}
@@ -223,7 +228,7 @@ services:
     networks:
       - aiglesend-dev-net
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
       timeout: 5s
       retries: 5
